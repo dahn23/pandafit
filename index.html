@@ -252,6 +252,9 @@
 
   /* --- Carrousel Défis/Challenges/Événements --- */
   .highlights-wrap { position: relative; margin-bottom: 16px; touch-action: pan-y; }
+  .main-stack { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+  .main-stack .stack-item { cursor: pointer; }
+  .main-stack .stack-item .highlight-card { margin-bottom: 0; }
   .highlight-card {
     position: relative; border-radius: 20px; overflow: hidden; height: 190px;
     display: flex; align-items: flex-end; padding: 16px 18px; cursor: grab;
@@ -359,7 +362,7 @@ const PandaFitBackend = (() => {
   /** Récupère le client + les jeux activés pour une device_key donnée. */
   async function fetchClientConfig(deviceKey) {
     const devRes = await fetch(
-      `${REST}/devices?device_key=eq.${encodeURIComponent(deviceKey)}&select=id,name,client_id,clients(id,name,show_ready_to_play,show_index_banner,rh_pin,lock_games)`,
+      `${REST}/devices?device_key=eq.${encodeURIComponent(deviceKey)}&select=id,name,client_id,clients(id,name,show_ready_to_play,show_index_banner,rh_pin,lock_games,index_sort_order)`,
       { headers: headers() }
     );
     if (!devRes.ok) throw new Error('Impossible de contacter le serveur (devices).');
@@ -372,6 +375,7 @@ const PandaFitBackend = (() => {
     const showIndexBanner = device.clients ? device.clients.show_index_banner : true;
     const rhPin = device.clients ? device.clients.rh_pin : '0000';
     const lockGames = device.clients ? device.clients.lock_games : false;
+    const indexSortOrder = device.clients ? (device.clients.index_sort_order ?? -1000) : -1000;
 
     const cgRes = await fetch(
       `${REST}/client_games?client_id=eq.${clientId}&enabled=eq.true&select=game_id,sort_order&order=sort_order`,
@@ -380,8 +384,10 @@ const PandaFitBackend = (() => {
     if (!cgRes.ok) throw new Error('Impossible de contacter le serveur (client_games).');
     const rows = await cgRes.json();
     const enabledGameIds = rows.map(r => r.game_id);
+    const gameSortOrders = {};
+    rows.forEach(r => { gameSortOrders[r.game_id] = r.sort_order || 0; });
 
-    return { deviceId: device.id, deviceName: device.name, clientId, clientName, enabledGameIds, showReadyToPlay, showIndexBanner, rhPin, lockGames };
+    return { deviceId: device.id, deviceName: device.name, clientId, clientName, enabledGameIds, gameSortOrders, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder };
   }
 
   /** Enregistre le score d'une partie terminée. */
@@ -478,9 +484,16 @@ const PandaFitBackend = (() => {
 
       const eventsActive = eventsAll.filter(e => e.all_devices || (e.event_devices || []).some(ed => ed.device_id === config.deviceId));
 
+      const gameItems = (config.enabledGameIds || []).map(gid => ({
+        type: 'game', data: { id: gid }, sort_order: (config.gameSortOrders && config.gameSortOrders[gid]) || 0,
+      }));
+      const indexItem = config.showIndexBanner ? [{ type: 'index', data: {}, sort_order: config.indexSortOrder ?? -1000 }] : [];
+
       const mainHighlights = [
         ...defisActive.map(d => ({ type: 'defi', data: d, sort_order: d.sort_order || 0 })),
         ...challengesActive.map(c => ({ type: 'challenge', data: c, sort_order: c.sort_order || 0 })),
+        ...gameItems,
+        ...indexItem,
       ].sort((a, b) => a.sort_order - b.sort_order);
 
       const eventHighlights = eventsActive
@@ -1245,9 +1258,6 @@ function screenHome() {
   return `
     <h1 class="page-title">Salut</h1>
 
-    <div id="highlightsWrap"></div>
-    <div id="eventsWrap"></div>
-
     ${clientConfig?.showReadyToPlay !== false ? `
       <div class="hero-play">
         <h3>Prêt à jouer ?</h3>
@@ -1256,30 +1266,21 @@ function screenHome() {
       </div>
     ` : ''}
 
-    ${clientConfig?.showIndexBanner !== false ? `
-      <div class="hero-index" id="heroIndex">
-        <img src="${PANDA_ICON_B64}" alt="PandaFit" class="hero-index-logo">
-        <div class="hero-index-text">
-          <h3>Ton PandaFit Index</h3>
-          <p>Teste ton équilibre en 2 minutes.</p>
-        </div>
-        <i data-lucide="chevron-right"></i>
-      </div>
-    ` : ''}
+    <div id="highlightsWrap"></div>
+    <div id="eventsWrap"></div>
   `;
 }
 function wireHomeScreen() {
   document.getElementById('btnGoGames')?.addEventListener('click', () => navigate('games'));
-  document.getElementById('heroIndex')?.addEventListener('click', () => navigate('indextest'));
-  renderHighlightsCarousel();
-  startHighlightTimer();
+  renderMainStack();
+  renderCarousel('events', 'eventsWrap');
+  startCarouselTimer('events', 'eventsWrap');
 }
 
-/* ---------- Carrousels génériques : Défis/Challenges (main) et Événements (events) ---------- */
+/* ---------- Pile principale (défis/challenges/jeux/index) + carrousel Événements ---------- */
 async function refreshHighlights() {
   const { mainHighlights, eventHighlights } = await PandaFitBackend.fetchHighlights(clientConfig);
   carousels.main.items = mainHighlights;
-  carousels.main.index = 0;
   carousels.events.items = eventHighlights;
   carousels.events.index = 0;
 }
@@ -1293,7 +1294,17 @@ function startCarouselTimer(key, containerId) {
     renderCarousel(key, containerId);
   }, 4000);
 }
+const GAME_THEME_TABLET = {
+  migros: 'linear-gradient(135deg,#ff7a00,#e05a00)',
+  skiprev: 'linear-gradient(135deg,#e8112d,#0a3d91)',
+  thezone: 'linear-gradient(135deg,#43cea2,#185a9d)',
+  distance: 'linear-gradient(135deg,#43cea2,#185a9d)',
+  base: 'linear-gradient(135deg,#43cea2,#185a9d)',
+  cross: 'linear-gradient(135deg,#43cea2,#185a9d)',
+};
 function highlightBgStyle(item) {
+  if (item.type === 'game') return `background:${GAME_THEME_TABLET[item.data.id] || GAME_THEME_TABLET.thezone};`;
+  if (item.type === 'index') return `background:linear-gradient(135deg,#c86dd7,#3023ae);`;
   const gradients = {
     defi: 'linear-gradient(135deg, #43cea2, #185a9d)',
     challenge: 'linear-gradient(135deg, #c86dd7, #3023ae)',
@@ -1312,6 +1323,24 @@ function standingsLineHTML(standings) {
   return `<div class="hc-standings"><i data-lucide="trending-up"></i> ${standings.yoursLabel} : <b>${standings.yours} pts</b>${leaderPart}</div>`;
 }
 function highlightCardHTML(item) {
+  if (item.type === 'game') {
+    const g = GAMES.find(x => x.id === item.data.id);
+    return `
+      <div class="highlight-card" style="${highlightBgStyle(item)}">
+        <div class="hc-badge"><i data-lucide="${g?.icon || 'gamepad-2'}"></i> Jeu</div>
+        <div class="hc-content"><div class="hc-title">${g?.name || item.data.id}</div></div>
+      </div>
+    `;
+  }
+  if (item.type === 'index') {
+    return `
+      <div class="highlight-card" style="${highlightBgStyle(item)}">
+        <div class="hc-badge"><i data-lucide="activity"></i> Index</div>
+        <img src="${PANDA_ICON_B64}" alt="" style="position:absolute;right:14px;bottom:10px;width:44px;height:44px;object-fit:contain;z-index:1;opacity:0.9;">
+        <div class="hc-content"><div class="hc-title">Ton PandaFit Index</div><div class="hc-sub">Teste ton équilibre en 2 minutes.</div></div>
+      </div>
+    `;
+  }
   const badge = { defi: '<i data-lucide="flame"></i> Défi', challenge: '<i data-lucide="trophy"></i> Challenge', event: '<i data-lucide="calendar"></i> Événement' }[item.type];
 
   let title = '', sub = '';
@@ -1337,6 +1366,31 @@ function highlightCardHTML(item) {
       </div>
     </div>
   `;
+}
+
+/** La pile principale : tout ce qui est actif, empilé, dans l'ordre défini dans la console. */
+function renderMainStack() {
+  const wrap = document.getElementById('highlightsWrap');
+  if (!wrap) return;
+  const items = carousels.main.items;
+  if (!items.length) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = `
+    <div class="main-stack">
+      ${items.map((item, i) => `<div class="stack-item" data-idx="${i}">${highlightCardHTML(item)}</div>`).join('')}
+    </div>
+  `;
+  wrap.querySelectorAll('.stack-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const item = items[Number(el.dataset.idx)];
+      if (item.type === 'game') { launchGame(item.data.id); }
+      else if (item.type === 'index') { navigate('indextest'); }
+      else { openHighlightDetail(item); }
+    });
+  });
+}
+function launchGame(gameId) {
+  if (GAME_LAUNCHERS[gameId]) { currentRoute = 'games'; document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('active', b.dataset.nav === 'games')); GAME_LAUNCHERS[gameId](); }
+  else navigate('games');
 }
 function renderCarousel(key, containerId) {
   const wrap = document.getElementById(containerId);
@@ -1380,11 +1434,10 @@ function renderCarousel(key, containerId) {
   });
 }
 function renderHighlightsCarousel() {
-  renderCarousel('main', 'highlightsWrap');
+  renderMainStack();
   renderCarousel('events', 'eventsWrap');
 }
 function startHighlightTimer() {
-  startCarouselTimer('main', 'highlightsWrap');
   startCarouselTimer('events', 'eventsWrap');
 }
 
