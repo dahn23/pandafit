@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mon PandaFit Index</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #1c162e; --panel: #241d38; --panel-hi: #2c2444;
+    --primary: #43cea2; --primary-dark: #185a9d;
+    --accent: #c86dd7; --accent-dark: #3023ae;
+    --text: #f4f2fa; --text-dim: #9992ad; --border: #35294f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; }
+  #app { max-width: 480px; margin: 0 auto; min-height: 100vh; padding: 28px 20px 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+  .brand .mark {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: linear-gradient(120deg, var(--primary), var(--primary-dark));
+    display: flex; align-items: center; justify-content: center; font-weight: 800; color: #0c2018;
+  }
+  .brand .name { font-weight: 800; font-size: 18px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  p.sub { color: var(--text-dim); font-size: 14px; margin: 0 0 20px; line-height: 1.4; }
+  .card { background: var(--panel); border-radius: 18px; padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin: 0 0 14px; }
+  input {
+    width: 100%; padding: 13px 14px; border-radius: 10px; border: 1px solid var(--border);
+    background: #17132a; color: var(--text); font-size: 14.5px; margin-bottom: 10px; font-family: inherit;
+  }
+  button {
+    font-family: inherit; border: none; cursor: pointer; border-radius: 12px;
+    font-weight: 700; font-size: 15px; padding: 13px 18px; width: 100%;
+    background: linear-gradient(120deg, var(--primary), var(--primary-dark)); color: #0c2018;
+  }
+  .index-big { text-align: center; margin: 6px 0 18px; }
+  .index-big .num {
+    font-size: 56px; font-weight: 800;
+    background: linear-gradient(120deg, var(--primary), var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .index-big .lbl { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+  .code-chip {
+    display: inline-block; font-family: ui-monospace, Menlo, monospace; font-weight: 700;
+    background: var(--panel-hi); padding: 6px 12px; border-radius: 8px; letter-spacing: 0.05em;
+  }
+  .history-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+  .history-row:last-child { border-bottom: none; }
+  .history-row .d { color: var(--text-dim); }
+  .empty { color: var(--text-dim); font-size: 14px; text-align: center; padding: 20px 0; }
+  .chart-wrap { position: relative; height: 200px; }
+  .error-msg { color: #ff8a97; font-size: 14px; }
+</style>
+</head>
+<body>
+<div id="app"><p class="sub">Chargement...</p></div>
+
+<script>
+const SUPABASE_URL = 'https://kabjpqvbukhhqvdjnkzr.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_QgLSQJyPJ09Uj3vCKCUykA_ca1LTm5E';
+const REST = SUPABASE_URL + '/rest/v1';
+function headers(extra) {
+  return Object.assign({ apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' }, extra || {});
+}
+
+const app = document.getElementById('app');
+const params = new URLSearchParams(location.search);
+const token = params.get('token');
+let employee = null;
+let sessions = [];
+
+async function init() {
+  if (!token) { renderError("Lien invalide : aucun code fourni."); return; }
+  const res = await fetch(`${REST}/employees?claim_token=eq.${encodeURIComponent(token)}&select=*`, { headers: headers() });
+  const rows = res.ok ? await res.json() : [];
+  if (!rows.length) { renderError("Ce code ne correspond à aucun profil. Vérifie le lien ou scanne à nouveau ton QR code."); return; }
+  employee = rows[0];
+
+  const sRes = await fetch(`${REST}/sessions?employee_id=eq.${employee.id}&game_id=eq.indextest&select=score,played_at&order=played_at.asc`, { headers: headers() });
+  sessions = sRes.ok ? await sRes.json() : [];
+
+  if (!employee.first_name) renderClaimForm();
+  else renderProfile();
+}
+
+function renderError(msg) {
+  app.innerHTML = `
+    <div class="brand"><div class="mark">PF</div><div class="name">PandaFit</div></div>
+    <p class="error-msg">${msg}</p>
+  `;
+}
+
+function renderClaimForm() {
+  app.innerHTML = `
+    <div class="brand"><div class="mark">PF</div><div class="name">PandaFit</div></div>
+    <h1>Bienvenue !</h1>
+    <p class="sub">Dis-nous comment t'appeler pour activer ton historique personnel. L'email est optionnel, juste au cas où tu perdrais ce lien.</p>
+    <div class="card">
+      <input id="firstName" placeholder="Ton prénom">
+      <input id="email" type="email" placeholder="Email (optionnel)">
+      <button id="btnClaim">Activer mon historique</button>
+    </div>
+  `;
+  document.getElementById('btnClaim').addEventListener('click', async () => {
+    const first_name = document.getElementById('firstName').value.trim();
+    const email = document.getElementById('email').value.trim() || null;
+    if (!first_name) return;
+    await fetch(`${REST}/employees?id=eq.${employee.id}`, {
+      method: 'PATCH', headers: headers({ Prefer: 'return=minimal' }),
+      body: JSON.stringify({ first_name, email }),
+    });
+    employee.first_name = first_name;
+    renderProfile();
+  });
+}
+
+function renderProfile() {
+  const last = sessions[sessions.length - 1];
+  const best = sessions.reduce((a, s) => Math.max(a, s.score), 0);
+  app.innerHTML = `
+    <div class="brand"><div class="mark">PF</div><div class="name">PandaFit</div></div>
+    <h1>Salut ${employee.first_name} 👋</h1>
+    <p class="sub">Garde cette page en favori (ou reprends ton QR code) pour suivre ton PandaFit Index dans le temps.</p>
+    <div class="index-big">
+      <div class="num">${last ? last.score : '—'}</div>
+      <div class="lbl">Dernier index ${last ? '· ' + new Date(last.played_at).toLocaleDateString('fr-CH') : ''}</div>
+    </div>
+    <div class="card">
+      <h2>Ton code personnel</h2>
+      <p class="sub" style="margin-bottom:10px;">À retaper sur la tablette la prochaine fois, pour que ton test s'ajoute ici automatiquement.</p>
+      <span class="code-chip">${employee.claim_token}</span>
+    </div>
+    ${sessions.length ? `
+      <div class="card">
+        <h2>Évolution (${sessions.length} test${sessions.length > 1 ? 's' : ''}, meilleur : ${best})</h2>
+        <div class="chart-wrap"><canvas id="chartHistory"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Historique</h2>
+        ${sessions.slice().reverse().map(s => `
+          <div class="history-row"><span class="d">${new Date(s.played_at).toLocaleDateString('fr-CH')}</span><span><b>${s.score}</b> / 100</span></div>
+        `).join('')}
+      </div>
+    ` : `<div class="card"><p class="empty">Aucun test enregistré pour l'instant — reviens après ta prochaine partie !</p></div>`}
+  `;
+  if (sessions.length > 1) {
+    new Chart(document.getElementById('chartHistory'), {
+      type: 'line',
+      data: {
+        labels: sessions.map(s => new Date(s.played_at).toLocaleDateString('fr-CH')),
+        datasets: [{ data: sessions.map(s => s.score), borderColor: '#c86dd7', backgroundColor: 'rgba(200,109,215,0.15)', fill: true, tension: 0.3 }],
+      },
+      options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100, ticks: { color: '#9992ad' } }, x: { ticks: { color: '#9992ad' } } } },
+    });
+  }
+}
+
+init();
+setInterval(() => { if (window.lucide) lucide.createIcons(); }, 400);
+</script>
+</body>
+</html>

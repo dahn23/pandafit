@@ -12,6 +12,7 @@
 <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjogIlBhbmRhRml0IiwgInNob3J0X25hbWUiOiAiUGFuZGFGaXQiLCAic3RhcnRfdXJsIjogIi4iLCAiZGlzcGxheSI6ICJmdWxsc2NyZWVuIiwgIm9yaWVudGF0aW9uIjogInBvcnRyYWl0IiwgImJhY2tncm91bmRfY29sb3IiOiAiIzFjMTYyZSIsICJ0aGVtZV9jb2xvciI6ICIjMWMxNjJlIiwgImljb25zIjogW3sic3JjIjogImRhdGE6aW1hZ2Uvc3ZnK3htbDtiYXNlNjQsUEhOMlp5QjRiV3h1Y3owaWFIUjBjRG92TDNkM2R5NTNNeTV2Y21jdk1qQXdNQzl6ZG1jaUlIWnBaWGRDYjNnOUlqQWdNQ0ExTVRJZ05URXlJajRLUEdSbFpuTStQR3hwYm1WaGNrZHlZV1JwWlc1MElHbGtQU0puSWlCNE1UMGlNQ0lnZVRFOUlqQWlJSGd5UFNJeElpQjVNajBpTVNJK0NqeHpkRzl3SUc5bVpuTmxkRDBpTUNJZ2MzUnZjQzFqYjJ4dmNqMGlJelF6WTJWaE1pSXZQanh6ZEc5d0lHOW1abk5sZEQwaU1TSWdjM1J2Y0MxamIyeHZjajBpSXpFNE5XRTVaQ0l2UGdvOEwyeHBibVZoY2tkeVlXUnBaVzUwUGp3dlpHVm1jejRLUEhKbFkzUWdkMmxrZEdnOUlqVXhNaUlnYUdWcFoyaDBQU0kxTVRJaUlISjRQU0l4TVRBaUlHWnBiR3c5SWlNeFl6RTJNbVVpTHo0S1BISmxZM1FnZUQwaU5UWWlJSGs5SWpVMklpQjNhV1IwYUQwaU5EQXdJaUJvWldsbmFIUTlJalF3TUNJZ2NuZzlJamt3SWlCbWFXeHNQU0oxY213b0kyY3BJaTgrQ2p4MFpYaDBJSGc5SWpJMU5pSWdlVDBpTXpNd0lpQm1iMjUwTFdaaGJXbHNlVDBpUVhKcFlXd3NJSE5oYm5NdGMyVnlhV1lpSUdadmJuUXRkMlZwWjJoMFBTSTRNREFpSUdadmJuUXRjMmw2WlQwaU1qQXdJaUJtYVd4c1BTSWpNR015TURFNElpQjBaWGgwTFdGdVkyaHZjajBpYldsa1pHeGxJajVRUmp3dmRHVjRkRDRLUEM5emRtYysiLCAic2l6ZXMiOiAiYW55IiwgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIsICJwdXJwb3NlIjogImFueSBtYXNrYWJsZSJ9XX0=">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
   :root {
     --bg: #1c162e;
@@ -392,7 +393,7 @@ const PandaFitBackend = (() => {
   }
 
   /** Enregistre le score d'une partie terminée. */
-  async function recordSession(config, gameId, score, meta) {
+  async function recordSession(config, gameId, score, meta, employeeId) {
     if (!config) return;
     try {
       await fetch(`${REST}/sessions`, {
@@ -404,9 +405,33 @@ const PandaFitBackend = (() => {
           game_id: gameId,
           score: Math.round(score || 0),
           meta: meta || null,
+          employee_id: employeeId || null,
         }),
       });
     } catch (e) { /* pas grave si ça échoue ponctuellement, on ne bloque pas le jeu */ }
+  }
+
+  /** Retrouve un employé à partir de son code personnel. */
+  async function findEmployeeByCode(config, code) {
+    try {
+      const res = await fetch(`${REST}/employees?client_id=eq.${config.clientId}&claim_token=eq.${encodeURIComponent(code.trim().toUpperCase())}&select=*`, { headers: headers() });
+      const rows = res.ok ? await res.json() : [];
+      return rows[0] || null;
+    } catch (e) { return null; }
+  }
+
+  /** Crée un nouvel employé (anonyme au départ) avec un code personnel unique. */
+  async function createEmployee(config) {
+    const code = 'PF-' + Array.from({ length: 6 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
+    try {
+      const res = await fetch(`${REST}/employees`, {
+        method: 'POST',
+        headers: headers({ Prefer: 'return=representation' }),
+        body: JSON.stringify({ client_id: config.clientId, claim_token: code }),
+      });
+      const rows = res.ok ? await res.json() : [];
+      return rows[0] || null;
+    } catch (e) { return null; }
   }
 
   /** Récupère défis, challenges et événements actifs pour ce client/cette tablette,
@@ -523,7 +548,7 @@ const PandaFitBackend = (() => {
     } catch (e) { return {}; }
   }
 
-  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog };
+  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee };
 })();
 
 /* =====================================================================================
@@ -2166,6 +2191,8 @@ function screenGenericPrepare(seconds, iconName, text) {
 }
 
 /* ============================ Test PandaFit Index ============================ */
+let currentEmployee = null; // employé reconnu pour cette session de test (ou null = anonyme)
+
 function screenIndexIntro() {
   return `
     <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="activity"></i> PandaFit Index</h1>
@@ -2178,11 +2205,35 @@ function screenIndexIntro() {
       <h2>2. Équilibre en mouvement</h2>
       <p class="page-sub" style="margin-bottom:0;">Fais un mouvement haut/bas régulier en franchissant les deux lignes. La régularité compte plus que la vitesse.</p>
     </div>
+    <div class="card">
+      <h2>Tu as déjà un code personnel ?</h2>
+      <p class="page-sub" style="margin-bottom:10px;">Entre-le pour que ce test s'ajoute à ton historique. Sinon, continue sans — tu pourras toujours en créer un à la fin.</p>
+      <div class="row" style="gap:8px;">
+        <input id="employeeCodeInput" placeholder="ex: PF-7K2Q9M" style="flex:1;padding:13px 14px;border-radius:12px;border:none;background:var(--panel-hi);color:var(--text);font-size:14px;text-transform:uppercase;">
+        <button class="btn-ghost" id="btnCheckCode" style="width:auto;">Valider</button>
+      </div>
+      <p id="employeeCodeMsg" class="page-sub" style="margin:8px 0 0;"></p>
+    </div>
     <button class="btn-primary" id="btnIndexStart" style="width:100%;">Commencer le test (~1 min)</button>
   `;
 }
 function wireIndexIntro() {
   document.getElementById('btnIndexStart')?.addEventListener('click', () => indexPrepareStatic());
+  document.getElementById('btnCheckCode')?.addEventListener('click', async () => {
+    const code = document.getElementById('employeeCodeInput').value.trim();
+    const msg = document.getElementById('employeeCodeMsg');
+    if (!code) return;
+    msg.textContent = 'Recherche...';
+    const emp = await PandaFitBackend.findEmployeeByCode(clientConfig, code);
+    if (emp) {
+      currentEmployee = emp;
+      msg.textContent = `✓ Bienvenue${emp.first_name ? ' ' + emp.first_name : ''} ! Ce test s'ajoutera à ton historique.`;
+      msg.style.color = 'var(--primary)';
+    } else {
+      msg.textContent = "Code introuvable — vérifie l'orthographe, ou continue sans.";
+      msg.style.color = '#ff8a97';
+    }
+  });
 }
 
 function indexPrepareStatic() {
@@ -2280,15 +2331,21 @@ function runMovementTest() {
     },
     (movementResult) => {
       const overall = IndexTest.computeOverallIndex(indexStaticResult.score, movementResult.score);
-      PandaFitBackend.recordSession(clientConfig, 'indextest', overall, {
-        staticScore: indexStaticResult.score, movementScore: movementResult.score,
-        rmsCm: indexStaticResult.rmsCm, amplitudeCm: movementResult.amplitudeCm,
-        regularityScore: movementResult.regularityScore, cycles: movementResult.cycles,
-      });
-      content.innerHTML = screenIndexResult(overall, indexStaticResult, movementResult);
-      wireIndexResult();
+      finishIndexTest(overall, indexStaticResult, movementResult);
     }
   );
+}
+async function finishIndexTest(overall, staticResult, movementResult) {
+  if (!currentEmployee) {
+    currentEmployee = await PandaFitBackend.createEmployee(clientConfig);
+  }
+  PandaFitBackend.recordSession(clientConfig, 'indextest', overall, {
+    staticScore: staticResult.score, movementScore: movementResult.score,
+    rmsCm: staticResult.rmsCm, amplitudeCm: movementResult.amplitudeCm,
+    regularityScore: movementResult.regularityScore, cycles: movementResult.cycles,
+  }, currentEmployee?.id);
+  content.innerHTML = screenIndexResult(overall, staticResult, movementResult);
+  wireIndexResult();
 }
 function screenIndexResult(overall, staticResult, movementResult) {
   return `
@@ -2304,6 +2361,14 @@ function screenIndexResult(overall, staticResult, movementResult) {
       <div class="result-stat"><span>Régularité du mouvement</span><span>${movementResult.regularityScore}/100</span></div>
       <div class="result-stat"><span>Amplitude du mouvement</span><span>${movementResult.amplitudeCm} cm</span></div>
     </div>
+    ${currentEmployee ? `
+      <div class="card" style="margin-top:16px;text-align:center;">
+        <h2>Garde ton PandaFit Index</h2>
+        <p class="page-sub">Scanne ce code avec l'appareil photo de <b>ton téléphone</b> pour voir ton historique et le retrouver la prochaine fois.</p>
+        <canvas id="employeeQrCanvas" style="margin:0 auto;display:block;"></canvas>
+        <p class="page-sub" style="margin-top:10px;">Ton code personnel : <b>${currentEmployee.claim_token}</b></p>
+      </div>
+    ` : ''}
     <div class="row" style="margin-top:14px;">
       <button class="btn-primary" id="btnIndexReplay">Refaire le test</button>
       <button class="btn-ghost" id="btnIndexHome">Retour à l'accueil</button>
@@ -2312,7 +2377,12 @@ function screenIndexResult(overall, staticResult, movementResult) {
 }
 function wireIndexResult() {
   document.getElementById('btnIndexReplay')?.addEventListener('click', () => { content.innerHTML = screenIndexIntro(); wireIndexIntro(); });
-  document.getElementById('btnIndexHome')?.addEventListener('click', () => navigate('home'));
+  document.getElementById('btnIndexHome')?.addEventListener('click', () => { currentEmployee = null; navigate('home'); });
+  const canvas = document.getElementById('employeeQrCanvas');
+  if (canvas && currentEmployee && window.QRCode) {
+    const url = `${location.origin}/mon-index.html?token=${currentEmployee.claim_token}`;
+    QRCode.toCanvas(canvas, url, { width: 180, margin: 1, color: { dark: '#1c162e', light: '#ffffff' } });
+  }
 }
 
 /* ---------- Écran : configuration de la tablette (une seule fois) ---------- */
