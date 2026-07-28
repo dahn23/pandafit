@@ -80,7 +80,7 @@ async function init() {
   if (!rows.length) { renderError("Ce code ne correspond à aucun profil. Vérifie le lien ou scanne à nouveau ton QR code."); return; }
   employee = rows[0];
 
-  const sRes = await fetch(`${REST}/sessions?employee_id=eq.${employee.id}&game_id=eq.indextest&select=score,played_at&order=played_at.asc`, { headers: headers() });
+  const sRes = await fetch(`${REST}/sessions?employee_id=eq.${employee.id}&game_id=eq.indextest&select=score,played_at,clients(name)&order=played_at.asc`, { headers: headers() });
   sessions = sRes.ok ? await sRes.json() : [];
 
   if (!employee.first_name) renderClaimForm();
@@ -124,7 +124,7 @@ function renderProfile() {
   app.innerHTML = `
     <div class="brand"><div class="mark">PF</div><div class="name">PandaFit</div></div>
     <h1>Salut ${employee.first_name} 👋</h1>
-    <p class="sub">Garde cette page en favori (ou reprends ton QR code) pour suivre ton PandaFit Index dans le temps.</p>
+    <p class="sub">Garde cette page en favori (ou reprends ton QR code) pour suivre ton PandaFit Index dans le temps — où que tu joues, dans n'importe quel lieu équipé PandaFit.</p>
     <div class="index-big">
       <div class="num">${last ? last.score : '—'}</div>
       <div class="lbl">Dernier index ${last ? '· ' + new Date(last.played_at).toLocaleDateString('fr-CH') : ''}</div>
@@ -142,7 +142,7 @@ function renderProfile() {
       <div class="card">
         <h2>Historique</h2>
         ${sessions.slice().reverse().map(s => `
-          <div class="history-row"><span class="d">${new Date(s.played_at).toLocaleDateString('fr-CH')}</span><span><b>${s.score}</b> / 100</span></div>
+          <div class="history-row"><span class="d">${new Date(s.played_at).toLocaleDateString('fr-CH')}${s.clients?.name ? ' · ' + s.clients.name : ''}</span><span><b>${s.score}</b> / 100</span></div>
         `).join('')}
       </div>
     ` : `<div class="card"><p class="empty">Aucun test enregistré pour l'instant — reviens après ta prochaine partie !</p></div>`}

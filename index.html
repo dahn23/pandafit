@@ -414,7 +414,7 @@ const PandaFitBackend = (() => {
   /** Retrouve un employé à partir de son code personnel. */
   async function findEmployeeByCode(config, code) {
     try {
-      const res = await fetch(`${REST}/employees?client_id=eq.${config.clientId}&claim_token=eq.${encodeURIComponent(code.trim().toUpperCase())}&select=*`, { headers: headers() });
+      const res = await fetch(`${REST}/employees?claim_token=eq.${encodeURIComponent(code.trim().toUpperCase())}&select=*`, { headers: headers() });
       const rows = res.ok ? await res.json() : [];
       return rows[0] || null;
     } catch (e) { return null; }
