@@ -279,6 +279,10 @@
   .highlight-dots { display: flex; justify-content: center; gap: 6px; margin-top: 10px; }
   .highlight-dots .d { width: 6px; height: 6px; border-radius: 50%; background: var(--panel-hi); }
   .highlight-dots .d.active { background: var(--primary); width: 18px; border-radius: 4px; }
+  .carousel-label {
+    display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin: 4px 0 8px;
+  }
   .log-box {
     font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px;
     color: var(--text-dim); background: #14101f; border-radius: 10px; padding: 10px;
@@ -445,7 +449,7 @@ const PandaFitBackend = (() => {
   }
 
   async function fetchHighlights(config) {
-    if (!config) return [];
+    if (!config) return { mainHighlights: [], eventHighlights: [] };
     const today = new Date().toISOString().slice(0, 10);
     try {
       const [defisRes, participRes, eventsRes, devicesRes] = await Promise.all([
@@ -474,19 +478,22 @@ const PandaFitBackend = (() => {
 
       const eventsActive = eventsAll.filter(e => e.all_devices || (e.event_devices || []).some(ed => ed.device_id === config.deviceId));
 
-      const combined = [
+      const mainHighlights = [
         ...defisActive.map(d => ({ type: 'defi', data: d, sort_order: d.sort_order || 0 })),
         ...challengesActive.map(c => ({ type: 'challenge', data: c, sort_order: c.sort_order || 0 })),
-        ...eventsActive.map(e => ({ type: 'event', data: e, sort_order: e.sort_order || 0 })),
       ].sort((a, b) => a.sort_order - b.sort_order);
 
-      await Promise.all(combined.map(async (item) => {
+      const eventHighlights = eventsActive
+        .map(e => ({ type: 'event', data: e, sort_order: e.sort_order || 0 }))
+        .sort((a, b) => a.sort_order - b.sort_order);
+
+      await Promise.all(mainHighlights.map(async (item) => {
         if (item.type === 'defi') item.standings = await computeDefiStandings(item.data, config, devicesCache);
         else if (item.type === 'challenge') item.standings = await computeChallengeStandings(item.data, config);
       }));
 
-      return combined;
-    } catch (e) { return []; }
+      return { mainHighlights, eventHighlights };
+    } catch (e) { return { mainHighlights: [], eventHighlights: [] }; }
   }
 
   return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights };
@@ -1103,9 +1110,10 @@ let currentRoute = 'home';
 let liveCoord = { x: 0, y: 0, packetCount: 0, hz: 0 };
 let logLines = [];
 let clientConfig = null; // { deviceId, deviceName, clientId, clientName, enabledGameIds }
-let highlights = [];
-let highlightIndex = 0;
-let highlightTimer = null;
+let carousels = {
+  main: { items: [], index: 0, timer: null },
+  events: { items: [], index: 0, timer: null },
+};
 
 function log(msg) {
   logLines.push(`[${new Date().toLocaleTimeString()}] ${msg}`);
@@ -1238,6 +1246,7 @@ function screenHome() {
     <h1 class="page-title">Salut</h1>
 
     <div id="highlightsWrap"></div>
+    <div id="eventsWrap"></div>
 
     ${clientConfig?.showReadyToPlay !== false ? `
       <div class="hero-play">
@@ -1266,18 +1275,22 @@ function wireHomeScreen() {
   startHighlightTimer();
 }
 
-/* ---------- Carrousel Défis / Challenges / Événements ---------- */
+/* ---------- Carrousels génériques : Défis/Challenges (main) et Événements (events) ---------- */
 async function refreshHighlights() {
-  highlights = await PandaFitBackend.fetchHighlights(clientConfig);
-  highlightIndex = 0;
+  const { mainHighlights, eventHighlights } = await PandaFitBackend.fetchHighlights(clientConfig);
+  carousels.main.items = mainHighlights;
+  carousels.main.index = 0;
+  carousels.events.items = eventHighlights;
+  carousels.events.index = 0;
 }
-function stopHighlightTimer() { clearInterval(highlightTimer); highlightTimer = null; }
-function startHighlightTimer() {
-  stopHighlightTimer();
-  if (highlights.length < 2) return;
-  highlightTimer = setInterval(() => {
-    highlightIndex = (highlightIndex + 1) % highlights.length;
-    renderHighlightsCarousel();
+function stopCarouselTimer(key) { clearInterval(carousels[key].timer); carousels[key].timer = null; }
+function startCarouselTimer(key, containerId) {
+  stopCarouselTimer(key);
+  const c = carousels[key];
+  if (c.items.length < 2) return;
+  c.timer = setInterval(() => {
+    c.index = (c.index + 1) % c.items.length;
+    renderCarousel(key, containerId);
   }, 4000);
 }
 function highlightBgStyle(item) {
@@ -1325,22 +1338,26 @@ function highlightCardHTML(item) {
     </div>
   `;
 }
-function renderHighlightsCarousel() {
-  const wrap = document.getElementById('highlightsWrap');
+function renderCarousel(key, containerId) {
+  const wrap = document.getElementById(containerId);
   if (!wrap) return;
-  if (!highlights.length) { wrap.innerHTML = ''; return; }
-  const item = highlights[highlightIndex];
+  const c = carousels[key];
+  if (!c.items.length) { wrap.innerHTML = ''; return; }
+  const item = c.items[c.index];
+  const touchAreaId = containerId + 'TouchArea';
+  const label = key === 'events' ? `<div class="carousel-label"><i data-lucide="calendar"></i> Événements</div>` : '';
   wrap.innerHTML = `
-    <div class="highlights-wrap" id="highlightsTouchArea">
+    ${label}
+    <div class="highlights-wrap" id="${touchAreaId}">
       ${highlightCardHTML(item)}
-      ${highlights.length > 1 ? `
+      ${c.items.length > 1 ? `
         <div class="highlight-dots">
-          ${highlights.map((_, i) => `<div class="d ${i === highlightIndex ? 'active' : ''}"></div>`).join('')}
+          ${c.items.map((_, i) => `<div class="d ${i === c.index ? 'active' : ''}"></div>`).join('')}
         </div>
       ` : ''}
     </div>
   `;
-  const area = document.getElementById('highlightsTouchArea');
+  const area = document.getElementById(touchAreaId);
   let touchStartX = null, wasSwipe = false;
   area.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; wasSwipe = false; }, { passive: true });
   area.addEventListener('touchmove', (e) => {
@@ -1351,16 +1368,24 @@ function renderHighlightsCarousel() {
     const deltaX = e.changedTouches[0].clientX - touchStartX;
     if (Math.abs(deltaX) > 40) {
       wasSwipe = true;
-      highlightIndex = (highlightIndex + (deltaX < 0 ? 1 : -1) + highlights.length) % highlights.length;
-      renderHighlightsCarousel();
-      startHighlightTimer(); // on relance le compte à rebours après une interaction manuelle
+      c.index = (c.index + (deltaX < 0 ? 1 : -1) + c.items.length) % c.items.length;
+      renderCarousel(key, containerId);
+      startCarouselTimer(key, containerId); // on relance le compte à rebours après une interaction manuelle
     }
     touchStartX = null;
   });
   area.addEventListener('click', () => {
     if (wasSwipe) { wasSwipe = false; return; }
-    openHighlightDetail(highlights[highlightIndex]);
+    openHighlightDetail(c.items[c.index]);
   });
+}
+function renderHighlightsCarousel() {
+  renderCarousel('main', 'highlightsWrap');
+  renderCarousel('events', 'eventsWrap');
+}
+function startHighlightTimer() {
+  startCarouselTimer('main', 'highlightsWrap');
+  startCarouselTimer('events', 'eventsWrap');
 }
 
 /* ---------- Détail d'un défi / challenge / événement ---------- */
