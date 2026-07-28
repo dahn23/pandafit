@@ -153,7 +153,7 @@ let allSessions = [];
 let events = [];
 let defis = [];
 let challenges = [];
-let activeTab = 'devices';
+let activeTab = 'details';
 let viewMode = 'client'; // 'client' | 'challenges'
 let charts = {};
 
@@ -249,8 +249,11 @@ async function render() {
     </div>
     <div class="layout">
       <div class="sidebar">
-        <div class="client-item ${viewMode === 'challenges' ? 'active' : ''}" id="navChallenges" style="margin-bottom:14px;">
+        <div class="client-item ${viewMode === 'challenges' ? 'active' : ''}" id="navChallenges" style="margin-bottom:8px;">
           <span style="display:flex;align-items:center;gap:8px;"><i data-lucide="trophy"></i> Challenges (inter-clients)</span>
+        </div>
+        <div class="client-item ${viewMode === 'content' ? 'active' : ''}" id="navContent" style="margin-bottom:14px;">
+          <span style="display:flex;align-items:center;gap:8px;"><i data-lucide="layout-grid"></i> Contenu (jeux + Index)</span>
         </div>
         <h2>Clients</h2>
         <div id="clientList"></div>
@@ -270,6 +273,11 @@ async function render() {
   document.getElementById('navChallenges').addEventListener('click', async () => {
     viewMode = 'challenges';
     await loadChallenges();
+    renderClientList();
+    renderMain();
+  });
+  document.getElementById('navContent').addEventListener('click', async () => {
+    viewMode = 'content';
     renderClientList();
     renderMain();
   });
@@ -311,6 +319,7 @@ function renderClientList() {
 /* ---------------- Main panel ---------------- */
 function renderMain() {
   if (viewMode === 'challenges') { renderChallengesView(); return; }
+  if (viewMode === 'content') { renderContentView(); return; }
   const main = document.getElementById('main');
   const client = clients.find(c => c.id === selectedClientId);
   if (!client) { main.innerHTML = '<div class="empty">Sélectionne ou crée un client.</div>'; return; }
@@ -319,6 +328,7 @@ function renderMain() {
     <div class="section-title">${client.name}</div>
     <div class="section-sub">Client depuis le ${new Date(client.created_at).toLocaleDateString('fr-CH')}</div>
     <div class="tabs">
+      <div class="tab ${activeTab === 'details' ? 'active' : ''}" data-tab="details">Détail</div>
       <div class="tab ${activeTab === 'devices' ? 'active' : ''}" data-tab="devices">Tablettes</div>
       <div class="tab ${activeTab === 'games' ? 'active' : ''}" data-tab="games">Jeux activés</div>
       <div class="tab ${activeTab === 'data' ? 'active' : ''}" data-tab="data">Données</div>
@@ -332,7 +342,8 @@ function renderMain() {
   `;
   main.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { activeTab = t.dataset.tab; renderMain(); }));
 
-  if (activeTab === 'devices') renderDevicesTab();
+  if (activeTab === 'details') renderDetailsTab();
+  else if (activeTab === 'devices') renderDevicesTab();
   else if (activeTab === 'games') renderGamesTab();
   else if (activeTab === 'stats') renderStatsTab();
   else if (activeTab === 'events') renderEventsTab();
@@ -545,6 +556,7 @@ function renderEventsTab() {
         <input id="evtEndTime" type="time" value="${editing?.end_time?.slice(0,5) || '17:00'}">
       </div>
       <input id="evtDesc" placeholder="Description (optionnel)" value="${editing?.description || ''}" style="margin-bottom:10px;">
+      <input id="evtImage" type="file" accept="image/*" style="margin-bottom:10px;">
       <div class="row" style="gap:8px;">
         <button class="btn-primary" id="btnAddEvent" style="width:auto;">${editing ? 'Enregistrer les modifications' : "Créer l'événement"}</button>
         ${editing ? `<button class="btn-ghost" id="btnCancelEditEvent" style="width:auto;">Annuler</button>` : ''}
@@ -580,8 +592,12 @@ function renderEventsTab() {
     const all_day = document.getElementById('evtAllDay').checked;
     const start_time = all_day ? null : document.getElementById('evtStartTime').value;
     const end_time = all_day ? null : document.getElementById('evtEndTime').value;
+    const file = document.getElementById('evtImage').files[0];
     if (!title || !start_date || !end_date) return;
     const payload = { title, start_date, end_date, description, all_day, start_time, end_time };
+    try {
+      if (file) payload.image_url = await uploadBanner(file);
+    } catch (e) { alert("Erreur d'upload de l'image : " + e.message); return; }
     const { error } = editingEventId
       ? await sb.from('events').update(payload).eq('id', editingEventId)
       : await sb.from('events').insert({ ...payload, client_id: selectedClientId });
@@ -1090,6 +1106,104 @@ async function renderTabletMenuTab() {
   }
 
   render();
+}
+
+/* ---------------- Contenu global (jeux + Index), indépendant du client ---------------- */
+let editingGameId = null;
+async function renderContentView() {
+  const main = document.getElementById('main');
+  main.innerHTML = '<p class="empty">Chargement...</p>';
+  const { data } = await sb.from('games').select('*').order('name');
+  const allGames = data || [];
+  const editing = allGames.find(g => g.id === editingGameId);
+
+  main.innerHTML = `
+    <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="layout-grid"></i> Contenu (jeux + Index)</div>
+    <div class="section-sub">Ces réglages (nom, description, photo par défaut) s'appliquent à <b>tous les clients d'un coup</b>. Un client peut toujours uploader sa propre photo qui prendra le dessus (dans son onglet "Menu tablette").</div>
+    ${editing ? `
+      <div class="card">
+        <h3>Modifier « ${editing.id} »</h3>
+        <input id="gameName" value="${editing.name || ''}" placeholder="Nom" style="margin-bottom:8px;">
+        <input id="gameDesc" value="${editing.description || ''}" placeholder="Description" style="margin-bottom:8px;">
+        <input id="gameImage" type="file" accept="image/*" style="margin-bottom:10px;">
+        <div class="row" style="gap:8px;">
+          <button class="btn-primary" id="btnSaveGame" style="width:auto;">Enregistrer</button>
+          <button class="btn-ghost" id="btnCancelGame" style="width:auto;">Annuler</button>
+        </div>
+      </div>
+    ` : ''}
+    <div class="card">
+      <table>
+        <tr><th>Photo</th><th>Identifiant</th><th>Nom</th><th>Description</th><th></th></tr>
+        ${allGames.map(g => `
+          <tr>
+            <td>${g.image_url ? `<img src="${g.image_url}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;">` : '<span class="badge">Aucune</span>'}</td>
+            <td><span class="key-chip">${g.id}</span></td>
+            <td>${g.name}</td>
+            <td style="color:var(--text-dim);">${g.description || ''}</td>
+            <td><button class="btn-ghost" data-edit-game="${g.id}">Modifier</button></td>
+          </tr>
+        `).join('')}
+      </table>
+    </div>
+  `;
+
+  document.getElementById('btnCancelGame')?.addEventListener('click', () => { editingGameId = null; renderContentView(); });
+  document.getElementById('btnSaveGame')?.addEventListener('click', async () => {
+    const name = document.getElementById('gameName').value.trim();
+    const description = document.getElementById('gameDesc').value.trim() || null;
+    const file = document.getElementById('gameImage').files[0];
+    const payload = { name, description };
+    try {
+      if (file) payload.image_url = await uploadBanner(file);
+    } catch (e) { alert("Erreur d'upload de l'image : " + e.message); return; }
+    const { error } = await sb.from('games').update(payload).eq('id', editingGameId);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    editingGameId = null;
+    renderContentView();
+  });
+  main.querySelectorAll('[data-edit-game]').forEach(btn => {
+    btn.addEventListener('click', () => { editingGameId = btn.dataset.editGame; renderContentView(); });
+  });
+}
+
+/* ---------------- Détail du client ---------------- */
+function renderDetailsTab() {
+  const el = document.getElementById('tabContent');
+  const client = clients.find(c => c.id === selectedClientId);
+  el.innerHTML = `
+    <div class="card">
+      <h3>Identité</h3>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">Nom du client</div>
+      <input id="dtName" value="${client.name || ''}" style="margin-bottom:14px;">
+    </div>
+    <div class="card">
+      <h3>Contact responsable</h3>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;">
+        <input id="dtContactName" placeholder="Nom du responsable" value="${client.contact_name || ''}">
+        <input id="dtContactEmail" type="email" placeholder="Email" value="${client.contact_email || ''}">
+        <input id="dtContactPhone" placeholder="Téléphone" value="${client.contact_phone || ''}">
+      </div>
+    </div>
+    <div class="card">
+      <h3>Notes libres</h3>
+      <textarea id="dtNotes" rows="6" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);font-size:14px;font-family:inherit;resize:vertical;" placeholder="Notes internes sur ce client...">${client.notes || ''}</textarea>
+    </div>
+    <button class="btn-primary" id="btnSaveDetails" style="width:auto;">Enregistrer</button>
+  `;
+  document.getElementById('btnSaveDetails').addEventListener('click', async () => {
+    const name = document.getElementById('dtName').value.trim();
+    const contact_name = document.getElementById('dtContactName').value.trim() || null;
+    const contact_email = document.getElementById('dtContactEmail').value.trim() || null;
+    const contact_phone = document.getElementById('dtContactPhone').value.trim() || null;
+    const notes = document.getElementById('dtNotes').value.trim() || null;
+    if (!name) return;
+    const { error } = await sb.from('clients').update({ name, contact_name, contact_email, contact_phone, notes }).eq('id', selectedClientId);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    await loadClients();
+    renderClientList();
+    renderMain();
+  });
 }
 
 init();

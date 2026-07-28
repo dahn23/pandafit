@@ -512,7 +512,18 @@ const PandaFitBackend = (() => {
     } catch (e) { return { mainHighlights: [], eventHighlights: [] }; }
   }
 
-  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights };
+  /** Catalogue global des jeux (nom/description/photo par défaut, valable pour tous les clients). */
+  async function fetchGamesCatalog() {
+    try {
+      const res = await fetch(`${REST}/games?select=id,name,description,image_url`, { headers: headers() });
+      const rows = res.ok ? await res.json() : [];
+      const catalog = {};
+      rows.forEach(r => { catalog[r.id] = r; });
+      return catalog;
+    } catch (e) { return {}; }
+  }
+
+  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog };
 })();
 
 /* =====================================================================================
@@ -1126,6 +1137,7 @@ let currentRoute = 'home';
 let liveCoord = { x: 0, y: 0, packetCount: 0, hz: 0 };
 let logLines = [];
 let clientConfig = null; // { deviceId, deviceName, clientId, clientName, enabledGameIds }
+let gamesCatalog = {}; // { gameId: { name, description, image_url } }
 let carousels = {
   main: { items: [], index: 0, timer: null },
   events: { items: [], index: 0, timer: null },
@@ -1307,9 +1319,10 @@ const GAME_THEME_TABLET = {
 };
 function highlightBgStyle(item) {
   if (item.type === 'game') {
-    return item.data.image_url ? `background-image:url('${item.data.image_url}');` : `background:${GAME_THEME_TABLET[item.data.id] || GAME_THEME_TABLET.thezone};`;
+    const img = item.data.image_url || gamesCatalog[item.data.id]?.image_url;
+    return img ? `background-image:url('${img}');` : `background:${GAME_THEME_TABLET[item.data.id] || GAME_THEME_TABLET.thezone};`;
   }
-  if (item.type === 'index') return `background:linear-gradient(135deg,#c86dd7,#3023ae);`;
+  if (item.type === 'index') return gamesCatalog['indextest']?.image_url ? `background-image:url('${gamesCatalog['indextest'].image_url}');` : `background:linear-gradient(135deg,#c86dd7,#3023ae);`;
   const gradients = {
     defi: 'linear-gradient(135deg, #43cea2, #185a9d)',
     challenge: 'linear-gradient(135deg, #c86dd7, #3023ae)',
@@ -1330,19 +1343,22 @@ function standingsLineHTML(standings) {
 function highlightCardHTML(item) {
   if (item.type === 'game') {
     const g = GAMES.find(x => x.id === item.data.id);
+    const name = gamesCatalog[item.data.id]?.name || g?.name || item.data.id;
     return `
       <div class="highlight-card" style="${highlightBgStyle(item)}">
         <div class="hc-badge"><i data-lucide="${g?.icon || 'gamepad-2'}"></i> Jeu</div>
-        <div class="hc-content"><div class="hc-title">${g?.name || item.data.id}</div></div>
+        <div class="hc-content"><div class="hc-title">${name}</div></div>
       </div>
     `;
   }
   if (item.type === 'index') {
+    const idxName = gamesCatalog['indextest']?.name || 'Ton PandaFit Index';
+    const idxDesc = gamesCatalog['indextest']?.description || 'Teste ton équilibre en 2 minutes.';
     return `
       <div class="highlight-card" style="${highlightBgStyle(item)}">
         <div class="hc-badge"><i data-lucide="activity"></i> Index</div>
         <img src="${PANDA_ICON_B64}" alt="" style="position:absolute;right:14px;bottom:10px;width:44px;height:44px;object-fit:contain;z-index:1;opacity:0.9;">
-        <div class="hc-content"><div class="hc-title">Ton PandaFit Index</div><div class="hc-sub">Teste ton équilibre en 2 minutes.</div></div>
+        <div class="hc-content"><div class="hc-title">${idxName}</div><div class="hc-sub">${idxDesc}</div></div>
       </div>
     `;
   }
@@ -1464,7 +1480,7 @@ function formatCountdown(endDate) {
   return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 function openHighlightDetail(item) {
-  stopHighlightTimer();
+  stopCarouselTimer('events');
   content.innerHTML = screenHighlightDetail(item);
   wireHighlightDetail(item);
 }
@@ -1555,7 +1571,7 @@ function screenGames() {
     ${visibleGames.length ? visibleGames.map(g => `
       <div class="game-card" data-game="${g.id}">
         <div class="emoji"><i data-lucide="${g.icon}"></i></div>
-        <div class="info"><div class="name">${g.name}</div><div class="desc">${g.desc}</div></div>
+        <div class="info"><div class="name">${gamesCatalog[g.id]?.name || g.name}</div><div class="desc">${gamesCatalog[g.id]?.description || g.desc}</div></div>
         ${g.playable ? '' : '<div class="badge-soon">Bientôt</div>'}
       </div>
     `).join('') : '<p class="page-sub">Aucun jeu activé pour ce client pour le moment.</p>'}
@@ -2320,7 +2336,7 @@ function wireDeviceSetup() {
       clientConfig = await PandaFitBackend.fetchClientConfig(val);
       PandaFitBackend.setDeviceKey(val);
       log(`Tablette reliée au client "${clientConfig.clientName}".`);
-      await refreshHighlights(); applyNavLockVisuals();
+      gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
       render();
     } catch (e) {
       content.innerHTML = screenDeviceSetup(e.message);
@@ -2349,7 +2365,7 @@ document.getElementById('btnFullscreen')?.addEventListener('click', () => {
   try {
     clientConfig = await PandaFitBackend.fetchClientConfig(savedKey);
     log(`Tablette reliée au client "${clientConfig.clientName}".`);
-    await refreshHighlights(); applyNavLockVisuals();
+    gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
     render();
   } catch (e) {
     log('Erreur de configuration : ' + e.message);
