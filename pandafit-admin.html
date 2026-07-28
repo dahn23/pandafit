@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PandaFit — Console superadmin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root {
+    --bg: #1c162e; --panel: #241d38; --panel-hi: #2c2444;
+    --primary: #43cea2; --primary-dark: #185a9d;
+    --accent: #c86dd7; --destructive: #e6374e;
+    --text: #f4f2fa; --text-dim: #9992ad;
+    --border: #35294f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; }
+  #app { min-height: 100vh; }
+
+  /* Login */
+  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .login-card { background: var(--panel); border-radius: 20px; padding: 36px; width: 100%; max-width: 380px; }
+  .login-card h1 { font-size: 22px; margin: 0 0 6px; }
+  .login-card p { color: var(--text-dim); font-size: 13.5px; margin: 0 0 22px; }
+  input {
+    width: 100%; padding: 13px 14px; border-radius: 10px; border: 1px solid var(--border);
+    background: #17132a; color: var(--text); font-size: 14.5px; margin-bottom: 10px; font-family: inherit;
+  }
+  input:focus { outline: none; border-color: var(--primary); }
+  button { font-family: inherit; border: none; cursor: pointer; border-radius: 10px; font-weight: 700; font-size: 14px; padding: 12px 18px; }
+  .btn-primary { background: linear-gradient(120deg, var(--primary), var(--primary-dark)); color: #0c2018; width: 100%; }
+  .btn-ghost { background: var(--panel-hi); color: var(--text); }
+  .btn-destructive { background: rgba(230,55,78,0.15); color: #ff8a97; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .error-msg { color: #ff8a97; font-size: 13px; margin: -4px 0 12px; }
+
+  /* Shell */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; }
+  .brand .mark {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(120deg, var(--primary), var(--primary-dark));
+    display: flex; align-items: center; justify-content: center; font-size: 13px; color: #0c2018;
+  }
+  .layout { display: flex; min-height: calc(100vh - 61px); }
+  .sidebar { width: 280px; border-right: 1px solid var(--border); padding: 18px; flex-shrink: 0; }
+  .sidebar h2 { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin: 4px 0 10px; }
+  .client-item {
+    padding: 12px 14px; border-radius: 10px; cursor: pointer; margin-bottom: 4px;
+    font-size: 14px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .client-item:hover { background: var(--panel); }
+  .client-item.active { background: var(--panel-hi); font-weight: 700; }
+  .client-item .count { font-size: 11px; color: var(--text-dim); }
+  .main { flex: 1; padding: 24px 28px; overflow-x: auto; }
+  .section-title { font-size: 20px; font-weight: 800; margin: 0 0 4px; }
+  .section-sub { color: var(--text-dim); font-size: 13.5px; margin: 0 0 20px; }
+  .card { background: var(--panel); border-radius: 16px; padding: 20px; margin-bottom: 18px; }
+  .card h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin: 0 0 14px; }
+  .inline-form { display: flex; gap: 8px; margin-bottom: 4px; }
+  .inline-form input { margin-bottom: 0; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; color: var(--text-dim); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  td { padding: 10px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  .key-chip { font-family: ui-monospace, Menlo, monospace; background: var(--panel-hi); padding: 3px 8px; border-radius: 6px; font-size: 12.5px; }
+  .toggle { position: relative; width: 42px; height: 24px; display: inline-block; }
+  .toggle input { display: none; }
+  .toggle .track { position: absolute; inset: 0; background: var(--border); border-radius: 100px; transition: background 0.15s; cursor: pointer; }
+  .toggle input:checked + .track { background: var(--primary); }
+  .toggle .thumb { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.15s; pointer-events: none; }
+  .toggle input:checked ~ .thumb { transform: translateX(18px); }
+  .empty { color: var(--text-dim); font-size: 13.5px; padding: 20px 0; text-align: center; }
+  .badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: var(--panel-hi); color: var(--text-dim); }
+  .tabs { display: flex; gap: 4px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
+  .tab { padding: 10px 16px; font-size: 13.5px; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab.active { color: var(--text); border-color: var(--primary); font-weight: 700; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+  .stat-box { background: var(--panel); border-radius: 16px; padding: 18px; }
+  .stat-box .n { font-size: 28px; font-weight: 800; }
+  .stat-box .l { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+  .chart-wrap { position: relative; height: 260px; }
+  .event-item { padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .event-item:last-child { border-bottom: none; }
+  .event-item .title-row { display: flex; justify-content: space-between; align-items: center; }
+  .event-item .dates { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .event-item .desc { font-size: 13px; color: var(--text-dim); margin-top: 6px; }
+  .form-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  [data-lucide] { display: inline-block; vertical-align: -0.15em; width: 1em; height: 1em; }
+
+  /* --- Menu tablette (vignettes + glisser-déposer) --- */
+  .menu-stack { display: flex; flex-direction: column; gap: 10px; }
+  .menu-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+  .thumb-card {
+    position: relative; border-radius: 14px; overflow: hidden; cursor: grab;
+    background-size: cover; background-position: center;
+    display: flex; align-items: flex-end; padding: 12px 14px; color: #fff;
+    min-height: 74px; flex-shrink: 0;
+  }
+  .menu-stack .thumb-card { width: 100%; }
+  .menu-row .thumb-card { width: 190px; height: 100px; }
+  .thumb-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 20%, rgba(0,0,0,0.6) 100%); }
+  .thumb-card .tc-content { position: relative; z-index: 1; }
+  .thumb-card .tc-badge {
+    position: absolute; top: 8px; left: 10px; font-size: 9.5px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.05em; padding: 3px 8px; border-radius: 100px; background: rgba(255,255,255,0.22); z-index: 1;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .thumb-card .tc-title { font-weight: 800; font-size: 13.5px; }
+  .thumb-card .tc-drag {
+    position: absolute; top: 8px; right: 10px; z-index: 1; opacity: 0.8; cursor: grab;
+  }
+  .thumb-card.dragging { opacity: 0.4; }
+  .menu-section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin: 4px 0 10px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+setInterval(() => { if (window.lucide) lucide.createIcons(); }, 350);
+const SUPABASE_URL = 'https://kabjpqvbukhhqvdjnkzr.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_QgLSQJyPJ09Uj3vCKCUykA_ca1LTm5E';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const app = document.getElementById('app');
+let session = null;
+let clients = [];
+let selectedClientId = null;
+let devices = [];
+let games = [];
+let clientGames = [];
+let sessions = [];
+let allSessions = [];
+let events = [];
+let defis = [];
+let challenges = [];
+let activeTab = 'devices';
+let viewMode = 'client'; // 'client' | 'challenges'
+let charts = {};
+
+function genDeviceKey() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return `DEV-${s}`;
+}
+
+/* ---------------- Auth ---------------- */
+async function init() {
+  const { data } = await sb.auth.getSession();
+  session = data.session;
+  sb.auth.onAuthStateChange((_event, s) => { session = s; render(); });
+  render();
+}
+
+function renderLogin(errorMsg) {
+  app.innerHTML = `
+    <div class="login-wrap">
+      <div class="login-card">
+        <h1>PandaFit</h1>
+        <p>Console superadmin — accès réservé.</p>
+        <input id="loginEmail" type="email" placeholder="Email">
+        <input id="loginPassword" type="password" placeholder="Mot de passe">
+        ${errorMsg ? `<div class="error-msg">${errorMsg}</div>` : ''}
+        <button class="btn-primary" id="btnLogin">Se connecter</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('btnLogin').addEventListener('click', async () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) { renderLogin(error.message); return; }
+    clients = [];
+    selectedClientId = null;
+    await loadClients();
+    render();
+  });
+}
+
+/* ---------------- Data loading ---------------- */
+async function loadClients() {
+  const { data } = await sb.from('clients').select('*, devices(count)').order('name');
+  clients = data || [];
+  if (!selectedClientId && clients.length) selectedClientId = clients[0].id;
+}
+async function loadClientDetail(clientId) {
+  const [devicesRes, gamesRes, clientGamesRes, sessionsRes, allSessionsRes, eventsRes, defisRes] = await Promise.all([
+    sb.from('devices').select('*').eq('client_id', clientId).order('created_at'),
+    sb.from('games').select('*').order('name'),
+    sb.from('client_games').select('*').eq('client_id', clientId),
+    sb.from('sessions').select('*').eq('client_id', clientId).order('played_at', { ascending: false }).limit(50),
+    sb.from('sessions').select('*').eq('client_id', clientId).order('played_at', { ascending: true }).limit(2000),
+    sb.from('events').select('*').eq('client_id', clientId).order('start_date', { ascending: false }),
+    sb.from('defis').select('*').eq('client_id', clientId).order('start_date', { ascending: false }),
+  ]);
+  devices = devicesRes.data || [];
+  games = gamesRes.data || [];
+  clientGames = clientGamesRes.data || [];
+  sessions = sessionsRes.data || [];
+  allSessions = allSessionsRes.data || [];
+  events = eventsRes.data || [];
+  defis = defisRes.data || [];
+}
+async function loadChallenges() {
+  const { data } = await sb.from('challenges')
+    .select('*, challenge_participants(client_id, clients(id, name))')
+    .order('start_date', { ascending: false });
+  challenges = data || [];
+}
+async function uploadBanner(file) {
+  const path = `${crypto.randomUUID()}-${file.name}`;
+  const { error } = await sb.storage.from('banners').upload(path, file);
+  if (error) throw error;
+  const { data } = sb.storage.from('banners').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+/* ---------------- Render shell ---------------- */
+async function render() {
+  if (!session) { renderLogin(); return; }
+  if (!clients.length) await loadClients();
+  if (viewMode === 'client' && selectedClientId) await loadClientDetail(selectedClientId);
+  if (viewMode === 'challenges') await loadChallenges();
+
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="brand"><div class="mark">PF</div>PandaFit — Superadmin</div>
+      <button class="btn-ghost" id="btnLogout">Se déconnecter</button>
+    </div>
+    <div class="layout">
+      <div class="sidebar">
+        <div class="client-item ${viewMode === 'challenges' ? 'active' : ''}" id="navChallenges" style="margin-bottom:14px;">
+          <span style="display:flex;align-items:center;gap:8px;"><i data-lucide="trophy"></i> Challenges (inter-clients)</span>
+        </div>
+        <h2>Clients</h2>
+        <div id="clientList"></div>
+        <div class="inline-form" style="margin-top:14px;">
+          <input id="newClientName" placeholder="Nouveau client">
+          <button class="btn-primary" id="btnAddClient" style="width:auto;">+</button>
+        </div>
+      </div>
+      <div class="main" id="main"></div>
+    </div>
+  `;
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    clients = []; selectedClientId = null; session = null;
+    render();
+  });
+  document.getElementById('navChallenges').addEventListener('click', async () => {
+    viewMode = 'challenges';
+    await loadChallenges();
+    renderClientList();
+    renderMain();
+  });
+  renderClientList();
+  renderMain();
+
+  document.getElementById('btnAddClient').addEventListener('click', async () => {
+    const name = document.getElementById('newClientName').value.trim();
+    if (!name) return;
+    const { data, error } = await sb.from('clients').insert({ name }).select().single();
+    if (error) { alert('Erreur : ' + error.message); return; }
+    clients.push({ ...data, devices: [{ count: 0 }] });
+    selectedClientId = data.id;
+    viewMode = 'client';
+    render();
+  });
+}
+
+function renderClientList() {
+  const el = document.getElementById('clientList');
+  if (!clients.length) { el.innerHTML = '<div class="empty">Aucun client encore.</div>'; return; }
+  el.innerHTML = clients.map(c => `
+    <div class="client-item ${viewMode === 'client' && c.id === selectedClientId ? 'active' : ''}" data-id="${c.id}">
+      <span>${c.name}</span>
+      <span class="count">${c.devices?.[0]?.count ?? 0} tablette(s)</span>
+    </div>
+  `).join('');
+  el.querySelectorAll('.client-item').forEach(item => {
+    item.addEventListener('click', async () => {
+      viewMode = 'client';
+      selectedClientId = item.dataset.id;
+      await loadClientDetail(selectedClientId);
+      renderClientList();
+      renderMain();
+    });
+  });
+}
+
+/* ---------------- Main panel ---------------- */
+function renderMain() {
+  if (viewMode === 'challenges') { renderChallengesView(); return; }
+  const main = document.getElementById('main');
+  const client = clients.find(c => c.id === selectedClientId);
+  if (!client) { main.innerHTML = '<div class="empty">Sélectionne ou crée un client.</div>'; return; }
+
+  main.innerHTML = `
+    <div class="section-title">${client.name}</div>
+    <div class="section-sub">Client depuis le ${new Date(client.created_at).toLocaleDateString('fr-CH')}</div>
+    <div class="tabs">
+      <div class="tab ${activeTab === 'devices' ? 'active' : ''}" data-tab="devices">Tablettes</div>
+      <div class="tab ${activeTab === 'games' ? 'active' : ''}" data-tab="games">Jeux activés</div>
+      <div class="tab ${activeTab === 'data' ? 'active' : ''}" data-tab="data">Données</div>
+      <div class="tab ${activeTab === 'stats' ? 'active' : ''}" data-tab="stats">Statistiques</div>
+      <div class="tab ${activeTab === 'events' ? 'active' : ''}" data-tab="events">Événements</div>
+      <div class="tab ${activeTab === 'defis' ? 'active' : ''}" data-tab="defis">Défis</div>
+      <div class="tab ${activeTab === 'clientsettings' ? 'active' : ''}" data-tab="clientsettings">Réglages</div>
+      <div class="tab ${activeTab === 'tabletmenu' ? 'active' : ''}" data-tab="tabletmenu">Menu tablette</div>
+    </div>
+    <div id="tabContent"></div>
+  `;
+  main.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { activeTab = t.dataset.tab; renderMain(); }));
+
+  if (activeTab === 'devices') renderDevicesTab();
+  else if (activeTab === 'games') renderGamesTab();
+  else if (activeTab === 'stats') renderStatsTab();
+  else if (activeTab === 'events') renderEventsTab();
+  else if (activeTab === 'defis') renderDefisTab();
+  else if (activeTab === 'clientsettings') renderClientSettingsTab();
+  else if (activeTab === 'tabletmenu') renderTabletMenuTab();
+  else renderDataTab();
+}
+
+function renderDevicesTab() {
+  const el = document.getElementById('tabContent');
+  el.innerHTML = `
+    <div class="card">
+      <h3>Tablettes de ce client</h3>
+      ${devices.length ? `
+        <table>
+          <tr><th>Nom</th><th>Clé de configuration</th><th>Créée le</th><th></th></tr>
+          ${devices.map(d => `
+            <tr>
+              <td>${d.name}</td>
+              <td><span class="key-chip">${d.device_key}</span></td>
+              <td>${new Date(d.created_at).toLocaleDateString('fr-CH')}</td>
+              <td><button class="btn-destructive" data-del="${d.id}">Supprimer</button></td>
+            </tr>
+          `).join('')}
+        </table>
+      ` : '<div class="empty">Aucune tablette pour ce client.</div>'}
+      <div class="inline-form" style="margin-top:16px;">
+        <input id="newDeviceName" placeholder="Nom de la tablette (ex: Accueil, Salle 2...)">
+        <button class="btn-primary" id="btnAddDevice" style="width:auto;">Créer</button>
+      </div>
+    </div>
+  `;
+  el.querySelectorAll('[data-del]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Supprimer cette tablette ? Elle devra être reconfigurée avec une nouvelle clé.')) return;
+      await sb.from('devices').delete().eq('id', btn.dataset.del);
+      await loadClientDetail(selectedClientId);
+      await loadClients();
+      renderMain(); renderClientList();
+    });
+  });
+  document.getElementById('btnAddDevice').addEventListener('click', async () => {
+    const name = document.getElementById('newDeviceName').value.trim();
+    if (!name) return;
+    const device_key = genDeviceKey();
+    const { error } = await sb.from('devices').insert({ client_id: selectedClientId, name, device_key });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    await loadClientDetail(selectedClientId);
+    await loadClients();
+    renderMain(); renderClientList();
+  });
+}
+
+function renderGamesTab() {
+  const el = document.getElementById('tabContent');
+  el.innerHTML = `
+    <div class="card">
+      <h3>Jeux visibles pour ce client</h3>
+      <table>
+        <tr><th>Jeu</th><th>Description</th><th>Activé</th></tr>
+        ${games.map(g => {
+          const cg = clientGames.find(x => x.game_id === g.id);
+          const enabled = cg ? cg.enabled : false;
+          return `
+            <tr>
+              <td>${g.name}</td>
+              <td style="color:var(--text-dim);">${g.description || ''}</td>
+              <td>
+                <label class="toggle">
+                  <input type="checkbox" data-game="${g.id}" ${enabled ? 'checked' : ''}>
+                  <span class="track"></span><span class="thumb"></span>
+                </label>
+              </td>
+            </tr>
+          `;
+        }).join('')}
+      </table>
+    </div>
+  `;
+  el.querySelectorAll('input[data-game]').forEach(input => {
+    input.addEventListener('change', async () => {
+      const gameId = input.dataset.game;
+      const enabled = input.checked;
+      const { error } = await sb.from('client_games')
+        .upsert({ client_id: selectedClientId, game_id: gameId, enabled }, { onConflict: 'client_id,game_id' });
+      if (error) alert('Erreur : ' + error.message);
+      await loadClientDetail(selectedClientId);
+    });
+  });
+}
+
+function renderDataTab() {
+  const el = document.getElementById('tabContent');
+  el.innerHTML = `
+    <div class="card">
+      <h3>Parties récentes (50 dernières)</h3>
+      ${sessions.length ? `
+        <table>
+          <tr><th>Date</th><th>Jeu</th><th>Score</th><th>Tablette</th></tr>
+          ${sessions.map(s => `
+            <tr>
+              <td>${new Date(s.played_at).toLocaleString('fr-CH')}</td>
+              <td>${games.find(g => g.id === s.game_id)?.name || s.game_id}</td>
+              <td>${s.score}</td>
+              <td>${devices.find(d => d.id === s.device_id)?.name || '—'}</td>
+            </tr>
+          `).join('')}
+        </table>
+      ` : '<div class="empty">Aucune partie enregistrée pour ce client pour le moment.</div>'}
+    </div>
+  `;
+}
+
+/* ---------------- Statistiques ---------------- */
+function renderStatsTab() {
+  const el = document.getElementById('tabContent');
+  const total = allSessions.length;
+  const avgScore = total ? Math.round(allSessions.reduce((a, s) => a + (s.score || 0), 0) / total) : 0;
+  const uniqueDevices = new Set(allSessions.map(s => s.device_id)).size;
+
+  const countByGame = {};
+  allSessions.forEach(s => { countByGame[s.game_id] = (countByGame[s.game_id] || 0) + 1; });
+  const topGameId = Object.keys(countByGame).sort((a, b) => countByGame[b] - countByGame[a])[0];
+  const topGameName = topGameId ? (games.find(g => g.id === topGameId)?.name || topGameId) : '—';
+
+  // Parties par jour, 30 derniers jours
+  const days = [];
+  const now = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now); d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  const countsByDay = days.map(day => allSessions.filter(s => s.played_at.slice(0, 10) === day).length);
+
+  // Évolution du PandaFit Index (sessions du jeu 'indextest')
+  const indexSessions = allSessions.filter(s => s.game_id === 'indextest');
+
+  el.innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-box"><div class="n">${total}</div><div class="l">Parties jouées (total)</div></div>
+      <div class="stat-box"><div class="n">${avgScore}</div><div class="l">Score moyen (tous jeux)</div></div>
+      <div class="stat-box"><div class="n">${uniqueDevices}</div><div class="l">Tablette(s) actives</div></div>
+      <div class="stat-box"><div class="n" style="font-size:16px;">${topGameName}</div><div class="l">Jeu le plus joué</div></div>
+    </div>
+    <div class="card">
+      <h3>Parties par jour (30 derniers jours)</h3>
+      <div class="chart-wrap"><canvas id="chartByDay"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Répartition par jeu</h3>
+      <div class="chart-wrap"><canvas id="chartByGame"></canvas></div>
+    </div>
+    ${indexSessions.length ? `
+      <div class="card">
+        <h3>Évolution du PandaFit Index</h3>
+        <div class="chart-wrap"><canvas id="chartIndex"></canvas></div>
+      </div>
+    ` : ''}
+  `;
+
+  if (charts.byDay) charts.byDay.destroy();
+  if (charts.byGame) charts.byGame.destroy();
+  if (charts.index) charts.index.destroy();
+
+  charts.byDay = new Chart(document.getElementById('chartByDay'), {
+    type: 'bar',
+    data: { labels: days.map(d => d.slice(5)), datasets: [{ data: countsByDay, backgroundColor: '#43cea2', borderRadius: 4 }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#9992ad' } }, x: { ticks: { color: '#9992ad', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
+  });
+
+  const gameLabels = Object.keys(countByGame).map(id => games.find(g => g.id === id)?.name || id);
+  charts.byGame = new Chart(document.getElementById('chartByGame'), {
+    type: 'doughnut',
+    data: { labels: gameLabels, datasets: [{ data: Object.values(countByGame), backgroundColor: ['#43cea2', '#185a9d', '#c86dd7', '#e6374e', '#e0a83e', '#3023ae'] }] },
+    options: { plugins: { legend: { position: 'right', labels: { color: '#f4f2fa' } } } }
+  });
+
+  if (indexSessions.length) {
+    charts.index = new Chart(document.getElementById('chartIndex'), {
+      type: 'line',
+      data: {
+        labels: indexSessions.map(s => new Date(s.played_at).toLocaleDateString('fr-CH')),
+        datasets: [{ data: indexSessions.map(s => s.score), borderColor: '#c86dd7', backgroundColor: 'rgba(200,109,215,0.15)', fill: true, tension: 0.3 }]
+      },
+      options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100, ticks: { color: '#9992ad' } }, x: { ticks: { color: '#9992ad' } } } }
+    });
+  }
+}
+
+/* ---------------- Événements ---------------- */
+let editingEventId = null;
+function renderEventsTab() {
+  const el = document.getElementById('tabContent');
+  const today = new Date().toISOString().slice(0, 10);
+  const editing = events.find(e => e.id === editingEventId);
+  el.innerHTML = `
+    <div class="card">
+      <h3>${editing ? 'Modifier l\'événement' : 'Nouvel événement'}</h3>
+      <div class="form-grid">
+        <input id="evtTitle" placeholder="Titre (ex: Venue d'un coach PandaFit)" value="${editing ? editing.title : ''}">
+        <input id="evtStart" type="date" value="${editing ? editing.start_date : today}">
+        <input id="evtEnd" type="date" value="${editing ? editing.end_date : today}">
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:10px;">
+        <input type="checkbox" id="evtAllDay" ${!editing || editing.all_day ? 'checked' : ''}> Toute la journée
+      </label>
+      <div class="form-grid" id="evtTimeRow" style="display:${editing && !editing.all_day ? 'grid' : 'none'};grid-template-columns:1fr 1fr;">
+        <input id="evtStartTime" type="time" value="${editing?.start_time?.slice(0,5) || '09:00'}">
+        <input id="evtEndTime" type="time" value="${editing?.end_time?.slice(0,5) || '17:00'}">
+      </div>
+      <input id="evtDesc" placeholder="Description (optionnel)" value="${editing?.description || ''}" style="margin-bottom:10px;">
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" id="btnAddEvent" style="width:auto;">${editing ? 'Enregistrer les modifications' : "Créer l'événement"}</button>
+        ${editing ? `<button class="btn-ghost" id="btnCancelEditEvent" style="width:auto;">Annuler</button>` : ''}
+      </div>
+    </div>
+    <div class="card">
+      <h3>Événements de ce client</h3>
+      ${events.length ? events.map(e => `
+        <div class="event-item" style="${e.is_active ? '' : 'opacity:0.5;'}">
+          <div class="title-row">
+            <b>${e.title} ${e.is_active ? '' : '<span class="badge">Suspendu</span>'}</b>
+            <span style="display:flex;gap:6px;">
+              <button class="btn-ghost" data-edit-event="${e.id}">Modifier</button>
+              <button class="btn-ghost" data-toggle-event="${e.id}">${e.is_active ? 'Suspendre' : 'Réactiver'}</button>
+              <button class="btn-destructive" data-del-event="${e.id}">Supprimer</button>
+            </span>
+          </div>
+          <div class="dates">${new Date(e.start_date).toLocaleDateString('fr-CH')} → ${new Date(e.end_date).toLocaleDateString('fr-CH')} · ${e.all_day ? 'Toute la journée' : `${e.start_time?.slice(0,5) || ''} - ${e.end_time?.slice(0,5) || ''}`}</div>
+          ${e.description ? `<div class="desc">${e.description}</div>` : ''}
+        </div>
+      `).join('') : '<div class="empty">Aucun événement planifié pour ce client.</div>'}
+    </div>
+  `;
+  document.getElementById('evtAllDay').addEventListener('change', (ev) => {
+    document.getElementById('evtTimeRow').style.display = ev.target.checked ? 'none' : 'grid';
+  });
+  document.getElementById('btnCancelEditEvent')?.addEventListener('click', () => { editingEventId = null; renderEventsTab(); });
+  document.getElementById('btnAddEvent').addEventListener('click', async () => {
+    const title = document.getElementById('evtTitle').value.trim();
+    const start_date = document.getElementById('evtStart').value;
+    const end_date = document.getElementById('evtEnd').value;
+    const description = document.getElementById('evtDesc').value.trim() || null;
+    const all_day = document.getElementById('evtAllDay').checked;
+    const start_time = all_day ? null : document.getElementById('evtStartTime').value;
+    const end_time = all_day ? null : document.getElementById('evtEndTime').value;
+    if (!title || !start_date || !end_date) return;
+    const payload = { title, start_date, end_date, description, all_day, start_time, end_time };
+    const { error } = editingEventId
+      ? await sb.from('events').update(payload).eq('id', editingEventId)
+      : await sb.from('events').insert({ ...payload, client_id: selectedClientId });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    editingEventId = null;
+    await loadClientDetail(selectedClientId);
+    renderEventsTab();
+  });
+  el.querySelectorAll('[data-edit-event]').forEach(btn => {
+    btn.addEventListener('click', () => { editingEventId = btn.dataset.editEvent; renderEventsTab(); });
+  });
+  el.querySelectorAll('[data-toggle-event]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const e = events.find(x => x.id === btn.dataset.toggleEvent);
+      await sb.from('events').update({ is_active: !e.is_active }).eq('id', e.id);
+      await loadClientDetail(selectedClientId);
+      renderEventsTab();
+    });
+  });
+  el.querySelectorAll('[data-del-event]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Supprimer cet événement ?')) return;
+      await sb.from('events').delete().eq('id', btn.dataset.delEvent);
+      await loadClientDetail(selectedClientId);
+      renderEventsTab();
+    });
+  });
+}
+
+/* ---------------- Défis (internes à un client) ---------------- */
+function computeDefiStandings(defi) {
+  const relevant = allSessions.filter(s =>
+    s.game_id === defi.game_id &&
+    s.played_at.slice(0, 10) >= defi.start_date &&
+    s.played_at.slice(0, 10) <= defi.end_date
+  );
+  if (defi.mode === 'tablet_vs_tablet') {
+    const byDevice = {};
+    relevant.forEach(s => { byDevice[s.device_id] = (byDevice[s.device_id] || 0) + (s.score || 0); });
+    return Object.entries(byDevice)
+      .map(([deviceId, total]) => ({ name: devices.find(d => d.id === deviceId)?.name || 'Tablette inconnue', total }))
+      .sort((a, b) => b.total - a.total);
+  }
+  const total = relevant.reduce((a, s) => a + (s.score || 0), 0);
+  return [{ name: 'Total entreprise', total }];
+}
+
+let editingDefiId = null;
+function renderDefisTab() {
+  const el = document.getElementById('tabContent');
+  const today = new Date().toISOString().slice(0, 10);
+  const editing = defis.find(d => d.id === editingDefiId);
+  el.innerHTML = `
+    <div class="card">
+      <h3>${editing ? 'Modifier le défi' : 'Nouveau défi'}</h3>
+      <div class="form-grid">
+        <input id="defiTitle" placeholder="Titre (ex: Défi équilibre de la rentrée)" value="${editing ? editing.title : ''}">
+        <input id="defiStart" type="date" value="${editing ? editing.start_date : today}">
+        <input id="defiEnd" type="date" value="${editing ? editing.end_date : today}">
+      </div>
+      <div class="form-grid">
+        <select id="defiGame" style="padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+          ${games.map(g => `<option value="${g.id}" ${editing && editing.game_id === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
+        </select>
+        <select id="defiMode" style="padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+          <option value="company_total" ${editing && editing.mode === 'company_total' ? 'selected' : ''}>Total cumulé entreprise</option>
+          <option value="tablet_vs_tablet" ${editing && editing.mode === 'tablet_vs_tablet' ? 'selected' : ''}>Classement tablette contre tablette</option>
+        </select>
+        <input id="defiImage" type="file" accept="image/*" style="padding:9px;">
+      </div>
+      <input id="defiObjective" placeholder="Objectif (optionnel, ex: 5000 points cumulés)" value="${editing?.objective_text || ''}" style="margin-bottom:10px;">
+      <input id="defiReward" placeholder="Récompense (optionnel, communiquée par le RH)" value="${editing?.reward_text || ''}" style="margin-bottom:10px;">
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" id="btnAddDefi" style="width:auto;">${editing ? 'Enregistrer les modifications' : 'Créer le défi'}</button>
+        ${editing ? `<button class="btn-ghost" id="btnCancelEditDefi" style="width:auto;">Annuler</button>` : ''}
+      </div>
+    </div>
+    <div class="card">
+      <h3>Défis de ce client</h3>
+      ${defis.length ? defis.map(d => {
+        const standings = computeDefiStandings(d);
+        return `
+        <div class="event-item" style="${d.is_active ? '' : 'opacity:0.5;'}">
+          <div class="title-row">
+            <b>${d.title} ${d.is_active ? '' : '<span class="badge">Suspendu</span>'}</b>
+            <span style="display:flex;gap:6px;">
+              <button class="btn-ghost" data-edit-defi="${d.id}">Modifier</button>
+              <button class="btn-ghost" data-toggle-defi="${d.id}">${d.is_active ? 'Suspendre' : 'Réactiver'}</button>
+              <button class="btn-destructive" data-del-defi="${d.id}">Supprimer</button>
+            </span>
+          </div>
+          <div class="dates">${games.find(g => g.id === d.game_id)?.name || d.game_id} · ${new Date(d.start_date).toLocaleDateString('fr-CH')} → ${new Date(d.end_date).toLocaleDateString('fr-CH')} · ${d.mode === 'tablet_vs_tablet' ? 'Tablette vs tablette' : 'Total entreprise'}</div>
+          ${d.objective_text ? `<div class="desc"><i data-lucide="target"></i> ${d.objective_text}</div>` : ''}
+          ${d.reward_text ? `<div class="desc"><i data-lucide="gift"></i> ${d.reward_text}</div>` : ''}
+          <div class="desc" style="margin-top:8px;"><b>Classement actuel :</b> ${standings.map(s => `${s.name} : ${s.total} pts`).join(' — ') || 'aucune donnée pour l\'instant'}</div>
+        </div>
+      `; }).join('') : '<div class="empty">Aucun défi pour ce client.</div>'}
+    </div>
+  `;
+  document.getElementById('btnCancelEditDefi')?.addEventListener('click', () => { editingDefiId = null; renderDefisTab(); });
+  document.getElementById('btnAddDefi').addEventListener('click', async () => {
+    const title = document.getElementById('defiTitle').value.trim();
+    const start_date = document.getElementById('defiStart').value;
+    const end_date = document.getElementById('defiEnd').value;
+    const game_id = document.getElementById('defiGame').value;
+    const mode = document.getElementById('defiMode').value;
+    const objective_text = document.getElementById('defiObjective').value.trim() || null;
+    const reward_text = document.getElementById('defiReward').value.trim() || null;
+    const file = document.getElementById('defiImage').files[0];
+    if (!title || !start_date || !end_date) return;
+    const payload = { title, start_date, end_date, game_id, mode, objective_text, reward_text };
+    try {
+      if (file) payload.image_url = await uploadBanner(file);
+    } catch (e) { alert("Erreur d'upload de l'image : " + e.message); return; }
+    const { error } = editingDefiId
+      ? await sb.from('defis').update(payload).eq('id', editingDefiId)
+      : await sb.from('defis').insert({ ...payload, client_id: selectedClientId });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    editingDefiId = null;
+    await loadClientDetail(selectedClientId);
+    renderDefisTab();
+  });
+  el.querySelectorAll('[data-edit-defi]').forEach(btn => {
+    btn.addEventListener('click', () => { editingDefiId = btn.dataset.editDefi; renderDefisTab(); });
+  });
+  el.querySelectorAll('[data-toggle-defi]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const d = defis.find(x => x.id === btn.dataset.toggleDefi);
+      await sb.from('defis').update({ is_active: !d.is_active }).eq('id', d.id);
+      await loadClientDetail(selectedClientId);
+      renderDefisTab();
+    });
+  });
+  el.querySelectorAll('[data-del-defi]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Supprimer ce défi ?')) return;
+      await sb.from('defis').delete().eq('id', btn.dataset.delDefi);
+      await loadClientDetail(selectedClientId);
+      renderDefisTab();
+    });
+  });
+}
+
+/* ---------------- Challenges (inter-clients, vue globale) ---------------- */
+async function fetchChallengeTotals(challenge) {
+  const participantIds = (challenge.challenge_participants || []).map(p => p.client_id);
+  if (!participantIds.length) return [];
+  const { data } = await sb.from('sessions')
+    .select('client_id, score, played_at')
+    .in('client_id', participantIds)
+    .eq('game_id', challenge.game_id)
+    .gte('played_at', challenge.start_date)
+    .lte('played_at', challenge.end_date + 'T23:59:59');
+  const totals = {};
+  (data || []).forEach(s => { totals[s.client_id] = (totals[s.client_id] || 0) + (s.score || 0); });
+  return participantIds
+    .map(cid => ({ name: challenge.challenge_participants.find(p => p.client_id === cid)?.clients?.name || '—', total: totals[cid] || 0 }))
+    .sort((a, b) => b.total - a.total);
+}
+
+let editingChallengeId = null;
+async function renderChallengesView() {
+  const main = document.getElementById('main');
+  await loadChallenges();
+  const editing = challenges.find(c => c.id === editingChallengeId);
+  const editingParticipantIds = editing ? (editing.challenge_participants || []).map(p => p.client_id) : [];
+  main.innerHTML = `
+    <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="trophy"></i> Challenges inter-clients</div>
+    <div class="section-sub">Un jeu, une période, plusieurs clients qui s'affrontent en total par entreprise.</div>
+    <div class="card">
+      <h3>${editing ? 'Modifier le challenge' : 'Nouveau challenge'}</h3>
+      <div class="form-grid">
+        <input id="chTitle" placeholder="Titre (ex: Challenge Vaud 2026)" value="${editing ? editing.title : ''}">
+        <input id="chStart" type="date" value="${editing ? editing.start_date : new Date().toISOString().slice(0, 10)}">
+        <input id="chEnd" type="date" value="${editing ? editing.end_date : new Date().toISOString().slice(0, 10)}">
+      </div>
+      <select id="chGame" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);margin-bottom:10px;">
+        ${games.map(g => `<option value="${g.id}" ${editing && editing.game_id === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
+      </select>
+      <div style="margin-bottom:10px;">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">Clients participants (2 minimum)</div>
+        ${clients.map(c => `<label style="display:inline-flex;align-items:center;gap:6px;margin:0 14px 8px 0;font-size:13.5px;"><input type="checkbox" value="${c.id}" class="chParticipant" ${editingParticipantIds.includes(c.id) ? 'checked' : ''}> ${c.name}</label>`).join('')}
+      </div>
+      <input id="chImage" type="file" accept="image/*" style="margin-bottom:10px;">
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" id="btnAddChallenge" style="width:auto;">${editing ? 'Enregistrer les modifications' : 'Créer le challenge'}</button>
+        ${editing ? `<button class="btn-ghost" id="btnCancelEditChallenge" style="width:auto;">Annuler</button>` : ''}
+      </div>
+    </div>
+    <div class="card">
+      <h3>Challenges en cours</h3>
+      <div id="challengesList">Chargement...</div>
+    </div>
+  `;
+  document.getElementById('btnCancelEditChallenge')?.addEventListener('click', () => { editingChallengeId = null; renderChallengesView(); });
+  document.getElementById('btnAddChallenge').addEventListener('click', async () => {
+    const title = document.getElementById('chTitle').value.trim();
+    const start_date = document.getElementById('chStart').value;
+    const end_date = document.getElementById('chEnd').value;
+    const game_id = document.getElementById('chGame').value;
+    const participantIds = [...document.querySelectorAll('.chParticipant:checked')].map(i => i.value);
+    const file = document.getElementById('chImage').files[0];
+    if (!title || participantIds.length < 2) { alert('Choisis au moins 2 clients participants.'); return; }
+    const payload = { title, start_date, end_date, game_id };
+    try {
+      if (file) payload.image_url = await uploadBanner(file);
+    } catch (e) { alert("Erreur d'upload de l'image : " + e.message); return; }
+
+    if (editingChallengeId) {
+      const { error } = await sb.from('challenges').update(payload).eq('id', editingChallengeId);
+      if (error) { alert('Erreur : ' + error.message); return; }
+      await sb.from('challenge_participants').delete().eq('challenge_id', editingChallengeId);
+      await sb.from('challenge_participants').insert(participantIds.map(cid => ({ challenge_id: editingChallengeId, client_id: cid })));
+      editingChallengeId = null;
+    } else {
+      const { data: ch, error } = await sb.from('challenges').insert(payload).select().single();
+      if (error) { alert('Erreur : ' + error.message); return; }
+      await sb.from('challenge_participants').insert(participantIds.map(cid => ({ challenge_id: ch.id, client_id: cid })));
+    }
+    await loadChallenges();
+    renderChallengesView();
+  });
+
+  const listEl = document.getElementById('challengesList');
+  if (!challenges.length) { listEl.innerHTML = '<div class="empty">Aucun challenge en cours.</div>'; return; }
+  const rows = await Promise.all(challenges.map(async c => {
+    const standings = await fetchChallengeTotals(c);
+    return `
+      <div class="event-item" style="${c.is_active ? '' : 'opacity:0.5;'}">
+        <div class="title-row">
+          <b>${c.title} ${c.is_active ? '' : '<span class="badge">Suspendu</span>'}</b>
+          <span style="display:flex;gap:6px;">
+            <button class="btn-ghost" data-edit-challenge="${c.id}">Modifier</button>
+            <button class="btn-ghost" data-toggle-challenge="${c.id}">${c.is_active ? 'Suspendre' : 'Réactiver'}</button>
+            <button class="btn-destructive" data-del-challenge="${c.id}">Supprimer</button>
+          </span>
+        </div>
+        <div class="dates">${games.find(g => g.id === c.game_id)?.name || c.game_id} · ${new Date(c.start_date).toLocaleDateString('fr-CH')} → ${new Date(c.end_date).toLocaleDateString('fr-CH')}</div>
+        <div class="desc" style="margin-top:8px;"><b>Classement actuel :</b> ${standings.map((s, i) => `${i + 1}. ${s.name} (${s.total} pts)`).join(' — ') || 'aucun participant'}</div>
+      </div>
+    `;
+  }));
+  listEl.innerHTML = rows.join('');
+  listEl.querySelectorAll('[data-edit-challenge]').forEach(btn => {
+    btn.addEventListener('click', () => { editingChallengeId = btn.dataset.editChallenge; renderChallengesView(); });
+  });
+  listEl.querySelectorAll('[data-toggle-challenge]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const c = challenges.find(x => x.id === btn.dataset.toggleChallenge);
+      await sb.from('challenges').update({ is_active: !c.is_active }).eq('id', c.id);
+      await loadChallenges();
+      renderChallengesView();
+    });
+  });
+  listEl.querySelectorAll('[data-del-challenge]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Supprimer ce challenge ?')) return;
+      await sb.from('challenges').delete().eq('id', btn.dataset.delChallenge);
+      await loadChallenges();
+      renderChallengesView();
+    });
+  });
+}
+
+/* ---------------- Réglages du client ---------------- */
+function renderClientSettingsTab() {
+  const el = document.getElementById('tabContent');
+  const client = clients.find(c => c.id === selectedClientId);
+  el.innerHTML = `
+    <div class="card">
+      <h3>Écran d'accueil de la tablette</h3>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:12px;">
+        <input type="checkbox" id="cfgReadyToPlay" ${client.show_ready_to_play ? 'checked' : ''}>
+        Afficher l'encadré "Prêt à jouer ?"
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:16px;">
+        <input type="checkbox" id="cfgIndexBanner" ${client.show_index_banner ? 'checked' : ''}>
+        Afficher l'encadré "PandaFit Index"
+      </label>
+    </div>
+    <div class="card">
+      <h3>Accès RH (Calibrer / Réglages sur la tablette)</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin-bottom:10px;">Ce code est demandé sur la tablette pour accéder à la calibration et aux réglages capteur — réservé au RH/responsable.</p>
+      <input id="cfgRhPin" value="${client.rh_pin || ''}" placeholder="Code RH (4 chiffres, ex: 1234)" maxlength="4" inputmode="numeric" style="max-width:220px;margin-bottom:14px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;">
+        <input type="checkbox" id="cfgLockGames" ${client.lock_games ? 'checked' : ''}>
+        Réserver aussi l'onglet "Jeux" au RH (même code)
+      </label>
+    </div>
+    <button class="btn-primary" id="btnSaveClientSettings" style="width:auto;">Enregistrer</button>
+  `;
+  document.getElementById('btnSaveClientSettings').addEventListener('click', async () => {
+    const show_ready_to_play = document.getElementById('cfgReadyToPlay').checked;
+    const show_index_banner = document.getElementById('cfgIndexBanner').checked;
+    const rh_pin = document.getElementById('cfgRhPin').value.trim() || '0000';
+    const lock_games = document.getElementById('cfgLockGames').checked;
+    const { error } = await sb.from('clients').update({ show_ready_to_play, show_index_banner, rh_pin, lock_games }).eq('id', selectedClientId);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    await loadClients();
+    renderClientSettingsTab();
+  });
+}
+
+/* ---------------- Menu tablette (vignettes + glisser-déposer) ---------------- */
+const GAME_THEME_ADMIN = {
+  migros: 'linear-gradient(135deg,#ff7a00,#e05a00)',
+  skiprev: 'linear-gradient(135deg,#e8112d,#0a3d91)',
+  thezone: 'linear-gradient(135deg,#43cea2,#185a9d)',
+  distance: 'linear-gradient(135deg,#43cea2,#185a9d)',
+  base: 'linear-gradient(135deg,#43cea2,#185a9d)',
+  cross: 'linear-gradient(135deg,#43cea2,#185a9d)',
+};
+const GAME_ICON_ADMIN = {
+  distance: 'footprints', base: 'zap', thezone: 'circle-dot',
+  cross: 'crosshair', migros: 'shopping-cart', skiprev: 'mountain-snow',
+};
+
+async function loadActiveTabletMenuItems(clientId) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [defisRes, chPartRes, eventsRes] = await Promise.all([
+    sb.from('defis').select('*').eq('client_id', clientId).eq('is_active', true).lte('start_date', today).gte('end_date', today).order('sort_order'),
+    sb.from('challenge_participants').select('challenge_id').eq('client_id', clientId),
+    sb.from('events').select('*').eq('client_id', clientId).eq('is_active', true).lte('start_date', today).gte('end_date', today).order('sort_order'),
+  ]);
+  const activeDefis = defisRes.data || [];
+  const challengeIds = (chPartRes.data || []).map(p => p.challenge_id);
+  let activeChallenges = [];
+  if (challengeIds.length) {
+    const { data } = await sb.from('challenges')
+      .select('*, challenge_participants(client_id, clients(name))')
+      .in('id', challengeIds).eq('is_active', true).lte('start_date', today).gte('end_date', today).order('sort_order');
+    activeChallenges = data || [];
+  }
+  return { activeDefis, activeChallenges, activeEvents: eventsRes.data || [] };
+}
+
+function thumbCardHTML(item) {
+  if (item.type === 'index') {
+    return `
+      <div class="thumb-card" style="background:linear-gradient(135deg,#c86dd7,#3023ae);">
+        <div class="tc-badge"><i data-lucide="activity"></i> Index</div>
+        <i data-lucide="grip-vertical" class="tc-drag"></i>
+        <div class="tc-content"><div class="tc-title">PandaFit Index</div></div>
+      </div>`;
+  }
+  if (item.type === 'game') {
+    const bg = item.data.image_url ? `background-image:url('${item.data.image_url}');` : `background:${GAME_THEME_ADMIN[item.data.id] || GAME_THEME_ADMIN.thezone};`;
+    return `
+      <div class="thumb-card" style="${bg}">
+        <div class="tc-badge"><i data-lucide="${GAME_ICON_ADMIN[item.data.id] || 'gamepad-2'}"></i> Jeu</div>
+        <i data-lucide="grip-vertical" class="tc-drag"></i>
+        <div class="tc-content"><div class="tc-title">${item.data.name}</div></div>
+      </div>`;
+  }
+  if (item.type === 'defi' || item.type === 'challenge' || item.type === 'event') {
+    const gradients = { defi: 'linear-gradient(135deg,#43cea2,#185a9d)', challenge: 'linear-gradient(135deg,#c86dd7,#3023ae)', event: 'linear-gradient(135deg,#185a9d,#0a3d91)' };
+    const icons = { defi: 'flame', challenge: 'trophy', event: 'calendar' };
+    const labels = { defi: 'Défi', challenge: 'Challenge', event: 'Événement' };
+    const bg = item.data.image_url ? `background-image:url('${item.data.image_url}');` : `background:${gradients[item.type]};`;
+    return `
+      <div class="thumb-card" style="${bg}">
+        <div class="tc-badge"><i data-lucide="${icons[item.type]}"></i> ${labels[item.type]}</div>
+        <i data-lucide="grip-vertical" class="tc-drag"></i>
+        <div class="tc-content"><div class="tc-title">${item.data.title}</div></div>
+      </div>`;
+  }
+  return '';
+}
+
+async function renderTabletMenuTab() {
+  const el = document.getElementById('tabContent');
+  el.innerHTML = '<p class="empty">Chargement...</p>';
+  const client = clients.find(c => c.id === selectedClientId);
+  const { activeDefis, activeChallenges, activeEvents } = await loadActiveTabletMenuItems(selectedClientId);
+  const activeGames = clientGames.filter(cg => cg.enabled).map(cg => ({
+    type: 'game', sort_order: cg.sort_order || 0,
+    data: games.find(g => g.id === cg.game_id) || { id: cg.game_id, name: cg.game_id },
+    id: cg.game_id,
+  }));
+
+  let stack = [
+    ...(client.show_index_banner ? [{ type: 'index', sort_order: client.index_sort_order ?? -1000, id: 'index' }] : []),
+    ...activeDefis.map(d => ({ type: 'defi', sort_order: d.sort_order || 0, data: d, id: d.id })),
+    ...activeChallenges.map(c => ({ type: 'challenge', sort_order: c.sort_order || 0, data: c, id: c.id })),
+    ...activeGames,
+  ].sort((a, b) => a.sort_order - b.sort_order);
+
+  let eventsList = activeEvents.map(ev => ({ type: 'event', sort_order: ev.sort_order || 0, data: ev, id: ev.id }))
+    .sort((a, b) => a.sort_order - b.sort_order);
+
+  function render() {
+    el.innerHTML = `
+      <p class="section-sub">Tout ce qui est actif pour ce client s'affiche ici automatiquement. Glisse une vignette pour changer son ordre d'apparition sur la tablette.</p>
+      <div class="menu-section-title">Contenu principal (empilé)</div>
+      <div class="menu-stack" id="mainStack">
+        ${stack.length ? stack.map(thumbCardHTML).join('') : '<p class="empty">Rien d\'actif pour l\'instant.</p>'}
+      </div>
+      <div class="menu-section-title" style="margin-top:22px;">Événements (défilent toutes les 4s sur la tablette)</div>
+      <div class="menu-row" id="eventsRow">
+        ${eventsList.length ? eventsList.map(thumbCardHTML).join('') : '<p class="empty">Aucun événement actif.</p>'}
+      </div>
+    `;
+    wireDrag(document.getElementById('mainStack'), stack, persistStack);
+    wireDrag(document.getElementById('eventsRow'), eventsList, persistEvents);
+  }
+
+  function wireDrag(container, items, persistFn) {
+    let dragSrcIndex = null;
+    container.querySelectorAll('.thumb-card').forEach((card, idx) => {
+      card.draggable = true;
+      card.addEventListener('dragstart', () => { dragSrcIndex = idx; card.classList.add('dragging'); });
+      card.addEventListener('dragend', () => card.classList.remove('dragging'));
+      card.addEventListener('dragover', (e) => e.preventDefault());
+      card.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        if (dragSrcIndex === null || dragSrcIndex === idx) return;
+        const moved = items.splice(dragSrcIndex, 1)[0];
+        items.splice(idx, 0, moved);
+        await persistFn(items);
+        render();
+      });
+    });
+  }
+
+  async function persistStack(items) {
+    await Promise.all(items.map((item, i) => {
+      if (item.type === 'index') return sb.from('clients').update({ index_sort_order: i }).eq('id', selectedClientId);
+      if (item.type === 'game') return sb.from('client_games').update({ sort_order: i }).eq('client_id', selectedClientId).eq('game_id', item.id);
+      if (item.type === 'defi') return sb.from('defis').update({ sort_order: i }).eq('id', item.id);
+      if (item.type === 'challenge') return sb.from('challenges').update({ sort_order: i }).eq('id', item.id);
+    }));
+    await loadClientDetail(selectedClientId);
+    await loadClients();
+  }
+  async function persistEvents(items) {
+    await Promise.all(items.map((item, i) => sb.from('events').update({ sort_order: i }).eq('id', item.id)));
+    await loadClientDetail(selectedClientId);
+  }
+
+  render();
+}
+
+init();
+</script>
+</body>
+</html>
