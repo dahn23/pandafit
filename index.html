@@ -165,7 +165,7 @@
 
   /* --- Bottom nav --- */
   .bottomnav {
-    position: fixed; bottom: 0; left: 0; right: 0;
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
     max-width: 900px; margin: 0 auto;
     background: rgba(27,22,45,0.92); backdrop-filter: blur(10px);
     display: flex; border-top: 1px solid var(--panel-hi);
@@ -378,16 +378,17 @@ const PandaFitBackend = (() => {
     const indexSortOrder = device.clients ? (device.clients.index_sort_order ?? -1000) : -1000;
 
     const cgRes = await fetch(
-      `${REST}/client_games?client_id=eq.${clientId}&enabled=eq.true&select=game_id,sort_order&order=sort_order`,
+      `${REST}/client_games?client_id=eq.${clientId}&enabled=eq.true&select=game_id,sort_order,image_url&order=sort_order`,
       { headers: headers() }
     );
     if (!cgRes.ok) throw new Error('Impossible de contacter le serveur (client_games).');
     const rows = await cgRes.json();
     const enabledGameIds = rows.map(r => r.game_id);
     const gameSortOrders = {};
-    rows.forEach(r => { gameSortOrders[r.game_id] = r.sort_order || 0; });
+    const gameImages = {};
+    rows.forEach(r => { gameSortOrders[r.game_id] = r.sort_order || 0; gameImages[r.game_id] = r.image_url || null; });
 
-    return { deviceId: device.id, deviceName: device.name, clientId, clientName, enabledGameIds, gameSortOrders, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder };
+    return { deviceId: device.id, deviceName: device.name, clientId, clientName, enabledGameIds, gameSortOrders, gameImages, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder };
   }
 
   /** Enregistre le score d'une partie terminée. */
@@ -485,7 +486,9 @@ const PandaFitBackend = (() => {
       const eventsActive = eventsAll.filter(e => e.all_devices || (e.event_devices || []).some(ed => ed.device_id === config.deviceId));
 
       const gameItems = (config.enabledGameIds || []).map(gid => ({
-        type: 'game', data: { id: gid }, sort_order: (config.gameSortOrders && config.gameSortOrders[gid]) || 0,
+        type: 'game',
+        data: { id: gid, image_url: (config.gameImages && config.gameImages[gid]) || null },
+        sort_order: (config.gameSortOrders && config.gameSortOrders[gid]) || 0,
       }));
       const indexItem = config.showIndexBanner ? [{ type: 'index', data: {}, sort_order: config.indexSortOrder ?? -1000 }] : [];
 
@@ -1303,7 +1306,9 @@ const GAME_THEME_TABLET = {
   cross: 'linear-gradient(135deg,#43cea2,#185a9d)',
 };
 function highlightBgStyle(item) {
-  if (item.type === 'game') return `background:${GAME_THEME_TABLET[item.data.id] || GAME_THEME_TABLET.thezone};`;
+  if (item.type === 'game') {
+    return item.data.image_url ? `background-image:url('${item.data.image_url}');` : `background:${GAME_THEME_TABLET[item.data.id] || GAME_THEME_TABLET.thezone};`;
+  }
   if (item.type === 'index') return `background:linear-gradient(135deg,#c86dd7,#3023ae);`;
   const gradients = {
     defi: 'linear-gradient(135deg, #43cea2, #185a9d)',

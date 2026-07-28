@@ -119,6 +119,15 @@
   .thumb-card .tc-drag {
     position: absolute; top: 8px; right: 10px; z-index: 1; opacity: 0.8; cursor: grab;
   }
+  .thumb-card .tc-actions {
+    position: absolute; bottom: 8px; right: 8px; z-index: 2; display: flex; gap: 6px;
+  }
+  .tc-action-btn {
+    width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,0.45);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    color: #fff; border: none;
+  }
+  .tc-action-btn:hover { background: rgba(0,0,0,0.65); }
   .thumb-card.dragging { opacity: 0.4; }
   .menu-section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin: 4px 0 10px; }
 </style>
@@ -893,9 +902,9 @@ const GAME_ICON_ADMIN = {
 async function loadActiveTabletMenuItems(clientId) {
   const today = new Date().toISOString().slice(0, 10);
   const [defisRes, chPartRes, eventsRes] = await Promise.all([
-    sb.from('defis').select('*').eq('client_id', clientId).eq('is_active', true).lte('start_date', today).gte('end_date', today).order('sort_order'),
+    sb.from('defis').select('*').eq('client_id', clientId).lte('start_date', today).gte('end_date', today).order('sort_order'),
     sb.from('challenge_participants').select('challenge_id').eq('client_id', clientId),
-    sb.from('events').select('*').eq('client_id', clientId).eq('is_active', true).lte('start_date', today).gte('end_date', today).order('sort_order'),
+    sb.from('events').select('*').eq('client_id', clientId).lte('start_date', today).gte('end_date', today).order('sort_order'),
   ]);
   const activeDefis = defisRes.data || [];
   const challengeIds = (chPartRes.data || []).map(p => p.challenge_id);
@@ -903,27 +912,44 @@ async function loadActiveTabletMenuItems(clientId) {
   if (challengeIds.length) {
     const { data } = await sb.from('challenges')
       .select('*, challenge_participants(client_id, clients(name))')
-      .in('id', challengeIds).eq('is_active', true).lte('start_date', today).gte('end_date', today).order('sort_order');
+      .in('id', challengeIds).lte('start_date', today).gte('end_date', today).order('sort_order');
     activeChallenges = data || [];
   }
   return { activeDefis, activeChallenges, activeEvents: eventsRes.data || [] };
 }
 
 function thumbCardHTML(item) {
+  const dimmed = item.visible === false ? 'opacity:0.45;' : '';
+  const actions = `
+    <div class="tc-actions">
+      <button class="tc-action-btn" data-toggle-visible="${item.type}:${item.id}" title="${item.visible === false ? 'Réafficher' : 'Masquer'}">
+        <i data-lucide="${item.visible === false ? 'eye-off' : 'eye'}"></i>
+      </button>
+      ${item.type !== 'index' ? `
+        <label class="tc-action-btn" title="Changer la photo">
+          <i data-lucide="image-plus"></i>
+          <input type="file" accept="image/*" style="display:none;" data-upload-photo="${item.type}:${item.id}">
+        </label>
+      ` : ''}
+    </div>
+  `;
+
   if (item.type === 'index') {
     return `
-      <div class="thumb-card" style="background:linear-gradient(135deg,#c86dd7,#3023ae);">
+      <div class="thumb-card" style="background:linear-gradient(135deg,#c86dd7,#3023ae);${dimmed}">
         <div class="tc-badge"><i data-lucide="activity"></i> Index</div>
         <i data-lucide="grip-vertical" class="tc-drag"></i>
+        ${actions}
         <div class="tc-content"><div class="tc-title">PandaFit Index</div></div>
       </div>`;
   }
   if (item.type === 'game') {
     const bg = item.data.image_url ? `background-image:url('${item.data.image_url}');` : `background:${GAME_THEME_ADMIN[item.data.id] || GAME_THEME_ADMIN.thezone};`;
     return `
-      <div class="thumb-card" style="${bg}">
+      <div class="thumb-card" style="${bg}${dimmed}">
         <div class="tc-badge"><i data-lucide="${GAME_ICON_ADMIN[item.data.id] || 'gamepad-2'}"></i> Jeu</div>
         <i data-lucide="grip-vertical" class="tc-drag"></i>
+        ${actions}
         <div class="tc-content"><div class="tc-title">${item.data.name}</div></div>
       </div>`;
   }
@@ -933,9 +959,10 @@ function thumbCardHTML(item) {
     const labels = { defi: 'Défi', challenge: 'Challenge', event: 'Événement' };
     const bg = item.data.image_url ? `background-image:url('${item.data.image_url}');` : `background:${gradients[item.type]};`;
     return `
-      <div class="thumb-card" style="${bg}">
+      <div class="thumb-card" style="${bg}${dimmed}">
         <div class="tc-badge"><i data-lucide="${icons[item.type]}"></i> ${labels[item.type]}</div>
         <i data-lucide="grip-vertical" class="tc-drag"></i>
+        ${actions}
         <div class="tc-content"><div class="tc-title">${item.data.title}</div></div>
       </div>`;
   }
@@ -947,28 +974,28 @@ async function renderTabletMenuTab() {
   el.innerHTML = '<p class="empty">Chargement...</p>';
   const client = clients.find(c => c.id === selectedClientId);
   const { activeDefis, activeChallenges, activeEvents } = await loadActiveTabletMenuItems(selectedClientId);
-  const activeGames = clientGames.filter(cg => cg.enabled).map(cg => ({
-    type: 'game', sort_order: cg.sort_order || 0,
-    data: games.find(g => g.id === cg.game_id) || { id: cg.game_id, name: cg.game_id },
+  const allGames = clientGames.map(cg => ({
+    type: 'game', sort_order: cg.sort_order || 0, visible: cg.enabled,
+    data: { ...(games.find(g => g.id === cg.game_id) || { id: cg.game_id, name: cg.game_id }), image_url: cg.image_url },
     id: cg.game_id,
   }));
 
   let stack = [
-    ...(client.show_index_banner ? [{ type: 'index', sort_order: client.index_sort_order ?? -1000, id: 'index' }] : []),
-    ...activeDefis.map(d => ({ type: 'defi', sort_order: d.sort_order || 0, data: d, id: d.id })),
-    ...activeChallenges.map(c => ({ type: 'challenge', sort_order: c.sort_order || 0, data: c, id: c.id })),
-    ...activeGames,
+    { type: 'index', sort_order: client.index_sort_order ?? -1000, id: 'index', visible: client.show_index_banner },
+    ...activeDefis.map(d => ({ type: 'defi', sort_order: d.sort_order || 0, data: d, id: d.id, visible: d.is_active })),
+    ...activeChallenges.map(c => ({ type: 'challenge', sort_order: c.sort_order || 0, data: c, id: c.id, visible: c.is_active })),
+    ...allGames,
   ].sort((a, b) => a.sort_order - b.sort_order);
 
-  let eventsList = activeEvents.map(ev => ({ type: 'event', sort_order: ev.sort_order || 0, data: ev, id: ev.id }))
+  let eventsList = activeEvents.map(ev => ({ type: 'event', sort_order: ev.sort_order || 0, data: ev, id: ev.id, visible: ev.is_active }))
     .sort((a, b) => a.sort_order - b.sort_order);
 
   function render() {
     el.innerHTML = `
-      <p class="section-sub">Tout ce qui est actif pour ce client s'affiche ici automatiquement. Glisse une vignette pour changer son ordre d'apparition sur la tablette.</p>
+      <p class="section-sub">Tout ce qui est actif pour ce client s'affiche ici automatiquement. Glisse une vignette pour changer son ordre, masque/réaffiche-la avec l'œil, ou change sa photo avec l'icône image.</p>
       <div class="menu-section-title">Contenu principal (empilé)</div>
       <div class="menu-stack" id="mainStack">
-        ${stack.length ? stack.map(thumbCardHTML).join('') : '<p class="empty">Rien d\'actif pour l\'instant.</p>'}
+        ${stack.length ? stack.map(thumbCardHTML).join('') : '<p class="empty">Rien pour l\'instant.</p>'}
       </div>
       <div class="menu-section-title" style="margin-top:22px;">Événements (défilent toutes les 4s sur la tablette)</div>
       <div class="menu-row" id="eventsRow">
@@ -977,6 +1004,56 @@ async function renderTabletMenuTab() {
     `;
     wireDrag(document.getElementById('mainStack'), stack, persistStack);
     wireDrag(document.getElementById('eventsRow'), eventsList, persistEvents);
+    wireActions(document.getElementById('mainStack'));
+    wireActions(document.getElementById('eventsRow'));
+  }
+
+  function findItem(type, id) {
+    return [...stack, ...eventsList].find(it => it.type === type && String(it.id) === String(id));
+  }
+
+  async function toggleVisible(type, id) {
+    const item = findItem(type, id);
+    if (!item) return;
+    const newVisible = !item.visible;
+    if (type === 'index') await sb.from('clients').update({ show_index_banner: newVisible }).eq('id', selectedClientId);
+    else if (type === 'game') await sb.from('client_games').update({ enabled: newVisible }).eq('client_id', selectedClientId).eq('game_id', id);
+    else if (type === 'defi') await sb.from('defis').update({ is_active: newVisible }).eq('id', id);
+    else if (type === 'challenge') await sb.from('challenges').update({ is_active: newVisible }).eq('id', id);
+    else if (type === 'event') await sb.from('events').update({ is_active: newVisible }).eq('id', id);
+    await loadClientDetail(selectedClientId);
+    await loadClients();
+    renderTabletMenuTab();
+  }
+
+  async function uploadPhoto(type, id, file) {
+    let image_url;
+    try { image_url = await uploadBanner(file); } catch (e) { alert("Erreur d'upload : " + e.message); return; }
+    if (type === 'game') await sb.from('client_games').update({ image_url }).eq('client_id', selectedClientId).eq('game_id', id);
+    else if (type === 'defi') await sb.from('defis').update({ image_url }).eq('id', id);
+    else if (type === 'challenge') await sb.from('challenges').update({ image_url }).eq('id', id);
+    else if (type === 'event') await sb.from('events').update({ image_url }).eq('id', id);
+    await loadClientDetail(selectedClientId);
+    renderTabletMenuTab();
+  }
+
+  function wireActions(container) {
+    if (!container) return;
+    container.querySelectorAll('[data-toggle-visible]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const [type, id] = btn.dataset.toggleVisible.split(':');
+        toggleVisible(type, id);
+      });
+    });
+    container.querySelectorAll('[data-upload-photo]').forEach(input => {
+      input.addEventListener('click', (e) => e.stopPropagation());
+      input.addEventListener('change', (e) => {
+        const [type, id] = input.dataset.uploadPhoto.split(':');
+        const file = e.target.files[0];
+        if (file) uploadPhoto(type, id, file);
+      });
+    });
   }
 
   function wireDrag(container, items, persistFn) {
