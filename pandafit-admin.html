@@ -655,11 +655,27 @@ async function renderStatsTab() {
     row.addEventListener('click', async () => {
       const resultEl = row.querySelector('.qn-option-result');
       const sids = row.dataset.sessionIds.split(',').filter(Boolean);
-      const employeeIds = [...new Set(sids.map(sid => sessionMap[sid]?.employee_id).filter(Boolean))];
       if (resultEl.style.display === 'block') { resultEl.style.display = 'none'; return; }
       resultEl.style.display = 'block';
       resultEl.textContent = 'Calcul...';
-      if (!employeeIds.length) { resultEl.textContent = "Index moyen : pas assez de personnes identifiées (QR non scanné)."; return; }
+
+      // Cas 1 : le questionnaire était posé juste avant l'Index lui-même —
+      // la réponse et le score viennent de la même partie, pas besoin d'identifier qui que ce soit.
+      const directIndexScores = sids
+        .map(sid => sessionMap[sid])
+        .filter(s => s && s.game_id === 'indextest')
+        .map(s => s.score);
+
+      if (directIndexScores.length) {
+        const avg = Math.round(directIndexScores.reduce((a, s) => a + s, 0) / directIndexScores.length);
+        resultEl.textContent = `PandaFit Index moyen pour cette réponse : ${avg} (basé sur ${directIndexScores.length} test${directIndexScores.length > 1 ? 's' : ''} joué${directIndexScores.length > 1 ? 's' : ''} juste après)`;
+        return;
+      }
+
+      // Cas 2 : le questionnaire était posé avant un autre jeu — il faut alors
+      // une personne identifiée (QR scanné) pour retrouver SON PandaFit Index, joué à un autre moment.
+      const employeeIds = [...new Set(sids.map(sid => sessionMap[sid]?.employee_id).filter(Boolean))];
+      if (!employeeIds.length) { resultEl.textContent = "Index moyen : pas assez de personnes identifiées (QR non scanné) — ce questionnaire n'est pas posé avant l'Index, donc il faut une identification pour relier les deux."; return; }
       const { data } = await sb.from('sessions').select('score')
         .eq('game_id', 'indextest').in('employee_id', employeeIds)
         .gte('played_at', statsFilters.start).lte('played_at', statsFilters.end + 'T23:59:59');
