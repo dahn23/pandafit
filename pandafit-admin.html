@@ -1551,11 +1551,13 @@ async function renderTabletMenuTab() {
   async function uploadPhoto(type, id, file) {
     let image_url;
     try { image_url = await uploadBanner(file); } catch (e) { alert("Erreur d'upload : " + e.message); return; }
-    if (type === 'game') await sb.from('client_games').update({ image_url }).eq('client_id', selectedClientId).eq('game_id', id);
-    else if (type === 'defi') await sb.from('defis').update({ image_url }).eq('id', id);
-    else if (type === 'challenge') await sb.from('challenges').update({ image_url }).eq('id', id);
-    else if (type === 'event') await sb.from('events').update({ image_url }).eq('id', id);
-    else if (type === 'index') await sb.from('clients').update({ index_image_url: image_url }).eq('id', selectedClientId);
+    let result;
+    if (type === 'game') result = await sb.from('client_games').update({ image_url }).eq('client_id', selectedClientId).eq('game_id', id);
+    else if (type === 'defi') result = await sb.from('defis').update({ image_url }).eq('id', id);
+    else if (type === 'challenge') result = await sb.from('challenges').update({ image_url }).eq('id', id);
+    else if (type === 'event') result = await sb.from('events').update({ image_url }).eq('id', id);
+    else if (type === 'index') result = await sb.from('clients').update({ index_image_url: image_url }).eq('id', selectedClientId);
+    if (result?.error) { alert("Erreur en enregistrant l'image : " + result.error.message); return; }
     await loadClientDetail(selectedClientId);
     await loadClients();
     renderTabletMenuTab();
