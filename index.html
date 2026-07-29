@@ -1640,6 +1640,9 @@ function highlightCardHTML(item) {
 
   if (item.standings && item.standings.leaderName) {
     const leading = item.standings.yours >= item.standings.leaderPoints;
+    const yoursName = item.standings.mode === 'company_vs_company'
+      ? (clientConfig?.clientName || '')
+      : (clientConfig?.deviceName || '');
     return `
       <div class="highlight-row">
         ${mediaCard}
@@ -1649,7 +1652,7 @@ function highlightCardHTML(item) {
           <div class="leader-name">${item.standings.leaderName}</div>
           <div class="leader-score">${item.standings.leaderPoints} pts</div>
           <div class="divider"></div>
-          <div class="tablet-name">${clientConfig?.deviceName || ''}</div>
+          <div class="tablet-name">${yoursName}</div>
           <div class="tablet-score">${item.standings.yours} pts</div>
         </div>
       </div>
