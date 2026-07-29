@@ -497,60 +497,193 @@ function renderDataTab() {
 }
 
 /* ---------------- Statistiques ---------------- */
+let statsFilters = { start: null, end: null, deviceId: '' };
+function defaultStatsRange() {
+  const end = new Date();
+  const start = new Date(); start.setDate(start.getDate() - 29);
+  return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+}
+function enumerateDays(start, end) {
+  const days = [];
+  let d = new Date(start + 'T00:00:00');
+  const last = new Date(end + 'T00:00:00');
+  while (d <= last) { days.push(d.toISOString().slice(0, 10)); d.setDate(d.getDate() + 1); }
+  return days;
+}
+
 async function renderStatsTab() {
   const el = document.getElementById('tabContent');
-  const total = allSessions.length;
-  const avgScore = total ? Math.round(allSessions.reduce((a, s) => a + (s.score || 0), 0) / total) : 0;
-  const uniqueDevices = new Set(allSessions.map(s => s.device_id)).size;
+  if (!statsFilters.start) Object.assign(statsFilters, defaultStatsRange());
+  el.innerHTML = '<p class="empty">Chargement...</p>';
 
+  let query = sb.from('sessions').select('*').eq('client_id', selectedClientId)
+    .gte('played_at', statsFilters.start)
+    .lte('played_at', statsFilters.end + 'T23:59:59');
+  if (statsFilters.deviceId) query = query.eq('device_id', statsFilters.deviceId);
+  const { data: sessionsData } = await query;
+  const filteredSessions = sessionsData || [];
+  const sessionMap = {}; filteredSessions.forEach(s => { sessionMap[s.id] = s; });
+
+  const dayList = enumerateDays(statsFilters.start, statsFilters.end);
+
+  // ---- Section 1 : nombre de jeux/Index par jour ----
+  const countsByDay = dayList.map(d => filteredSessions.filter(s => s.played_at.slice(0, 10) === d).length);
+
+  // ---- Section 2 : PandaFit Index moyen par jour + delta début/fin ----
+  const indexSessions = filteredSessions.filter(s => s.game_id === 'indextest');
+  const avgIndexByDay = dayList.map(d => {
+    const rows = indexSessions.filter(s => s.played_at.slice(0, 10) === d);
+    return rows.length ? Math.round(rows.reduce((a, s) => a + s.score, 0) / rows.length) : null;
+  });
+  const chunk = Math.max(1, Math.round(dayList.length * 0.15));
+  const earlyDays = new Set(dayList.slice(0, chunk));
+  const lateDays = new Set(dayList.slice(-chunk));
+  const earlyRows = indexSessions.filter(s => earlyDays.has(s.played_at.slice(0, 10)));
+  const lateRows = indexSessions.filter(s => lateDays.has(s.played_at.slice(0, 10)));
+  const earlyAvg = earlyRows.length ? Math.round(earlyRows.reduce((a, s) => a + s.score, 0) / earlyRows.length) : null;
+  const lateAvg = lateRows.length ? Math.round(lateRows.reduce((a, s) => a + s.score, 0) / lateRows.length) : null;
+  const delta = (earlyAvg != null && lateAvg != null) ? lateAvg - earlyAvg : null;
+
+  // ---- Section 3 : répartition par jeu ----
   const countByGame = {};
-  allSessions.forEach(s => { countByGame[s.game_id] = (countByGame[s.game_id] || 0) + 1; });
-  const topGameId = Object.keys(countByGame).sort((a, b) => countByGame[b] - countByGame[a])[0];
-  const topGameName = topGameId ? (games.find(g => g.id === topGameId)?.name || topGameId) : '—';
+  filteredSessions.forEach(s => { countByGame[s.game_id] = (countByGame[s.game_id] || 0) + 1; });
 
-  // Parties par jour, 30 derniers jours
-  const days = [];
-  const now = new Date();
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now); d.setDate(d.getDate() - i);
-    days.push(d.toISOString().slice(0, 10));
+  // ---- Section 4 : questionnaires ----
+  const sessionIds = filteredSessions.map(s => s.id);
+  let responses = [];
+  if (sessionIds.length) {
+    const { data } = await sb.from('question_responses')
+      .select('session_id, option_id, questions(id,question_text,questionnaire_id,questionnaires(title)), question_options(id,option_text)')
+      .in('session_id', sessionIds);
+    responses = data || [];
   }
-  const countsByDay = days.map(day => allSessions.filter(s => s.played_at.slice(0, 10) === day).length);
+  const byQuestionnaire = {};
+  responses.forEach(r => {
+    const q = r.questions; if (!q) return;
+    const qnId = q.questionnaire_id;
+    if (!byQuestionnaire[qnId]) byQuestionnaire[qnId] = { title: q.questionnaires?.title || '(sans titre)', sessions: new Set(), questions: {} };
+    byQuestionnaire[qnId].sessions.add(r.session_id);
+    if (!byQuestionnaire[qnId].questions[q.id]) byQuestionnaire[qnId].questions[q.id] = { text: q.question_text, options: {} };
+    const optId = r.option_id;
+    const opts = byQuestionnaire[qnId].questions[q.id].options;
+    if (!opts[optId]) opts[optId] = { label: r.question_options?.option_text || '—', count: 0, sessionIds: [] };
+    opts[optId].count++;
+    opts[optId].sessionIds.push(r.session_id);
+  });
 
-  // Évolution du PandaFit Index (sessions du jeu 'indextest')
-  const indexSessions = allSessions.filter(s => s.game_id === 'indextest');
+  // ---- Rendu ----
+  const deviceOptions = devices.map(d => `<option value="${d.id}" ${statsFilters.deviceId === d.id ? 'selected' : ''}>${d.name}</option>`).join('');
 
   el.innerHTML = `
-    <div class="stat-grid">
-      <div class="stat-box"><div class="n">${total}</div><div class="l">Parties jouées (total)</div></div>
-      <div class="stat-box"><div class="n">${avgScore}</div><div class="l">Score moyen (tous jeux)</div></div>
-      <div class="stat-box"><div class="n">${uniqueDevices}</div><div class="l">Tablette(s) actives</div></div>
-      <div class="stat-box"><div class="n" style="font-size:16px;">${topGameName}</div><div class="l">Jeu le plus joué</div></div>
-    </div>
     <div class="card">
-      <h3>Parties par jour (30 derniers jours)</h3>
+      <h3>Filtres (cumulables)</h3>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;">
+        <div>
+          <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Du</div>
+          <input id="statsStart" type="date" value="${statsFilters.start}">
+        </div>
+        <div>
+          <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Au</div>
+          <input id="statsEnd" type="date" value="${statsFilters.end}">
+        </div>
+        <div>
+          <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Tablette</div>
+          <select id="statsDevice" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+            <option value="">Toutes les tablettes</option>
+            ${deviceOptions}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Nombre de jeux / PandaFit Index par jour</h3>
       <div class="chart-wrap"><canvas id="chartByDay"></canvas></div>
     </div>
+
+    <div class="card">
+      <h3>PandaFit Index moyen par jour</h3>
+      <div class="chart-wrap"><canvas id="chartIndexAvg"></canvas></div>
+      <div class="stat-grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:14px;margin-bottom:0;">
+        <div class="stat-box"><div class="n">${earlyAvg ?? '—'}</div><div class="l">Moyenne 15% début</div></div>
+        <div class="stat-box"><div class="n">${lateAvg ?? '—'}</div><div class="l">Moyenne 15% fin</div></div>
+        <div class="stat-box"><div class="n" style="color:${delta > 0 ? '#43cea2' : delta < 0 ? '#e6374e' : 'var(--text)'};">${delta != null ? (delta > 0 ? '+' : '') + delta : '—'}</div><div class="l">Évolution</div></div>
+      </div>
+    </div>
+
     <div class="card">
       <h3>Répartition par jeu</h3>
       <div class="chart-wrap"><canvas id="chartByGame"></canvas></div>
     </div>
-    ${indexSessions.length ? `
+
+    <div class="menu-section-title" style="margin-top:22px;">Résumé des questionnaires</div>
+    ${Object.keys(byQuestionnaire).length ? Object.values(byQuestionnaire).map((qn, qni) => `
       <div class="card">
-        <h3>Évolution du PandaFit Index</h3>
-        <div class="chart-wrap"><canvas id="chartIndex"></canvas></div>
+        <h3>${qn.title}</h3>
+        <p style="font-size:12.5px;color:var(--text-dim);margin:-6px 0 14px;">${qn.sessions.size} questionnaire${qn.sessions.size > 1 ? 's' : ''} rempli${qn.sessions.size > 1 ? 's' : ''} (au moins une réponse)</p>
+        ${Object.values(qn.questions).map((q, i) => {
+          const total = Object.values(q.options).reduce((a, b) => a + b.count, 0);
+          return `
+            <div style="margin-bottom:16px;">
+              <div style="font-weight:700;font-size:13.5px;margin-bottom:8px;">${q.text}</div>
+              ${Object.entries(q.options).sort((a, b) => b[1].count - a[1].count).map(([optId, o]) => {
+                const pct = Math.round((o.count / total) * 100);
+                return `
+                  <div class="qn-option-row" data-option-id="${optId}" data-session-ids="${o.sessionIds.join(',')}" style="cursor:pointer;margin-bottom:8px;">
+                    <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px;">
+                      <span>${o.label}</span><span style="color:var(--text-dim);">${o.count} (${pct}%)</span>
+                    </div>
+                    <div style="background:var(--panel-hi);border-radius:100px;height:8px;overflow:hidden;">
+                      <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#43cea2,#185a9d);"></div>
+                    </div>
+                    <div class="qn-option-result" style="font-size:11.5px;color:var(--accent);margin-top:4px;display:none;"></div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `;
+        }).join('')}
       </div>
-    ` : ''}
+    `).join('') : '<div class="card"><p class="empty">Aucune réponse enregistrée sur cette période/tablette.</p></div>'}
   `;
+
+  document.getElementById('statsStart').addEventListener('change', (e) => { statsFilters.start = e.target.value; renderStatsTab(); });
+  document.getElementById('statsEnd').addEventListener('change', (e) => { statsFilters.end = e.target.value; renderStatsTab(); });
+  document.getElementById('statsDevice').addEventListener('change', (e) => { statsFilters.deviceId = e.target.value; renderStatsTab(); });
+
+  el.querySelectorAll('.qn-option-row').forEach(row => {
+    row.addEventListener('click', async () => {
+      const resultEl = row.querySelector('.qn-option-result');
+      const sids = row.dataset.sessionIds.split(',').filter(Boolean);
+      const employeeIds = [...new Set(sids.map(sid => sessionMap[sid]?.employee_id).filter(Boolean))];
+      if (resultEl.style.display === 'block') { resultEl.style.display = 'none'; return; }
+      resultEl.style.display = 'block';
+      resultEl.textContent = 'Calcul...';
+      if (!employeeIds.length) { resultEl.textContent = "Index moyen : pas assez de personnes identifiées (QR non scanné)."; return; }
+      const { data } = await sb.from('sessions').select('score')
+        .eq('game_id', 'indextest').in('employee_id', employeeIds)
+        .gte('played_at', statsFilters.start).lte('played_at', statsFilters.end + 'T23:59:59');
+      const rows = data || [];
+      if (!rows.length) { resultEl.textContent = "Index moyen : aucune donnée PandaFit Index pour ce groupe sur la période."; return; }
+      const avg = Math.round(rows.reduce((a, r) => a + r.score, 0) / rows.length);
+      resultEl.textContent = `PandaFit Index moyen pour cette réponse : ${avg} (basé sur ${rows.length} test${rows.length > 1 ? 's' : ''}, ${employeeIds.length} personne${employeeIds.length > 1 ? 's' : ''} identifiée${employeeIds.length > 1 ? 's' : ''})`;
+    });
+  });
 
   if (charts.byDay) charts.byDay.destroy();
   if (charts.byGame) charts.byGame.destroy();
-  if (charts.index) charts.index.destroy();
+  if (charts.indexAvg) charts.indexAvg.destroy();
 
   charts.byDay = new Chart(document.getElementById('chartByDay'), {
     type: 'bar',
-    data: { labels: days.map(d => d.slice(5)), datasets: [{ data: countsByDay, backgroundColor: '#43cea2', borderRadius: 4 }] },
+    data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: countsByDay, backgroundColor: '#43cea2', borderRadius: 4 }] },
     options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#9992ad' } }, x: { ticks: { color: '#9992ad', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
+  });
+
+  charts.indexAvg = new Chart(document.getElementById('chartIndexAvg'), {
+    type: 'line',
+    data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: avgIndexByDay, spanGaps: true, borderColor: '#c86dd7', backgroundColor: 'rgba(200,109,215,0.15)', fill: true, tension: 0.3 }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100, ticks: { color: '#9992ad' } }, x: { ticks: { color: '#9992ad', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
   });
 
   const gameLabels = Object.keys(countByGame).map(id => games.find(g => g.id === id)?.name || id);
@@ -559,74 +692,6 @@ async function renderStatsTab() {
     data: { labels: gameLabels, datasets: [{ data: Object.values(countByGame), backgroundColor: ['#43cea2', '#185a9d', '#c86dd7', '#e6374e', '#e0a83e', '#3023ae'] }] },
     options: { plugins: { legend: { position: 'right', labels: { color: '#f4f2fa' } } } }
   });
-
-  if (indexSessions.length) {
-    charts.index = new Chart(document.getElementById('chartIndex'), {
-      type: 'line',
-      data: {
-        labels: indexSessions.map(s => new Date(s.played_at).toLocaleDateString('fr-CH')),
-        datasets: [{ data: indexSessions.map(s => s.score), borderColor: '#c86dd7', backgroundColor: 'rgba(200,109,215,0.15)', fill: true, tension: 0.3 }]
-      },
-      options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100, ticks: { color: '#9992ad' } }, x: { ticks: { color: '#9992ad' } } } }
-    });
-  }
-
-  await renderQuestionnaireStats(el);
-}
-
-async function renderQuestionnaireStats(el) {
-  const sessionIds = allSessions.map(s => s.id).filter(Boolean);
-  if (!sessionIds.length) return;
-
-  const wrap = document.createElement('div');
-  wrap.innerHTML = '<div class="menu-section-title" style="margin-top:22px;">Réponses aux questionnaires</div><p class="empty">Chargement...</p>';
-  el.appendChild(wrap);
-
-  const idsFilter = sessionIds.join(',');
-  const { data: responses } = await sb.from('question_responses')
-    .select('option_id, questions(id, question_text, questionnaire_id, questionnaires(title)), question_options(id, option_text)')
-    .in('session_id', idsFilter.length ? sessionIds : ['00000000-0000-0000-0000-000000000000']);
-
-  if (!responses || !responses.length) {
-    wrap.innerHTML = '<div class="menu-section-title" style="margin-top:22px;">Réponses aux questionnaires</div><p class="empty">Aucune réponse enregistrée pour ce client pour l\'instant.</p>';
-    return;
-  }
-
-  // Regrouper par question, compter les réponses par option
-  const byQuestion = {};
-  responses.forEach(r => {
-    const q = r.questions;
-    if (!q) return;
-    if (!byQuestion[q.id]) byQuestion[q.id] = { text: q.question_text, questionnaireTitle: q.questionnaires?.title || '', counts: {} };
-    const label = r.question_options?.option_text || '—';
-    byQuestion[q.id].counts[label] = (byQuestion[q.id].counts[label] || 0) + 1;
-  });
-
-  const questionCards = Object.values(byQuestion).map(q => {
-    const total = Object.values(q.counts).reduce((a, b) => a + b, 0);
-    const rows = Object.entries(q.counts).sort((a, b) => b[1] - a[1]).map(([label, count]) => {
-      const pct = Math.round((count / total) * 100);
-      return `
-        <div style="margin-bottom:8px;">
-          <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px;">
-            <span>${label}</span><span style="color:var(--text-dim);">${count} (${pct}%)</span>
-          </div>
-          <div style="background:var(--panel-hi);border-radius:100px;height:8px;overflow:hidden;">
-            <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#43cea2,#185a9d);"></div>
-          </div>
-        </div>
-      `;
-    }).join('');
-    return `
-      <div class="card">
-        <h3>${q.questionnaireTitle ? q.questionnaireTitle + ' · ' : ''}${q.text}</h3>
-        ${rows}
-        <p style="font-size:11.5px;color:var(--text-dim);margin:6px 0 0;">${total} réponse${total > 1 ? 's' : ''}</p>
-      </div>
-    `;
-  }).join('');
-
-  wrap.innerHTML = `<div class="menu-section-title" style="margin-top:22px;">Réponses aux questionnaires</div>${questionCards}`;
 }
 
 /* ---------------- Événements ---------------- */
