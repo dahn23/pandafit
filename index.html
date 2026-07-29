@@ -363,7 +363,7 @@ const PandaFitBackend = (() => {
   /** Récupère le client + les jeux activés pour une device_key donnée. */
   async function fetchClientConfig(deviceKey) {
     const devRes = await fetch(
-      `${REST}/devices?device_key=eq.${encodeURIComponent(deviceKey)}&select=id,name,client_id,clients(id,name,show_ready_to_play,show_index_banner,rh_pin,lock_games,index_sort_order)`,
+      `${REST}/devices?device_key=eq.${encodeURIComponent(deviceKey)}&select=id,name,client_id,clients(id,name,show_ready_to_play,show_index_banner,rh_pin,lock_games,index_sort_order,index_questionnaire_id)`,
       { headers: headers() }
     );
     if (!devRes.ok) throw new Error('Impossible de contacter le serveur (devices).');
@@ -377,9 +377,10 @@ const PandaFitBackend = (() => {
     const rhPin = device.clients ? device.clients.rh_pin : '0000';
     const lockGames = device.clients ? device.clients.lock_games : false;
     const indexSortOrder = device.clients ? (device.clients.index_sort_order ?? -1000) : -1000;
+    const indexQuestionnaireId = device.clients ? device.clients.index_questionnaire_id : null;
 
     const cgRes = await fetch(
-      `${REST}/client_games?client_id=eq.${clientId}&enabled=eq.true&select=game_id,sort_order,image_url&order=sort_order`,
+      `${REST}/client_games?client_id=eq.${clientId}&enabled=eq.true&select=game_id,sort_order,image_url,questionnaire_id&order=sort_order`,
       { headers: headers() }
     );
     if (!cgRes.ok) throw new Error('Impossible de contacter le serveur (client_games).');
@@ -387,18 +388,19 @@ const PandaFitBackend = (() => {
     const enabledGameIds = rows.map(r => r.game_id);
     const gameSortOrders = {};
     const gameImages = {};
-    rows.forEach(r => { gameSortOrders[r.game_id] = r.sort_order || 0; gameImages[r.game_id] = r.image_url || null; });
+    const gameQuestionnaires = {};
+    rows.forEach(r => { gameSortOrders[r.game_id] = r.sort_order || 0; gameImages[r.game_id] = r.image_url || null; gameQuestionnaires[r.game_id] = r.questionnaire_id || null; });
 
-    return { deviceId: device.id, deviceName: device.name, clientId, clientName, enabledGameIds, gameSortOrders, gameImages, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder };
+    return { deviceId: device.id, deviceName: device.name, clientId, clientName, enabledGameIds, gameSortOrders, gameImages, gameQuestionnaires, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder, indexQuestionnaireId };
   }
 
   /** Enregistre le score d'une partie terminée. */
   async function recordSession(config, gameId, score, meta, employeeId) {
-    if (!config) return;
+    if (!config) return null;
     try {
-      await fetch(`${REST}/sessions`, {
+      const res = await fetch(`${REST}/sessions`, {
         method: 'POST',
-        headers: headers({ Prefer: 'return=minimal' }),
+        headers: headers({ Prefer: 'return=representation' }),
         body: JSON.stringify({
           device_id: config.deviceId,
           client_id: config.clientId,
@@ -408,7 +410,35 @@ const PandaFitBackend = (() => {
           employee_id: employeeId || null,
         }),
       });
-    } catch (e) { /* pas grave si ça échoue ponctuellement, on ne bloque pas le jeu */ }
+      const rows = res.ok ? await res.json() : [];
+      return rows[0]?.id || null;
+    } catch (e) { return null; /* pas grave si ça échoue ponctuellement, on ne bloque pas le jeu */ }
+  }
+
+  /** Récupère les questions + réponses possibles d'un questionnaire. */
+  async function fetchQuestionnaire(questionnaireId) {
+    if (!questionnaireId) return [];
+    try {
+      const res = await fetch(
+        `${REST}/questions?questionnaire_id=eq.${questionnaireId}&select=*,question_options(*)&order=sort_order`,
+        { headers: headers() }
+      );
+      const rows = res.ok ? await res.json() : [];
+      rows.forEach(q => q.question_options.sort((a, b) => a.sort_order - b.sort_order));
+      return rows;
+    } catch (e) { return []; }
+  }
+
+  /** Enregistre les réponses données, liées à la partie qui vient d'être jouée. */
+  async function recordQuestionResponses(sessionId, answers) {
+    if (!sessionId || !answers || !answers.length) return;
+    try {
+      await fetch(`${REST}/question_responses`, {
+        method: 'POST',
+        headers: headers({ Prefer: 'return=minimal' }),
+        body: JSON.stringify(answers.map(a => ({ session_id: sessionId, question_id: a.questionId, option_id: a.optionId }))),
+      });
+    } catch (e) { /* pas grave si ça échoue ponctuellement */ }
   }
 
   /** Retrouve un employé à partir de son code personnel. */
@@ -548,7 +578,7 @@ const PandaFitBackend = (() => {
     } catch (e) { return {}; }
   }
 
-  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee };
+  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses };
 })();
 
 /* =====================================================================================
@@ -1163,6 +1193,11 @@ let liveCoord = { x: 0, y: 0, packetCount: 0, hz: 0 };
 let logLines = [];
 let clientConfig = null; // { deviceId, deviceName, clientId, clientName, enabledGameIds }
 let gamesCatalog = {}; // { gameId: { name, description, image_url } }
+let qFlowQuestions = [];
+let qFlowIndex = 0;
+let qFlowAnswers = [];
+let qFlowLaunchFn = null;
+let pendingQuestionnaireAnswers = null; // réponses en attente d'être liées à la prochaine session enregistrée
 let carousels = {
   main: { items: [], index: 0, timer: null },
   events: { items: [], index: 0, timer: null },
@@ -1261,7 +1296,7 @@ function render() {
   switch (currentRoute) {
     case 'home': content.innerHTML = screenHome(); wireHomeScreen(); break;
     case 'games': content.innerHTML = screenGames(); wireGamesScreen(); break;
-    case 'indextest': content.innerHTML = screenIndexIntro(); wireIndexIntro(); break;
+    case 'indextest': launchIndexWithQuestionnaire(); break;
     case 'calibrate': content.innerHTML = screenCalibrateIntro(); wireCalibrateIntro(); break;
     case 'settings': content.innerHTML = screenSettings(); wireSettingsScreen(); break;
     default: content.innerHTML = screenHome(); wireHomeScreen();
@@ -1435,8 +1470,81 @@ function renderMainStack() {
   });
 }
 function launchGame(gameId) {
-  if (GAME_LAUNCHERS[gameId]) { currentRoute = 'games'; document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('active', b.dataset.nav === 'games')); GAME_LAUNCHERS[gameId](); }
-  else navigate('games');
+  if (GAME_LAUNCHERS[gameId]) {
+    currentRoute = 'games';
+    document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('active', b.dataset.nav === 'games'));
+    launchGameWithQuestionnaire(gameId);
+  } else navigate('games');
+}
+function launchGameWithQuestionnaire(gameId) {
+  const qId = clientConfig?.gameQuestionnaires?.[gameId];
+  showQuestionnaireThenLaunch(qId, () => {
+    if (GAME_LAUNCHERS[gameId]) GAME_LAUNCHERS[gameId]();
+    else alert('Ce jeu sera bientôt disponible.');
+  });
+}
+function submitPendingAnswersIfAny(sessionId) {
+  if (sessionId && pendingQuestionnaireAnswers && pendingQuestionnaireAnswers.length) {
+    PandaFitBackend.recordQuestionResponses(sessionId, pendingQuestionnaireAnswers);
+  }
+  pendingQuestionnaireAnswers = null;
+}
+function launchIndexWithQuestionnaire() {
+  showQuestionnaireThenLaunch(clientConfig?.indexQuestionnaireId, () => {
+    content.innerHTML = screenIndexIntro();
+    wireIndexIntro();
+  });
+}
+async function showQuestionnaireThenLaunch(questionnaireId, launchFn) {
+  if (!questionnaireId) { pendingQuestionnaireAnswers = null; launchFn(); return; }
+  const questions = await PandaFitBackend.fetchQuestionnaire(questionnaireId);
+  if (!questions.length) { pendingQuestionnaireAnswers = null; launchFn(); return; }
+  qFlowQuestions = questions;
+  qFlowIndex = 0;
+  qFlowAnswers = questions.map(() => null);
+  qFlowLaunchFn = launchFn;
+  renderQuestionnaireFlow();
+}
+function renderQuestionnaireFlow() {
+  const q = qFlowQuestions[qFlowIndex];
+  const isLast = qFlowIndex === qFlowQuestions.length - 1;
+  const answered = qFlowAnswers[qFlowIndex] != null;
+  content.innerHTML = `
+    <p class="page-sub">Question ${qFlowIndex + 1} / ${qFlowQuestions.length}</p>
+    <div class="card">
+      <h1 class="page-title" style="font-size:19px;margin-bottom:16px;">${q.question_text}</h1>
+      <div id="qOptionsList">
+        ${q.question_options.map(o => `
+          <button class="btn-ghost qoption" data-option-id="${o.id}"
+            style="width:100%;text-align:left;margin-bottom:10px;${qFlowAnswers[qFlowIndex] === o.id ? 'outline:2px solid var(--primary);' : ''}">
+            ${o.option_text}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+    <div class="row" style="gap:8px;">
+      ${qFlowIndex > 0 ? `<button class="btn-ghost" id="btnQPrev">← Précédent</button>` : ''}
+      ${isLast
+        ? `<button class="btn-primary" id="btnQValidate" ${answered ? '' : 'disabled'}>Valider</button>`
+        : `<button class="btn-primary" id="btnQNext" ${answered ? '' : 'disabled'}>Suivant →</button>`}
+    </div>
+  `;
+  document.querySelectorAll('.qoption').forEach(btn => {
+    btn.addEventListener('click', () => {
+      qFlowAnswers[qFlowIndex] = btn.dataset.optionId;
+      renderQuestionnaireFlow();
+    });
+  });
+  document.getElementById('btnQPrev')?.addEventListener('click', () => { qFlowIndex--; renderQuestionnaireFlow(); });
+  document.getElementById('btnQNext')?.addEventListener('click', () => { qFlowIndex++; renderQuestionnaireFlow(); });
+  document.getElementById('btnQValidate')?.addEventListener('click', () => {
+    pendingQuestionnaireAnswers = qFlowQuestions
+      .map((qq, i) => ({ questionId: qq.id, optionId: qFlowAnswers[i] }))
+      .filter(a => a.optionId);
+    const fn = qFlowLaunchFn;
+    qFlowLaunchFn = null;
+    fn();
+  });
 }
 function renderCarousel(key, containerId) {
   const wrap = document.getElementById(containerId);
@@ -1564,9 +1672,7 @@ function wireHighlightDetail(item) {
   });
   document.getElementById('btnDetailPlay')?.addEventListener('click', () => {
     clearInterval(detailCountdownTimer);
-    const gameId = item.data.game_id;
-    if (GAME_LAUNCHERS[gameId]) GAME_LAUNCHERS[gameId]();
-    else alert('Ce jeu sera bientôt disponible.');
+    launchGameWithQuestionnaire(item.data.game_id);
   });
   if (item.type === 'defi' || item.type === 'challenge') {
     clearInterval(detailCountdownTimer);
@@ -1605,18 +1711,9 @@ function screenGames() {
 function wireGamesScreen() {
   document.querySelectorAll('.game-card').forEach(card => {
     card.addEventListener('click', () => {
-      if (card.dataset.game === 'thezone') {
-        content.innerHTML = screenZoneSetup();
-        wireZoneSetup();
-      } else if (card.dataset.game === 'migros') {
-        content.innerHTML = screenMigrosSetup();
-        wireMigrosSetup();
-      } else if (card.dataset.game === 'skiprev') {
-        content.innerHTML = screenSkiSetup();
-        wireSkiSetup();
-      } else {
-        alert('Ce jeu sera construit lors d\'une prochaine étape.');
-      }
+      const gameId = card.dataset.game;
+      if (GAME_LAUNCHERS[gameId]) launchGameWithQuestionnaire(gameId);
+      else alert('Ce jeu sera construit lors d\'une prochaine étape.');
     });
   });
 }
@@ -1715,7 +1812,7 @@ function startZoneGame() {
     (snap, reason) => {
       const elapsed = zoneSetupCfg.duration - snap.timeLeft;
       const score = ZoneGame.computeScore(snap, zoneSetupCfg.duration - snap.timeLeft);
-      PandaFitBackend.recordSession(clientConfig, 'thezone', score, { difficulty: zoneSetupCfg.difficulty, livesLost: snap.livesLost, reason });
+      PandaFitBackend.recordSession(clientConfig, 'thezone', score, { difficulty: zoneSetupCfg.difficulty, livesLost: snap.livesLost, reason }).then(submitPendingAnswersIfAny);
       content.innerHTML = screenZoneResult(snap, score, reason);
       wireZoneResult();
     }
@@ -1804,9 +1901,7 @@ function screenZoneResult(snap, score, reason) {
   `;
 }
 function wireZoneResult() {
-  document.getElementById('btnZoneReplay')?.addEventListener('click', () => {
-    content.innerHTML = screenZoneSetup(); wireZoneSetup();
-  });
+  document.getElementById('btnZoneReplay')?.addEventListener('click', () => launchGameWithQuestionnaire('thezone'));
   document.getElementById('btnZoneBackHome')?.addEventListener('click', () => navigate('games'));
 }
 
@@ -1950,7 +2045,7 @@ function startMigrosGame() {
   MigrosGame.start(migrosCfg,
     (snap) => renderMigrosPlaying(snap),
     (snap) => {
-      PandaFitBackend.recordSession(clientConfig, 'migros', snap.score, { livesLost: snap.livesLost });
+      PandaFitBackend.recordSession(clientConfig, 'migros', snap.score, { livesLost: snap.livesLost }).then(submitPendingAnswersIfAny);
       content.innerHTML = `<div style="${MIGROS_THEME}">${screenMigrosResult(snap)}</div>`; wireMigrosResult();
     }
   );
@@ -2017,7 +2112,7 @@ function screenMigrosResult(snap) {
   `;
 }
 function wireMigrosResult() {
-  document.getElementById('btnMigrosReplay')?.addEventListener('click', () => { content.innerHTML = screenMigrosSetup(); wireMigrosSetup(); });
+  document.getElementById('btnMigrosReplay')?.addEventListener('click', () => launchGameWithQuestionnaire('migros'));
   document.getElementById('btnMigrosBack')?.addEventListener('click', () => navigate('games'));
 }
 
@@ -2085,7 +2180,7 @@ function startSkiGame() {
   SlalomGame.start(skiCfg,
     (snap) => renderSkiPlaying(snap),
     (snap) => {
-      PandaFitBackend.recordSession(clientConfig, 'skiprev', snap.score, { difficulty: skiCfg.difficulty, livesLost: snap.livesLost });
+      PandaFitBackend.recordSession(clientConfig, 'skiprev', snap.score, { difficulty: skiCfg.difficulty, livesLost: snap.livesLost }).then(submitPendingAnswersIfAny);
       content.innerHTML = `<div style="${SKI_THEME}">${screenSkiResult(snap)}</div>`; wireSkiResult();
     }
   );
@@ -2174,7 +2269,7 @@ function screenSkiResult(snap) {
   `;
 }
 function wireSkiResult() {
-  document.getElementById('btnSkiReplay')?.addEventListener('click', () => { content.innerHTML = screenSkiSetup(); wireSkiSetup(); });
+  document.getElementById('btnSkiReplay')?.addEventListener('click', () => launchGameWithQuestionnaire('skiprev'));
   document.getElementById('btnSkiBack')?.addEventListener('click', () => navigate('games'));
 }
 
@@ -2343,7 +2438,7 @@ async function finishIndexTest(overall, staticResult, movementResult) {
     staticScore: staticResult.score, movementScore: movementResult.score,
     rmsCm: staticResult.rmsCm, amplitudeCm: movementResult.amplitudeCm,
     regularityScore: movementResult.regularityScore, cycles: movementResult.cycles,
-  }, currentEmployee?.id);
+  }, currentEmployee?.id).then(submitPendingAnswersIfAny);
   content.innerHTML = screenIndexResult(overall, staticResult, movementResult);
   wireIndexResult();
 }
@@ -2377,7 +2472,7 @@ function screenIndexResult(overall, staticResult, movementResult) {
   `;
 }
 function wireIndexResult() {
-  document.getElementById('btnIndexReplay')?.addEventListener('click', () => { content.innerHTML = screenIndexIntro(); wireIndexIntro(); });
+  document.getElementById('btnIndexReplay')?.addEventListener('click', () => launchIndexWithQuestionnaire());
   document.getElementById('btnIndexHome')?.addEventListener('click', () => { currentEmployee = null; navigate('home'); });
   const canvas = document.getElementById('employeeQrCanvas');
   if (canvas && currentEmployee) {

@@ -336,6 +336,7 @@ function renderMain() {
       <div class="tab ${activeTab === 'events' ? 'active' : ''}" data-tab="events">Événements</div>
       <div class="tab ${activeTab === 'defis' ? 'active' : ''}" data-tab="defis">Défis</div>
       <div class="tab ${activeTab === 'clientsettings' ? 'active' : ''}" data-tab="clientsettings">Réglages</div>
+      <div class="tab ${activeTab === 'questionnaires' ? 'active' : ''}" data-tab="questionnaires">Questionnaires</div>
       <div class="tab ${activeTab === 'tabletmenu' ? 'active' : ''}" data-tab="tabletmenu">Menu tablette</div>
     </div>
     <div id="tabContent"></div>
@@ -349,6 +350,7 @@ function renderMain() {
   else if (activeTab === 'events') renderEventsTab();
   else if (activeTab === 'defis') renderDefisTab();
   else if (activeTab === 'clientsettings') renderClientSettingsTab();
+  else if (activeTab === 'questionnaires') renderQuestionnairesTab();
   else if (activeTab === 'tabletmenu') renderTabletMenuTab();
   else renderDataTab();
 }
@@ -398,13 +400,19 @@ function renderDevicesTab() {
   });
 }
 
-function renderGamesTab() {
+async function renderGamesTab() {
+  await loadQuestionnaires(selectedClientId);
+  const client = clients.find(c => c.id === selectedClientId);
   const el = document.getElementById('tabContent');
+  const qnOptions = (selectedId) => `
+    <option value="">Aucun</option>
+    ${questionnaires.map(q => `<option value="${q.id}" ${selectedId === q.id ? 'selected' : ''}>${q.title}</option>`).join('')}
+  `;
   el.innerHTML = `
     <div class="card">
       <h3>Jeux visibles pour ce client</h3>
       <table>
-        <tr><th>Jeu</th><th>Description</th><th>Activé</th></tr>
+        <tr><th>Jeu</th><th>Description</th><th>Activé</th><th>Questionnaire avant de jouer</th></tr>
         ${games.map(g => {
           const cg = clientGames.find(x => x.game_id === g.id);
           const enabled = cg ? cg.enabled : false;
@@ -418,9 +426,24 @@ function renderGamesTab() {
                   <span class="track"></span><span class="thumb"></span>
                 </label>
               </td>
+              <td>
+                <select data-game-qn="${g.id}" style="padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+                  ${qnOptions(cg?.questionnaire_id)}
+                </select>
+              </td>
             </tr>
           `;
         }).join('')}
+        <tr>
+          <td><b>PandaFit Index</b></td>
+          <td style="color:var(--text-dim);">Test d'équilibre</td>
+          <td style="color:var(--text-dim);font-size:12px;">—</td>
+          <td>
+            <select id="indexQnSelect" style="padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+              ${qnOptions(client.index_questionnaire_id)}
+            </select>
+          </td>
+        </tr>
       </table>
     </div>
   `;
@@ -433,6 +456,21 @@ function renderGamesTab() {
       if (error) alert('Erreur : ' + error.message);
       await loadClientDetail(selectedClientId);
     });
+  });
+  el.querySelectorAll('select[data-game-qn]').forEach(select => {
+    select.addEventListener('change', async () => {
+      const gameId = select.dataset.gameQn;
+      const questionnaire_id = select.value || null;
+      const { error } = await sb.from('client_games')
+        .upsert({ client_id: selectedClientId, game_id: gameId, questionnaire_id }, { onConflict: 'client_id,game_id' });
+      if (error) alert('Erreur : ' + error.message);
+      await loadClientDetail(selectedClientId);
+    });
+  });
+  document.getElementById('indexQnSelect').addEventListener('change', async (e) => {
+    const { error } = await sb.from('clients').update({ index_questionnaire_id: e.target.value || null }).eq('id', selectedClientId);
+    if (error) alert('Erreur : ' + error.message);
+    await loadClients();
   });
 }
 
@@ -1203,6 +1241,147 @@ function renderDetailsTab() {
     await loadClients();
     renderClientList();
     renderMain();
+  });
+}
+
+/* ---------------- Questionnaires ---------------- */
+let questionnaires = [];
+let editingQuestionnaireId = null;
+
+async function loadQuestionnaires(clientId) {
+  const { data } = await sb.from('questionnaires').select('*').eq('client_id', clientId).order('created_at', { ascending: false });
+  questionnaires = data || [];
+}
+async function loadQuestionnaireDetail(qId) {
+  const { data } = await sb.from('questions')
+    .select('*, question_options(*)')
+    .eq('questionnaire_id', qId)
+    .order('sort_order');
+  (data || []).forEach(q => q.question_options.sort((a, b) => a.sort_order - b.sort_order));
+  return data || [];
+}
+
+async function renderQuestionnairesTab() {
+  await loadQuestionnaires(selectedClientId);
+  const el = document.getElementById('tabContent');
+  if (editingQuestionnaireId) { await renderQuestionnaireEditor(el); return; }
+
+  el.innerHTML = `
+    <div class="card">
+      <h3>Nouveau questionnaire</h3>
+      <div class="inline-form">
+        <input id="qnTitle" placeholder="Titre (ex: Ressenti du jour)">
+        <button class="btn-primary" id="btnAddQuestionnaire" style="width:auto;">Créer</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Questionnaires de ce client</h3>
+      ${questionnaires.length ? questionnaires.map(q => `
+        <div class="event-item">
+          <div class="title-row">
+            <b>${q.title}</b>
+            <span style="display:flex;gap:6px;">
+              <button class="btn-ghost" data-edit-qn="${q.id}">Modifier les questions</button>
+              <button class="btn-destructive" data-del-qn="${q.id}">Supprimer</button>
+            </span>
+          </div>
+        </div>
+      `).join('') : '<div class="empty">Aucun questionnaire pour ce client.</div>'}
+    </div>
+  `;
+  document.getElementById('btnAddQuestionnaire').addEventListener('click', async () => {
+    const title = document.getElementById('qnTitle').value.trim();
+    if (!title) return;
+    const { error } = await sb.from('questionnaires').insert({ client_id: selectedClientId, title });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    renderQuestionnairesTab();
+  });
+  el.querySelectorAll('[data-edit-qn]').forEach(btn => {
+    btn.addEventListener('click', () => { editingQuestionnaireId = btn.dataset.editQn; renderQuestionnairesTab(); });
+  });
+  el.querySelectorAll('[data-del-qn]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Supprimer ce questionnaire (et ses questions) ?')) return;
+      await sb.from('questionnaires').delete().eq('id', btn.dataset.delQn);
+      renderQuestionnairesTab();
+    });
+  });
+}
+
+async function renderQuestionnaireEditor(el) {
+  const qn = questionnaires.find(q => q.id === editingQuestionnaireId);
+  const questions = await loadQuestionnaireDetail(editingQuestionnaireId);
+
+  el.innerHTML = `
+    <button class="btn-ghost" id="btnBackToQnList" style="margin-bottom:14px;">← Retour aux questionnaires</button>
+    <div class="section-title" style="font-size:17px;">${qn?.title || ''}</div>
+    <div class="section-sub">Une question à la fois s'affichera sur la tablette, avec Suivant/Précédent et Valider sur la dernière.</div>
+    ${questions.map((q, qi) => `
+      <div class="card">
+        <div class="title-row" style="margin-bottom:10px;">
+          <input class="qtext" data-question-id="${q.id}" value="${q.question_text}" style="flex:1;margin-bottom:0;margin-right:10px;">
+          <button class="btn-destructive" data-del-question="${q.id}">Supprimer la question</button>
+        </div>
+        <div class="options-list" data-question-options="${q.id}">
+          ${q.question_options.map(o => `
+            <div class="inline-form" style="margin-bottom:6px;">
+              <input class="otext" data-option-id="${o.id}" value="${o.option_text}">
+              <button class="btn-destructive" data-del-option="${o.id}" style="width:auto;">✕</button>
+            </div>
+          `).join('')}
+        </div>
+        <button class="btn-ghost" data-add-option="${q.id}" style="width:auto;margin-top:6px;">+ Ajouter une réponse</button>
+      </div>
+    `).join('')}
+    <div class="card">
+      <h3>Nouvelle question</h3>
+      <input id="newQuestionText" placeholder="Texte de la question" style="margin-bottom:10px;">
+      <button class="btn-primary" id="btnAddQuestion" style="width:auto;">Ajouter la question</button>
+    </div>
+  `;
+
+  document.getElementById('btnBackToQnList').addEventListener('click', () => { editingQuestionnaireId = null; renderQuestionnairesTab(); });
+
+  document.getElementById('btnAddQuestion').addEventListener('click', async () => {
+    const question_text = document.getElementById('newQuestionText').value.trim();
+    if (!question_text) return;
+    const { error } = await sb.from('questions').insert({ questionnaire_id: editingQuestionnaireId, question_text, sort_order: questions.length });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    renderQuestionnaireEditor(el);
+  });
+
+  el.querySelectorAll('.qtext').forEach(input => {
+    input.addEventListener('change', async () => {
+      await sb.from('questions').update({ question_text: input.value.trim() }).eq('id', input.dataset.questionId);
+    });
+  });
+  el.querySelectorAll('.otext').forEach(input => {
+    input.addEventListener('change', async () => {
+      await sb.from('question_options').update({ option_text: input.value.trim() }).eq('id', input.dataset.optionId);
+    });
+  });
+  el.querySelectorAll('[data-del-question]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Supprimer cette question et ses réponses ?')) return;
+      await sb.from('questions').delete().eq('id', btn.dataset.delQuestion);
+      renderQuestionnaireEditor(el);
+    });
+  });
+  el.querySelectorAll('[data-del-option]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await sb.from('question_options').delete().eq('id', btn.dataset.delOption);
+      renderQuestionnaireEditor(el);
+    });
+  });
+  el.querySelectorAll('[data-add-option]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const qId = btn.dataset.addOption;
+      const q = questions.find(x => x.id === qId);
+      const option_text = prompt('Texte de la réponse :');
+      if (!option_text || !option_text.trim()) return;
+      await sb.from('question_options').insert({ question_id: qId, option_text: option_text.trim(), sort_order: q.question_options.length });
+      renderQuestionnaireEditor(el);
+    });
   });
 }
 
