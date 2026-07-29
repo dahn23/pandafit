@@ -185,6 +185,7 @@ function genDeviceKey() {
 async function init() {
   const { data } = await sb.auth.getSession();
   session = data.session;
+  if (session) await loadCurrentAdmin();
   sb.auth.onAuthStateChange((_event, s) => { session = s; render(); });
   render();
 }
@@ -199,6 +200,7 @@ function renderLogin(errorMsg) {
         <input id="loginPassword" type="password" placeholder="Mot de passe">
         ${errorMsg ? `<div class="error-msg">${errorMsg}</div>` : ''}
         <button class="btn-primary" id="btnLogin">Se connecter</button>
+        <a class="linklike" id="btnForgotPassword" style="display:block;text-align:center;margin-top:12px;font-size:13px;">Mot de passe oublié ?</a>
       </div>
     </div>
   `;
@@ -209,15 +211,54 @@ function renderLogin(errorMsg) {
     if (error) { renderLogin(error.message); return; }
     clients = [];
     selectedClientId = null;
+    await loadCurrentAdmin();
     await loadClients();
     render();
   });
+  document.getElementById('btnForgotPassword').addEventListener('click', async () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    if (!email) { alert('Entre ton email dans le champ ci-dessus puis reclique sur ce lien.'); return; }
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+    alert(error ? 'Erreur : ' + error.message : `Un email de réinitialisation a été envoyé à ${email}.`);
+  });
+}
+
+/* ---------------- Compte admin courant (bootstrap + permissions) ---------------- */
+let currentAdmin = null;
+
+async function loadCurrentAdmin() {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { currentAdmin = null; return; }
+  let { data: rows } = await sb.from('admin_users').select('*').eq('user_id', user.id);
+  if (!rows || !rows.length) {
+    // Premier compte à se connecter jamais = superadmin par défaut (bootstrap)
+    const { data: existingAny } = await sb.from('admin_users').select('id').limit(1);
+    const isFirstEver = !existingAny || !existingAny.length;
+    const { data: created } = await sb.from('admin_users')
+      .insert({ user_id: user.id, email: user.email, is_superadmin: isFirstEver })
+      .select();
+    rows = created;
+  }
+  currentAdmin = rows?.[0] || null;
+  if (currentAdmin && !currentAdmin.is_superadmin) {
+    const { data: access } = await sb.from('admin_client_access').select('client_id').eq('admin_user_id', currentAdmin.id);
+    currentAdmin.allowedClientIds = (access || []).map(a => a.client_id);
+  }
+}
+function adminCan(permKey) {
+  if (!currentAdmin) return false;
+  if (currentAdmin.is_superadmin) return true;
+  return !!(currentAdmin.permissions && currentAdmin.permissions[permKey]);
 }
 
 /* ---------------- Data loading ---------------- */
 async function loadClients() {
   const { data } = await sb.from('clients').select('*, devices(count)').order('name');
-  clients = data || [];
+  let all = data || [];
+  if (currentAdmin && !currentAdmin.is_superadmin) {
+    all = all.filter(c => (currentAdmin.allowedClientIds || []).includes(c.id));
+  }
+  clients = all;
   if (!selectedClientId && clients.length) selectedClientId = clients[0].id;
 }
 async function loadClientDetail(clientId) {
@@ -261,13 +302,15 @@ async function render() {
     if (viewMode === 'challenges') await loadChallenges();
   }
 
-  const topTabs = [
-    { key: 'clients', label: 'Clients', icon: 'users' },
-    { key: 'crm', label: 'CRM', icon: 'briefcase' },
-    { key: 'globalstats', label: 'Statistiques', icon: 'bar-chart-3' },
-    { key: 'access', label: 'Accès', icon: 'shield' },
-    { key: 'calendar', label: 'Calendrier', icon: 'calendar-days' },
+  const allTopTabs = [
+    { key: 'clients', label: 'Clients', icon: 'users', always: true },
+    { key: 'crm', label: 'CRM', icon: 'briefcase', perm: 'menu_crm' },
+    { key: 'globalstats', label: 'Statistiques', icon: 'bar-chart-3', perm: 'menu_globalstats' },
+    { key: 'access', label: 'Accès', icon: 'shield', superadminOnly: true },
+    { key: 'calendar', label: 'Calendrier', icon: 'calendar-days', perm: 'menu_calendar' },
   ];
+  const topTabs = allTopTabs.filter(t => t.always || (t.superadminOnly ? currentAdmin?.is_superadmin : adminCan(t.perm)));
+  if (topTabs.every(t => t.key !== topView)) topView = 'clients';
 
   app.innerHTML = `
     <div class="topbar">
@@ -285,7 +328,7 @@ async function render() {
   `;
   document.getElementById('btnLogout').addEventListener('click', async () => {
     await sb.auth.signOut();
-    clients = []; selectedClientId = null; session = null;
+    clients = []; selectedClientId = null; session = null; currentAdmin = null; topView = 'clients';
     render();
   });
   document.querySelectorAll('.top-nav-tab').forEach(tab => {
@@ -297,29 +340,35 @@ async function render() {
     container.innerHTML = `
       <div class="layout">
         <div class="sidebar">
-          <div class="client-item ${viewMode === 'challenges' ? 'active' : ''}" id="navChallenges" style="margin-bottom:8px;">
-            <span style="display:flex;align-items:center;gap:8px;"><i data-lucide="trophy"></i> Challenges (inter-clients)</span>
-          </div>
-          <div class="client-item ${viewMode === 'content' ? 'active' : ''}" id="navContent" style="margin-bottom:14px;">
-            <span style="display:flex;align-items:center;gap:8px;"><i data-lucide="layout-grid"></i> Contenu (jeux + Index)</span>
-          </div>
+          ${adminCan('create_challenges') ? `
+            <div class="client-item ${viewMode === 'challenges' ? 'active' : ''}" id="navChallenges" style="margin-bottom:8px;">
+              <span style="display:flex;align-items:center;gap:8px;"><i data-lucide="trophy"></i> Challenges (inter-clients)</span>
+            </div>
+          ` : ''}
+          ${adminCan('manage_content') ? `
+            <div class="client-item ${viewMode === 'content' ? 'active' : ''}" id="navContent" style="margin-bottom:14px;">
+              <span style="display:flex;align-items:center;gap:8px;"><i data-lucide="layout-grid"></i> Contenu (jeux + Index)</span>
+            </div>
+          ` : ''}
           <h2>Clients</h2>
           <div id="clientList"></div>
-          <div class="inline-form" style="margin-top:14px;">
-            <input id="newClientName" placeholder="Nouveau client">
-            <button class="btn-primary" id="btnAddClient" style="width:auto;">+</button>
-          </div>
+          ${currentAdmin?.is_superadmin ? `
+            <div class="inline-form" style="margin-top:14px;">
+              <input id="newClientName" placeholder="Nouveau client">
+              <button class="btn-primary" id="btnAddClient" style="width:auto;">+</button>
+            </div>
+          ` : ''}
         </div>
         <div class="main" id="main"></div>
       </div>
     `;
-    document.getElementById('navChallenges').addEventListener('click', async () => {
+    document.getElementById('navChallenges')?.addEventListener('click', async () => {
       viewMode = 'challenges';
       await loadChallenges();
       renderClientList();
       renderMain();
     });
-    document.getElementById('navContent').addEventListener('click', async () => {
+    document.getElementById('navContent')?.addEventListener('click', async () => {
       viewMode = 'content';
       renderClientList();
       renderMain();
@@ -327,7 +376,7 @@ async function render() {
     renderClientList();
     renderMain();
 
-    document.getElementById('btnAddClient').addEventListener('click', async () => {
+    document.getElementById('btnAddClient')?.addEventListener('click', async () => {
       const name = document.getElementById('newClientName').value.trim();
       if (!name) return;
       const { data, error } = await sb.from('clients').insert({ name }).select().single();
@@ -343,6 +392,9 @@ async function render() {
   } else if (topView === 'globalstats') {
     container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
     await renderGlobalStatsView();
+  } else if (topView === 'access') {
+    container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
+    await renderAccessView();
   } else {
     container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"><div class="card"><p class="empty">Bientôt disponible.</p></div></div>`;
   }
@@ -2418,6 +2470,150 @@ async function renderGlobalStatsView() {
     type: 'doughnut',
     data: { labels: gameLabels, datasets: [{ data: Object.values(stats.countByGame), backgroundColor: ['#43cea2', '#185a9d', '#c86dd7', '#e6374e', '#e0a83e', '#3023ae'] }] },
     options: { plugins: { legend: { position: 'right', labels: { color: '#f4f2fa' } } } }
+  });
+}
+
+/* ---------------- Gestion des accès (multi-admin) ---------------- */
+let adminUsersList = [];
+let editingAdminId = null;
+
+const PERMISSION_DEFS = [
+  { key: 'menu_crm', label: 'Accès au menu CRM' },
+  { key: 'menu_globalstats', label: 'Accès aux Statistiques globales' },
+  { key: 'menu_calendar', label: 'Accès au Calendrier' },
+  { key: 'create_challenges', label: 'Créer des Challenges (inter-clients)' },
+  { key: 'manage_content', label: 'Gérer le Contenu global (jeux + Index)' },
+];
+
+async function loadAdminUsers() {
+  const { data } = await sb.from('admin_users').select('*, admin_client_access(client_id)').order('created_at');
+  adminUsersList = data || [];
+}
+
+async function renderAccessView() {
+  if (!currentAdmin?.is_superadmin) {
+    document.getElementById('main').innerHTML = '<div class="card"><p class="empty">Réservé au superadmin.</p></div>';
+    return;
+  }
+  await loadAdminUsers();
+  const main = document.getElementById('main');
+
+  if (editingAdminId) { renderAdminEditor(); return; }
+
+  main.innerHTML = `
+    <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="shield"></i> Gestion des accès</div>
+    <div class="section-sub">Crée des comptes admin et choisis à quoi ils ont accès. Le mot de passe est géré par l'admin lui-même (email de réinitialisation) — je ne peux jamais le voir ni le définir directement.</div>
+    <div class="card">
+      <h3>Nouvel admin</h3>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <input id="newAdminEmail" type="email" placeholder="Email">
+        <input id="newAdminName" placeholder="Nom (optionnel)">
+        <input id="newAdminPassword" type="password" placeholder="Mot de passe initial">
+      </div>
+      <p style="font-size:12px;color:var(--text-dim);margin:8px 0;">L'admin pourra le changer via "Mot de passe oublié" sur l'écran de connexion.</p>
+      <button class="btn-primary" id="btnCreateAdmin" style="width:auto;">Créer le compte</button>
+    </div>
+    <div class="card">
+      <h3>Comptes existants</h3>
+      <table>
+        <tr><th>Email</th><th>Nom</th><th>Rôle</th><th>Clients</th><th></th></tr>
+        ${adminUsersList.map(a => `
+          <tr>
+            <td>${a.email}</td>
+            <td>${a.display_name || '—'}</td>
+            <td>${a.is_superadmin ? '<span class="badge">Superadmin</span>' : 'Admin'}</td>
+            <td>${a.is_superadmin ? 'Tous' : (a.admin_client_access?.length || 0)}</td>
+            <td>
+              ${!a.is_superadmin ? `<button class="btn-ghost" data-edit-admin="${a.id}">Modifier</button>
+              <button class="btn-destructive" data-del-admin="${a.id}">Supprimer</button>` : ''}
+            </td>
+          </tr>
+        `).join('')}
+      </table>
+    </div>
+  `;
+
+  document.getElementById('btnCreateAdmin').addEventListener('click', async () => {
+    const email = document.getElementById('newAdminEmail').value.trim();
+    const password = document.getElementById('newAdminPassword').value;
+    const display_name = document.getElementById('newAdminName').value.trim() || null;
+    if (!email || password.length < 6) { alert('Email + mot de passe (6 caractères min.) requis.'); return; }
+    // Client secondaire jetable pour ne pas affecter la session superadmin en cours
+    const tempClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({ email, password });
+    if (signUpError) { alert('Erreur : ' + signUpError.message); return; }
+    const { error: insertError } = await sb.from('admin_users').insert({
+      user_id: signUpData.user.id, email, display_name, is_superadmin: false, permissions: {},
+    });
+    if (insertError) { alert('Erreur : ' + insertError.message); return; }
+    alert("Compte créé. Selon les réglages du projet, un email de confirmation a peut-être été envoyé — l'admin devra peut-être cliquer dessus avant de pouvoir se connecter.");
+    renderAccessView();
+  });
+
+  main.querySelectorAll('[data-edit-admin]').forEach(btn => {
+    btn.addEventListener('click', () => { editingAdminId = btn.dataset.editAdmin; renderAccessView(); });
+  });
+  main.querySelectorAll('[data-del-admin]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm("Supprimer cet accès ? (le compte de connexion lui-même n'est pas supprimé, seul son accès à la console l'est)")) return;
+      await sb.from('admin_users').delete().eq('id', btn.dataset.delAdmin);
+      renderAccessView();
+    });
+  });
+}
+
+function renderAdminEditor() {
+  const main = document.getElementById('main');
+  const admin = adminUsersList.find(a => a.id === editingAdminId);
+  if (!admin) { editingAdminId = null; renderAccessView(); return; }
+  const assignedClientIds = (admin.admin_client_access || []).map(a => a.client_id);
+
+  main.innerHTML = `
+    <button class="btn-ghost" id="btnBackAccess" style="margin-bottom:14px;">← Retour aux accès</button>
+    <div class="card">
+      <h3>${admin.email}</h3>
+      <input id="editAdminName" placeholder="Nom" value="${admin.display_name || ''}" style="margin-bottom:10px;">
+      <button class="btn-ghost" id="btnSendReset" style="width:auto;">Envoyer un email de réinitialisation du mot de passe</button>
+    </div>
+    <div class="card">
+      <h3>Permissions</h3>
+      ${PERMISSION_DEFS.map(p => `
+        <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:10px;">
+          <input type="checkbox" class="perm-check" data-perm="${p.key}" ${admin.permissions?.[p.key] ? 'checked' : ''}>
+          ${p.label}
+        </label>
+      `).join('')}
+    </div>
+    <div class="card">
+      <h3>Clients assignés</h3>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">L'admin aura toutes les options (comme toi) sur les clients cochés ici.</p>
+      ${clients.map(c => `
+        <label style="display:inline-flex;align-items:center;gap:6px;margin:0 14px 8px 0;font-size:13.5px;">
+          <input type="checkbox" class="client-check" value="${c.id}" ${assignedClientIds.includes(c.id) ? 'checked' : ''}> ${c.name}
+        </label>
+      `).join('')}
+    </div>
+    <button class="btn-primary" id="btnSaveAdmin" style="width:auto;">Enregistrer</button>
+  `;
+
+  document.getElementById('btnBackAccess').addEventListener('click', () => { editingAdminId = null; renderAccessView(); });
+  document.getElementById('btnSendReset').addEventListener('click', async () => {
+    const { error } = await sb.auth.resetPasswordForEmail(admin.email, { redirectTo: location.origin + location.pathname });
+    alert(error ? 'Erreur : ' + error.message : `Email de réinitialisation envoyé à ${admin.email}.`);
+  });
+  document.getElementById('btnSaveAdmin').addEventListener('click', async () => {
+    const display_name = document.getElementById('editAdminName').value.trim() || null;
+    const permissions = {};
+    main.querySelectorAll('.perm-check').forEach(cb => { permissions[cb.dataset.perm] = cb.checked; });
+    const selectedClientIds = [...main.querySelectorAll('.client-check:checked')].map(cb => cb.value);
+
+    await sb.from('admin_users').update({ display_name, permissions }).eq('id', admin.id);
+    await sb.from('admin_client_access').delete().eq('admin_user_id', admin.id);
+    if (selectedClientIds.length) {
+      await sb.from('admin_client_access').insert(selectedClientIds.map(cid => ({ admin_user_id: admin.id, client_id: cid })));
+    }
+    editingAdminId = null;
+    renderAccessView();
   });
 }
 
