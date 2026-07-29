@@ -690,16 +690,20 @@ const PandaFitSensor = (() => {
 
   /** Tente une reconnexion silencieuse (sans sélecteur) à un capteur déjà autorisé.
    *  Ne fonctionne que si les 2 drapeaux Chrome expérimentaux sont activés sur l'appareil.
-   *  Renvoie true si la reconnexion a réussi, false sinon (aucune erreur bloquante). */
+   *  Renvoie { success, reason, devicesFound } pour pouvoir diagnostiquer un échec. */
   async function tryAutoReconnect() {
+    if (!navigator.bluetooth) return { success: false, reason: 'Web Bluetooth indisponible sur ce navigateur.' };
+    if (!navigator.bluetooth.getDevices) return { success: false, reason: "getDevices() non disponible — les drapeaux Chrome ne sont probablement pas actifs (ou Chrome n'a pas redémarré depuis)." };
     try {
-      if (!navigator.bluetooth || !navigator.bluetooth.getDevices) return false;
       const known = await navigator.bluetooth.getDevices();
+      if (!known.length) return { success: false, reason: "getDevices() a répondu mais n'a trouvé aucun appareil précédemment autorisé — reconnecte une fois manuellement via le sélecteur, puis recharge." };
       const match = known.find(d => NAME_PREFIXES.some(p => d.name && d.name.startsWith(p)));
-      if (!match) return false;
+      if (!match) return { success: false, reason: `${known.length} appareil(s) connu(s) trouvé(s), mais aucun avec un nom correspondant (${known.map(d => d.name || '(sans nom)').join(', ')}).` };
       await connectToDevice(match);
-      return true;
-    } catch (e) { return false; }
+      return { success: true };
+    } catch (e) {
+      return { success: false, reason: 'Erreur pendant la reconnexion : ' + e.message };
+    }
   }
 
   function disconnect() {
@@ -2563,8 +2567,9 @@ document.getElementById('btnFullscreen')?.addEventListener('click', () => {
     clientConfig = await PandaFitBackend.fetchClientConfig(savedKey);
     log(`Tablette reliée au client "${clientConfig.clientName}".`);
     gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
-    const reconnected = await PandaFitSensor.tryAutoReconnect();
-    if (reconnected) log('Capteur reconnecté automatiquement (sans sélecteur).');
+    const reconnectResult = await PandaFitSensor.tryAutoReconnect();
+    if (reconnectResult.success) log('Capteur reconnecté automatiquement (sans sélecteur).');
+    else log('Reconnexion automatique non effectuée : ' + reconnectResult.reason);
     render();
   } catch (e) {
     log('Erreur de configuration : ' + e.message);
