@@ -340,6 +340,9 @@ async function render() {
   } else if (topView === 'crm') {
     container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
     await renderCRMView();
+  } else if (topView === 'globalstats') {
+    container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
+    await renderGlobalStatsView();
   } else {
     container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"><div class="card"><p class="empty">Bientôt disponible.</p></div></div>`;
   }
@@ -2322,6 +2325,99 @@ async function renderCompanySettings() {
     const { error } = await sb.from('company_settings').update(payload).eq('id', true);
     if (error) { alert('Erreur : ' + error.message); return; }
     alert('Coordonnées enregistrées.');
+  });
+}
+
+/* ---------------- Statistiques globales (tous clients, sans détail questionnaire) ---------------- */
+let globalStatsFilters = { start: null, end: null };
+
+async function renderGlobalStatsView() {
+  if (!globalStatsFilters.start) Object.assign(globalStatsFilters, defaultStatsRange());
+  const main = document.getElementById('main');
+  main.innerHTML = '<p class="empty">Chargement...</p>';
+
+  const { data: sessionsData } = await sb.from('sessions').select('*')
+    .gte('played_at', globalStatsFilters.start)
+    .lte('played_at', globalStatsFilters.end + 'T23:59:59');
+  const sessions = sessionsData || [];
+  const dayList = enumerateDays(globalStatsFilters.start, globalStatsFilters.end);
+  const stats = computeScopeStats(sessions, dayList);
+
+  // Résumé par client
+  const byClient = {};
+  sessions.forEach(s => {
+    if (!byClient[s.client_id]) byClient[s.client_id] = { count: 0, indexScores: [] };
+    byClient[s.client_id].count++;
+    if (s.game_id === 'indextest') byClient[s.client_id].indexScores.push(s.score);
+  });
+  const clientRows = Object.entries(byClient).map(([clientId, v]) => ({
+    name: clients.find(c => c.id === clientId)?.name || 'Client inconnu',
+    count: v.count,
+    avgIndex: v.indexScores.length ? Math.round(v.indexScores.reduce((a, b) => a + b, 0) / v.indexScores.length) : null,
+  })).sort((a, b) => b.count - a.count);
+
+  const gameLabels = Object.keys(stats.countByGame).map(id => games.find(g => g.id === id)?.name || id);
+
+  main.innerHTML = `
+    <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="bar-chart-3"></i> Statistiques globales</div>
+    <div class="section-sub">Tous clients confondus. Le détail par questionnaire reste disponible client par client (trop hétérogène pour une vue globale).</div>
+    <div class="card">
+      <h3>Période</h3>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <div><div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Du</div><input id="gsStart" type="date" value="${globalStatsFilters.start}"></div>
+        <div><div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Au</div><input id="gsEnd" type="date" value="${globalStatsFilters.end}"></div>
+      </div>
+    </div>
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);">
+      <div class="stat-box"><div class="n">${stats.total}</div><div class="l">Parties jouées (tous clients)</div></div>
+      <div class="stat-box"><div class="n">${clientRows.length}</div><div class="l">Clients actifs sur la période</div></div>
+      <div class="stat-box"><div class="n">${stats.earlyAvg ?? '—'} → ${stats.lateAvg ?? '—'}</div><div class="l">Index moy. début → fin</div></div>
+      <div class="stat-box"><div class="n" style="color:${stats.delta > 0 ? '#43cea2' : stats.delta < 0 ? '#e6374e' : 'var(--text)'};">${stats.delta != null ? (stats.delta > 0 ? '+' : '') + stats.delta : '—'}</div><div class="l">Évolution Index</div></div>
+    </div>
+    <div class="card">
+      <h3>Parties par jour</h3>
+      <div class="chart-wrap"><canvas id="gsChartByDay"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>PandaFit Index moyen par jour</h3>
+      <div class="chart-wrap"><canvas id="gsChartIndex"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Répartition par jeu</h3>
+      <div class="chart-wrap"><canvas id="gsChartByGame"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Activité par client</h3>
+      ${clientRows.length ? `
+        <table>
+          <tr><th>Client</th><th>Parties jouées</th><th>Index moyen</th></tr>
+          ${clientRows.map(r => `<tr><td><b>${r.name}</b></td><td>${r.count}</td><td>${r.avgIndex ?? '—'}</td></tr>`).join('')}
+        </table>
+      ` : '<p class="empty">Aucune activité sur cette période.</p>'}
+    </div>
+  `;
+
+  document.getElementById('gsStart').addEventListener('change', (e) => { globalStatsFilters.start = e.target.value; renderGlobalStatsView(); });
+  document.getElementById('gsEnd').addEventListener('change', (e) => { globalStatsFilters.end = e.target.value; renderGlobalStatsView(); });
+
+  if (charts.gsByDay) charts.gsByDay.destroy();
+  if (charts.gsIndex) charts.gsIndex.destroy();
+  if (charts.gsByGame) charts.gsByGame.destroy();
+
+  charts.gsByDay = new Chart(document.getElementById('gsChartByDay'), {
+    type: 'bar',
+    data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: stats.countsByDay, backgroundColor: '#43cea2', borderRadius: 4 }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#9992ad' } }, x: { ticks: { color: '#9992ad', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
+  });
+  charts.gsIndex = new Chart(document.getElementById('gsChartIndex'), {
+    type: 'line',
+    data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: stats.avgIndexByDay, spanGaps: true, borderColor: '#c86dd7', backgroundColor: 'rgba(200,109,215,0.15)', fill: true, tension: 0.3 }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100, ticks: { color: '#9992ad' } }, x: { ticks: { color: '#9992ad', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
+  });
+  charts.gsByGame = new Chart(document.getElementById('gsChartByGame'), {
+    type: 'doughnut',
+    data: { labels: gameLabels, datasets: [{ data: Object.values(stats.countByGame), backgroundColor: ['#43cea2', '#185a9d', '#c86dd7', '#e6374e', '#e0a83e', '#3023ae'] }] },
+    options: { plugins: { legend: { position: 'right', labels: { color: '#f4f2fa' } } } }
   });
 }
 
