@@ -398,6 +398,9 @@ async function render() {
   } else if (topView === 'access') {
     container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
     await renderAccessView();
+  } else if (topView === 'calendar') {
+    container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
+    await renderCalendarView();
   } else {
     container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"><div class="card"><p class="empty">Bientôt disponible.</p></div></div>`;
   }
@@ -2620,6 +2623,138 @@ function renderAdminEditor() {
     }
     editingAdminId = null;
     renderAccessView();
+  });
+}
+
+/* ---------------- Calendrier (simple) ---------------- */
+let calEvents = [];
+let editingCalEventId = null;
+
+async function loadCalEvents() {
+  const { data } = await sb.from('calendar_events').select('*, admin_users(email, display_name, is_superadmin)').order('start_at');
+  calEvents = data || [];
+}
+
+function fmtDateTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('fr-CH') + ' ' + d.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' });
+}
+function toLocalInputValue(iso) {
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+async function renderCalendarView() {
+  await loadCalEvents();
+  const { data: adminsForSelect } = await sb.from('admin_users').select('id, email, display_name, is_superadmin').order('email');
+  const main = document.getElementById('main');
+  const editing = calEvents.find(e => e.id === editingCalEventId);
+  const now = new Date();
+  const upcoming = calEvents.filter(e => new Date(e.end_at) >= now);
+  const past = calEvents.filter(e => new Date(e.end_at) < now);
+
+  function assignedLabel(e) {
+    if (e.admin_users) return e.admin_users.display_name || e.admin_users.email + (e.admin_users.is_superadmin ? ' (Superadmin)' : '');
+    if (e.assigned_free_text) return e.assigned_free_text;
+    return 'Personne';
+  }
+
+  function eventRowHTML(e) {
+    return `
+      <div class="event-item">
+        <div class="title-row">
+          <b>${e.title}</b>
+          <span style="display:flex;gap:6px;">
+            <button class="btn-ghost" data-edit-event="${e.id}">Modifier</button>
+            <button class="btn-destructive" data-del-event="${e.id}">Supprimer</button>
+          </span>
+        </div>
+        <div class="dates">${fmtDateTime(e.start_at)} → ${fmtDateTime(e.end_at)} · <span class="badge">${assignedLabel(e)}</span></div>
+        ${e.description ? `<p style="font-size:12.5px;color:var(--text-dim);margin:6px 0 0;">${e.description}</p>` : ''}
+      </div>
+    `;
+  }
+
+  main.innerHTML = `
+    <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="calendar-days"></i> Calendrier</div>
+    <div class="section-sub">Événements internes PandaFit — rendez-vous, tâches, échéances.</div>
+    <div class="card">
+      <h3>${editing ? 'Modifier l\'événement' : 'Nouvel événement'}</h3>
+      <input id="ceTitle" placeholder="Titre" value="${editing?.title || ''}" style="margin-bottom:10px;">
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <div>
+          <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Début</div>
+          <input id="ceStart" type="datetime-local" value="${editing ? toLocalInputValue(editing.start_at) : ''}">
+        </div>
+        <div>
+          <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Fin</div>
+          <input id="ceEnd" type="datetime-local" value="${editing ? toLocalInputValue(editing.end_at) : ''}">
+        </div>
+      </div>
+      <textarea id="ceDesc" placeholder="Description (optionnel)" rows="3" style="width:100%;margin-top:10px;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);font-family:inherit;resize:vertical;">${editing?.description || ''}</textarea>
+      <div style="margin-top:10px;">
+        <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Attribué à</div>
+        <select id="ceAssignType" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);margin-bottom:8px;">
+          <option value="none" ${!editing?.assigned_admin_id && !editing?.assigned_free_text ? 'selected' : ''}>Personne</option>
+          <option value="admin" ${editing?.assigned_admin_id ? 'selected' : ''}>Un admin/superadmin</option>
+          <option value="free" ${editing?.assigned_free_text ? 'selected' : ''}>Autre (nom libre)</option>
+        </select>
+        <select id="ceAdminSelect" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);display:${editing?.assigned_admin_id ? 'block' : 'none'};margin-bottom:8px;">
+          ${adminsForSelect.map(a => `<option value="${a.id}" ${editing?.assigned_admin_id === a.id ? 'selected' : ''}>${a.display_name || a.email}${a.is_superadmin ? ' (Superadmin)' : ''}</option>`).join('')}
+        </select>
+        <input id="ceFreeText" placeholder="Nom libre" value="${editing?.assigned_free_text || ''}" style="display:${editing?.assigned_free_text ? 'block' : 'none'};">
+      </div>
+      <div class="row" style="gap:8px;margin-top:10px;">
+        <button class="btn-primary" id="btnSaveEvent" style="width:auto;">${editing ? 'Enregistrer' : 'Créer'}</button>
+        ${editing ? `<button class="btn-ghost" id="btnCancelEvent" style="width:auto;">Annuler</button>` : ''}
+      </div>
+    </div>
+
+    <div class="menu-section-title">À venir (${upcoming.length})</div>
+    ${upcoming.length ? upcoming.map(eventRowHTML).join('') : '<div class="card"><p class="empty">Aucun événement à venir.</p></div>'}
+
+    ${past.length ? `
+      <div class="menu-section-title" style="margin-top:22px;">Passés (${past.length})</div>
+      ${past.map(eventRowHTML).join('')}
+    ` : ''}
+  `;
+
+  document.getElementById('ceAssignType').addEventListener('change', (e) => {
+    document.getElementById('ceAdminSelect').style.display = e.target.value === 'admin' ? 'block' : 'none';
+    document.getElementById('ceFreeText').style.display = e.target.value === 'free' ? 'block' : 'none';
+  });
+  document.getElementById('btnCancelEvent')?.addEventListener('click', () => { editingCalEventId = null; renderCalendarView(); });
+  document.getElementById('btnSaveEvent').addEventListener('click', async () => {
+    const title = document.getElementById('ceTitle').value.trim();
+    const start_at = document.getElementById('ceStart').value;
+    const end_at = document.getElementById('ceEnd').value;
+    if (!title || !start_at || !end_at) return;
+    const assignType = document.getElementById('ceAssignType').value;
+    const payload = {
+      title,
+      description: document.getElementById('ceDesc').value.trim() || null,
+      start_at: new Date(start_at).toISOString(),
+      end_at: new Date(end_at).toISOString(),
+      assigned_admin_id: assignType === 'admin' ? document.getElementById('ceAdminSelect').value : null,
+      assigned_free_text: assignType === 'free' ? (document.getElementById('ceFreeText').value.trim() || null) : null,
+    };
+    const { error } = editingCalEventId
+      ? await sb.from('calendar_events').update(payload).eq('id', editingCalEventId)
+      : await sb.from('calendar_events').insert(payload);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    editingCalEventId = null;
+    renderCalendarView();
+  });
+  main.querySelectorAll('[data-edit-event]').forEach(btn => {
+    btn.addEventListener('click', () => { editingCalEventId = btn.dataset.editEvent; renderCalendarView(); });
+  });
+  main.querySelectorAll('[data-del-event]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Supprimer cet événement ?')) return;
+      await sb.from('calendar_events').delete().eq('id', btn.dataset.delEvent);
+      renderCalendarView();
+    });
   });
 }
 
