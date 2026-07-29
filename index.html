@@ -2581,9 +2581,9 @@ document.getElementById('btnFullscreen')?.addEventListener('click', () => {
     clientConfig = await PandaFitBackend.fetchClientConfig(savedKey);
     log(`Tablette reliée au client "${clientConfig.clientName}".`);
     gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
-    const reconnectResult = await PandaFitSensor.tryAutoReconnect();
-    if (reconnectResult.success) log('Capteur reconnecté automatiquement (sans sélecteur).');
-    else log('Reconnexion automatique non effectuée : ' + reconnectResult.reason);
+    // Reconnexion auto testée et non concluante sur ce matériel (le capteur nécessite un vrai scan actif,
+    // que seul le sélecteur manuel déclenche) — désactivée pour ne pas perdre de temps à chaque démarrage.
+    // La fonction PandaFitSensor.tryAutoReconnect() reste disponible si Chrome s'améliore un jour sur ce point.
     render();
   } catch (e) {
     log('Erreur de configuration : ' + e.message);
