@@ -1517,7 +1517,7 @@ function screenHome() {
     </div>
     <div class="lang-switch-spacer"></div>
 
-    ${clientConfig?.showReadyToPlay !== false ? `
+    ${clientConfig?.showReadyToPlay !== false && !clientConfig?.lockGames ? `
       <div class="hero-play">
         <h3>${t('ready_title')}</h3>
         <p>${t('ready_sub')}</p>
@@ -2111,7 +2111,7 @@ function screenZoneResult(snap, score, reason) {
     </div>
     <div class="row">
       <button class="btn-primary" id="btnZoneReplay">Rejouer</button>
-      <button class="btn-ghost" id="btnZoneBackHome">Retour aux jeux</button>
+      ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnZoneBackHome">Retour aux jeux</button>` : ''}
     </div>
   `;
 }
@@ -2332,7 +2332,7 @@ function screenMigrosResult(snap) {
     <div class="card"><div class="result-stat"><span>Malbouffe attrapée</span><span>${snap.livesLost}</span></div></div>
     <div class="row">
       <button class="btn-primary" id="btnMigrosReplay">Rejouer</button>
-      <button class="btn-ghost" id="btnMigrosBack">Retour aux jeux</button>
+      ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnMigrosBack">Retour aux jeux</button>` : ''}
     </div>
   `;
 }
@@ -2489,7 +2489,7 @@ function screenSkiResult(snap) {
     </div>
     <div class="row">
       <button class="btn-primary" id="btnSkiReplay">Rejouer</button>
-      <button class="btn-ghost" id="btnSkiBack">Retour aux jeux</button>
+      ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnSkiBack">Retour aux jeux</button>` : ''}
     </div>
   `;
 }
