@@ -2161,6 +2161,7 @@ async function generateInvoicePDF(invoice) {
   w.document.write(`
     <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>${invoice.invoice_number}</title>
     <style>
+      @page { size: A4; margin: 0; }
       body { font-family: Arial, sans-serif; color: #222; margin: 0; }
       .page { width: 210mm; min-height: 297mm; padding: 20mm; box-sizing: border-box; margin: 0 auto; }
       .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30mm; gap: 10mm; }
