@@ -511,6 +511,170 @@ function enumerateDays(start, end) {
   return days;
 }
 
+/* ---------------- Rapport complet (PDF via impression navigateur) ---------------- */
+function computeScopeStats(sessionsSubset, dayList) {
+  const countsByDay = dayList.map(d => sessionsSubset.filter(s => s.played_at.slice(0, 10) === d).length);
+  const indexSessions = sessionsSubset.filter(s => s.game_id === 'indextest');
+  const avgIndexByDay = dayList.map(d => {
+    const rows = indexSessions.filter(s => s.played_at.slice(0, 10) === d);
+    return rows.length ? Math.round(rows.reduce((a, s) => a + s.score, 0) / rows.length) : null;
+  });
+  const chunk = Math.max(1, Math.round(dayList.length * 0.15));
+  const earlyDays = new Set(dayList.slice(0, chunk));
+  const lateDays = new Set(dayList.slice(-chunk));
+  const earlyRows = indexSessions.filter(s => earlyDays.has(s.played_at.slice(0, 10)));
+  const lateRows = indexSessions.filter(s => lateDays.has(s.played_at.slice(0, 10)));
+  const earlyAvg = earlyRows.length ? Math.round(earlyRows.reduce((a, s) => a + s.score, 0) / earlyRows.length) : null;
+  const lateAvg = lateRows.length ? Math.round(lateRows.reduce((a, s) => a + s.score, 0) / lateRows.length) : null;
+  const delta = (earlyAvg != null && lateAvg != null) ? lateAvg - earlyAvg : null;
+  const countByGame = {};
+  sessionsSubset.forEach(s => { countByGame[s.game_id] = (countByGame[s.game_id] || 0) + 1; });
+  return { countsByDay, avgIndexByDay, earlyAvg, lateAvg, delta, countByGame, total: sessionsSubset.length };
+}
+
+function computeQuestionnaireSummary(sessionsSubset, responses) {
+  const idsInScope = new Set(sessionsSubset.map(s => s.id));
+  const sessionMap = {}; sessionsSubset.forEach(s => { sessionMap[s.id] = s; });
+  const scoped = responses.filter(r => idsInScope.has(r.session_id));
+  const byQuestionnaire = {};
+  scoped.forEach(r => {
+    const q = r.questions; if (!q) return;
+    const qnId = q.questionnaire_id;
+    if (!byQuestionnaire[qnId]) byQuestionnaire[qnId] = { title: q.questionnaires?.title || '(sans titre)', sessions: new Set(), questions: {} };
+    byQuestionnaire[qnId].sessions.add(r.session_id);
+    if (!byQuestionnaire[qnId].questions[q.id]) byQuestionnaire[qnId].questions[q.id] = { text: q.question_text, options: {} };
+    const opts = byQuestionnaire[qnId].questions[q.id].options;
+    const optId = r.option_id;
+    if (!opts[optId]) opts[optId] = { label: r.question_options?.option_text || '—', count: 0, indexScores: [] };
+    opts[optId].count++;
+    const s = sessionMap[r.session_id];
+    if (s && s.game_id === 'indextest') opts[optId].indexScores.push(s.score);
+  });
+  return byQuestionnaire;
+}
+
+function scopeSectionHTML(title, stats, byQuestionnaire, dayList) {
+  const gameLabels = Object.keys(stats.countByGame).map(id => games.find(g => g.id === id)?.name || id);
+  const canvasSuffix = title.replace(/[^a-zA-Z0-9]/g, '');
+  const qnHTML = Object.keys(byQuestionnaire).length ? Object.values(byQuestionnaire).map(qn => `
+    <h4 style="margin:14px 0 6px;">${qn.title} — ${qn.sessions.size} rempli(s)</h4>
+    ${Object.values(qn.questions).map(q => {
+      const total = Object.values(q.options).reduce((a, b) => a + b.count, 0);
+      return `
+        <div style="margin-bottom:10px;">
+          <div style="font-weight:700;font-size:12.5px;">${q.text}</div>
+          ${Object.values(q.options).sort((a, b) => b.count - a.count).map(o => {
+            const pct = Math.round((o.count / total) * 100);
+            const avgIdx = o.indexScores.length ? Math.round(o.indexScores.reduce((a, b) => a + b, 0) / o.indexScores.length) : null;
+            return `<div style="font-size:11.5px;margin:3px 0;">• ${o.label} : ${o.count} (${pct}%)${avgIdx != null ? ` — Index moyen : ${avgIdx}` : ''}</div>`;
+          }).join('')}
+        </div>
+      `;
+    }).join('')}
+  `).join('') : '<p style="font-size:12px;color:#888;">Aucune réponse sur cette période pour ce périmètre.</p>';
+
+  return `
+    <div class="report-section">
+      <h2>${title}</h2>
+      <div class="report-stats-row">
+        <div class="report-stat-box"><div class="n">${stats.total}</div><div class="l">Parties jouées</div></div>
+        <div class="report-stat-box"><div class="n">${stats.earlyAvg ?? '—'}</div><div class="l">Index moy. début période</div></div>
+        <div class="report-stat-box"><div class="n">${stats.lateAvg ?? '—'}</div><div class="l">Index moy. fin période</div></div>
+        <div class="report-stat-box"><div class="n">${stats.delta != null ? (stats.delta > 0 ? '+' : '') + stats.delta : '—'}</div><div class="l">Évolution</div></div>
+      </div>
+      <div class="report-chart"><canvas id="chartDay${canvasSuffix}"></canvas></div>
+      <div class="report-chart"><canvas id="chartIdx${canvasSuffix}"></canvas></div>
+      <div class="report-chart" style="max-width:320px;margin:0 auto 20px;"><canvas id="chartGame${canvasSuffix}"></canvas></div>
+      <h3>Questionnaires</h3>
+      ${qnHTML}
+    </div>
+  `;
+}
+
+async function generateFullReport() {
+  const client = clients.find(c => c.id === selectedClientId);
+  const { data: allInRange } = await sb.from('sessions').select('*').eq('client_id', selectedClientId)
+    .gte('played_at', statsFilters.start).lte('played_at', statsFilters.end + 'T23:59:59');
+  const sessions = allInRange || [];
+  const dayList = enumerateDays(statsFilters.start, statsFilters.end);
+
+  const ids = sessions.map(s => s.id);
+  let responses = [];
+  if (ids.length) {
+    const { data } = await sb.from('question_responses')
+      .select('session_id, option_id, questions(id,question_text,questionnaire_id,questionnaires(title)), question_options(id,option_text)')
+      .in('session_id', ids);
+    responses = data || [];
+  }
+
+  const deviceIdsPresent = [...new Set(sessions.map(s => s.device_id))];
+  const scopes = [{ title: `Vue d'ensemble — ${client.name} (toutes tablettes)`, sessions, key: 'All' }];
+  deviceIdsPresent.forEach(devId => {
+    const devName = devices.find(d => d.id === devId)?.name || 'Tablette inconnue';
+    const devSessions = sessions.filter(s => s.device_id === devId);
+    if (devSessions.length) scopes.push({ title: `Tablette : ${devName}`, sessions: devSessions, key: devId.replace(/-/g, '') });
+  });
+
+  const sections = scopes.map(scope => {
+    const stats = computeScopeStats(scope.sessions, dayList);
+    const qn = computeQuestionnaireSummary(scope.sessions, responses);
+    return { html: scopeSectionHTML(scope.title, stats, qn, dayList), stats, key: scope.key, dayList };
+  });
+
+  const chartJsTag = '<scr' + 'ipt src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></scr' + 'ipt>';
+  const reportWindow = window.open('', '_blank');
+  reportWindow.document.write(`
+    <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+    <title>Rapport PandaFit — ${client.name}</title>
+    ${chartJsTag}
+    <style>
+      body { font-family: Arial, sans-serif; color: #222; padding: 30px; max-width: 900px; margin: 0 auto; }
+      h1 { font-size: 22px; margin-bottom: 2px; }
+      .meta { color: #666; font-size: 13px; margin-bottom: 24px; }
+      .report-section { page-break-before: always; padding-top: 10px; }
+      .report-section:first-of-type { page-break-before: auto; }
+      h2 { font-size: 17px; border-bottom: 2px solid #43cea2; padding-bottom: 6px; }
+      h3 { font-size: 14px; margin-top: 20px; }
+      .report-stats-row { display: flex; gap: 10px; margin: 14px 0; }
+      .report-stat-box { flex: 1; background: #f4f4f7; border-radius: 10px; padding: 12px; text-align: center; }
+      .report-stat-box .n { font-size: 22px; font-weight: 800; }
+      .report-stat-box .l { font-size: 10.5px; color: #666; }
+      .report-chart { max-width: 600px; margin: 0 auto 20px; }
+      @media print { .report-section { page-break-before: always; } }
+    </style>
+    </head><body>
+    <h1>Rapport PandaFit</h1>
+    <div class="meta">${client.name} · période du ${statsFilters.start} au ${statsFilters.end} · généré le ${new Date().toLocaleDateString('fr-CH')}</div>
+    ${sections.map(s => s.html).join('')}
+    </body></html>
+  `);
+  reportWindow.document.close();
+
+  reportWindow.onload = () => {
+    setTimeout(() => {
+      sections.forEach(s => {
+        const gameLabels = Object.keys(s.stats.countByGame).map(id => games.find(g => g.id === id)?.name || id);
+        new reportWindow.Chart(reportWindow.document.getElementById('chartDay' + s.key), {
+          type: 'bar',
+          data: { labels: s.dayList.map(d => d.slice(5)), datasets: [{ data: s.stats.countsByDay, backgroundColor: '#43cea2' }] },
+          options: { responsive: false, animation: false, plugins: { legend: { display: false }, title: { display: true, text: 'Parties par jour' } } }
+        });
+        new reportWindow.Chart(reportWindow.document.getElementById('chartIdx' + s.key), {
+          type: 'line',
+          data: { labels: s.dayList.map(d => d.slice(5)), datasets: [{ data: s.stats.avgIndexByDay, spanGaps: true, borderColor: '#c86dd7', fill: false }] },
+          options: { responsive: false, animation: false, scales: { y: { min: 0, max: 100 } }, plugins: { legend: { display: false }, title: { display: true, text: 'PandaFit Index moyen par jour' } } }
+        });
+        new reportWindow.Chart(reportWindow.document.getElementById('chartGame' + s.key), {
+          type: 'doughnut',
+          data: { labels: gameLabels, datasets: [{ data: Object.values(s.stats.countByGame), backgroundColor: ['#43cea2', '#185a9d', '#c86dd7', '#e6374e', '#e0a83e', '#3023ae'] }] },
+          options: { responsive: false, plugins: { title: { display: true, text: 'Répartition par jeu' } } }
+        });
+      });
+      setTimeout(() => reportWindow.print(), 400);
+    }, 300);
+  };
+}
+
 async function renderStatsTab() {
   const el = document.getElementById('tabContent');
   if (!statsFilters.start) Object.assign(statsFilters, defaultStatsRange());
@@ -594,6 +758,7 @@ async function renderStatsTab() {
           </select>
         </div>
       </div>
+      <button class="btn-ghost" id="btnFullReport" style="width:auto;margin-top:14px;">📄 Générer le rapport complet (PDF)</button>
     </div>
 
     <div class="card">
@@ -650,6 +815,7 @@ async function renderStatsTab() {
   document.getElementById('statsStart').addEventListener('change', (e) => { statsFilters.start = e.target.value; renderStatsTab(); });
   document.getElementById('statsEnd').addEventListener('change', (e) => { statsFilters.end = e.target.value; renderStatsTab(); });
   document.getElementById('statsDevice').addEventListener('change', (e) => { statsFilters.deviceId = e.target.value; renderStatsTab(); });
+  document.getElementById('btnFullReport').addEventListener('click', () => generateFullReport());
 
   el.querySelectorAll('.qn-option-row').forEach(row => {
     row.addEventListener('click', async () => {
