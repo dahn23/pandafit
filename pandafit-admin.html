@@ -2580,12 +2580,14 @@ function renderAdminEditor() {
     </div>
     <div class="card">
       <h3>Permissions</h3>
-      ${PERMISSION_DEFS.map(p => `
-        <div class="perm-row">
-          <input type="checkbox" class="perm-check" id="perm-${p.key}" data-perm="${p.key}" ${admin.permissions?.[p.key] ? 'checked' : ''}>
-          <label for="perm-${p.key}">${p.label}</label>
-        </div>
-      `).join('')}
+      <table>
+        ${PERMISSION_DEFS.map(p => `
+          <tr>
+            <td style="width:36px;"><input type="checkbox" class="perm-check" id="perm-${p.key}" data-perm="${p.key}" ${admin.permissions?.[p.key] ? 'checked' : ''}></td>
+            <td><label for="perm-${p.key}" style="cursor:pointer;">${p.label}</label></td>
+          </tr>
+        `).join('')}
+      </table>
     </div>
     <div class="card">
       <h3>Clients assignés</h3>
