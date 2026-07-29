@@ -1449,18 +1449,16 @@ function thumbCardHTML(item) {
       <button class="tc-action-btn" data-toggle-visible="${item.type}:${item.id}" title="${item.visible === false ? 'Réafficher' : 'Masquer'}">
         <i data-lucide="${item.visible === false ? 'eye-off' : 'eye'}"></i>
       </button>
-      ${item.type !== 'index' ? `
-        <label class="tc-action-btn" title="Changer la photo">
-          <i data-lucide="image-plus"></i>
-          <input type="file" accept="image/*" style="display:none;" data-upload-photo="${item.type}:${item.id}">
-        </label>
-      ` : ''}
+      <label class="tc-action-btn" title="Changer la photo">
+        <i data-lucide="image-plus"></i>
+        <input type="file" accept="image/*" style="display:none;" data-upload-photo="${item.type}:${item.id}">
+      </label>
     </div>
   `;
 
   if (item.type === 'index') {
     return `
-      <div class="thumb-card" style="background:linear-gradient(135deg,#c86dd7,#3023ae);${dimmed}">
+      <div class="thumb-card" style="${item.data?.image_url ? `background-image:url('${item.data.image_url}');` : 'background:linear-gradient(135deg,#c86dd7,#3023ae);'}${dimmed}">
         <div class="tc-badge"><i data-lucide="activity"></i> Index</div>
         <i data-lucide="grip-vertical" class="tc-drag"></i>
         ${actions}
@@ -1505,7 +1503,7 @@ async function renderTabletMenuTab() {
   }));
 
   let stack = [
-    { type: 'index', sort_order: client.index_sort_order ?? -1000, id: 'index', visible: client.show_index_banner },
+    { type: 'index', sort_order: client.index_sort_order ?? -1000, id: 'index', visible: client.show_index_banner, data: { image_url: client.index_image_url } },
     ...activeDefis.map(d => ({ type: 'defi', sort_order: d.sort_order || 0, data: d, id: d.id, visible: d.is_active })),
     ...activeChallenges.map(c => ({ type: 'challenge', sort_order: c.sort_order || 0, data: c, id: c.id, visible: c.is_active })),
     ...allGames,
@@ -1557,7 +1555,9 @@ async function renderTabletMenuTab() {
     else if (type === 'defi') await sb.from('defis').update({ image_url }).eq('id', id);
     else if (type === 'challenge') await sb.from('challenges').update({ image_url }).eq('id', id);
     else if (type === 'event') await sb.from('events').update({ image_url }).eq('id', id);
+    else if (type === 'index') await sb.from('clients').update({ index_image_url: image_url }).eq('id', selectedClientId);
     await loadClientDetail(selectedClientId);
+    await loadClients();
     renderTabletMenuTab();
   }
 
