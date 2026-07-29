@@ -90,6 +90,9 @@
   .toggle input:checked + .track { background: var(--primary); }
   .toggle .thumb { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.15s; pointer-events: none; }
   .toggle input:checked ~ .thumb { transform: translateX(18px); }
+  .perm-row { display: flex !important; flex-direction: row !important; align-items: center; gap: 8px; margin-bottom: 10px; text-align: left; }
+  .perm-row label { font-size: 13.5px; cursor: pointer; text-align: left; margin: 0; }
+  .client-check-row { display: inline-flex !important; align-items: center; gap: 6px; margin: 0 14px 8px 0; font-size: 13.5px; text-align: left; }
   .empty { color: var(--text-dim); font-size: 13.5px; padding: 20px 0; text-align: center; }
   .badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: var(--panel-hi); color: var(--text-dim); }
   .badge-brouillon { background: rgba(24,90,157,0.25); color: #6cb6f5; }
@@ -2578,19 +2581,20 @@ function renderAdminEditor() {
     <div class="card">
       <h3>Permissions</h3>
       ${PERMISSION_DEFS.map(p => `
-        <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:10px;">
-          <input type="checkbox" class="perm-check" data-perm="${p.key}" ${admin.permissions?.[p.key] ? 'checked' : ''}>
-          ${p.label}
-        </label>
+        <div class="perm-row">
+          <input type="checkbox" class="perm-check" id="perm-${p.key}" data-perm="${p.key}" ${admin.permissions?.[p.key] ? 'checked' : ''}>
+          <label for="perm-${p.key}">${p.label}</label>
+        </div>
       `).join('')}
     </div>
     <div class="card">
       <h3>Clients assignés</h3>
       <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">L'admin aura toutes les options (comme toi) sur les clients cochés ici.</p>
-      ${clients.map(c => `
-        <label style="display:inline-flex;align-items:center;gap:6px;margin:0 14px 8px 0;font-size:13.5px;">
-          <input type="checkbox" class="client-check" value="${c.id}" ${assignedClientIds.includes(c.id) ? 'checked' : ''}> ${c.name}
-        </label>
+      ${clients.map((c, i) => `
+        <span class="client-check-row">
+          <input type="checkbox" class="client-check" id="client-check-${i}" value="${c.id}" ${assignedClientIds.includes(c.id) ? 'checked' : ''}>
+          <label for="client-check-${i}">${c.name}</label>
+        </span>
       `).join('')}
     </div>
     <button class="btn-primary" id="btnSaveAdmin" style="width:auto;">Enregistrer</button>
