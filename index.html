@@ -658,16 +658,8 @@ const PandaFitSensor = (() => {
 
   function setStatus(status, detail) { emit('status', { status, detail, device: device?.name }); }
 
-  async function connect() {
-    if (!navigator.bluetooth) {
-      setStatus('error', "Web Bluetooth indisponible sur ce navigateur.");
-      throw new Error('no-bluetooth');
-    }
-    setStatus('searching', 'Recherche…');
-    device = await navigator.bluetooth.requestDevice({
-      filters: NAME_PREFIXES.map(p => ({ namePrefix: p })),
-      optionalServices: [SERVICE_UUID]
-    });
+  async function connectToDevice(bluetoothDevice) {
+    device = bluetoothDevice;
     device.addEventListener('gattserverdisconnected', () => {
       characteristic = null;
       setStatus('disconnected', 'Le capteur s\'est déconnecté.');
@@ -681,6 +673,33 @@ const PandaFitSensor = (() => {
     packetCount = 0; lastSecondCount = 0; lastSecondTime = performance.now();
     setStatus('connected', device.name);
     return device;
+  }
+
+  async function connect() {
+    if (!navigator.bluetooth) {
+      setStatus('error', "Web Bluetooth indisponible sur ce navigateur.");
+      throw new Error('no-bluetooth');
+    }
+    setStatus('searching', 'Recherche…');
+    const chosen = await navigator.bluetooth.requestDevice({
+      filters: NAME_PREFIXES.map(p => ({ namePrefix: p })),
+      optionalServices: [SERVICE_UUID]
+    });
+    return connectToDevice(chosen);
+  }
+
+  /** Tente une reconnexion silencieuse (sans sélecteur) à un capteur déjà autorisé.
+   *  Ne fonctionne que si les 2 drapeaux Chrome expérimentaux sont activés sur l'appareil.
+   *  Renvoie true si la reconnexion a réussi, false sinon (aucune erreur bloquante). */
+  async function tryAutoReconnect() {
+    try {
+      if (!navigator.bluetooth || !navigator.bluetooth.getDevices) return false;
+      const known = await navigator.bluetooth.getDevices();
+      const match = known.find(d => NAME_PREFIXES.some(p => d.name && d.name.startsWith(p)));
+      if (!match) return false;
+      await connectToDevice(match);
+      return true;
+    } catch (e) { return false; }
   }
 
   function disconnect() {
@@ -718,7 +737,7 @@ const PandaFitSensor = (() => {
   function getDeviceName() { return device?.name || null; }
   function getCenter() { return center; }
 
-  return { connect, disconnect, isConnected, calibrate, on, off, getDeviceName, getCenter };
+  return { connect, disconnect, isConnected, calibrate, on, off, getDeviceName, getCenter, tryAutoReconnect };
 })();
 
 /* =====================================================================================
@@ -2544,6 +2563,8 @@ document.getElementById('btnFullscreen')?.addEventListener('click', () => {
     clientConfig = await PandaFitBackend.fetchClientConfig(savedKey);
     log(`Tablette reliée au client "${clientConfig.clientName}".`);
     gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
+    const reconnected = await PandaFitSensor.tryAutoReconnect();
+    if (reconnected) log('Capteur reconnecté automatiquement (sans sélecteur).');
     render();
   } catch (e) {
     log('Erreur de configuration : ' + e.message);
