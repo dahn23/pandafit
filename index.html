@@ -578,7 +578,7 @@ const PandaFitBackend = (() => {
   /** Catalogue global des jeux (nom/description/photo par défaut, valable pour tous les clients). */
   async function fetchGamesCatalog() {
     try {
-      const res = await fetch(`${REST}/games?select=id,name,description,image_url`, { headers: headers() });
+      const res = await fetch(`${REST}/games?select=id,name,description,image_url,name_en,name_de,name_it,description_en,description_de,description_it`, { headers: headers() });
       const rows = res.ok ? await res.json() : [];
       const catalog = {};
       rows.forEach(r => { catalog[r.id] = r; });
@@ -1330,6 +1330,13 @@ function setLang(lang) {
   render();
 }
 
+/** Choisit la version traduite d'un champ admin (défi, jeu, questionnaire...), avec repli sur le français. */
+function pickLang(obj, field) {
+  if (!obj) return '';
+  if (currentLang === 'fr') return obj[field] || '';
+  return obj[field + '_' + currentLang] || obj[field] || '';
+}
+
 let logLines = [];
 let clientConfig = null; // { deviceId, deviceName, clientId, clientName, enabledGameIds }
 let gamesCatalog = {}; // { gameId: { name, description, image_url } }
@@ -1555,7 +1562,7 @@ function standingsLineHTML(standings) {
 function highlightCardHTML(item) {
   if (item.type === 'game') {
     const g = GAMES.find(x => x.id === item.data.id);
-    const name = gamesCatalog[item.data.id]?.name || g?.name || item.data.id;
+    const name = pickLang(gamesCatalog[item.data.id], 'name') || g?.name || item.data.id;
     return `
       <div class="highlight-card" style="${highlightBgStyle(item)}">
         <div class="hc-badge"><i data-lucide="${g?.icon || 'gamepad-2'}"></i> Jeu</div>
@@ -1564,8 +1571,8 @@ function highlightCardHTML(item) {
     `;
   }
   if (item.type === 'index') {
-    const idxName = gamesCatalog['indextest']?.name || 'Ton PandaFit Index';
-    const idxDesc = gamesCatalog['indextest']?.description || 'Teste ton équilibre en 2 minutes.';
+    const idxName = pickLang(gamesCatalog['indextest'], 'name') || 'Ton PandaFit Index';
+    const idxDesc = pickLang(gamesCatalog['indextest'], 'description') || 'Teste ton équilibre en 2 minutes.';
     return `
       <div class="highlight-card" style="${highlightBgStyle(item)}">
         <div class="hc-badge"><i data-lucide="activity"></i> Index</div>
@@ -1578,15 +1585,17 @@ function highlightCardHTML(item) {
 
   let title = '', sub = '';
   if (item.type === 'defi') {
-    title = item.data.title;
-    sub = `${item.data.games?.name || ''} · ${new Date(item.data.start_date).toLocaleDateString('fr-CH')} → ${new Date(item.data.end_date).toLocaleDateString('fr-CH')}${item.data.reward_text ? ' · <i data-lucide="gift"></i> ' + item.data.reward_text : ''}`;
+    title = pickLang(item.data, 'title');
+    const reward = pickLang(item.data, 'reward_text');
+    sub = `${item.data.games?.name || ''} · ${new Date(item.data.start_date).toLocaleDateString('fr-CH')} → ${new Date(item.data.end_date).toLocaleDateString('fr-CH')}${reward ? ' · <i data-lucide="gift"></i> ' + reward : ''}`;
   } else if (item.type === 'challenge') {
-    title = item.data.title;
+    title = pickLang(item.data, 'title');
     const names = (item.data.challenge_participants || []).map(p => p.clients?.name).filter(Boolean).join(' vs ');
     sub = `${names} · ${item.data.games?.name || ''}`;
   } else {
-    title = item.data.title;
-    sub = `${new Date(item.data.start_date).toLocaleDateString('fr-CH')} → ${new Date(item.data.end_date).toLocaleDateString('fr-CH')}${item.data.description ? ' · ' + item.data.description : ''}`;
+    title = pickLang(item.data, 'title');
+    const desc = pickLang(item.data, 'description');
+    sub = `${new Date(item.data.start_date).toLocaleDateString('fr-CH')} → ${new Date(item.data.end_date).toLocaleDateString('fr-CH')}${desc ? ' · ' + desc : ''}`;
   }
 
   return `
@@ -1664,12 +1673,12 @@ function renderQuestionnaireFlow() {
   content.innerHTML = `
     <p class="page-sub">${t('q_question')} ${qFlowIndex + 1} / ${qFlowQuestions.length}</p>
     <div class="card">
-      <h1 class="page-title" style="font-size:19px;margin-bottom:16px;">${q.question_text}</h1>
+      <h1 class="page-title" style="font-size:19px;margin-bottom:16px;">${pickLang(q, 'question_text')}</h1>
       <div id="qOptionsList">
         ${q.question_options.map(o => `
           <button class="btn-ghost qoption" data-option-id="${o.id}"
             style="width:100%;text-align:left;margin-bottom:10px;${qFlowAnswers[qFlowIndex] === o.id ? 'outline:2px solid var(--primary);' : ''}">
-            ${o.option_text}
+            ${pickLang(o, 'option_text')}
           </button>
         `).join('')}
       </div>
@@ -1771,20 +1780,22 @@ function openHighlightDetail(item) {
 }
 function screenHighlightDetail(item) {
   const badge = { defi: '<i data-lucide="flame"></i> Défi', challenge: '<i data-lucide="trophy"></i> Challenge', event: '<i data-lucide="calendar"></i> Événement' }[item.type];
-  let title = item.data.title;
+  let title = pickLang(item.data, 'title');
   let body = '';
   let showPlay = false;
 
   if (item.type === 'defi') {
     showPlay = true;
+    const objective = pickLang(item.data, 'objective_text');
+    const reward = pickLang(item.data, 'reward_text');
     body = `
       ${item.standings ? `<div class="result-stat"><span>${item.standings.yoursLabel}</span><span>${item.standings.yours} pts</span></div>` : ''}
       ${item.standings && item.standings.leaderName ? `<div class="result-stat"><span>1er</span><span>${item.standings.leaderName} (${item.standings.leaderPoints} pts)</span></div>` : ''}
       <div class="result-stat"><span>Jeu</span><span>${item.data.games?.name || item.data.game_id}</span></div>
       <div class="result-stat"><span>Période</span><span>${new Date(item.data.start_date).toLocaleDateString('fr-CH')} → ${new Date(item.data.end_date).toLocaleDateString('fr-CH')}</span></div>
       <div class="result-stat"><span>Se termine dans</span><span id="detailCountdown">${formatCountdown(item.data.end_date)}</span></div>
-      ${item.data.objective_text ? `<div class="detail-row"><div class="lbl"><i data-lucide="target"></i> Objectif</div><div class="val">${item.data.objective_text}</div></div>` : ''}
-      ${item.data.reward_text ? `<div class="detail-row"><div class="lbl"><i data-lucide="gift"></i> Récompense</div><div class="val">${item.data.reward_text}</div></div>` : ''}
+      ${objective ? `<div class="detail-row"><div class="lbl"><i data-lucide="target"></i> Objectif</div><div class="val">${objective}</div></div>` : ''}
+      ${reward ? `<div class="detail-row"><div class="lbl"><i data-lucide="gift"></i> Récompense</div><div class="val">${reward}</div></div>` : ''}
     `;
   } else if (item.type === 'challenge') {
     showPlay = true;
@@ -1800,10 +1811,11 @@ function screenHighlightDetail(item) {
     const when = item.data.all_day
       ? 'Toute la journée'
       : `${(item.data.start_time || '').slice(0, 5)} - ${(item.data.end_time || '').slice(0, 5)}`;
+    const desc = pickLang(item.data, 'description');
     body = `
       <div class="result-stat"><span>Date</span><span>${new Date(item.data.start_date).toLocaleDateString('fr-CH')} → ${new Date(item.data.end_date).toLocaleDateString('fr-CH')}</span></div>
       <div class="result-stat"><span>Horaire</span><span>${when}</span></div>
-      ${item.data.description ? `<div class="detail-row"><div class="lbl">Description</div><div class="val">${item.data.description}</div></div>` : ''}
+      ${desc ? `<div class="detail-row"><div class="lbl">Description</div><div class="val">${desc}</div></div>` : ''}
     `;
   }
 
@@ -1854,7 +1866,7 @@ function screenGames() {
     ${visibleGames.length ? visibleGames.map(g => `
       <div class="game-card" data-game="${g.id}">
         <div class="emoji"><i data-lucide="${g.icon}"></i></div>
-        <div class="info"><div class="name">${gamesCatalog[g.id]?.name || g.name}</div><div class="desc">${gamesCatalog[g.id]?.description || g.desc}</div></div>
+        <div class="info"><div class="name">${pickLang(gamesCatalog[g.id], 'name') || g.name}</div><div class="desc">${pickLang(gamesCatalog[g.id], 'description') || g.desc}</div></div>
         ${g.playable ? '' : `<div class="badge-soon">${t('soon')}</div>`}
       </div>
     `).join('') : `<p class="page-sub">${t('games_none')}</p>`}
