@@ -414,7 +414,7 @@ const PandaFitBackend = (() => {
       { headers: headers() }
     );
     if (!cgRes.ok) throw new Error('Impossible de contacter le serveur (client_games).');
-    const rows = await cgRes.json();
+    const rows = (await cgRes.json()).filter(r => r.game_id !== 'indextest');
     const enabledGameIds = rows.map(r => r.game_id);
     const gameSortOrders = {};
     const gameImages = {};

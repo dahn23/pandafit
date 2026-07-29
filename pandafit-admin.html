@@ -552,7 +552,7 @@ async function renderGamesTab() {
       <h3>Jeux visibles pour ce client</h3>
       <table>
         <tr><th>Jeu</th><th>Description</th><th>Activé</th><th>Questionnaire avant de jouer</th></tr>
-        ${games.map(g => {
+        ${games.filter(g => g.id !== 'indextest').map(g => {
           const cg = clientGames.find(x => x.game_id === g.id);
           const enabled = cg ? cg.enabled : false;
           return `
@@ -1496,7 +1496,7 @@ async function renderTabletMenuTab() {
   el.innerHTML = '<p class="empty">Chargement...</p>';
   const client = clients.find(c => c.id === selectedClientId);
   const { activeDefis, activeChallenges, activeEvents } = await loadActiveTabletMenuItems(selectedClientId);
-  const allGames = clientGames.map(cg => ({
+  const allGames = clientGames.filter(cg => cg.game_id !== 'indextest').map(cg => ({
     type: 'game', sort_order: cg.sort_order || 0, visible: cg.enabled,
     data: { ...(games.find(g => g.id === cg.game_id) || { id: cg.game_id, name: cg.game_id }), image_url: cg.image_url },
     id: cg.game_id,
