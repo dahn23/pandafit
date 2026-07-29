@@ -49,7 +49,18 @@
     background: linear-gradient(120deg, var(--primary), var(--primary-dark));
     display: flex; align-items: center; justify-content: center; font-size: 13px; color: #0c2018;
   }
-  .layout { display: flex; min-height: calc(100vh - 61px); }
+  .top-nav {
+    display: flex; gap: 4px; padding: 0 24px; border-bottom: 1px solid var(--border);
+    background: rgba(0,0,0,0.15); overflow-x: auto;
+  }
+  .top-nav-tab {
+    display: flex; align-items: center; gap: 7px; padding: 13px 16px; font-size: 13.5px;
+    font-weight: 600; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent;
+    white-space: nowrap;
+  }
+  .top-nav-tab.active { color: var(--text); border-color: var(--primary); }
+  .top-nav-tab:hover { color: var(--text); }
+  .layout { display: flex; min-height: calc(100vh - 61px - 47px); }
   .sidebar { width: 280px; border-right: 1px solid var(--border); padding: 18px; flex-shrink: 0; }
   .sidebar h2 { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin: 4px 0 10px; }
   .client-item {
@@ -155,7 +166,8 @@ let events = [];
 let defis = [];
 let challenges = [];
 let activeTab = 'details';
-let viewMode = 'client'; // 'client' | 'challenges'
+let viewMode = 'client'; // 'client' | 'challenges' | 'content'
+let topView = 'clients'; // 'clients' | 'crm' | 'globalstats' | 'access' | 'calendar'
 let charts = {};
 
 function genDeviceKey() {
@@ -240,61 +252,93 @@ async function uploadBanner(file) {
 async function render() {
   if (!session) { renderLogin(); return; }
   if (!clients.length) await loadClients();
-  if (viewMode === 'client' && selectedClientId) await loadClientDetail(selectedClientId);
-  if (viewMode === 'challenges') await loadChallenges();
+  if (topView === 'clients') {
+    if (viewMode === 'client' && selectedClientId) await loadClientDetail(selectedClientId);
+    if (viewMode === 'challenges') await loadChallenges();
+  }
+
+  const topTabs = [
+    { key: 'clients', label: 'Clients', icon: 'users' },
+    { key: 'crm', label: 'CRM', icon: 'briefcase' },
+    { key: 'globalstats', label: 'Statistiques', icon: 'bar-chart-3' },
+    { key: 'access', label: 'Accès', icon: 'shield' },
+    { key: 'calendar', label: 'Calendrier', icon: 'calendar-days' },
+  ];
 
   app.innerHTML = `
     <div class="topbar">
       <div class="brand"><div class="mark">PF</div>PandaFit — Superadmin</div>
       <button class="btn-ghost" id="btnLogout">Se déconnecter</button>
     </div>
-    <div class="layout">
-      <div class="sidebar">
-        <div class="client-item ${viewMode === 'challenges' ? 'active' : ''}" id="navChallenges" style="margin-bottom:8px;">
-          <span style="display:flex;align-items:center;gap:8px;"><i data-lucide="trophy"></i> Challenges (inter-clients)</span>
+    <div class="top-nav">
+      ${topTabs.map(t => `
+        <div class="top-nav-tab ${topView === t.key ? 'active' : ''}" data-top="${t.key}">
+          <i data-lucide="${t.icon}"></i> ${t.label}
         </div>
-        <div class="client-item ${viewMode === 'content' ? 'active' : ''}" id="navContent" style="margin-bottom:14px;">
-          <span style="display:flex;align-items:center;gap:8px;"><i data-lucide="layout-grid"></i> Contenu (jeux + Index)</span>
-        </div>
-        <h2>Clients</h2>
-        <div id="clientList"></div>
-        <div class="inline-form" style="margin-top:14px;">
-          <input id="newClientName" placeholder="Nouveau client">
-          <button class="btn-primary" id="btnAddClient" style="width:auto;">+</button>
-        </div>
-      </div>
-      <div class="main" id="main"></div>
+      `).join('')}
     </div>
+    <div id="topViewContainer"></div>
   `;
   document.getElementById('btnLogout').addEventListener('click', async () => {
     await sb.auth.signOut();
     clients = []; selectedClientId = null; session = null;
     render();
   });
-  document.getElementById('navChallenges').addEventListener('click', async () => {
-    viewMode = 'challenges';
-    await loadChallenges();
-    renderClientList();
-    renderMain();
+  document.querySelectorAll('.top-nav-tab').forEach(tab => {
+    tab.addEventListener('click', () => { topView = tab.dataset.top; render(); });
   });
-  document.getElementById('navContent').addEventListener('click', async () => {
-    viewMode = 'content';
-    renderClientList();
-    renderMain();
-  });
-  renderClientList();
-  renderMain();
 
-  document.getElementById('btnAddClient').addEventListener('click', async () => {
-    const name = document.getElementById('newClientName').value.trim();
-    if (!name) return;
-    const { data, error } = await sb.from('clients').insert({ name }).select().single();
-    if (error) { alert('Erreur : ' + error.message); return; }
-    clients.push({ ...data, devices: [{ count: 0 }] });
-    selectedClientId = data.id;
-    viewMode = 'client';
-    render();
-  });
+  const container = document.getElementById('topViewContainer');
+  if (topView === 'clients') {
+    container.innerHTML = `
+      <div class="layout">
+        <div class="sidebar">
+          <div class="client-item ${viewMode === 'challenges' ? 'active' : ''}" id="navChallenges" style="margin-bottom:8px;">
+            <span style="display:flex;align-items:center;gap:8px;"><i data-lucide="trophy"></i> Challenges (inter-clients)</span>
+          </div>
+          <div class="client-item ${viewMode === 'content' ? 'active' : ''}" id="navContent" style="margin-bottom:14px;">
+            <span style="display:flex;align-items:center;gap:8px;"><i data-lucide="layout-grid"></i> Contenu (jeux + Index)</span>
+          </div>
+          <h2>Clients</h2>
+          <div id="clientList"></div>
+          <div class="inline-form" style="margin-top:14px;">
+            <input id="newClientName" placeholder="Nouveau client">
+            <button class="btn-primary" id="btnAddClient" style="width:auto;">+</button>
+          </div>
+        </div>
+        <div class="main" id="main"></div>
+      </div>
+    `;
+    document.getElementById('navChallenges').addEventListener('click', async () => {
+      viewMode = 'challenges';
+      await loadChallenges();
+      renderClientList();
+      renderMain();
+    });
+    document.getElementById('navContent').addEventListener('click', async () => {
+      viewMode = 'content';
+      renderClientList();
+      renderMain();
+    });
+    renderClientList();
+    renderMain();
+
+    document.getElementById('btnAddClient').addEventListener('click', async () => {
+      const name = document.getElementById('newClientName').value.trim();
+      if (!name) return;
+      const { data, error } = await sb.from('clients').insert({ name }).select().single();
+      if (error) { alert('Erreur : ' + error.message); return; }
+      clients.push({ ...data, devices: [{ count: 0 }] });
+      selectedClientId = data.id;
+      viewMode = 'client';
+      render();
+    });
+  } else if (topView === 'crm') {
+    container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
+    await renderCRMView();
+  } else {
+    container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"><div class="card"><p class="empty">Bientôt disponible.</p></div></div>`;
+  }
 }
 
 function renderClientList() {
@@ -1726,6 +1770,193 @@ async function renderQuestionnaireEditor(el) {
       if (!option_text || !option_text.trim()) return;
       await sb.from('question_options').insert({ question_id: qId, option_text: option_text.trim(), sort_order: q.question_options.length });
       renderQuestionnaireEditor(el);
+    });
+  });
+}
+
+/* ---------------- CRM (prospects / clients / anciens clients) ---------------- */
+let crmContacts = [];
+let crmFilter = 'prospect';
+let editingCrmId = null;
+
+async function loadCrmContacts() {
+  const { data } = await sb.from('crm_contacts').select('*, clients(name)').order('created_at', { ascending: false });
+  crmContacts = data || [];
+}
+
+async function renderCRMView() {
+  await loadCrmContacts();
+  if (editingCrmId) { await renderCrmDetail(); return; }
+
+  const main = document.getElementById('main');
+  const filterCounts = {
+    prospect: crmContacts.filter(c => c.status === 'prospect').length,
+    client: crmContacts.filter(c => c.status === 'client').length,
+    ancien: crmContacts.filter(c => c.status === 'ancien').length,
+  };
+  const filtered = crmContacts.filter(c => c.status === crmFilter);
+
+  main.innerHTML = `
+    <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="briefcase"></i> CRM</div>
+    <div class="section-sub">Fichier des prospects, clients actuels et anciens clients de PandaFit.</div>
+    <div class="tabs">
+      <div class="tab ${crmFilter === 'prospect' ? 'active' : ''}" data-crm-filter="prospect">Prospects (${filterCounts.prospect})</div>
+      <div class="tab ${crmFilter === 'client' ? 'active' : ''}" data-crm-filter="client">Clients actuels (${filterCounts.client})</div>
+      <div class="tab ${crmFilter === 'ancien' ? 'active' : ''}" data-crm-filter="ancien">Anciens clients (${filterCounts.ancien})</div>
+    </div>
+    <div class="card">
+      <h3>Nouveau contact</h3>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <input id="crmCompany" placeholder="Nom de l'entreprise">
+        <input id="crmContactName" placeholder="Nom du responsable">
+        <input id="crmRole" placeholder="Poste">
+        <input id="crmEmail" type="email" placeholder="Email">
+        <input id="crmPhone" placeholder="Téléphone">
+        <select id="crmStatus" style="padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+          <option value="prospect">Prospect</option>
+          <option value="client">Client actuel</option>
+          <option value="ancien">Ancien client</option>
+        </select>
+      </div>
+      <button class="btn-primary" id="btnAddCrm" style="width:auto;margin-top:8px;">Créer</button>
+    </div>
+    <div class="card">
+      ${filtered.length ? `
+        <table>
+          <tr><th>Entreprise</th><th>Responsable</th><th>Email</th><th>Client PandaFit lié</th><th></th></tr>
+          ${filtered.map(c => `
+            <tr style="cursor:pointer;" data-open-crm="${c.id}">
+              <td><b>${c.company_name}</b></td>
+              <td>${c.contact_name || '—'}</td>
+              <td>${c.email || '—'}</td>
+              <td>${c.clients?.name ? `<span class="badge">${c.clients.name}</span>` : '—'}</td>
+              <td><button class="btn-ghost" data-open-crm="${c.id}">Ouvrir</button></td>
+            </tr>
+          `).join('')}
+        </table>
+      ` : '<p class="empty">Aucun contact dans cette catégorie.</p>'}
+    </div>
+  `;
+
+  main.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { crmFilter = t.dataset.crmFilter; renderCRMView(); }));
+  main.querySelectorAll('[data-open-crm]').forEach(el => {
+    el.addEventListener('click', () => { editingCrmId = el.dataset.openCrm; renderCRMView(); });
+  });
+  document.getElementById('btnAddCrm').addEventListener('click', async () => {
+    const company_name = document.getElementById('crmCompany').value.trim();
+    if (!company_name) return;
+    const payload = {
+      company_name,
+      contact_name: document.getElementById('crmContactName').value.trim() || null,
+      role: document.getElementById('crmRole').value.trim() || null,
+      email: document.getElementById('crmEmail').value.trim() || null,
+      phone: document.getElementById('crmPhone').value.trim() || null,
+      status: document.getElementById('crmStatus').value,
+    };
+    const { error } = await sb.from('crm_contacts').insert(payload);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    renderCRMView();
+  });
+}
+
+async function renderCrmDetail() {
+  const main = document.getElementById('main');
+  const contact = crmContacts.find(c => c.id === editingCrmId);
+  if (!contact) { editingCrmId = null; renderCRMView(); return; }
+
+  const { data: files } = await sb.from('crm_files').select('*').eq('contact_id', contact.id).order('uploaded_at', { ascending: false });
+
+  main.innerHTML = `
+    <button class="btn-ghost" id="btnBackCrm" style="margin-bottom:14px;">← Retour au CRM</button>
+    <div class="card">
+      <h3>Entreprise</h3>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <input id="crmCompany" value="${contact.company_name || ''}" placeholder="Nom de l'entreprise">
+        <input id="crmContactName" value="${contact.contact_name || ''}" placeholder="Nom du responsable">
+        <input id="crmRole" value="${contact.role || ''}" placeholder="Poste">
+        <input id="crmEmail" value="${contact.email || ''}" type="email" placeholder="Email">
+        <input id="crmPhone" value="${contact.phone || ''}" placeholder="Téléphone">
+        <select id="crmStatus" style="padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+          <option value="prospect" ${contact.status === 'prospect' ? 'selected' : ''}>Prospect</option>
+          <option value="client" ${contact.status === 'client' ? 'selected' : ''}>Client actuel</option>
+          <option value="ancien" ${contact.status === 'ancien' ? 'selected' : ''}>Ancien client</option>
+        </select>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Client PandaFit lié</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin-bottom:10px;">Si ce contact correspond à un client réellement actif dans PandaFit, relie-le ici.</p>
+      <select id="crmLinkedClient" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+        <option value="">Aucun</option>
+        ${clients.map(c => `<option value="${c.id}" ${contact.linked_client_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="card">
+      <h3>Notes</h3>
+      <textarea id="crmNotes" rows="5" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);font-family:inherit;resize:vertical;">${contact.notes || ''}</textarea>
+    </div>
+    <button class="btn-primary" id="btnSaveCrm" style="width:auto;">Enregistrer</button>
+    <button class="btn-destructive" id="btnDeleteCrm" style="width:auto;">Supprimer ce contact</button>
+
+    <div class="card" style="margin-top:20px;">
+      <h3>Fichiers (rapports envoyés, etc.)</h3>
+      <input id="crmFileInput" type="file" style="margin-bottom:12px;">
+      ${files?.length ? files.map(f => `
+        <div class="event-item">
+          <div class="title-row">
+            <span data-download-file="${f.file_url}">${f.file_name}</span>
+            <button class="btn-destructive" data-del-file="${f.id}">Supprimer</button>
+          </div>
+          <div class="dates">Ajouté le ${new Date(f.uploaded_at).toLocaleDateString('fr-CH')}</div>
+        </div>
+      `).join('') : '<p class="empty">Aucun fichier pour ce contact.</p>'}
+    </div>
+  `;
+
+  document.getElementById('btnBackCrm').addEventListener('click', () => { editingCrmId = null; renderCRMView(); });
+  document.getElementById('btnSaveCrm').addEventListener('click', async () => {
+    const payload = {
+      company_name: document.getElementById('crmCompany').value.trim(),
+      contact_name: document.getElementById('crmContactName').value.trim() || null,
+      role: document.getElementById('crmRole').value.trim() || null,
+      email: document.getElementById('crmEmail').value.trim() || null,
+      phone: document.getElementById('crmPhone').value.trim() || null,
+      status: document.getElementById('crmStatus').value,
+      linked_client_id: document.getElementById('crmLinkedClient').value || null,
+      notes: document.getElementById('crmNotes').value.trim() || null,
+    };
+    const { error } = await sb.from('crm_contacts').update(payload).eq('id', contact.id);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    renderCRMView();
+  });
+  document.getElementById('btnDeleteCrm').addEventListener('click', async () => {
+    if (!confirm('Supprimer ce contact et ses fichiers ?')) return;
+    await sb.from('crm_contacts').delete().eq('id', contact.id);
+    editingCrmId = null;
+    renderCRMView();
+  });
+  document.getElementById('crmFileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const path = `${contact.id}/${crypto.randomUUID()}-${file.name}`;
+    const { error: upErr } = await sb.storage.from('crm-files').upload(path, file);
+    if (upErr) { alert("Erreur d'upload : " + upErr.message); return; }
+    await sb.from('crm_files').insert({ contact_id: contact.id, file_name: file.name, file_url: path });
+    renderCrmDetail();
+  });
+  main.querySelectorAll('[data-download-file]').forEach(el => {
+    el.style.cursor = 'pointer';
+    el.style.textDecoration = 'underline';
+    el.addEventListener('click', async () => {
+      const { data, error } = await sb.storage.from('crm-files').createSignedUrl(el.dataset.downloadFile, 60);
+      if (error) { alert('Erreur : ' + error.message); return; }
+      window.open(data.signedUrl, '_blank');
+    });
+  });
+  main.querySelectorAll('[data-del-file]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await sb.from('crm_files').delete().eq('id', btn.dataset.delFile);
+      renderCrmDetail();
     });
   });
 }
