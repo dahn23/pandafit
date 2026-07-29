@@ -2163,9 +2163,13 @@ async function generateInvoicePDF(invoice) {
     <style>
       body { font-family: Arial, sans-serif; color: #222; margin: 0; }
       .page { width: 210mm; min-height: 297mm; padding: 20mm; box-sizing: border-box; margin: 0 auto; }
-      .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30mm; }
-      .brand { font-size: 20px; font-weight: 800; color: #185a9d; }
-      .addr { font-size: 12px; line-height: 1.5; }
+      .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30mm; gap: 10mm; }
+      .header > div { max-width: 45%; box-sizing: border-box; }
+      .header .right-block { text-align: right; }
+      .brand-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+      .brand-row img { width: 26px; height: 26px; object-fit: contain; }
+      .brand { font-size: 18px; font-weight: 800; color: #185a9d; }
+      .addr { font-size: 12px; line-height: 1.5; word-wrap: break-word; }
       h1 { font-size: 18px; margin: 0 0 4px; }
       table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12.5px; }
       th { text-align: left; border-bottom: 2px solid #222; padding: 6px 4px; }
@@ -2187,14 +2191,16 @@ async function generateInvoicePDF(invoice) {
     <div class="page">
       <div class="header">
         <div>
-          <div class="brand">🐼 PandaFit</div>
+          <div class="brand-row"><img src="${PANDA_ICON_B64}" alt="PandaFit"><div class="brand">PandaFit</div></div>
           <div class="addr">${company.company_name}<br>${company.address_street || ''} ${company.address_number || ''}<br>${company.address_zip || ''} ${company.address_city || ''}<br>${company.address_country || 'CH'}${company.vat_number ? '<br>TVA : ' + company.vat_number : ''}</div>
         </div>
-        <div class="addr">
-          <b>${invoice.debtor_name}</b><br>
-          ${invoice.debtor_street || ''} ${invoice.debtor_number || ''}<br>
-          ${invoice.debtor_zip || ''} ${invoice.debtor_city || ''}<br>
-          ${invoice.debtor_country || 'CH'}
+        <div class="right-block">
+          <div class="addr">
+            <b>${invoice.debtor_name}</b><br>
+            ${invoice.debtor_street || ''} ${invoice.debtor_number || ''}<br>
+            ${invoice.debtor_zip || ''} ${invoice.debtor_city || ''}<br>
+            ${invoice.debtor_country || 'CH'}
+          </div>
         </div>
       </div>
       <h1>Facture ${invoice.invoice_number}</h1>
