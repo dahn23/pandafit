@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <style>
   :root {
@@ -1797,7 +1798,10 @@ async function renderCRMView() {
   const filtered = crmContacts.filter(c => c.status === crmFilter);
 
   main.innerHTML = `
-    <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="briefcase"></i> CRM</div>
+    <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span style="display:flex;align-items:center;gap:10px;"><i data-lucide="briefcase"></i> CRM</span>
+      <button class="btn-ghost" id="btnCompanySettings" style="width:auto;font-size:12.5px;padding:8px 12px;">⚙ Coordonnées de facturation</button>
+    </div>
     <div class="section-sub">Fichier des prospects, clients actuels et anciens clients de PandaFit.</div>
     <div class="tabs">
       <div class="tab ${crmFilter === 'prospect' ? 'active' : ''}" data-crm-filter="prospect">Prospects (${filterCounts.prospect})</div>
@@ -1839,6 +1843,7 @@ async function renderCRMView() {
   `;
 
   main.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { crmFilter = t.dataset.crmFilter; renderCRMView(); }));
+  document.getElementById('btnCompanySettings').addEventListener('click', () => renderCompanySettings());
   main.querySelectorAll('[data-open-crm]').forEach(el => {
     el.addEventListener('click', () => { editingCrmId = el.dataset.openCrm; renderCRMView(); });
   });
@@ -1911,6 +1916,12 @@ async function renderCrmDetail() {
         </div>
       `).join('') : '<p class="empty">Aucun fichier pour ce contact.</p>'}
     </div>
+
+    <div class="card" style="margin-top:20px;">
+      <h3>Factures</h3>
+      <button class="btn-primary" id="btnNewInvoice" style="width:auto;margin-bottom:12px;">+ Nouvelle facture</button>
+      <div id="invoicesList">Chargement...</div>
+    </div>
   `;
 
   document.getElementById('btnBackCrm').addEventListener('click', () => { editingCrmId = null; renderCRMView(); });
@@ -1958,6 +1969,305 @@ async function renderCrmDetail() {
       await sb.from('crm_files').delete().eq('id', btn.dataset.delFile);
       renderCrmDetail();
     });
+  });
+
+  document.getElementById('btnNewInvoice').addEventListener('click', () => renderInvoiceEditor(contact, null));
+  const { data: invoicesData } = await sb.from('invoices').select('*').eq('crm_contact_id', contact.id).order('issue_date', { ascending: false });
+  const invoicesListEl = document.getElementById('invoicesList');
+  if (!invoicesData || !invoicesData.length) {
+    invoicesListEl.innerHTML = '<p class="empty">Aucune facture pour ce contact.</p>';
+  } else {
+    invoicesListEl.innerHTML = invoicesData.map(inv => {
+      const total = (inv.line_items || []).reduce((a, li) => a + (li.quantity * li.unit_price), 0);
+      return `
+        <div class="event-item">
+          <div class="title-row">
+            <b>${inv.invoice_number}</b>
+            <span style="display:flex;gap:6px;">
+              <button class="btn-ghost" data-edit-invoice="${inv.id}">Modifier</button>
+              <button class="btn-ghost" data-pdf-invoice="${inv.id}">📄 PDF</button>
+              <button class="btn-destructive" data-del-invoice="${inv.id}">Supprimer</button>
+            </span>
+          </div>
+          <div class="dates">${new Date(inv.issue_date).toLocaleDateString('fr-CH')} · ${total.toFixed(2)} ${inv.currency} · <span class="badge">${inv.status}</span></div>
+        </div>
+      `;
+    }).join('');
+    invoicesListEl.querySelectorAll('[data-edit-invoice]').forEach(btn => {
+      btn.addEventListener('click', () => renderInvoiceEditor(contact, invoicesData.find(i => i.id === btn.dataset.editInvoice)));
+    });
+    invoicesListEl.querySelectorAll('[data-pdf-invoice]').forEach(btn => {
+      btn.addEventListener('click', () => generateInvoicePDF(invoicesData.find(i => i.id === btn.dataset.pdfInvoice)));
+    });
+    invoicesListEl.querySelectorAll('[data-del-invoice]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Supprimer cette facture ?')) return;
+        await sb.from('invoices').delete().eq('id', btn.dataset.delInvoice);
+        renderCrmDetail();
+      });
+    });
+  }
+}
+
+/* ---------------- Éditeur de facture ---------------- */
+function renderInvoiceEditor(contact, invoice) {
+  const main = document.getElementById('main');
+  const items = invoice?.line_items?.length ? invoice.line_items : [{ description: '', quantity: 1, unit_price: 0 }];
+  const today = new Date().toISOString().slice(0, 10);
+
+  function itemsRowsHTML(list) {
+    return list.map((it, i) => `
+      <div class="form-grid" style="grid-template-columns:2fr 1fr 1fr auto;margin-bottom:6px;" data-item-row="${i}">
+        <input class="inv-desc" value="${it.description || ''}" placeholder="Description">
+        <input class="inv-qty" type="number" value="${it.quantity ?? 1}" min="0" step="1" placeholder="Qté">
+        <input class="inv-price" type="number" value="${it.unit_price ?? 0}" min="0" step="0.05" placeholder="Prix unit. CHF">
+        <button class="btn-destructive" data-remove-item="${i}" style="width:auto;">✕</button>
+      </div>
+    `).join('');
+  }
+
+  main.innerHTML = `
+    <button class="btn-ghost" id="btnBackInvoice" style="margin-bottom:14px;">← Retour à la fiche</button>
+    <div class="card">
+      <h3>${invoice ? 'Modifier la facture' : 'Nouvelle facture'}</h3>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;">
+        <input id="invNumber" placeholder="N° de facture" value="${invoice?.invoice_number || 'F-' + Date.now().toString().slice(-6)}">
+        <input id="invIssueDate" type="date" value="${invoice?.issue_date || today}">
+        <input id="invDueDate" type="date" value="${invoice?.due_date || ''}">
+      </div>
+    </div>
+    <div class="card">
+      <h3>Destinataire</h3>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <input id="invDebtorName" placeholder="Nom / raison sociale" value="${invoice?.debtor_name || contact.company_name || ''}">
+        <input id="invDebtorStreet" placeholder="Rue" value="${invoice?.debtor_street || ''}">
+        <input id="invDebtorNumber" placeholder="N°" value="${invoice?.debtor_number || ''}">
+        <input id="invDebtorZip" placeholder="NPA" value="${invoice?.debtor_zip || ''}">
+        <input id="invDebtorCity" placeholder="Ville" value="${invoice?.debtor_city || ''}">
+        <input id="invDebtorCountry" placeholder="Pays (CH)" value="${invoice?.debtor_country || 'CH'}">
+      </div>
+    </div>
+    <div class="card">
+      <h3>Prestations</h3>
+      <div id="itemsRows">${itemsRowsHTML(items)}</div>
+      <button class="btn-ghost" id="btnAddItem" style="width:auto;margin-top:6px;">+ Ajouter une ligne</button>
+      <div style="text-align:right;font-weight:800;font-size:16px;margin-top:14px;" id="invTotal"></div>
+    </div>
+    <div class="card">
+      <h3>Message / référence</h3>
+      <input id="invMessage" placeholder="Ex: Facture pour prestations PandaFit" value="${invoice?.message || ''}">
+      <select id="invStatus" style="margin-top:10px;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+        <option value="brouillon" ${invoice?.status === 'brouillon' || !invoice ? 'selected' : ''}>Brouillon</option>
+        <option value="envoyee" ${invoice?.status === 'envoyee' ? 'selected' : ''}>Envoyée</option>
+        <option value="payee" ${invoice?.status === 'payee' ? 'selected' : ''}>Payée</option>
+      </select>
+    </div>
+    <button class="btn-primary" id="btnSaveInvoice" style="width:auto;">Enregistrer</button>
+  `;
+
+  function currentItems() {
+    return [...document.querySelectorAll('[data-item-row]')].map(row => ({
+      description: row.querySelector('.inv-desc').value.trim(),
+      quantity: parseFloat(row.querySelector('.inv-qty').value) || 0,
+      unit_price: parseFloat(row.querySelector('.inv-price').value) || 0,
+    }));
+  }
+  function updateTotal() {
+    const total = currentItems().reduce((a, it) => a + it.quantity * it.unit_price, 0);
+    document.getElementById('invTotal').textContent = `Total : ${total.toFixed(2)} CHF`;
+  }
+  main.addEventListener('input', updateTotal);
+  updateTotal();
+
+  document.getElementById('btnBackInvoice').addEventListener('click', () => renderCrmDetail());
+  document.getElementById('btnAddItem').addEventListener('click', () => {
+    document.getElementById('itemsRows').insertAdjacentHTML('beforeend', itemsRowsHTML([{ description: '', quantity: 1, unit_price: 0 }]).replace('data-item-row="0"', `data-item-row="${document.querySelectorAll('[data-item-row]').length}"`));
+  });
+  main.addEventListener('click', (e) => {
+    if (e.target.dataset.removeItem !== undefined) {
+      e.target.closest('[data-item-row]').remove();
+      updateTotal();
+    }
+  });
+
+  document.getElementById('btnSaveInvoice').addEventListener('click', async () => {
+    const payload = {
+      invoice_number: document.getElementById('invNumber').value.trim(),
+      crm_contact_id: contact.id,
+      debtor_name: document.getElementById('invDebtorName').value.trim(),
+      debtor_street: document.getElementById('invDebtorStreet').value.trim() || null,
+      debtor_number: document.getElementById('invDebtorNumber').value.trim() || null,
+      debtor_zip: document.getElementById('invDebtorZip').value.trim() || null,
+      debtor_city: document.getElementById('invDebtorCity').value.trim() || null,
+      debtor_country: document.getElementById('invDebtorCountry').value.trim() || 'CH',
+      issue_date: document.getElementById('invIssueDate').value,
+      due_date: document.getElementById('invDueDate').value || null,
+      line_items: currentItems(),
+      message: document.getElementById('invMessage').value.trim() || null,
+      status: document.getElementById('invStatus').value,
+    };
+    const { error } = invoice
+      ? await sb.from('invoices').update(payload).eq('id', invoice.id)
+      : await sb.from('invoices').insert(payload);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    renderCrmDetail();
+  });
+}
+
+/* ---------------- Génération du PDF avec QR-facture suisse ---------------- */
+function buildSwissQRData(company, invoice, total) {
+  const lines = [
+    'SPC', '0200', '1',
+    (company.iban || '').replace(/\s/g, ''),
+    'S',
+    company.company_name || '',
+    company.address_street || '',
+    company.address_number || '',
+    company.address_zip || '',
+    company.address_city || '',
+    company.address_country || 'CH',
+    '', '', '', '', '', '', '', // ultimate creditor (non utilisé, 7 lignes vides)
+    total.toFixed(2),
+    invoice.currency || 'CHF',
+    'S',
+    invoice.debtor_name || '',
+    invoice.debtor_street || '',
+    invoice.debtor_number || '',
+    invoice.debtor_zip || '',
+    invoice.debtor_city || '',
+    invoice.debtor_country || 'CH',
+    'NON', '',
+    invoice.message || '',
+    'EPD',
+    '', '', '',
+  ];
+  return lines.join('\n');
+}
+
+async function generateInvoicePDF(invoice) {
+  const { data: companyRows } = await sb.from('company_settings').select('*').limit(1);
+  const company = companyRows?.[0];
+  if (!company?.iban) {
+    alert("Renseigne d'abord l'IBAN de PandaFit dans CRM → Coordonnées de facturation.");
+    return;
+  }
+  const total = (invoice.line_items || []).reduce((a, it) => a + it.quantity * it.unit_price, 0);
+  const qrData = buildSwissQRData(company, invoice, total);
+  const qrDataUrl = await new Promise((resolve, reject) => {
+    QRCode.toDataURL(qrData, { width: 300, margin: 0, errorCorrectionLevel: 'M' }, (err, url) => err ? reject(err) : resolve(url));
+  });
+
+  const w = window.open('', '_blank');
+  w.document.write(`
+    <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>${invoice.invoice_number}</title>
+    <style>
+      body { font-family: Arial, sans-serif; color: #222; margin: 0; }
+      .page { width: 210mm; min-height: 297mm; padding: 20mm; box-sizing: border-box; margin: 0 auto; }
+      .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30mm; }
+      .brand { font-size: 20px; font-weight: 800; color: #185a9d; }
+      .addr { font-size: 12px; line-height: 1.5; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12.5px; }
+      th { text-align: left; border-bottom: 2px solid #222; padding: 6px 4px; }
+      td { padding: 6px 4px; border-bottom: 1px solid #ddd; }
+      .total-row td { border-bottom: none; font-weight: 800; font-size: 14px; padding-top: 12px; }
+      .receipt {
+        margin-top: 25mm; border-top: 1px dashed #999; padding-top: 8mm;
+        display: flex; font-size: 11px;
+      }
+      .receipt .payment-part { flex: 1; display: flex; gap: 8mm; }
+      .receipt .qr-block { text-align: center; }
+      .receipt .qr-block img { width: 46mm; height: 46mm; }
+      .receipt .info-block { flex: 1; }
+      .receipt .info-block h4 { font-size: 10px; text-transform: uppercase; margin: 8px 0 2px; }
+      .receipt .amount { font-size: 13px; font-weight: 700; margin-top: 4px; }
+      .swiss-cross { font-weight: 800; text-align: center; margin-top: 6px; }
+    </style>
+    </head><body>
+    <div class="page">
+      <div class="header">
+        <div>
+          <div class="brand">🐼 PandaFit</div>
+          <div class="addr">${company.company_name}<br>${company.address_street || ''} ${company.address_number || ''}<br>${company.address_zip || ''} ${company.address_city || ''}<br>${company.address_country || 'CH'}${company.vat_number ? '<br>TVA : ' + company.vat_number : ''}</div>
+        </div>
+        <div class="addr">
+          <b>${invoice.debtor_name}</b><br>
+          ${invoice.debtor_street || ''} ${invoice.debtor_number || ''}<br>
+          ${invoice.debtor_zip || ''} ${invoice.debtor_city || ''}<br>
+          ${invoice.debtor_country || 'CH'}
+        </div>
+      </div>
+      <h1>Facture ${invoice.invoice_number}</h1>
+      <div class="addr">Date : ${new Date(invoice.issue_date).toLocaleDateString('fr-CH')}${invoice.due_date ? ' · Échéance : ' + new Date(invoice.due_date).toLocaleDateString('fr-CH') : ''}</div>
+      <table>
+        <tr><th>Description</th><th>Qté</th><th>Prix unit.</th><th>Total</th></tr>
+        ${(invoice.line_items || []).map(it => `
+          <tr><td>${it.description}</td><td>${it.quantity}</td><td>${it.unit_price.toFixed(2)}</td><td>${(it.quantity * it.unit_price).toFixed(2)}</td></tr>
+        `).join('')}
+        <tr class="total-row"><td colspan="3">Total</td><td>${total.toFixed(2)} ${invoice.currency}</td></tr>
+      </table>
+      ${invoice.message ? `<p class="addr">${invoice.message}</p>` : ''}
+
+      <div class="receipt">
+        <div class="payment-part">
+          <div class="qr-block">
+            <img src="${qrDataUrl}" alt="QR-facture">
+            <div class="swiss-cross">Section paiement</div>
+          </div>
+          <div class="info-block">
+            <h4>Compte / Payable à</h4>
+            <div>${company.iban}<br>${company.company_name}<br>${company.address_street || ''} ${company.address_number || ''}<br>${company.address_zip || ''} ${company.address_city || ''}</div>
+            <h4>Payable par</h4>
+            <div>${invoice.debtor_name}<br>${invoice.debtor_street || ''} ${invoice.debtor_number || ''}<br>${invoice.debtor_zip || ''} ${invoice.debtor_city || ''}</div>
+            <div class="amount">Montant : ${total.toFixed(2)} ${invoice.currency}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </body></html>
+  `);
+  w.document.close();
+  setTimeout(() => w.print(), 500);
+}
+
+/* ---------------- Coordonnées de facturation PandaFit ---------------- */
+async function renderCompanySettings() {
+  const main = document.getElementById('main');
+  const { data } = await sb.from('company_settings').select('*').limit(1);
+  const c = data?.[0] || {};
+  main.innerHTML = `
+    <button class="btn-ghost" id="btnBackCompanySettings" style="margin-bottom:14px;">← Retour au CRM</button>
+    <div class="card">
+      <h3>Coordonnées de facturation PandaFit</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin-bottom:12px;">Utilisées pour générer les QR-factures. L'IBAN doit être suisse ou liechtensteinois.</p>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <input id="csName" placeholder="Nom de l'entreprise" value="${c.company_name || 'PandaFit'}">
+        <input id="csIban" placeholder="IBAN (CH...)" value="${c.iban || ''}">
+        <input id="csStreet" placeholder="Rue" value="${c.address_street || ''}">
+        <input id="csNumber" placeholder="N°" value="${c.address_number || ''}">
+        <input id="csZip" placeholder="NPA" value="${c.address_zip || ''}">
+        <input id="csCity" placeholder="Ville" value="${c.address_city || ''}">
+        <input id="csCountry" placeholder="Pays (CH)" value="${c.address_country || 'CH'}">
+        <input id="csVat" placeholder="N° TVA (optionnel)" value="${c.vat_number || ''}">
+      </div>
+      <button class="btn-primary" id="btnSaveCompanySettings" style="width:auto;margin-top:10px;">Enregistrer</button>
+    </div>
+  `;
+  document.getElementById('btnBackCompanySettings').addEventListener('click', () => { topView = 'crm'; render(); });
+  document.getElementById('btnSaveCompanySettings').addEventListener('click', async () => {
+    const payload = {
+      company_name: document.getElementById('csName').value.trim(),
+      iban: document.getElementById('csIban').value.trim(),
+      address_street: document.getElementById('csStreet').value.trim() || null,
+      address_number: document.getElementById('csNumber').value.trim() || null,
+      address_zip: document.getElementById('csZip').value.trim() || null,
+      address_city: document.getElementById('csCity').value.trim() || null,
+      address_country: document.getElementById('csCountry').value.trim() || 'CH',
+      vat_number: document.getElementById('csVat').value.trim() || null,
+    };
+    const { error } = await sb.from('company_settings').update(payload).eq('id', true);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    alert('Coordonnées enregistrées.');
   });
 }
 
