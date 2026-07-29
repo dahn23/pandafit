@@ -91,12 +91,14 @@
   .row > * { flex: 1; min-width: 140px; }
 
   /* --- Home --- */
-  .lang-switch { display: flex; gap: 4px; background: var(--panel); border-radius: 100px; padding: 3px; }
-  .lang-btn {
-    border: none; background: none; color: var(--text-dim); font-size: 11px; font-weight: 700;
-    padding: 6px 10px; border-radius: 100px; cursor: pointer;
+  .lang-switch-home { display: flex; justify-content: center; gap: 16px; margin: 8px 0; }
+  .lang-flag-btn {
+    width: 60px; height: 60px; border-radius: 50%; border: none; background: var(--panel);
+    font-size: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer;
+    padding: 0; line-height: 1;
   }
-  .lang-btn.active { background: var(--primary); color: #0c2018; }
+  .lang-flag-btn.active { outline: 3px solid var(--primary); }
+  .lang-switch-spacer { height: 60px; }
   .hero-play {
     background: var(--grad-main); border-radius: 22px; padding: 28px 24px;
     margin-bottom: 16px; position: relative; overflow: hidden;
@@ -1362,7 +1364,8 @@ function applyStaticI18n() {
 PandaFitSensor.on('data', (d) => { liveCoord = d; });
 
 let rhUnlocked = false;
-const ALWAYS_RH_LOCKED_ROUTES = ['calibrate', 'settings'];
+// TEMPORAIRE : 'settings' retiré de la liste le temps des tests — à remettre plus tard (demande explicite).
+const ALWAYS_RH_LOCKED_ROUTES = ['calibrate'];
 function isRouteLocked(route) {
   if (ALWAYS_RH_LOCKED_ROUTES.includes(route)) return true;
   if (route === 'games' && clientConfig?.lockGames) return true;
@@ -1473,12 +1476,13 @@ function wireConnectScreen() {
 /* ---------- Écran : accueil ---------- */
 function screenHome() {
   return `
-    <div style="display:flex;align-items:center;justify-content:space-between;">
-      <h1 class="page-title" style="margin-bottom:0;">${t('home_title')}</h1>
-      <div class="lang-switch">
-        ${['fr', 'en', 'de', 'it'].map(l => `<button class="lang-btn ${currentLang === l ? 'active' : ''}" data-lang="${l}">${l.toUpperCase()}</button>`).join('')}
-      </div>
+    <div class="lang-switch-home">
+      <button class="lang-flag-btn ${currentLang === 'fr' ? 'active' : ''}" data-lang="fr" title="Français">🇫🇷</button>
+      <button class="lang-flag-btn ${currentLang === 'en' ? 'active' : ''}" data-lang="en" title="English">🇬🇧</button>
+      <button class="lang-flag-btn ${currentLang === 'de' ? 'active' : ''}" data-lang="de" title="Deutsch">🇩🇪</button>
+      <button class="lang-flag-btn ${currentLang === 'it' ? 'active' : ''}" data-lang="it" title="Italiano">🇮🇹</button>
     </div>
+    <div class="lang-switch-spacer"></div>
 
     ${clientConfig?.showReadyToPlay !== false ? `
       <div class="hero-play">
@@ -1494,7 +1498,7 @@ function screenHome() {
 }
 function wireHomeScreen() {
   document.getElementById('btnGoGames')?.addEventListener('click', () => navigate('games'));
-  document.querySelectorAll('.lang-btn').forEach(btn => btn.addEventListener('click', () => setLang(btn.dataset.lang)));
+  document.querySelectorAll('.lang-flag-btn').forEach(btn => btn.addEventListener('click', () => setLang(btn.dataset.lang)));
   renderMainStack();
   renderCarousel('events', 'eventsWrap');
   startCarouselTimer('events', 'eventsWrap');
