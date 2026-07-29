@@ -92,6 +92,9 @@
   .toggle input:checked ~ .thumb { transform: translateX(18px); }
   .empty { color: var(--text-dim); font-size: 13.5px; padding: 20px 0; text-align: center; }
   .badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: var(--panel-hi); color: var(--text-dim); }
+  .badge-brouillon { background: rgba(24,90,157,0.25); color: #6cb6f5; }
+  .badge-envoyee { background: rgba(224,168,62,0.25); color: #f0c26e; }
+  .badge-payee { background: rgba(67,206,162,0.22); color: #43cea2; }
   .tabs { display: flex; gap: 4px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
   .tab { padding: 10px 16px; font-size: 13.5px; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent; }
   .tab.active { color: var(--text); border-color: var(--primary); font-weight: 700; }
@@ -1777,7 +1780,12 @@ async function renderQuestionnaireEditor(el) {
 
 /* ---------------- CRM (prospects / clients / anciens clients) ---------------- */
 let crmContacts = [];
-let crmFilter = 'prospect';
+let crmFilter = 'prospect'; // 'prospect' | 'client' | 'ancien' | 'factures'
+function invoiceStatusBadge(status) {
+  const cls = { brouillon: 'badge-brouillon', envoyee: 'badge-envoyee', payee: 'badge-payee' }[status] || 'badge';
+  const label = { brouillon: 'Brouillon', envoyee: 'Envoyée', payee: 'Payée' }[status] || status;
+  return `<span class="badge ${cls}">${label}</span>`;
+}
 let editingCrmId = null;
 
 async function loadCrmContacts() {
@@ -1797,6 +1805,68 @@ async function renderCRMView() {
   };
   const filtered = crmContacts.filter(c => c.status === crmFilter);
 
+  let bodyHTML;
+  if (crmFilter === 'factures') {
+    const { data: allInvoices } = await sb.from('invoices').select('*, crm_contacts(id, company_name)').order('issue_date', { ascending: false });
+    bodyHTML = `
+      <div class="card">
+        ${allInvoices?.length ? `
+          <table>
+            <tr><th>N°</th><th>Entreprise</th><th>Date</th><th>Montant</th><th>Statut</th><th></th></tr>
+            ${allInvoices.map(inv => {
+              const total = (inv.line_items || []).reduce((a, li) => a + li.quantity * li.unit_price, 0);
+              return `
+                <tr>
+                  <td><b>${inv.invoice_number}</b></td>
+                  <td>${inv.crm_contacts?.company_name || '—'}</td>
+                  <td>${new Date(inv.issue_date).toLocaleDateString('fr-CH')}</td>
+                  <td>${total.toFixed(2)} ${inv.currency}</td>
+                  <td>${invoiceStatusBadge(inv.status)}</td>
+                  <td><button class="btn-ghost" data-open-contact-invoice="${inv.crm_contacts?.id || ''}">Ouvrir</button></td>
+                </tr>
+              `;
+            }).join('')}
+          </table>
+        ` : '<p class="empty">Aucune facture pour l\'instant.</p>'}
+      </div>
+    `;
+  } else {
+    bodyHTML = `
+      <div class="card">
+        <h3>Nouveau contact</h3>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+          <input id="crmCompany" placeholder="Nom de l'entreprise">
+          <input id="crmContactName" placeholder="Nom du responsable">
+          <input id="crmRole" placeholder="Poste">
+          <input id="crmEmail" type="email" placeholder="Email">
+          <input id="crmPhone" placeholder="Téléphone">
+          <select id="crmStatus" style="padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+            <option value="prospect">Prospect</option>
+            <option value="client">Client actuel</option>
+            <option value="ancien">Ancien client</option>
+          </select>
+        </div>
+        <button class="btn-primary" id="btnAddCrm" style="width:auto;margin-top:8px;">Créer</button>
+      </div>
+      <div class="card">
+        ${filtered.length ? `
+          <table>
+            <tr><th>Entreprise</th><th>Responsable</th><th>Email</th><th>Client PandaFit lié</th><th></th></tr>
+            ${filtered.map(c => `
+              <tr style="cursor:pointer;" data-open-crm="${c.id}">
+                <td><b>${c.company_name}</b></td>
+                <td>${c.contact_name || '—'}</td>
+                <td>${c.email || '—'}</td>
+                <td>${c.clients?.name ? `<span class="badge">${c.clients.name}</span>` : '—'}</td>
+                <td><button class="btn-ghost" data-open-crm="${c.id}">Ouvrir</button></td>
+              </tr>
+            `).join('')}
+          </table>
+        ` : '<p class="empty">Aucun contact dans cette catégorie.</p>'}
+      </div>
+    `;
+  }
+
   main.innerHTML = `
     <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
       <span style="display:flex;align-items:center;gap:10px;"><i data-lucide="briefcase"></i> CRM</span>
@@ -1807,39 +1877,9 @@ async function renderCRMView() {
       <div class="tab ${crmFilter === 'prospect' ? 'active' : ''}" data-crm-filter="prospect">Prospects (${filterCounts.prospect})</div>
       <div class="tab ${crmFilter === 'client' ? 'active' : ''}" data-crm-filter="client">Clients actuels (${filterCounts.client})</div>
       <div class="tab ${crmFilter === 'ancien' ? 'active' : ''}" data-crm-filter="ancien">Anciens clients (${filterCounts.ancien})</div>
+      <div class="tab ${crmFilter === 'factures' ? 'active' : ''}" data-crm-filter="factures">Factures</div>
     </div>
-    <div class="card">
-      <h3>Nouveau contact</h3>
-      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
-        <input id="crmCompany" placeholder="Nom de l'entreprise">
-        <input id="crmContactName" placeholder="Nom du responsable">
-        <input id="crmRole" placeholder="Poste">
-        <input id="crmEmail" type="email" placeholder="Email">
-        <input id="crmPhone" placeholder="Téléphone">
-        <select id="crmStatus" style="padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
-          <option value="prospect">Prospect</option>
-          <option value="client">Client actuel</option>
-          <option value="ancien">Ancien client</option>
-        </select>
-      </div>
-      <button class="btn-primary" id="btnAddCrm" style="width:auto;margin-top:8px;">Créer</button>
-    </div>
-    <div class="card">
-      ${filtered.length ? `
-        <table>
-          <tr><th>Entreprise</th><th>Responsable</th><th>Email</th><th>Client PandaFit lié</th><th></th></tr>
-          ${filtered.map(c => `
-            <tr style="cursor:pointer;" data-open-crm="${c.id}">
-              <td><b>${c.company_name}</b></td>
-              <td>${c.contact_name || '—'}</td>
-              <td>${c.email || '—'}</td>
-              <td>${c.clients?.name ? `<span class="badge">${c.clients.name}</span>` : '—'}</td>
-              <td><button class="btn-ghost" data-open-crm="${c.id}">Ouvrir</button></td>
-            </tr>
-          `).join('')}
-        </table>
-      ` : '<p class="empty">Aucun contact dans cette catégorie.</p>'}
-    </div>
+    ${bodyHTML}
   `;
 
   main.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { crmFilter = t.dataset.crmFilter; renderCRMView(); }));
@@ -1847,7 +1887,14 @@ async function renderCRMView() {
   main.querySelectorAll('[data-open-crm]').forEach(el => {
     el.addEventListener('click', () => { editingCrmId = el.dataset.openCrm; renderCRMView(); });
   });
-  document.getElementById('btnAddCrm').addEventListener('click', async () => {
+  main.querySelectorAll('[data-open-contact-invoice]').forEach(el => {
+    el.addEventListener('click', () => {
+      if (!el.dataset.openContactInvoice) return;
+      editingCrmId = el.dataset.openContactInvoice;
+      renderCRMView();
+    });
+  });
+  document.getElementById('btnAddCrm')?.addEventListener('click', async () => {
     const company_name = document.getElementById('crmCompany').value.trim();
     if (!company_name) return;
     const payload = {
@@ -1989,7 +2036,7 @@ async function renderCrmDetail() {
               <button class="btn-destructive" data-del-invoice="${inv.id}">Supprimer</button>
             </span>
           </div>
-          <div class="dates">${new Date(inv.issue_date).toLocaleDateString('fr-CH')} · ${total.toFixed(2)} ${inv.currency} · <span class="badge">${inv.status}</span></div>
+          <div class="dates">${new Date(inv.issue_date).toLocaleDateString('fr-CH')} · ${total.toFixed(2)} ${inv.currency} · ${invoiceStatusBadge(inv.status)}</div>
         </div>
       `;
     }).join('');
