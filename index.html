@@ -2108,6 +2108,10 @@ function screenSettings() {
   return `
     <h1 class="page-title">Réglages</h1>
     <div class="card">
+      <h2>Application</h2>
+      <button class="btn-primary" id="btnRefreshApp" style="width:100%;">🔄 Actualiser l'app (récupérer la dernière version)</button>
+    </div>
+    <div class="card">
       <h2>Tablette</h2>
       <div class="setting-row"><span class="lbl">Client</span><span class="val">${clientConfig ? clientConfig.clientName : 'Non configurée'}</span></div>
       <div class="setting-row"><span class="lbl">Nom de la tablette</span><span class="val">${clientConfig ? clientConfig.deviceName : '—'}</span></div>
@@ -2132,6 +2136,12 @@ function screenSettings() {
 function wireSettingsScreen() {
   const box = document.getElementById('logBox');
   if (box) box.scrollTop = box.scrollHeight;
+  document.getElementById('btnRefreshApp')?.addEventListener('click', () => {
+    if ('caches' in window) {
+      caches.keys().then(names => names.forEach(n => caches.delete(n)));
+    }
+    location.reload(true);
+  });
   document.getElementById('btnRecalibrate')?.addEventListener('click', () => navigate('calibrate'));
   document.getElementById('btnDisconnect')?.addEventListener('click', () => { PandaFitSensor.disconnect(); navigate('home'); });
   document.getElementById('btnReconfigure')?.addEventListener('click', () => {
