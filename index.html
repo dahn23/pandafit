@@ -1299,12 +1299,12 @@ const SlalomGame = (() => {
     if (s.samples.length > 4) {
       const mean = s.samples.reduce((a, b) => a + b, 0) / s.samples.length;
       const mn = Math.min(...s.samples), mx = Math.max(...s.samples);
-      amp = Math.min(1, (mx - mn) / 9); // 9cm d'amplitude pic-à-pic = plein score (plus réaliste)
+      amp = Math.min(1, (mx - mn) / 7); // 7cm d'amplitude pic-à-pic = plein score
       for (let i = 1; i < s.samples.length; i++) {
         if ((s.samples[i - 1] - mean) * (s.samples[i] - mean) < 0) crossings++;
       }
     }
-    const regularity = Math.min(1, crossings / 6);
+    const regularity = Math.min(1, crossings / 4);
     const quality = amp * 0.6 + regularity * 0.4;
     s.speedKmh = Math.round(10 + quality * 60);
 
@@ -2847,8 +2847,8 @@ function renderSkiPlaying(snap) {
   const quality = Math.max(0, Math.min(1, (snap.speedKmh - 10) / 60));
   const traveled = snap.traveled * 0.6; // échelle visuelle (m réels -> unités svg)
   const cyclePos = traveled / (SKI_GATE_SPACING * 2);
-  const swing = skiTriangleWave(cyclePos + 0.25);
-  const swingAmp = 18 + quality * (SKI_GATE_OFFSET + 12 - 18); // amplitude faible à l'arrêt, large à pleine vitesse
+  const swing = skiTriangleWave(cyclePos);
+  const swingAmp = 8 + quality * ((SKI_GATE_OFFSET + 25) - 8); // très étroit à l'arrêt, très large à pleine vitesse
   const skierX = !snap.finished ? 150 + swing * swingAmp : 150 + Math.sin(Date.now() * 0.005) * 4;
   const swingDelta = swing - (window._skiLastSwing ?? swing);
   window._skiLastSwing = swing;
