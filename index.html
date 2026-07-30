@@ -1299,12 +1299,12 @@ const SlalomGame = (() => {
     if (s.samples.length > 4) {
       const mean = s.samples.reduce((a, b) => a + b, 0) / s.samples.length;
       const mn = Math.min(...s.samples), mx = Math.max(...s.samples);
-      amp = Math.min(1, (mx - mn) / 14); // 14cm d'amplitude pic-à-pic = plein score
+      amp = Math.min(1, (mx - mn) / 9); // 9cm d'amplitude pic-à-pic = plein score (plus réaliste)
       for (let i = 1; i < s.samples.length; i++) {
         if ((s.samples[i - 1] - mean) * (s.samples[i] - mean) < 0) crossings++;
       }
     }
-    const regularity = Math.min(1, crossings / 14);
+    const regularity = Math.min(1, crossings / 6);
     const quality = amp * 0.6 + regularity * 0.4;
     s.speedKmh = Math.round(10 + quality * 60);
 
@@ -2730,8 +2730,8 @@ function screenSkiPlaying() {
         <div class="timer" id="skiDist">400 m</div>
         <div class="timer" id="skiTime">0:00.0</div>
       </div>
-      <div style="flex:1;position:relative;margin-top:6px;border-radius:16px;overflow:hidden;">
-        <svg id="skiScene" style="position:absolute;inset:0;width:100%;height:100%;display:block;" viewBox="0 0 300 200" preserveAspectRatio="xMidYMid meet">
+      <div style="flex:1;position:relative;margin-top:6px;border-radius:16px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#0f1522;">
+        <svg id="skiScene" style="height:100%;width:auto;aspect-ratio:300/200;display:block;" viewBox="0 0 300 200" preserveAspectRatio="xMidYMid meet">
           <rect x="0" y="0" width="300" height="200" fill="#e9f1fb"/>
           <g id="skiTrees"></g>
           <g id="skiGates"></g>
@@ -2812,6 +2812,10 @@ function skiWrapY(baseY, traveled, range, minY) {
   if (y < 0) y += range;
   return y + minY;
 }
+function skiTriangleWave(x) {
+  const p = ((x % 1) + 1) % 1;
+  return p < 0.5 ? (4 * p - 1) : (3 - 4 * p);
+}
 function renderSkiPlaying(snap) {
   const distEl = document.getElementById('skiDist');
   const timeEl = document.getElementById('skiTime');
@@ -2835,12 +2839,20 @@ function renderSkiPlaying(snap) {
   if (banner) banner.style.opacity = snap.finished ? 1 : 0;
   if (gatesEl) gatesEl.style.opacity = snap.finished ? 0 : 1; // plus aucune porte dans la zone d'arrivée
 
-  // Le skieur suit directement la vraie position du capteur — pas de trajectoire automatique.
-  const skierX = Math.max(40, Math.min(260, 150 + snap.xCm * 8));
-  const facingRight = !!snap.facingRight;
+  // Trajectoire automatique à travers les portes (pas la position réelle du capteur) —
+  // seule la vitesse dépend du vrai mouvement. L'orientation bascule exactement quand
+  // la trajectoire change de sens (donc juste après chaque porte), pas en cours de route.
+  const traveled = snap.traveled * 0.6; // échelle visuelle (m réels -> unités svg)
+  const cyclePos = traveled / (SKI_GATE_SPACING * 2);
+  const swing = skiTriangleWave(cyclePos + 0.25);
+  const swingAmp = SKI_GATE_OFFSET + 12;
+  const skierX = !snap.finished ? 150 + swing * swingAmp : 150 + Math.sin(Date.now() * 0.005) * 4;
+  const swingDelta = swing - (window._skiLastSwing ?? swing);
+  window._skiLastSwing = swing;
+  if (Math.abs(swingDelta) > 0.0001) window._skiFacingRight = swingDelta > 0;
+  const facingRight = !!window._skiFacingRight;
   skier.setAttribute('transform', `translate(${skierX},${SKI_SKIER_Y}) scale(${facingRight ? -1 : 1},1)`);
 
-  const traveled = snap.traveled * 0.6; // échelle visuelle (m réels -> unités svg)
   if (!snap.finished) {
     (window._skiGateEls || []).forEach(({ el, x }) => {
       const baseY = parseFloat(el.dataset.baseY);
