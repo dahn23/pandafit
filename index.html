@@ -2264,6 +2264,15 @@ function heartsHTML(filled, total) {
 function heartsDisplay(remaining) {
   return heartsHTML(remaining, zoneSetupCfg.lives);
 }
+/** Ne redessine les cœurs que si le nombre affiché a réellement changé — évite le clignotement
+ *  causé par la régénération des icônes plus vite que leur cycle d'actualisation (350ms). */
+function setHeartsIfChanged(el, filled, total) {
+  if (!el) return;
+  const key = `${filled}/${total}`;
+  if (el.dataset.heartsKey === key) return;
+  el.dataset.heartsKey = key;
+  el.innerHTML = heartsHTML(filled, total);
+}
 
 function screenZonePlaying() {
   return `
@@ -2281,7 +2290,7 @@ function screenZonePlaying() {
 function renderZonePlaying(snap) {
   const heartsEl = document.getElementById('zoneHearts');
   const timerEl = document.getElementById('zoneTimer');
-  if (heartsEl) heartsEl.innerHTML = heartsDisplay(snap.livesRemaining);
+  setHeartsIfChanged(heartsEl, snap.livesRemaining, zoneSetupCfg.lives);
   if (timerEl) {
     const m = Math.floor(Math.max(0, snap.timeLeft) / 60), s = Math.max(0, snap.timeLeft) % 60;
     timerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
@@ -2502,7 +2511,7 @@ function screenMigrosPlaying() {
 function renderMigrosPlaying(snap) {
   const heartsEl = document.getElementById('migrosHearts');
   const timerEl = document.getElementById('migrosTimer');
-  if (heartsEl) heartsEl.innerHTML = heartsHTML(Math.max(0, snap.lives - snap.livesLost), snap.lives);
+  setHeartsIfChanged(heartsEl, Math.max(0, snap.lives - snap.livesLost), snap.lives);
   if (timerEl) timerEl.textContent = `${Math.max(0, snap.timeLeft)}s · ${snap.score} pts`;
   const canvas = document.getElementById('migrosCanvas');
   if (!canvas) return;
@@ -2850,7 +2859,7 @@ let eauScaredUntil = 0;
 function renderEauPlaying(snap) {
   const heartsEl = document.getElementById('eauHearts');
   const timerEl = document.getElementById('eauTimer');
-  if (heartsEl) heartsEl.innerHTML = heartsHTML(snap.livesRemaining, eauSetupCfg.lives);
+  setHeartsIfChanged(heartsEl, snap.livesRemaining, eauSetupCfg.lives);
   if (timerEl) {
     const m = Math.floor(Math.max(0, snap.timeLeft) / 60), s = Math.max(0, snap.timeLeft) % 60;
     timerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
@@ -2978,8 +2987,8 @@ function screenElectroPlaying() {
       <div class="hearts" id="electroHearts"></div>
       <div class="timer" id="electroTimer">0:00.0</div>
     </div>
-    <div class="zone-canvas-wrap">
-      <svg id="electroScene" style="display:block;width:100%;max-width:280px;height:467px;touch-action:none;" viewBox="0 0 300 500" preserveAspectRatio="xMidYMid meet">
+    <div class="zone-canvas-wrap" style="height:62vh;">
+      <svg id="electroScene" style="display:block;height:100%;width:auto;aspect-ratio:300/500;touch-action:none;" viewBox="0 0 300 500" preserveAspectRatio="xMidYMid meet">
         <path id="electroDim" d="" fill="none" stroke="#3a3355" stroke-width="28" stroke-linecap="round"/>
         <path id="electroDone" d="" fill="none" stroke="#7f77dd" stroke-width="28" stroke-linecap="round"/>
         <circle id="electroStartRing" r="15" fill="none" stroke="#43cea2" stroke-width="3"/>
@@ -3030,7 +3039,7 @@ function wireElectroPlaying() {
 function renderElectroPlaying(snap) {
   const heartsEl = document.getElementById('electroHearts');
   const timerEl = document.getElementById('electroTimer');
-  if (heartsEl) heartsEl.innerHTML = heartsHTML(snap.livesRemaining, electroSetupCfg.lives);
+  setHeartsIfChanged(heartsEl, snap.livesRemaining, electroSetupCfg.lives);
   if (timerEl) {
     const s = snap.elapsedMs / 1000;
     timerEl.textContent = `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
