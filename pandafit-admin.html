@@ -1391,6 +1391,14 @@ function renderClientSettingsTab() {
         <input type="checkbox" id="cfgIndexBanner" ${client.show_index_banner ? 'checked' : ''}>
         Afficher l'encadré "PandaFit Index"
       </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:8px;">
+        <input type="checkbox" id="cfgBenefitsPage" ${client.show_benefits_page ? 'checked' : ''}>
+        Afficher la vignette "Les bienfaits du PandaFit"
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;">
+        <input type="checkbox" id="cfgInitiationPage" ${client.show_initiation_page ? 'checked' : ''}>
+        Afficher la vignette "Initiation au PandaFit"
+      </label>
     </div>
     <div class="card">
       <h3>Accès RH (Calibrer / Réglages sur la tablette)</h3>
@@ -1406,9 +1414,11 @@ function renderClientSettingsTab() {
   document.getElementById('btnSaveClientSettings').addEventListener('click', async () => {
     const show_ready_to_play = document.getElementById('cfgReadyToPlay').checked;
     const show_index_banner = document.getElementById('cfgIndexBanner').checked;
+    const show_benefits_page = document.getElementById('cfgBenefitsPage').checked;
+    const show_initiation_page = document.getElementById('cfgInitiationPage').checked;
     const rh_pin = document.getElementById('cfgRhPin').value.trim() || '0000';
     const lock_games = document.getElementById('cfgLockGames').checked;
-    const { error } = await sb.from('clients').update({ show_ready_to_play, show_index_banner, rh_pin, lock_games }).eq('id', selectedClientId);
+    const { error } = await sb.from('clients').update({ show_ready_to_play, show_index_banner, show_benefits_page, show_initiation_page, rh_pin, lock_games }).eq('id', selectedClientId);
     if (error) { alert('Erreur : ' + error.message); return; }
     await loadClients();
     renderClientSettingsTab();
@@ -1728,12 +1738,20 @@ function renderAdsTab() {
 
 /* ---------------- Contenu global (jeux + Index), indépendant du client ---------------- */
 let editingGameId = null;
+let editingInitiationStepId = null;
 async function renderContentView() {
   const main = document.getElementById('main');
   main.innerHTML = '<p class="empty">Chargement...</p>';
   const { data } = await sb.from('games').select('*').order('name');
   const allGames = data || [];
   const editing = allGames.find(g => g.id === editingGameId);
+
+  const { data: infoPagesData } = await sb.from('info_pages').select('*');
+  const infoPages = {};
+  (infoPagesData || []).forEach(p => { infoPages[p.id] = p; });
+  const { data: stepsData } = await sb.from('initiation_steps').select('*').order('sort_order');
+  const steps = stepsData || [];
+  const editingStep = steps.find(s => s.id === editingInitiationStepId);
 
   main.innerHTML = `
     <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="layout-grid"></i> Contenu (jeux + Index)</div>
@@ -1764,6 +1782,61 @@ async function renderContentView() {
         `).join('')}
       </table>
     </div>
+
+    <div class="section-title" style="display:flex;align-items:center;gap:10px;margin-top:28px;"><i data-lucide="heart-pulse"></i> Page : Les bienfaits du PandaFit</div>
+    <div class="section-sub">Vignette + texte affichés sur la page. Activable/désactivable par client dans son onglet "Réglages".</div>
+    <div class="card">
+      <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:6px;">Vignette (recommandé : 800×400px environ)</div>
+      ${infoPages.benefits?.image_url ? `<img src="${infoPages.benefits.image_url}" style="width:160px;height:80px;object-fit:cover;border-radius:8px;margin-bottom:8px;display:block;">` : ''}
+      <input id="benefitsImage" type="file" accept="image/*" style="margin-bottom:10px;">
+      ${i18nFieldGroup('benefits', 'body', 'Texte de la page (HTML simple : <h2>, <p>, <ul><li>, <strong>)', infoPages.benefits || {}, true)}
+      <button class="btn-primary" id="btnSaveBenefits" style="width:auto;">Enregistrer</button>
+    </div>
+
+    <div class="section-title" style="display:flex;align-items:center;gap:10px;margin-top:28px;"><i data-lucide="footprints"></i> Page : Initiation au PandaFit</div>
+    <div class="section-sub">Vignette + texte d'intro + étapes illustrées + recommandations finales. Activable/désactivable par client dans son onglet "Réglages".</div>
+    <div class="card">
+      <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:6px;">Vignette (recommandé : 800×400px environ)</div>
+      ${infoPages.initiation?.image_url ? `<img src="${infoPages.initiation.image_url}" style="width:160px;height:80px;object-fit:cover;border-radius:8px;margin-bottom:8px;display:block;">` : ''}
+      <input id="initiationImage" type="file" accept="image/*" style="margin-bottom:10px;">
+      ${i18nFieldGroup('initiation', 'body', "Texte d'introduction (HTML simple)", infoPages.initiation || {}, true)}
+      ${i18nFieldGroup('initiation', 'footer', 'Recommandations finales (HTML simple, affiché après les étapes)', infoPages.initiation || {}, true)}
+      <button class="btn-primary" id="btnSaveInitiation" style="width:auto;">Enregistrer</button>
+    </div>
+
+    <div class="card">
+      <h3>Étapes de l'initiation</h3>
+      ${steps.length === 0 ? '<p class="empty">Aucune étape pour le moment.</p>' : `
+        <table>
+          <tr><th>#</th><th>Image</th><th>Titre</th><th></th></tr>
+          ${steps.map((s, i) => `
+            <tr>
+              <td>${s.sort_order}</td>
+              <td>${s.image_url ? `<img src="${s.image_url}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;">` : '<span class="badge">Aucune</span>'}</td>
+              <td>${s.title || '(sans titre)'}</td>
+              <td class="row" style="gap:6px;">
+                <button class="btn-ghost" data-edit-step="${s.id}" style="width:auto;">Modifier</button>
+                <button class="btn-destructive" data-del-step="${s.id}" style="width:auto;">Supprimer</button>
+              </td>
+            </tr>
+          `).join('')}
+        </table>
+      `}
+    </div>
+    <div class="card">
+      <h3>${editingStep ? "Modifier l'étape" : 'Ajouter une étape'}</h3>
+      <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Ordre d'affichage</div>
+      <input id="stepSortOrder" type="number" value="${editingStep ? editingStep.sort_order : steps.length + 1}" style="max-width:120px;margin-bottom:10px;">
+      <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:6px;">Image de l'étape</div>
+      ${editingStep?.image_url ? `<img src="${editingStep.image_url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;margin-bottom:8px;display:block;">` : ''}
+      <input id="stepImage" type="file" accept="image/*" style="margin-bottom:10px;">
+      ${i18nFieldGroup('step', 'title', 'Titre', editingStep || {}, false)}
+      ${i18nFieldGroup('step', 'body', 'Texte', editingStep || {}, true)}
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" id="btnSaveStep" style="width:auto;">Enregistrer</button>
+        ${editingStep ? `<button class="btn-ghost" id="btnCancelStep" style="width:auto;">Annuler</button>` : ''}
+      </div>
+    </div>
   `;
 
   document.getElementById('btnCancelGame')?.addEventListener('click', () => { editingGameId = null; renderContentView(); });
@@ -1782,6 +1855,53 @@ async function renderContentView() {
   });
   main.querySelectorAll('[data-edit-game]').forEach(btn => {
     btn.addEventListener('click', () => { editingGameId = btn.dataset.editGame; renderContentView(); });
+  });
+
+  document.getElementById('btnSaveBenefits')?.addEventListener('click', async () => {
+    const payload = readI18nField('benefits', 'body');
+    const file = document.getElementById('benefitsImage').files[0];
+    try { if (file) payload.image_url = await uploadBanner(file); } catch (e) { alert("Erreur d'upload : " + e.message); return; }
+    const { error } = await sb.from('info_pages').update(payload).eq('id', 'benefits');
+    if (error) { alert('Erreur : ' + error.message); return; }
+    renderContentView();
+  });
+  document.getElementById('btnSaveInitiation')?.addEventListener('click', async () => {
+    const payload = { ...readI18nField('initiation', 'body'), ...readI18nField('initiation', 'footer') };
+    const file = document.getElementById('initiationImage').files[0];
+    try { if (file) payload.image_url = await uploadBanner(file); } catch (e) { alert("Erreur d'upload : " + e.message); return; }
+    const { error } = await sb.from('info_pages').update(payload).eq('id', 'initiation');
+    if (error) { alert('Erreur : ' + error.message); return; }
+    renderContentView();
+  });
+
+  main.querySelectorAll('[data-edit-step]').forEach(btn => {
+    btn.addEventListener('click', () => { editingInitiationStepId = btn.dataset.editStep; renderContentView(); });
+  });
+  document.getElementById('btnCancelStep')?.addEventListener('click', () => { editingInitiationStepId = null; renderContentView(); });
+  main.querySelectorAll('[data-del-step]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Supprimer cette étape ?')) return;
+      await sb.from('initiation_steps').delete().eq('id', btn.dataset.delStep);
+      editingInitiationStepId = null;
+      renderContentView();
+    });
+  });
+  document.getElementById('btnSaveStep')?.addEventListener('click', async () => {
+    const payload = {
+      ...readI18nField('step', 'title'), ...readI18nField('step', 'body'),
+      sort_order: parseInt(document.getElementById('stepSortOrder').value, 10) || 0,
+    };
+    const file = document.getElementById('stepImage').files[0];
+    try { if (file) payload.image_url = await uploadBanner(file); } catch (e) { alert("Erreur d'upload : " + e.message); return; }
+    let error;
+    if (editingInitiationStepId) {
+      ({ error } = await sb.from('initiation_steps').update(payload).eq('id', editingInitiationStepId));
+    } else {
+      ({ error } = await sb.from('initiation_steps').insert(payload));
+    }
+    if (error) { alert('Erreur : ' + error.message); return; }
+    editingInitiationStepId = null;
+    renderContentView();
   });
 }
 
