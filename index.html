@@ -1271,6 +1271,7 @@ const SlalomGame = (() => {
     s = {
       running: true, samples: [], distLeft: TOTAL_DIST_M, elapsedMs: 0,
       speedKmh: 10, traveled: 0, finished: false, runoutUntil: null, startedAt: 0,
+      xCm: 0, prevX: 0, facingRight: false,
     };
   }
 
@@ -1288,6 +1289,11 @@ const SlalomGame = (() => {
     s.elapsedMs = performance.now() - s.startedAt;
     s.samples.push(latestX);
     if (s.samples.length > 40) s.samples.shift();
+
+    const dx = latestX - s.prevX;
+    if (Math.abs(dx) > 0.03) s.facingRight = dx > 0; // orientation immédiate selon le sens réel du mouvement
+    s.prevX = latestX;
+    s.xCm = latestX;
 
     let amp = 0, crossings = 0;
     if (s.samples.length > 4) {
@@ -1330,6 +1336,7 @@ const SlalomGame = (() => {
     return {
       distLeft: s.distLeft, elapsedMs: s.elapsedMs, speedKmh: s.speedKmh,
       traveled: s.traveled, finished: s.finished, totalDist: TOTAL_DIST_M,
+      xCm: s.xCm, facingRight: s.facingRight,
     };
   }
 
@@ -2752,17 +2759,20 @@ function wireSkiScene() {
   const gatesEl = document.getElementById('skiGates');
   const finishEl = document.getElementById('skiFinish');
   treesEl.innerHTML = ''; gatesEl.innerHTML = ''; finishEl.innerHTML = '';
+  gatesEl.style.opacity = 1;
 
+  const TREE_RANGE = 8 * 35, TREE_MIN_Y = 22;
   for (let i = 0; i < 8; i++) {
     const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    t.setAttribute('x', i % 2 === 0 ? 15 : 285);
+    t.setAttribute('x', i % 2 === 0 ? 20 : 280);
     t.dataset.baseY = 220 - i * 35;
     t.setAttribute('y', t.dataset.baseY);
-    t.setAttribute('font-size', '22');
+    t.setAttribute('font-size', '18');
     t.textContent = '🌲';
     treesEl.appendChild(t);
   }
   window._skiGateEls = [];
+  const GATE_RANGE = 10 * SKI_GATE_SPACING;
   for (let i = 0; i < 10; i++) {
     const isLeft = i % 2 === 0;
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -2793,11 +2803,14 @@ function wireSkiScene() {
       window._skiFinishEls.push(r);
     }
   }
+  window._skiTreeRange = TREE_RANGE; window._skiTreeMinY = TREE_MIN_Y; window._skiGateRange = GATE_RANGE;
   skiSceneReady = true;
 }
-function skiTriangleWave(x) {
-  const p = ((x % 1) + 1) % 1;
-  return p < 0.5 ? (4 * p - 1) : (3 - 4 * p);
+/** Fait défiler un élément en boucle, sans jamais laisser sa position sortir par le haut. */
+function skiWrapY(baseY, traveled, range, minY) {
+  let y = (baseY - traveled - minY) % range;
+  if (y < 0) y += range;
+  return y + minY;
 }
 function renderSkiPlaying(snap) {
   const distEl = document.getElementById('skiDist');
@@ -2806,6 +2819,7 @@ function renderSkiPlaying(snap) {
   const speedEl = document.getElementById('skiSpeed');
   const skier = document.getElementById('skiSkier');
   const banner = document.getElementById('skiFinishBanner');
+  const gatesEl = document.getElementById('skiGates');
   if (!skiSceneReady || !skier) return;
 
   if (distEl) distEl.textContent = snap.finished ? "zone d'arrivée" : `${Math.round(snap.distLeft)} m`;
@@ -2818,27 +2832,25 @@ function renderSkiPlaying(snap) {
     const quality = (snap.speedKmh - 10) / 60;
     cursorEl.style.left = Math.max(2, Math.min(96, 50 + (quality - 0.5) * 90)) + '%';
   }
-  if (!snap.finished && banner) banner.style.opacity = 0;
-  if (snap.finished && banner) banner.style.opacity = 1;
+  if (banner) banner.style.opacity = snap.finished ? 1 : 0;
+  if (gatesEl) gatesEl.style.opacity = snap.finished ? 0 : 1; // plus aucune porte dans la zone d'arrivée
 
-  const traveled = snap.traveled * 0.6; // échelle visuelle (m réels -> unités svg)
-  const cyclePos = traveled / (SKI_GATE_SPACING * 2);
-  const swing = skiTriangleWave(cyclePos + 0.25);
-  const swingAmp = SKI_GATE_OFFSET + 12;
-  const skierX = !snap.finished ? 150 + swing * swingAmp : 150 + Math.sin(Date.now() * 0.005) * 4;
-  const facingRight = swing >= 0;
+  // Le skieur suit directement la vraie position du capteur — pas de trajectoire automatique.
+  const skierX = Math.max(40, Math.min(260, 150 + snap.xCm * 8));
+  const facingRight = !!snap.facingRight;
   skier.setAttribute('transform', `translate(${skierX},${SKI_SKIER_Y}) scale(${facingRight ? -1 : 1},1)`);
 
-  (window._skiGateEls || []).forEach(({ el, x }) => {
-    const baseY = parseFloat(el.dataset.baseY);
-    let y = baseY - traveled;
-    while (y < -10) y += 450;
-    el.setAttribute('transform', `translate(${x},${y})`);
-  });
+  const traveled = snap.traveled * 0.6; // échelle visuelle (m réels -> unités svg)
+  if (!snap.finished) {
+    (window._skiGateEls || []).forEach(({ el, x }) => {
+      const baseY = parseFloat(el.dataset.baseY);
+      const y = skiWrapY(baseY, traveled, window._skiGateRange, 10);
+      el.setAttribute('transform', `translate(${x},${y})`);
+    });
+  }
   document.getElementById('skiTrees')?.querySelectorAll('text').forEach((el) => {
     const baseY = parseFloat(el.dataset.baseY);
-    let y = baseY - traveled;
-    while (y < -10) y += 450;
+    const y = skiWrapY(baseY, traveled, window._skiTreeRange, window._skiTreeMinY);
     el.setAttribute('y', y);
   });
 
