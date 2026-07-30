@@ -2869,7 +2869,7 @@ function renderSkiPlaying(snap) {
     const y = skiWrapY(baseY, traveled, window._skiGateRange, 10);
     el.setAttribute('transform', `translate(${x},${y})`);
     const inBounds = y >= 0 && y <= 196;
-    const pastFinish = y <= finishFrontY;
+    const pastFinish = y >= finishFrontY;
     el.style.display = (inBounds && !pastFinish) ? '' : 'none';
   });
   document.getElementById('skiTrees')?.querySelectorAll('text').forEach((el) => {
