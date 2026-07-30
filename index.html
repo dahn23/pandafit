@@ -226,9 +226,14 @@
   .setting-row .val { font-size: 14px; font-weight: 600; }
 
   /* --- Bottom nav --- */
+  .ads-label {
+    position: fixed; left: 0; right: 0; z-index: 40; max-width: 900px; margin: 0 auto;
+    font-size: 22px; font-weight: 700; padding: 4px 20px; color: var(--text);
+    background: var(--bg);
+  }
   .ads-banner {
     position: fixed; left: 0; right: 0; z-index: 40; max-width: 900px; margin: 0 auto;
-    height: 35vh; overflow: hidden; background: #000;
+    height: 25vh; overflow: hidden; background: #000;
   }
   .ads-banner img {
     position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
@@ -407,6 +412,7 @@
 
   <div class="content" id="content"><!-- injected --></div>
 
+  <div class="ads-label" id="adsLabel" style="display:none;" data-i18n="ads_label">Annonces</div>
   <div class="ads-banner" id="adsBanner" style="display:none;"></div>
 
   <div class="bottomnav">
@@ -1714,6 +1720,7 @@ let liveCoord = { x: 0, y: 0, packetCount: 0, hz: 0 };
 const TRANSLATIONS = {
   fr: {
     nav_home: 'Accueil', nav_games: 'Jeux', nav_index: 'Index', nav_calibrate: 'Calibrer', nav_settings: 'Réglages',
+    ads_label: 'Annonces',
     badge_game: 'Jeu', badge_defi: 'Défi', badge_challenge: 'Challenge', badge_event: 'Événement', badge_first: '1er',
     not_connected: 'Non connecté',
     home_title: 'Salut',
@@ -1735,6 +1742,7 @@ const TRANSLATIONS = {
   },
   en: {
     nav_home: 'Home', nav_games: 'Games', nav_index: 'Index', nav_calibrate: 'Calibrate', nav_settings: 'Settings',
+    ads_label: 'Ads',
     badge_game: 'Game', badge_defi: 'Challenge', badge_challenge: 'Contest', badge_event: 'Event', badge_first: '1st',
     not_connected: 'Not connected',
     home_title: 'Hi there',
@@ -1756,6 +1764,7 @@ const TRANSLATIONS = {
   },
   de: {
     nav_home: 'Start', nav_games: 'Spiele', nav_index: 'Index', nav_calibrate: 'Kalibrieren', nav_settings: 'Einstellungen',
+    ads_label: 'Anzeigen',
     badge_game: 'Spiel', badge_defi: 'Challenge', badge_challenge: 'Wettbewerb', badge_event: 'Event', badge_first: '1.',
     not_connected: 'Nicht verbunden',
     home_title: 'Hallo',
@@ -1777,6 +1786,7 @@ const TRANSLATIONS = {
   },
   it: {
     nav_home: 'Home', nav_games: 'Giochi', nav_index: 'Index', nav_calibrate: 'Calibra', nav_settings: 'Impostazioni',
+    ads_label: 'Annunci',
     badge_game: 'Gioco', badge_defi: 'Sfida', badge_challenge: 'Torneo', badge_event: 'Evento', badge_first: '1°',
     not_connected: 'Non connesso',
     home_title: 'Ciao',
@@ -1942,12 +1952,16 @@ function render() {
 /** Affiche/masque la bannière de publicités (uniquement sur l'accueil) et gère le défilement toutes les 4s. */
 function updateAdsBanner() {
   const banner = document.getElementById('adsBanner');
-  if (!banner) return;
+  const label = document.getElementById('adsLabel');
+  if (!banner || !label) return;
   const shouldShow = currentRoute === 'home' && PandaFitSensor.isConnected() && clientConfig?.adsEnabled && activeAds.length > 0;
 
   if (!shouldShow) {
     banner.style.display = 'none';
+    label.style.display = 'none';
     banner.innerHTML = '';
+    delete banner.dataset.built;
+    delete banner.dataset.count;
     if (adsRotationTimer) { clearInterval(adsRotationTimer); adsRotationTimer = null; }
     content.style.paddingBottom = '';
     return;
@@ -1957,7 +1971,9 @@ function updateAdsBanner() {
   const navHeight = bottomnavEl ? bottomnavEl.offsetHeight : 64;
   banner.style.bottom = navHeight + 'px';
   banner.style.display = 'block';
-  content.style.paddingBottom = `calc(35vh + ${navHeight}px + 24px)`;
+  label.style.display = 'block';
+  label.style.bottom = `calc(${navHeight}px + 25vh)`;
+  content.style.paddingBottom = `calc(25vh + ${navHeight}px + 44px)`;
 
   if (!banner.dataset.built || banner.dataset.count !== String(activeAds.length)) {
     banner.innerHTML = activeAds.map((ad, i) => `<img src="${ad.image_url}" class="${i === 0 ? 'active' : ''}" alt="">`).join('');
