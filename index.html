@@ -2868,7 +2868,7 @@ function renderSkiPlaying(snap) {
     const baseY = parseFloat(el.dataset.baseY);
     const y = skiWrapY(baseY, traveled, window._skiGateRange, 10);
     el.setAttribute('transform', `translate(${x},${y})`);
-    const inBounds = y >= 0 && y <= 196;
+    const inBounds = y >= 0 && y <= 176;
     const pastFinish = y >= finishFrontY;
     el.style.display = (inBounds && !pastFinish) ? '' : 'none';
   });
@@ -2876,7 +2876,7 @@ function renderSkiPlaying(snap) {
     const baseY = parseFloat(el.dataset.baseY);
     const y = skiWrapY(baseY, traveled, window._skiTreeRange, window._skiTreeMinY);
     el.setAttribute('y', y);
-    el.style.display = (y >= 0 && y <= 200) ? '' : 'none';
+    el.style.display = (y >= 0 && y <= 195) ? '' : 'none';
   });
 
   (window._skiFinishEls || []).forEach((el) => {
