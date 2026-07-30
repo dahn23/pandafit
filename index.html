@@ -82,7 +82,7 @@
     display: flex; align-items: center; justify-content: center;
   }
   .football-goal-distant { position: absolute; top: 14%; width: 90px; transition: transform 0.3s linear; }
-  .football-runner { position: absolute; bottom: 18%; width: 180px; height: 180px; }
+  .football-runner { position: absolute; bottom: 18%; width: 270px; height: 270px; }
   .football-runner img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; }
   .football-runner img.active { opacity: 1; }
   .football-vgauge {
@@ -1092,8 +1092,8 @@ const FootballGame = (() => {
       if (isUp && !s.wasUp) { s.upCount++; s.pose = 'up'; s.wasUp = true; }
       else if (isDown && s.wasUp) { s.pose = 'down'; s.wasUp = false; }
       // Animation 2x plus rapide que le score : seuil moitié moindre, indépendant du comptage "en haut".
-      const animUp = latest.y > UP_THRESHOLD / 2;
-      const animDown = latest.y < -UP_THRESHOLD / 2;
+      const animUp = latest.y > UP_THRESHOLD / 3;
+      const animDown = latest.y < -UP_THRESHOLD / 3;
       if (animUp && !s.animWasUp) { s.animWasUp = true; s.runFrame = (s.runFrame + 1) % 4; }
       else if (animDown && s.animWasUp) { s.animWasUp = false; s.runFrame = (s.runFrame + 1) % 4; }
       s.runTimeLeft -= dt;
@@ -2207,12 +2207,15 @@ function launchGame(gameId) {
   if (GAME_LAUNCHERS[gameId]) {
     currentRoute = 'games';
     document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('active', b.dataset.nav === 'games'));
+    updateAdsBanner();
     launchGameWithQuestionnaire(gameId);
   } else {
     alert('Ce jeu sera bientôt disponible.');
   }
 }
 function launchGameWithQuestionnaire(gameId) {
+  currentRoute = 'games';
+  updateAdsBanner();
   const qId = clientConfig?.gameQuestionnaires?.[gameId];
   showQuestionnaireThenLaunch(qId, () => {
     if (GAME_LAUNCHERS[gameId]) GAME_LAUNCHERS[gameId]();
