@@ -66,6 +66,13 @@
   h1.page-title { font-size: 22px; font-weight: 700; margin: 6px 0 4px; }
   p.page-sub { color: #c7c2db; font-size: 21px; margin: 0 0 22px; line-height: 1.45; }
   .centered-page { display: flex; flex-direction: column; justify-content: center; min-height: 75vh; }
+  .panda-watcher {
+    position: fixed; top: 68px; left: 16px; width: 58px; height: 58px; z-index: 50;
+    border-radius: 50%; background: #241d38; border: 2px solid var(--primary);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .panda-watcher-face { position: absolute; width: 68%; height: auto; opacity: 0; transition: opacity 0.15s; }
+  .panda-watcher-face.active { opacity: 1; }
   .catch-pulse { position: absolute; width: 50px; height: 50px; border-radius: 50%; animation: catchPulse 0.5s ease-out forwards; }
   .catch-pulse.good { background: #43cea2; }
   .catch-pulse.bad { background: #e6374e; }
@@ -2330,6 +2337,10 @@ function setHeartsIfChanged(el, filled, total) {
 
 function screenZonePlaying() {
   return `
+    <div class="panda-watcher" id="zonePandaWatcher">
+      <img id="zonePandaCalm" src="${PANDA_FACE_CALM_B64}" class="panda-watcher-face active">
+      <img id="zonePandaScared" src="${PANDA_FACE_SCARED_B64}" class="panda-watcher-face">
+    </div>
     <div class="centered-page">
     <div class="zone-hud">
       <div class="hearts" id="zoneHearts"></div>
@@ -2359,6 +2370,8 @@ function renderZonePlaying(snap) {
   ctx.clearRect(0, 0, w, h);
   // zone circle
   const inside = (snap.xCm * snap.xCm + snap.yCm * snap.yCm) <= (snap.radiusCm * snap.radiusCm);
+  document.getElementById('zonePandaCalm')?.classList.toggle('active', inside);
+  document.getElementById('zonePandaScared')?.classList.toggle('active', !inside);
   ctx.beginPath();
   ctx.arc(cx, cy, snap.radiusCm * pxPerCm, 0, Math.PI * 2);
   ctx.fillStyle = inside ? 'rgba(67,206,162,0.15)' : 'rgba(230,55,78,0.12)';
