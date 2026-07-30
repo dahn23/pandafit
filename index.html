@@ -839,6 +839,7 @@ const ZoneGame = (() => {
   const PREPARE_SECONDS = 5;
   const SHRINK_START_RATIO = 0.7; // la zone commence à rétrécir aux 70% du temps écoulé
   const SHRINK_AMOUNT = 0.5; // réduction totale de 50% à la fin
+  const COOLDOWN_MS = 1000; // après une sortie : 1s "figé en rouge", pas de nouvelle vie perdue
 
   let cfg = { difficulty: 'medium', duration: 60, lives: 3, zoneMode: 'fixed' }; // lives: 3|5|Infinity, zoneMode: 'fixed'|'shrink'
   let state = null;
@@ -852,7 +853,7 @@ const ZoneGame = (() => {
       running: false,
       timeLeft: cfg.duration,
       livesLost: 0,
-      lastPosition: 'none', // 'none' | 'inside' | 'outside'
+      cooldownUntil: 0,
       xCm: 0, yCm: 0,
       startedAt: 0,
     };
@@ -877,16 +878,17 @@ const ZoneGame = (() => {
     state.xCm = x; state.yCm = y;
     const squared = (x * x) + (y * y);
     const squaredRange = radiusCm() * radiusCm();
-    if (squared > squaredRange && state.lastPosition !== 'outside') {
-      state.lastPosition = 'outside';
+    const now = Date.now();
+    if (squared > squaredRange && now > state.cooldownUntil) {
+      state.cooldownUntil = now + COOLDOWN_MS;
       state.livesLost++;
       SoundFx.lifeLost();
       if (cfg.lives !== Infinity && livesRemaining() <= 0) {
         finish('lives');
+        return;
       }
-    } else if (squared <= squaredRange && state.lastPosition !== 'inside') {
-      state.lastPosition = 'inside';
     }
+    onTickCb && onTickCb(snapshot()); // rafraîchit l'affichage en temps réel, pas juste 1x/seconde
   }
 
   let tickTimer = null;
@@ -917,6 +919,9 @@ const ZoneGame = (() => {
   }
 
   function snapshot() {
+    const squared = (state.xCm * state.xCm) + (state.yCm * state.yCm);
+    const rawOutside = squared > radiusCm() * radiusCm();
+    const forcedOutside = Date.now() < state.cooldownUntil;
     return {
       timeLeft: state.timeLeft,
       livesLost: state.livesLost,
@@ -927,6 +932,7 @@ const ZoneGame = (() => {
       duration: cfg.duration,
       lives: cfg.lives,
       zoneMode: cfg.zoneMode,
+      outside: rawOutside || forcedOutside,
     };
   }
 
@@ -2196,7 +2202,6 @@ function wireGamesScreen() {
 
 /* ---------- Jeu : The Zone ---------- */
 let zoneSetupCfg = { difficulty: 'medium', duration: 60, lives: 3, zoneMode: 'fixed' };
-let zoneScaredUntil = 0;
 
 function segmented(name, options, selected) {
   return `<div class="segmented" data-group="${name}">${
@@ -2297,7 +2302,6 @@ function screenZonePrepare(seconds) {
 }
 
 function startZoneGame() {
-  zoneScaredUntil = 0;
   content.innerHTML = screenZonePlaying();
   ZoneGame.start(zoneSetupCfg,
     (snap) => renderZonePlaying(snap),
@@ -2371,12 +2375,9 @@ function renderZonePlaying(snap) {
   const pxPerCm = 26;
   ctx.clearRect(0, 0, w, h);
   // zone circle
-  const inside = (snap.xCm * snap.xCm + snap.yCm * snap.yCm) <= (snap.radiusCm * snap.radiusCm);
-  const now = performance.now();
-  if (!inside) zoneScaredUntil = now + 1300;
-  const showScared = now < zoneScaredUntil;
-  document.getElementById('zonePandaCalm')?.classList.toggle('active', !showScared);
-  document.getElementById('zonePandaScared')?.classList.toggle('active', showScared);
+  const inside = !snap.outside;
+  document.getElementById('zonePandaCalm')?.classList.toggle('active', inside);
+  document.getElementById('zonePandaScared')?.classList.toggle('active', !inside);
   ctx.beginPath();
   ctx.arc(cx, cy, snap.radiusCm * pxPerCm, 0, Math.PI * 2);
   ctx.fillStyle = inside ? 'rgba(67,206,162,0.15)' : 'rgba(230,55,78,0.12)';
