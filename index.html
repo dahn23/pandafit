@@ -2712,6 +2712,8 @@ function skiPrepareThenStart() {
 }
 function startSkiGame() {
   skiFinished = false;
+  window._skiLastSwing = undefined;
+  window._skiFacingRight = false;
   content.innerHTML = `<div style="${SKI_THEME}">${screenSkiPlaying()}</div>`;
   wireSkiScene();
   SlalomGame.start(
@@ -2842,10 +2844,11 @@ function renderSkiPlaying(snap) {
   // Trajectoire automatique à travers les portes (pas la position réelle du capteur) —
   // seule la vitesse dépend du vrai mouvement. L'orientation bascule exactement quand
   // la trajectoire change de sens (donc juste après chaque porte), pas en cours de route.
+  const quality = Math.max(0, Math.min(1, (snap.speedKmh - 10) / 60));
   const traveled = snap.traveled * 0.6; // échelle visuelle (m réels -> unités svg)
   const cyclePos = traveled / (SKI_GATE_SPACING * 2);
   const swing = skiTriangleWave(cyclePos + 0.25);
-  const swingAmp = SKI_GATE_OFFSET + 12;
+  const swingAmp = 18 + quality * (SKI_GATE_OFFSET + 12 - 18); // amplitude faible à l'arrêt, large à pleine vitesse
   const skierX = !snap.finished ? 150 + swing * swingAmp : 150 + Math.sin(Date.now() * 0.005) * 4;
   const swingDelta = swing - (window._skiLastSwing ?? swing);
   window._skiLastSwing = swing;
@@ -2853,17 +2856,21 @@ function renderSkiPlaying(snap) {
   const facingRight = !!window._skiFacingRight;
   skier.setAttribute('transform', `translate(${skierX},${SKI_SKIER_Y}) scale(${facingRight ? -1 : 1},1)`);
 
+  // Sécurité : tout élément qui calculerait une position hors de la neige (0-200) est masqué,
+  // plutôt que de compter uniquement sur le découpage du cadre SVG.
   if (!snap.finished) {
     (window._skiGateEls || []).forEach(({ el, x }) => {
       const baseY = parseFloat(el.dataset.baseY);
       const y = skiWrapY(baseY, traveled, window._skiGateRange, 10);
       el.setAttribute('transform', `translate(${x},${y})`);
+      el.style.display = (y >= 0 && y <= 196) ? '' : 'none';
     });
   }
   document.getElementById('skiTrees')?.querySelectorAll('text').forEach((el) => {
     const baseY = parseFloat(el.dataset.baseY);
     const y = skiWrapY(baseY, traveled, window._skiTreeRange, window._skiTreeMinY);
     el.setAttribute('y', y);
+    el.style.display = (y >= 0 && y <= 200) ? '' : 'none';
   });
 
   const progress = (snap.totalDist - snap.distLeft) / snap.totalDist;
