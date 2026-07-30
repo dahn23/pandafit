@@ -1099,7 +1099,7 @@ const FootballGame = (() => {
       s.runTimeLeft -= dt;
       if (s.runTimeLeft <= 0) {
         s.phase = 'transition';
-        s.shootSeconds = Math.max(3, Math.round(s.upCount / 5));
+        s.shootSeconds = Math.max(3, Math.round(s.upCount / 2.5));
         s.transitionTimeLeft = TRANSITION_SECONDS;
       }
     } else if (s.phase === 'transition') {
