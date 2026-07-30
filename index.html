@@ -146,14 +146,51 @@
   .row > * { flex: 1; min-width: 140px; }
 
   /* --- Home --- */
-  .lang-switch-home { display: flex; justify-content: center; gap: 16px; margin: 8px 0; }
+  .home-top-row { display: flex; gap: 10px; align-items: stretch; margin: 4px 0 14px; }
+  .lang-flags-2x2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; flex: 0 0 auto; }
   .lang-flag-btn {
-    width: 60px; height: 60px; border-radius: 50%; border: none; background: var(--panel);
-    font-size: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer;
+    width: 44px; height: 44px; border-radius: 50%; border: none; background: var(--panel);
+    font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer;
     padding: 0; line-height: 1;
   }
   .lang-flag-btn.active { outline: 3px solid var(--primary); }
-  .lang-switch-spacer { height: 60px; }
+  .info-cards-row { flex: 1; display: flex; gap: 8px; min-width: 0; }
+  .info-card {
+    flex: 1; min-width: 0; border-radius: 16px; position: relative; overflow: hidden; cursor: pointer;
+    background-size: cover; background-position: center; display: flex; align-items: flex-end;
+    border: none; padding: 0; text-align: left;
+  }
+  .info-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.05) 40%, rgba(0,0,0,0.75) 100%);
+  }
+  .info-card .info-card-label {
+    position: relative; z-index: 1; color: #fff; font-size: 11.5px; font-weight: 700;
+    padding: 6px 8px; line-height: 1.2;
+  }
+  .info-card .sparkle {
+    position: absolute; top: -30%; left: -60%; width: 40%; height: 160%;
+    background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 60%, transparent 100%);
+    transform: rotate(12deg); opacity: 0; pointer-events: none;
+  }
+  .info-card.sparkle-active .sparkle { animation: sparkleSweep 1.1s ease-in-out; }
+  @keyframes sparkleSweep {
+    0% { left: -60%; opacity: 0; }
+    15% { opacity: 1; }
+    85% { opacity: 1; }
+    100% { left: 120%; opacity: 0; }
+  }
+  .info-page-body h2 { font-size: 17px; font-weight: 700; margin: 20px 0 8px; }
+  .info-page-body p { font-size: 14px; line-height: 1.55; color: var(--text); margin: 0 0 10px; }
+  .info-page-body ul { margin: 0 0 10px; padding-left: 20px; }
+  .info-page-body li { font-size: 14px; line-height: 1.55; margin-bottom: 6px; }
+  .initiation-step {
+    display: flex; gap: 14px; align-items: flex-start; background: var(--panel);
+    border-radius: 16px; padding: 14px; margin: 14px 0;
+  }
+  .initiation-step img { width: 96px; height: 96px; object-fit: cover; border-radius: 12px; flex-shrink: 0; }
+  .initiation-step-text h3 { font-size: 15px; font-weight: 700; margin: 0 0 6px; }
+  .initiation-step-text p { font-size: 13.5px; line-height: 1.5; margin: 0; color: var(--text-dim); }
   .hero-play {
     background: var(--grad-main); border-radius: 22px; padding: 28px 24px;
     margin-bottom: 16px; position: relative; overflow: hidden;
@@ -464,7 +501,7 @@ const PandaFitBackend = (() => {
   /** Récupère le client + les jeux activés pour une device_key donnée. */
   async function fetchClientConfig(deviceKey) {
     const devRes = await fetch(
-      `${REST}/devices?device_key=eq.${encodeURIComponent(deviceKey)}&select=id,name,client_id,clients(id,name,show_ready_to_play,show_index_banner,rh_pin,lock_games,index_sort_order,index_questionnaire_id,index_image_url,ads_enabled)`,
+      `${REST}/devices?device_key=eq.${encodeURIComponent(deviceKey)}&select=id,name,client_id,clients(id,name,show_ready_to_play,show_index_banner,rh_pin,lock_games,index_sort_order,index_questionnaire_id,index_image_url,ads_enabled,show_benefits_page,show_initiation_page)`,
       { headers: headers() }
     );
     if (!devRes.ok) throw new Error('Impossible de contacter le serveur (devices).');
@@ -481,6 +518,8 @@ const PandaFitBackend = (() => {
     const indexQuestionnaireId = device.clients ? device.clients.index_questionnaire_id : null;
     const indexImageUrl = device.clients ? device.clients.index_image_url : null;
     const adsEnabled = device.clients ? !!device.clients.ads_enabled : false;
+    const showBenefitsPage = device.clients ? !!device.clients.show_benefits_page : false;
+    const showInitiationPage = device.clients ? !!device.clients.show_initiation_page : false;
 
     const cgRes = await fetch(
       `${REST}/client_games?client_id=eq.${clientId}&enabled=eq.true&select=game_id,sort_order,image_url,questionnaire_id&order=sort_order`,
@@ -494,7 +533,7 @@ const PandaFitBackend = (() => {
     const gameQuestionnaires = {};
     rows.forEach(r => { gameSortOrders[r.game_id] = r.sort_order || 0; gameImages[r.game_id] = r.image_url || null; gameQuestionnaires[r.game_id] = r.questionnaire_id || null; });
 
-    return { deviceId: device.id, deviceName: device.name, clientId, clientName, enabledGameIds, gameSortOrders, gameImages, gameQuestionnaires, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder, indexQuestionnaireId, indexImageUrl, adsEnabled };
+    return { deviceId: device.id, deviceName: device.name, clientId, clientName, enabledGameIds, gameSortOrders, gameImages, gameQuestionnaires, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder, indexQuestionnaireId, indexImageUrl, adsEnabled, showBenefitsPage, showInitiationPage };
   }
 
   /** Enregistre le score d'une partie terminée. */
@@ -699,7 +738,25 @@ const PandaFitBackend = (() => {
     } catch (e) { return []; }
   }
 
-  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds };
+  /** Pages "Les bienfaits du PandaFit" et "Initiation au PandaFit" (contenu global, multilingue). */
+  async function fetchInfoPages() {
+    try {
+      const res = await fetch(`${REST}/info_pages?select=*`, { headers: headers() });
+      const rows = res.ok ? await res.json() : [];
+      const catalog = {};
+      rows.forEach(r => { catalog[r.id] = r; });
+      return catalog;
+    } catch (e) { return {}; }
+  }
+  /** Étapes de l'initiation (liste modifiable, avec image par étape). */
+  async function fetchInitiationSteps() {
+    try {
+      const res = await fetch(`${REST}/initiation_steps?select=*&order=sort_order.asc`, { headers: headers() });
+      return res.ok ? await res.json() : [];
+    } catch (e) { return []; }
+  }
+
+  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps };
 })();
 
 /* =====================================================================================
@@ -1732,6 +1789,9 @@ const TRANSLATIONS = {
   fr: {
     nav_home: 'Accueil', nav_games: 'Jeux', nav_index: 'Index', nav_calibrate: 'Calibrer', nav_settings: 'Réglages',
     ads_label: 'Annonces',
+    benefits_card_label: 'Les bienfaits du PandaFit', initiation_card_label: 'Initiation au PandaFit',
+    do_initiation_first_btn: "Faire d'abord l'initiation au PandaFit",
+    game_start_btn: "J'ai déjà fait l'initiation au PandaFit, je veux commencer !",
     badge_game: 'Jeu', badge_defi: 'Défi', badge_challenge: 'Challenge', badge_event: 'Événement', badge_first: '1er',
     not_connected: 'Non connecté',
     home_title: 'Salut',
@@ -1744,7 +1804,7 @@ const TRANSLATIONS = {
     index_step2_title: '2. Équilibre en mouvement', index_step2_desc: 'Fais un mouvement haut/bas régulier en franchissant les deux lignes. La régularité compte plus que la vitesse.',
     index_code_title: 'Tu as déjà un code personnel ?', index_code_sub: "Entre-le pour que ce test s'ajoute à ton historique. Sinon, continue sans — tu pourras toujours en créer un à la fin.",
     index_code_placeholder: 'ex: PF-7K2Q9M', index_code_validate: 'Valider',
-    index_start_btn: 'Commencer le test (~1 min)',
+    index_start_btn: "J'ai déjà fait l'initiation au PandaFit, je veux commencer !",
     index_result_title: 'Ton PandaFit Index', index_replay: 'Refaire le test', back_home: "Retour à l'accueil",
     settings_title: 'Réglages', calibrate_title: 'Calibrer',
     rh_pin_title: 'Accès restreint', rh_pin_sub: 'Code à 4 chiffres requis.',
@@ -1754,6 +1814,9 @@ const TRANSLATIONS = {
   en: {
     nav_home: 'Home', nav_games: 'Games', nav_index: 'Index', nav_calibrate: 'Calibrate', nav_settings: 'Settings',
     ads_label: 'Ads',
+    benefits_card_label: 'Benefits of PandaFit', initiation_card_label: 'PandaFit walkthrough',
+    do_initiation_first_btn: 'Do the PandaFit walkthrough first',
+    game_start_btn: "I've already done the PandaFit walkthrough, let's start!",
     badge_game: 'Game', badge_defi: 'Challenge', badge_challenge: 'Contest', badge_event: 'Event', badge_first: '1st',
     not_connected: 'Not connected',
     home_title: 'Hi there',
@@ -1766,7 +1829,7 @@ const TRANSLATIONS = {
     index_step2_title: '2. Balance in motion', index_step2_desc: 'Make a regular up/down movement crossing both lines. Regularity matters more than speed.',
     index_code_title: 'Already have a personal code?', index_code_sub: "Enter it so this test gets added to your history. Otherwise, continue without — you can always create one at the end.",
     index_code_placeholder: 'e.g. PF-7K2Q9M', index_code_validate: 'Confirm',
-    index_start_btn: 'Start the test (~1 min)',
+    index_start_btn: "I've already done the PandaFit walkthrough, let's start!",
     index_result_title: 'Your PandaFit Index', index_replay: 'Retake the test', back_home: 'Back to home',
     settings_title: 'Settings', calibrate_title: 'Calibrate',
     rh_pin_title: 'Restricted access', rh_pin_sub: '4-digit code required.',
@@ -1776,6 +1839,9 @@ const TRANSLATIONS = {
   de: {
     nav_home: 'Start', nav_games: 'Spiele', nav_index: 'Index', nav_calibrate: 'Kalibrieren', nav_settings: 'Einstellungen',
     ads_label: 'Anzeigen',
+    benefits_card_label: 'Vorteile von PandaFit', initiation_card_label: 'Einführung in PandaFit',
+    do_initiation_first_btn: 'Zuerst die PandaFit-Einführung machen',
+    game_start_btn: 'Ich habe die PandaFit-Einführung bereits gemacht, ich will starten!',
     badge_game: 'Spiel', badge_defi: 'Challenge', badge_challenge: 'Wettbewerb', badge_event: 'Event', badge_first: '1.',
     not_connected: 'Nicht verbunden',
     home_title: 'Hallo',
@@ -1788,7 +1854,7 @@ const TRANSLATIONS = {
     index_step2_title: '2. Gleichgewicht in Bewegung', index_step2_desc: 'Mach eine regelmässige Auf- und Abbewegung über beide Linien. Regelmässigkeit zählt mehr als Geschwindigkeit.',
     index_code_title: 'Hast du schon einen persönlichen Code?', index_code_sub: 'Gib ihn ein, damit dieser Test zu deinem Verlauf hinzugefügt wird. Andernfalls einfach weiter — du kannst am Ende jederzeit einen erstellen.',
     index_code_placeholder: 'z.B. PF-7K2Q9M', index_code_validate: 'Bestätigen',
-    index_start_btn: 'Test starten (~1 Min.)',
+    index_start_btn: 'Ich habe die PandaFit-Einführung bereits gemacht, ich will starten!',
     index_result_title: 'Dein PandaFit Index', index_replay: 'Test wiederholen', back_home: 'Zurück zum Start',
     settings_title: 'Einstellungen', calibrate_title: 'Kalibrieren',
     rh_pin_title: 'Eingeschränkter Zugriff', rh_pin_sub: '4-stelliger Code erforderlich.',
@@ -1798,6 +1864,9 @@ const TRANSLATIONS = {
   it: {
     nav_home: 'Home', nav_games: 'Giochi', nav_index: 'Index', nav_calibrate: 'Calibra', nav_settings: 'Impostazioni',
     ads_label: 'Annunci',
+    benefits_card_label: 'I benefici di PandaFit', initiation_card_label: 'Iniziazione a PandaFit',
+    do_initiation_first_btn: "Fai prima l'iniziazione a PandaFit",
+    game_start_btn: "Ho già fatto l'iniziazione a PandaFit, voglio iniziare!",
     badge_game: 'Gioco', badge_defi: 'Sfida', badge_challenge: 'Torneo', badge_event: 'Evento', badge_first: '1°',
     not_connected: 'Non connesso',
     home_title: 'Ciao',
@@ -1810,7 +1879,7 @@ const TRANSLATIONS = {
     index_step2_title: '2. Equilibrio in movimento', index_step2_desc: 'Fai un movimento regolare su/giù attraversando le due linee. La regolarità conta più della velocità.',
     index_code_title: 'Hai già un codice personale?', index_code_sub: 'Inseriscilo per aggiungere questo test alla tua cronologia. Altrimenti continua senza — potrai sempre crearne uno alla fine.',
     index_code_placeholder: 'es: PF-7K2Q9M', index_code_validate: 'Conferma',
-    index_start_btn: 'Inizia il test (~1 min)',
+    index_start_btn: "Ho già fatto l'iniziazione a PandaFit, voglio iniziare!",
     index_result_title: 'Il tuo PandaFit Index', index_replay: 'Rifai il test', back_home: 'Torna alla home',
     settings_title: 'Impostazioni', calibrate_title: 'Calibra',
     rh_pin_title: 'Accesso limitato', rh_pin_sub: 'Codice a 4 cifre richiesto.',
@@ -1842,6 +1911,8 @@ let clientConfig = null; // { deviceId, deviceName, clientId, clientName, enable
 let activeAds = [];
 let adsRotationTimer = null;
 let adsCurrentIndex = 0;
+let infoPagesCatalog = {};
+let initiationSteps = [];
 let gamesCatalog = {}; // { gameId: { name, description, image_url } }
 let qFlowQuestions = [];
 let qFlowIndex = 0;
@@ -1954,6 +2025,8 @@ function render() {
     case 'indextest': launchIndexWithQuestionnaire(); break;
     case 'calibrate': content.innerHTML = screenCalibrateIntro(); wireCalibrateIntro(); break;
     case 'settings': content.innerHTML = screenSettings(); wireSettingsScreen(); break;
+    case 'benefits': content.innerHTML = screenInfoPage('benefits'); wireInfoPage(); break;
+    case 'initiation': content.innerHTML = screenInitiationPage(); wireInfoPage(); break;
     default: content.innerHTML = screenHome(); wireHomeScreen();
   }
   document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('active', b.dataset.nav === currentRoute));
@@ -2030,14 +2103,31 @@ function wireConnectScreen() {
 
 /* ---------- Écran : accueil ---------- */
 function screenHome() {
+  const benefitsImg = infoPagesCatalog?.benefits?.image_url;
+  const initiationImg = infoPagesCatalog?.initiation?.image_url;
   return `
-    <div class="lang-switch-home">
-      <button class="lang-flag-btn ${currentLang === 'fr' ? 'active' : ''}" data-lang="fr" title="Français">🇫🇷</button>
-      <button class="lang-flag-btn ${currentLang === 'en' ? 'active' : ''}" data-lang="en" title="English">🇬🇧</button>
-      <button class="lang-flag-btn ${currentLang === 'de' ? 'active' : ''}" data-lang="de" title="Deutsch">🇩🇪</button>
-      <button class="lang-flag-btn ${currentLang === 'it' ? 'active' : ''}" data-lang="it" title="Italiano">🇮🇹</button>
+    <div class="home-top-row">
+      <div class="lang-flags-2x2">
+        <button class="lang-flag-btn ${currentLang === 'fr' ? 'active' : ''}" data-lang="fr" title="Français">🇫🇷</button>
+        <button class="lang-flag-btn ${currentLang === 'en' ? 'active' : ''}" data-lang="en" title="English">🇬🇧</button>
+        <button class="lang-flag-btn ${currentLang === 'de' ? 'active' : ''}" data-lang="de" title="Deutsch">🇩🇪</button>
+        <button class="lang-flag-btn ${currentLang === 'it' ? 'active' : ''}" data-lang="it" title="Italiano">🇮🇹</button>
+      </div>
+      <div class="info-cards-row">
+        ${clientConfig?.showBenefitsPage ? `
+          <button class="info-card" id="btnGoBenefits" style="${benefitsImg ? `background-image:url('${benefitsImg}');` : `background:${GAME_THEME_TABLET.thezone};`}">
+            <span class="sparkle" id="sparkleBenefits"></span>
+            <span class="info-card-label">${t('benefits_card_label')}</span>
+          </button>
+        ` : ''}
+        ${clientConfig?.showInitiationPage ? `
+          <button class="info-card" id="btnGoInitiation" style="${initiationImg ? `background-image:url('${initiationImg}');` : `background:linear-gradient(135deg,#43cea2,#185a9d);`}">
+            <span class="sparkle" id="sparkleInitiation"></span>
+            <span class="info-card-label">${t('initiation_card_label')}</span>
+          </button>
+        ` : ''}
+      </div>
     </div>
-    <div class="lang-switch-spacer"></div>
 
     ${clientConfig?.showReadyToPlay !== false && !clientConfig?.lockGames ? `
       <div class="hero-play">
@@ -2051,12 +2141,30 @@ function screenHome() {
     <div id="eventsWrap"></div>
   `;
 }
+let infoCardsSparkleTimer = null;
+function wireInfoCardsSparkle() {
+  if (infoCardsSparkleTimer) clearInterval(infoCardsSparkleTimer);
+  const cards = ['sparkleBenefits', 'sparkleInitiation'].map(id => document.getElementById(id)?.closest('.info-card')).filter(Boolean);
+  if (cards.length === 0) return;
+  let i = 0;
+  const trigger = () => {
+    cards.forEach(c => c.classList.remove('sparkle-active'));
+    void cards[i % cards.length].offsetWidth; // relance l'animation CSS
+    cards[i % cards.length].classList.add('sparkle-active');
+    i++;
+  };
+  trigger();
+  infoCardsSparkleTimer = setInterval(trigger, 3000);
+}
 function wireHomeScreen() {
   document.getElementById('btnGoGames')?.addEventListener('click', () => navigate('games'));
+  document.getElementById('btnGoBenefits')?.addEventListener('click', () => navigate('benefits'));
+  document.getElementById('btnGoInitiation')?.addEventListener('click', () => navigate('initiation'));
   document.querySelectorAll('.lang-flag-btn').forEach(btn => btn.addEventListener('click', () => setLang(btn.dataset.lang)));
   renderMainStack();
   renderCarousel('events', 'eventsWrap');
   startCarouselTimer('events', 'eventsWrap');
+  wireInfoCardsSparkle();
 }
 
 /* ---------- Pile principale (défis/challenges/jeux/index) + carrousel Événements ---------- */
@@ -2517,12 +2625,14 @@ function screenZoneSetup() {
       ], zoneSetupCfg.zoneMode)}
       <p class="page-sub" style="font-size:14px;margin:10px 0 0;">"Zone diminue" : la zone rétrécit de moitié progressivement sur les 30 derniers % du temps.</p>
     </div>
-    <button class="btn-primary" id="btnZoneStart" style="width:100%;">Commencer</button>
+    <button class="btn-primary" id="btnZoneStart" style="width:100%;">${t('game_start_btn')}</button>
+<button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
   </div>
   `;
 }
 
 function wireZoneSetup() {
+  document.getElementById('btnDoInitiationFirst')?.addEventListener('click', () => navigate('initiation'));
   document.querySelectorAll('.segmented').forEach(group => {
     group.querySelectorAll('button').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2790,6 +2900,38 @@ function wireSettingsScreen() {
   });
 }
 
+/* ---------- Pages info : Les bienfaits du PandaFit / Initiation au PandaFit ---------- */
+function screenInfoPage(pageId) {
+  const page = infoPagesCatalog?.[pageId];
+  const title = pageId === 'benefits' ? t('benefits_card_label') : t('initiation_card_label');
+  return `
+    <button class="btn-ghost" id="btnInfoPageBack" style="margin-bottom:14px;">← Retour</button>
+    <h1 class="page-title">${title}</h1>
+    <div class="info-page-body">${pickLang(page, 'body') || ''}</div>
+  `;
+}
+function screenInitiationPage() {
+  const page = infoPagesCatalog?.initiation;
+  return `
+    <button class="btn-ghost" id="btnInfoPageBack" style="margin-bottom:14px;">← Retour</button>
+    <h1 class="page-title">${t('initiation_card_label')}</h1>
+    <div class="info-page-body">${pickLang(page, 'body') || ''}</div>
+    ${initiationSteps.map((step, i) => `
+      <div class="initiation-step">
+        ${step.image_url ? `<img src="${step.image_url}" alt="">` : ''}
+        <div class="initiation-step-text">
+          <h3>${pickLang(step, 'title') || `Étape ${i + 1}`}</h3>
+          <p>${pickLang(step, 'body') || ''}</p>
+        </div>
+      </div>
+    `).join('')}
+    <div class="info-page-body">${pickLang(page, 'footer') || ''}</div>
+  `;
+}
+function wireInfoPage() {
+  document.getElementById('btnInfoPageBack')?.addEventListener('click', () => navigate('home'));
+}
+
 /* ============================ Jeu : Le Panier Malin (Migros Vaud) ============================ */
 const MIGROS_THEME = '--primary:#ff7a00;--primary-dark:#e05a00;--accent:#ffb703;--accent-dark:#e08e00;';
 
@@ -2824,13 +2966,15 @@ function screenMigrosSetup() {
           { value: 'Infinity', label: 'Illimité' },
         ], migrosCfg.lives === Infinity ? 'Infinity' : migrosCfg.lives)}
       </div>
-      <button class="btn-primary" id="btnMigrosStart" style="width:100%;">Commencer</button>
+      <button class="btn-primary" id="btnMigrosStart" style="width:100%;">${t('game_start_btn')}</button>
+<button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
     </div>
   </div>
   `;
 }
 let migrosCfg = { difficulty: 'medium', duration: 45, lives: 3 };
 function wireMigrosSetup() {
+  document.getElementById('btnDoInitiationFirst')?.addEventListener('click', () => navigate('initiation'));
   document.querySelectorAll('.segmented').forEach(group => {
     group.querySelectorAll('button').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2979,12 +3123,14 @@ function screenSkiSetup() {
     <div style="${SKI_THEME}">
       <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="mountain-snow"></i> Slalom Réflexe</h1>
       <p class="page-sub">400m de piste. Balance-toi gauche/droite de façon régulière et ample pour prendre de la vitesse — jusqu'à 70 km/h si c'est parfait. Franchis la ligne le plus vite possible.</p>
-      <button class="btn-primary" id="btnSkiStart" style="width:100%;">Commencer</button>
+      <button class="btn-primary" id="btnSkiStart" style="width:100%;">${t('game_start_btn')}</button>
+<button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
     </div>
   </div>
   `;
 }
 function wireSkiSetup() {
+  document.getElementById('btnDoInitiationFirst')?.addEventListener('click', () => navigate('initiation'));
   document.getElementById('btnSkiStart')?.addEventListener('click', () => skiPrepareThenStart());
   document.getElementById('btnSkiBackTop')?.addEventListener('click', () => navigate('home'));
 }
@@ -3234,12 +3380,14 @@ function screenEauSetup() {
         { value: 'Infinity', label: 'Illimité' },
       ], eauSetupCfg.lives === Infinity ? 'Infinity' : eauSetupCfg.lives)}
     </div>
-    <button class="btn-primary" id="btnEauStart" style="width:100%;">Commencer</button>
+    <button class="btn-primary" id="btnEauStart" style="width:100%;">${t('game_start_btn')}</button>
+<button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
   </div>
   `;
 }
 
 function wireEauSetup() {
+  document.getElementById('btnDoInitiationFirst')?.addEventListener('click', () => navigate('initiation'));
   document.querySelectorAll('.segmented').forEach(group => {
     group.querySelectorAll('button').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -3417,12 +3565,14 @@ function screenElectroSetup() {
         { value: 'Infinity', label: 'Illimité' },
       ], electroSetupCfg.lives === Infinity ? 'Infinity' : electroSetupCfg.lives)}
     </div>
-    <button class="btn-primary" id="btnElectroStart" style="width:100%;">Commencer</button>
+    <button class="btn-primary" id="btnElectroStart" style="width:100%;">${t('game_start_btn')}</button>
+<button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
   </div>
   `;
 }
 
 function wireElectroSetup() {
+  document.getElementById('btnDoInitiationFirst')?.addEventListener('click', () => navigate('initiation'));
   document.querySelectorAll('.segmented').forEach(group => {
     group.querySelectorAll('button').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -3597,11 +3747,13 @@ function screenFootballSetup() {
     <div class="centered-page">
     <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="footprints"></i> Tir au but</h1>
     <p class="page-sub">Cours 20 secondes (balance-toi d'avant en arrière), reviens au calme, puis marque un maximum de buts — le but bouge selon ta stabilité !</p>
-    <button class="btn-primary" id="btnFootballStart" style="width:100%;">Commencer</button>
+    <button class="btn-primary" id="btnFootballStart" style="width:100%;">${t('game_start_btn')}</button>
+<button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
   </div>
   `;
 }
 function wireFootballSetup() {
+  document.getElementById('btnDoInitiationFirst')?.addEventListener('click', () => navigate('initiation'));
   document.getElementById('btnFootballStart')?.addEventListener('click', () => footballPrepareThenStart());
   document.getElementById('btnFootballBackTop')?.addEventListener('click', () => navigate('home'));
 }
@@ -3823,10 +3975,12 @@ function screenIndexIntro() {
       <p id="employeeCodeMsg" class="page-sub" style="margin:8px 0 0;"></p>
     </div>
     <button class="btn-primary" id="btnIndexStart" style="width:100%;">${t('index_start_btn')}</button>
+    <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
   </div>
   `;
 }
 function wireIndexIntro() {
+  document.getElementById('btnDoInitiationFirst')?.addEventListener('click', () => navigate('initiation'));
   document.getElementById('btnIndexStart')?.addEventListener('click', () => indexPrepareStatic());
   document.getElementById('btnIndexBackTop')?.addEventListener('click', () => navigate('home'));
   document.getElementById('btnCheckCode')?.addEventListener('click', async () => {
@@ -4033,6 +4187,7 @@ function wireDeviceSetup() {
       log(`Tablette reliée au client "${clientConfig.clientName}".`);
       gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
       activeAds = clientConfig.adsEnabled ? await PandaFitBackend.fetchActiveAds(clientConfig.clientId) : [];
+      infoPagesCatalog = await PandaFitBackend.fetchInfoPages(); initiationSteps = await PandaFitBackend.fetchInitiationSteps();
       render();
     } catch (e) {
       content.innerHTML = screenDeviceSetup(e.message);
@@ -4064,6 +4219,7 @@ document.getElementById('btnFullscreen')?.addEventListener('click', () => {
     log(`Tablette reliée au client "${clientConfig.clientName}".`);
     gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
     activeAds = clientConfig.adsEnabled ? await PandaFitBackend.fetchActiveAds(clientConfig.clientId) : [];
+    infoPagesCatalog = await PandaFitBackend.fetchInfoPages(); initiationSteps = await PandaFitBackend.fetchInitiationSteps();
     // Reconnexion auto testée et non concluante sur ce matériel (le capteur nécessite un vrai scan actif,
     // que seul le sélecteur manuel déclenche) — désactivée pour ne pas perdre de temps à chaque démarrage.
     // La fonction PandaFitSensor.tryAutoReconnect() reste disponible si Chrome s'améliore un jour sur ce point.
