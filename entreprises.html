@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PandaFit Entreprises — L'équilibre, en jouant</title>
+<meta name="description" content="PandaFit aide les entreprises suisses à prévenir les accidents, réduire le stress et créer du lien entre collaborateurs, par le jeu.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F6F4EC;
+    --paper-hi: #EFEBDD;
+    --ink: #12241E;
+    --ink-dim: #4B5D57;
+    --brand: #0F8F63;
+    --brand-deep: #0B6B4B;
+    --brand-light: #43CEA2;
+    --coral: #FF6552;
+    --panel: #FFFFFF;
+    --line: rgba(18,36,30,0.12);
+    --radius: 22px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: 'Inter', sans-serif; font-size: 16px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: 'Bricolage Grotesque', sans-serif; margin: 0; color: var(--ink); }
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--brand-deep); display: flex; align-items: center; gap: 8px;
+  }
+  .eyebrow::before { content: ''; width: 18px; height: 2px; background: var(--coral); display: inline-block; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
+  a { color: inherit; }
+  img { max-width: 100%; display: block; }
+  button, .btn { font-family: 'Inter', sans-serif; cursor: pointer; }
+
+  /* ---------- Balance beam signature ---------- */
+  .beam { position: relative; height: 2px; background: var(--line); margin: 0; }
+  .beam .bubble {
+    position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--coral); transform: translate(-50%, -50%);
+    animation: sway 5.5s ease-in-out infinite;
+  }
+  @keyframes sway {
+    0%, 100% { left: 46%; }
+    25% { left: 58%; }
+    50% { left: 50%; }
+    75% { left: 40%; }
+  }
+  .beam.section-divider { margin: 0 auto; max-width: 1120px; }
+
+  /* ---------- Nav ---------- */
+  header.site-header {
+    position: sticky; top: 0; z-index: 50; background: rgba(246,244,236,0.88); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; max-width: 1120px; margin: 0 auto; }
+  .nav-brand { display: flex; align-items: center; gap: 10px; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 19px; }
+  .nav-brand .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--brand); }
+  .nav-links { display: flex; align-items: center; gap: 26px; font-size: 14.5px; font-weight: 500; }
+  .nav-links a { text-decoration: none; opacity: 0.8; }
+  .nav-links a:hover { opacity: 1; }
+  .lang-switch { display: flex; gap: 4px; }
+  .lang-switch button {
+    border: none; background: transparent; font-size: 18px; padding: 4px 6px; border-radius: 8px; opacity: 0.45;
+  }
+  .lang-switch button.active { opacity: 1; background: var(--panel); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .nav-cta {
+    background: var(--ink); color: var(--paper); border: none; border-radius: 100px; padding: 10px 20px;
+    font-size: 14px; font-weight: 600; text-decoration: none;
+  }
+  @media (max-width: 780px) { .nav-links { display: none; } }
+
+  /* ---------- Hero ---------- */
+  .hero { padding: 64px 0 40px; }
+  .hero-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 48px; align-items: center; }
+  @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } }
+  .hero h1 {
+    font-size: clamp(38px, 5.4vw, 60px); font-weight: 700; line-height: 1.03; letter-spacing: -0.01em;
+    margin: 14px 0 18px;
+  }
+  .hero h1 em { font-style: normal; color: var(--brand-deep); }
+  .hero p.lead { font-size: 18px; color: var(--ink-dim); max-width: 480px; margin: 0 0 28px; }
+  .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn-primary {
+    background: var(--brand); color: #fff; border: none; border-radius: 100px; padding: 15px 26px;
+    font-size: 15.5px; font-weight: 600; text-decoration: none; display: inline-block;
+  }
+  .btn-secondary {
+    background: transparent; color: var(--ink); border: 1.5px solid var(--line); border-radius: 100px;
+    padding: 14px 24px; font-size: 15.5px; font-weight: 600; text-decoration: none; display: inline-block;
+  }
+  .hero-visual {
+    position: relative; border-radius: var(--radius); overflow: hidden; aspect-ratio: 4/3.2;
+    background: linear-gradient(155deg, var(--brand-deep), var(--brand) 60%, var(--brand-light));
+    background-size: cover; background-position: center;
+  }
+  .hero-visual .beam-overlay {
+    position: absolute; left: 8%; right: 8%; bottom: 14%; height: 2px; background: rgba(255,255,255,0.55);
+  }
+  .hero-visual .beam-overlay .bubble2 {
+    position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: #fff;
+    transform: translate(-50%,-50%); box-shadow: 0 0 0 6px rgba(255,255,255,0.18);
+    animation: sway 5.5s ease-in-out infinite;
+  }
+  .hero-stats { display: flex; gap: 28px; margin-top: 34px; flex-wrap: wrap; }
+  .hero-stat .num { font-family: 'IBM Plex Mono', monospace; font-size: 26px; font-weight: 500; color: var(--brand-deep); }
+  .hero-stat .lbl { font-size: 13px; color: var(--ink-dim); max-width: 160px; }
+
+  /* ---------- Benefit sections ---------- */
+  .benefit { padding: 84px 0; }
+  .benefit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+  .benefit-grid.reverse .benefit-visual { order: 2; }
+  @media (max-width: 900px) { .benefit-grid, .benefit-grid.reverse .benefit-visual { grid-template-columns: 1fr; order: 0; } }
+  .benefit-visual {
+    border-radius: var(--radius); aspect-ratio: 5/4; background-size: cover; background-position: center;
+    background-color: var(--paper-hi);
+  }
+  .benefit h2 { font-size: clamp(26px, 3vw, 34px); margin: 10px 0 16px; line-height: 1.12; }
+  .benefit p { font-size: 15.5px; color: var(--ink-dim); margin: 0 0 12px; max-width: 460px; }
+  .benefit ul { margin: 16px 0 0; padding: 0; list-style: none; }
+  .benefit li { font-size: 14.5px; color: var(--ink); padding: 10px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; }
+  .benefit li::before { content: '—'; color: var(--coral); font-weight: 700; }
+
+  /* ---------- Pricing ---------- */
+  .pricing { padding: 84px 0; }
+  .pricing-head { text-align: center; max-width: 560px; margin: 0 auto 48px; }
+  .pricing-head h2 { font-size: clamp(28px, 3.4vw, 38px); margin: 12px 0; }
+  .pricing-head p { color: var(--ink-dim); font-size: 15.5px; }
+  .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 860px) { .pricing-grid { grid-template-columns: 1fr; } }
+  .price-card {
+    background: var(--panel); border-radius: var(--radius); padding: 32px 26px; border: 1px solid var(--line);
+    display: flex; flex-direction: column;
+  }
+  .price-card.featured { background: var(--ink); color: var(--paper); border-color: var(--ink); transform: translateY(-8px); }
+  .price-card.featured .price-desc, .price-card.featured .eyebrow { color: rgba(246,244,236,0.7); }
+  .price-card.featured .eyebrow::before { background: var(--brand-light); }
+  .price-card .badge {
+    align-self: flex-start; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.06em;
+    background: var(--coral); color: #fff; padding: 4px 10px; border-radius: 100px; margin-bottom: 14px; text-transform: uppercase;
+  }
+  .price-card h3 { font-size: 20px; margin: 12px 0 6px; }
+  .price-card .amount { font-family: 'IBM Plex Mono', monospace; font-size: 26px; font-weight: 500; margin: 4px 0 14px; }
+  .price-card .price-desc { font-size: 14px; color: var(--ink-dim); flex: 1; margin-bottom: 22px; }
+  .price-card .btn-secondary { text-align: center; border-color: rgba(255,255,255,0.3); }
+  .price-card.featured .btn-secondary { color: var(--paper); }
+  .price-card:not(.featured) .btn-secondary { border-color: var(--line); }
+
+  /* ---------- Trust / references ---------- */
+  .trust { padding: 50px 0; text-align: center; }
+  .trust .eyebrow { justify-content: center; margin-bottom: 18px; }
+  .trust-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 28px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--ink-dim); }
+
+  /* ---------- Contact ---------- */
+  .contact { padding: 84px 0 100px; }
+  .contact-grid { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 56px; }
+  @media (max-width: 900px) { .contact-grid { grid-template-columns: 1fr; } }
+  .contact h2 { font-size: clamp(28px, 3.4vw, 38px); margin: 12px 0 16px; }
+  .contact p { color: var(--ink-dim); font-size: 15.5px; max-width: 420px; }
+  form.contact-form { background: var(--panel); border-radius: var(--radius); padding: 30px; border: 1px solid var(--line); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+  .contact-form label { font-size: 12.5px; color: var(--ink-dim); display: block; margin-bottom: 6px; }
+  .contact-form input, .contact-form textarea {
+    width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper);
+    font-family: 'Inter', sans-serif; font-size: 14.5px; color: var(--ink); box-sizing: border-box;
+  }
+  .contact-form textarea { min-height: 100px; resize: vertical; }
+  .contact-form .full { grid-column: 1 / -1; margin-bottom: 14px; }
+  .contact-form button { width: 100%; margin-top: 4px; }
+  .form-msg { font-size: 13.5px; margin-top: 12px; }
+  .form-msg.ok { color: var(--brand-deep); }
+  .form-msg.err { color: var(--coral); }
+
+  footer.site-footer { border-top: 1px solid var(--line); padding: 34px 0; }
+  .footer-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--ink-dim); }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="nav-row">
+    <div class="nav-brand"><span class="dot"></span> PandaFit</div>
+    <nav class="nav-links">
+      <a href="#benefits" data-i18n="nav_benefits">Bienfaits</a>
+      <a href="#pricing" data-i18n="nav_pricing">Offres</a>
+      <a href="#contact" data-i18n="nav_contact">Contact</a>
+    </nav>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="lang-switch">
+        <button data-lang="fr" class="active">🇫🇷</button>
+        <button data-lang="en">🇬🇧</button>
+        <button data-lang="de">🇩🇪</button>
+        <button data-lang="it">🇮🇹</button>
+      </div>
+      <a href="#contact" class="nav-cta" data-i18n="nav_cta">Demander une démo</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow" data-i18n="hero_eyebrow">Équilibre au travail</div>
+      <h1 data-i18n="hero_title">Vos équipes gagnent en <em>équilibre</em>, en jouant.</h1>
+      <p class="lead" data-i18n="hero_lead">PandaFit transforme la prévention des accidents et la gestion du stress en quelques minutes de jeu, directement sur le lieu de travail.</p>
+      <div class="hero-ctas">
+        <a href="#contact" class="btn-primary" data-i18n="hero_cta1">Demander une démonstration</a>
+        <a href="#pricing" class="btn-secondary" data-i18n="hero_cta2">Voir les offres</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><div class="num">#1</div><div class="lbl" data-i18n="hero_stat1">cause d'accident en Suisse : les chutes et faux pas (source Suva)</div></div>
+        <div class="hero-stat"><div class="num">200K</div><div class="lbl" data-i18n="hero_stat2">personnes blessées chaque année en trébuchant ou en tombant</div></div>
+        <div class="hero-stat"><div class="num">2 min</div><div class="lbl" data-i18n="hero_stat3">suffisent par session pour progresser durablement</div></div>
+      </div>
+    </div>
+    <div class="hero-visual" id="heroVisual">
+      <div class="beam-overlay"><div class="bubble2"></div></div>
+    </div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<section class="benefit" id="benefits">
+  <div class="wrap benefit-grid">
+    <div>
+      <div class="eyebrow" data-i18n="b1_eyebrow">Santé & sécurité</div>
+      <h2 data-i18n="b1_title">La première cause d'accident en Suisse se prévient en s'entraînant.</h2>
+      <p data-i18n="b1_p1">En Suisse, les chutes et les faux pas sont la première cause d'accident, tous domaines confondus — au travail comme dans la vie de tous les jours. Le ski, le football et les autres loisirs pratiqués en amateur y contribuent chaque année pour des milliers d'entorses et de foulures évitables.</p>
+      <p data-i18n="b1_p2">Travailler son équilibre renforce les réflexes et les muscles stabilisateurs qui protègent au quotidien comme sur le terrain de sport. Et cette capacité continue de progresser à tout âge, dès qu'on la sollicite régulièrement.</p>
+    </div>
+    <div class="benefit-visual" id="visualBalance"></div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<section class="benefit" id="mental">
+  <div class="wrap benefit-grid reverse">
+    <div>
+      <div class="eyebrow" data-i18n="b2_eyebrow">Bien-être mental</div>
+      <h2 data-i18n="b2_title">Se recentrer, en quelques minutes, entre deux tâches.</h2>
+      <p data-i18n="b2_p1">Garder l'équilibre demande de la concentration et un ancrage dans l'instant présent. C'est un vrai outil de relaxation — une parenthèse active qui aide à déstresser et à se reconcentrer sans quitter le bureau.</p>
+      <ul>
+        <li data-i18n="b2_li1">Des jeux pensés spécifiquement pour ralentir le rythme</li>
+        <li data-i18n="b2_li2">Une pause active de quelques minutes, sans matériel ni séance dédiée</li>
+        <li data-i18n="b2_li3">Un complément concret aux démarches bien-être déjà en place</li>
+      </ul>
+    </div>
+    <div class="benefit-visual" id="visualMental"></div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<section class="benefit" id="social">
+  <div class="wrap benefit-grid">
+    <div>
+      <div class="eyebrow" data-i18n="b3_eyebrow">Cohésion d'équipe</div>
+      <h2 data-i18n="b3_title">Des défis et des classements qui font sourire tout le monde.</h2>
+      <p data-i18n="b3_p1">PandaFit, c'est aussi du jeu : défis entre collègues, classements par équipe, événements ponctuels. Une manière simple de créer du lien et de la bonne humeur autour d'un objectif commun — sans transformer la prévention en corvée.</p>
+      <p data-i18n="b3_p2">Chaque entreprise peut personnaliser ses propres défis, suivre les résultats et célébrer ses champions du jour.</p>
+    </div>
+    <div class="benefit-visual" id="visualSocial"></div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<section class="pricing" id="pricing">
+  <div class="wrap">
+    <div class="pricing-head">
+      <div class="eyebrow" style="justify-content:center;" data-i18n="pricing_eyebrow">Nos offres</div>
+      <h2 data-i18n="pricing_title">Trois façons de démarrer</h2>
+      <p data-i18n="pricing_sub">De la journée découverte à l'accompagnement complet sur l'année, avec coaching et personnalisation à chaque niveau.</p>
+    </div>
+    <div class="pricing-grid" id="pricingGrid"><!-- injecté --></div>
+  </div>
+</section>
+
+<section class="trust">
+  <div class="wrap">
+    <div class="eyebrow" data-i18n="trust_eyebrow">Références & partenaires</div>
+    <div class="trust-list">
+      <span>JOJ 2020</span><span>SUVA</span><span>FISU</span><span>CSS · UNIL · EPFL</span><span>CHUV</span><span>OFSP</span>
+    </div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<section class="contact" id="contact">
+  <div class="wrap contact-grid">
+    <div>
+      <div class="eyebrow" data-i18n="contact_eyebrow">Parlons-en</div>
+      <h2 data-i18n="contact_title">Une démonstration dans vos locaux ?</h2>
+      <p data-i18n="contact_p">Laissez-nous vos coordonnées, nous revenons vers vous sous 48h pour organiser une présentation adaptée à votre entreprise.</p>
+    </div>
+    <form class="contact-form" id="contactForm">
+      <div class="form-row">
+        <div><label data-i18n="form_name">Nom</label><input name="name" required></div>
+        <div><label data-i18n="form_company">Entreprise</label><input name="company"></div>
+      </div>
+      <div class="form-row">
+        <div><label data-i18n="form_email">Email</label><input name="email" type="email" required></div>
+        <div><label data-i18n="form_phone">Téléphone</label><input name="phone"></div>
+      </div>
+      <div class="full">
+        <label data-i18n="form_message">Message</label>
+        <textarea name="message"></textarea>
+      </div>
+      <button type="submit" class="btn-primary" data-i18n="form_submit">Envoyer la demande</button>
+      <div class="form-msg" id="formMsg"></div>
+    </form>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap footer-row">
+    <div>© <span id="year"></span> PandaFit</div>
+    <div data-i18n="footer_note">Solution suisse de prévention et de bien-être au travail.</div>
+  </div>
+</footer>
+
+<script>
+const SUPABASE_URL = 'https://kabjpqvbukhhqvdjnkzr.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_QgLSQJyPJ09Uj3vCKCUykA_ca1LTm5E';
+const REST = `${SUPABASE_URL}/rest/v1`;
+function sbHeaders(extra) { return { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, ...extra }; }
+
+const TRANSLATIONS = {
+  fr: {
+    nav_benefits: 'Bienfaits', nav_pricing: 'Offres', nav_contact: 'Contact', nav_cta: 'Demander une démo',
+    hero_eyebrow: 'Équilibre au travail',
+    hero_title: "Vos équipes gagnent en <em>équilibre</em>, en jouant.",
+    hero_lead: "PandaFit transforme la prévention des accidents et la gestion du stress en quelques minutes de jeu, directement sur le lieu de travail.",
+    hero_cta1: 'Demander une démonstration', hero_cta2: 'Voir les offres',
+    hero_stat1: "cause d'accident en Suisse : les chutes et faux pas (source Suva)",
+    hero_stat2: 'personnes blessées chaque année en trébuchant ou en tombant',
+    hero_stat3: 'suffisent par session pour progresser durablement',
+    b1_eyebrow: 'Santé & sécurité',
+    b1_title: "La première cause d'accident en Suisse se prévient en s'entraînant.",
+    b1_p1: "En Suisse, les chutes et les faux pas sont la première cause d'accident, tous domaines confondus — au travail comme dans la vie de tous les jours. Le ski, le football et les autres loisirs pratiqués en amateur y contribuent chaque année pour des milliers d'entorses et de foulures évitables.",
+    b1_p2: "Travailler son équilibre renforce les réflexes et les muscles stabilisateurs qui protègent au quotidien comme sur le terrain de sport. Et cette capacité continue de progresser à tout âge, dès qu'on la sollicite régulièrement.",
+    b2_eyebrow: 'Bien-être mental',
+    b2_title: 'Se recentrer, en quelques minutes, entre deux tâches.',
+    b2_p1: "Garder l'équilibre demande de la concentration et un ancrage dans l'instant présent. C'est un vrai outil de relaxation — une parenthèse active qui aide à déstresser et à se reconcentrer sans quitter le bureau.",
+    b2_li1: 'Des jeux pensés spécifiquement pour ralentir le rythme',
+    b2_li2: 'Une pause active de quelques minutes, sans matériel ni séance dédiée',
+    b2_li3: 'Un complément concret aux démarches bien-être déjà en place',
+    b3_eyebrow: "Cohésion d'équipe",
+    b3_title: 'Des défis et des classements qui font sourire tout le monde.',
+    b3_p1: "PandaFit, c'est aussi du jeu : défis entre collègues, classements par équipe, événements ponctuels. Une manière simple de créer du lien et de la bonne humeur autour d'un objectif commun — sans transformer la prévention en corvée.",
+    b3_p2: 'Chaque entreprise peut personnaliser ses propres défis, suivre les résultats et célébrer ses champions du jour.',
+    pricing_eyebrow: 'Nos offres', pricing_title: 'Trois façons de démarrer',
+    pricing_sub: "De la journée découverte à l'accompagnement complet sur l'année, avec coaching et personnalisation à chaque niveau.",
+    trust_eyebrow: 'Références & partenaires',
+    contact_eyebrow: 'Parlons-en', contact_title: 'Une démonstration dans vos locaux ?',
+    contact_p: 'Laissez-nous vos coordonnées, nous revenons vers vous sous 48h pour organiser une présentation adaptée à votre entreprise.',
+    form_name: 'Nom', form_company: 'Entreprise', form_email: 'Email', form_phone: 'Téléphone', form_message: 'Message',
+    form_submit: 'Envoyer la demande',
+    form_ok: 'Merci ! Nous revenons vers vous très vite.',
+    form_err: "Une erreur est survenue, réessayez ou écrivez-nous directement.",
+    footer_note: 'Solution suisse de prévention et de bien-être au travail.',
+    price_cta: 'Nous contacter',
+  },
+  en: {
+    nav_benefits: 'Benefits', nav_pricing: 'Plans', nav_contact: 'Contact', nav_cta: 'Book a demo',
+    hero_eyebrow: 'Balance at work',
+    hero_title: 'Your teams build real <em>balance</em>, by playing.',
+    hero_lead: 'PandaFit turns accident prevention and stress management into a few minutes of play, right at the workplace.',
+    hero_cta1: 'Book a demonstration', hero_cta2: 'See our plans',
+    hero_stat1: "leading cause of accidents in Switzerland: trips and falls (Suva)",
+    hero_stat2: 'people injured every year by tripping or falling',
+    hero_stat3: 'minutes per session are enough for lasting progress',
+    b1_eyebrow: 'Health & safety',
+    b1_title: "Switzerland's #1 cause of accidents can be trained away.",
+    b1_p1: "In Switzerland, trips and falls are the leading cause of accidents overall — at work and in everyday life. Skiing, football and other amateur sports add thousands of preventable sprains every year.",
+    b1_p2: 'Balance training strengthens the reflexes and stabilising muscles that protect you daily and on the field. And this ability keeps improving at any age, as long as it is trained regularly.',
+    b2_eyebrow: 'Mental wellbeing',
+    b2_title: 'Refocus in a few minutes, between two tasks.',
+    b2_p1: 'Keeping your balance takes focus and presence in the moment. It is a genuine relaxation tool — an active break that helps you destress and refocus without leaving your desk.',
+    b2_li1: 'Games specifically designed to slow the pace down',
+    b2_li2: 'A few active minutes, no equipment or dedicated session needed',
+    b2_li3: 'A concrete complement to existing wellbeing initiatives',
+    b3_eyebrow: 'Team spirit',
+    b3_title: 'Challenges and leaderboards that make everyone smile.',
+    b3_p1: 'PandaFit is also playful: challenges between colleagues, team leaderboards, one-off events. A simple way to build connection and good mood around a shared goal — without turning prevention into a chore.',
+    b3_p2: 'Every company can customise its own challenges, track results, and celebrate its champions.',
+    pricing_eyebrow: 'Our plans', pricing_title: 'Three ways to get started',
+    pricing_sub: 'From a discovery day to full year-round support, with coaching and customisation at every level.',
+    trust_eyebrow: 'References & partners',
+    contact_eyebrow: "Let's talk", contact_title: 'A demonstration at your premises?',
+    contact_p: "Leave us your details and we'll get back to you within 48h to arrange a presentation tailored to your company.",
+    form_name: 'Name', form_company: 'Company', form_email: 'Email', form_phone: 'Phone', form_message: 'Message',
+    form_submit: 'Send request',
+    form_ok: "Thank you! We'll be in touch very soon.",
+    form_err: 'Something went wrong, please try again or email us directly.',
+    footer_note: 'A Swiss solution for workplace prevention and wellbeing.',
+    price_cta: 'Contact us',
+  },
+  de: {
+    nav_benefits: 'Vorteile', nav_pricing: 'Angebote', nav_contact: 'Kontakt', nav_cta: 'Demo anfragen',
+    hero_eyebrow: 'Gleichgewicht am Arbeitsplatz',
+    hero_title: 'Ihre Teams gewinnen spielerisch an <em>Gleichgewicht</em>.',
+    hero_lead: 'PandaFit macht Unfallprävention und Stressbewältigung zu wenigen Minuten Spiel, direkt am Arbeitsplatz.',
+    hero_cta1: 'Demonstration anfragen', hero_cta2: 'Angebote ansehen',
+    hero_stat1: 'häufigste Unfallursache in der Schweiz: Stürze und Stolpern (Suva)',
+    hero_stat2: 'Personen verletzen sich jedes Jahr durch Stolpern oder Stürzen',
+    hero_stat3: 'Minuten pro Einheit genügen für nachhaltigen Fortschritt',
+    b1_eyebrow: 'Gesundheit & Sicherheit',
+    b1_title: 'Die häufigste Unfallursache der Schweiz lässt sich trainieren.',
+    b1_p1: 'In der Schweiz sind Stürze und Stolpern die häufigste Unfallursache überhaupt — bei der Arbeit wie im Alltag. Ski, Fussball und andere Freizeitsportarten verursachen jedes Jahr tausende vermeidbare Verstauchungen.',
+    b1_p2: 'Gleichgewichtstraining stärkt Reflexe und stabilisierende Muskeln, die im Alltag wie auf dem Sportplatz schützen. Und diese Fähigkeit lässt sich in jedem Alter weiter verbessern, sobald sie regelmässig trainiert wird.',
+    b2_eyebrow: 'Mentales Wohlbefinden',
+    b2_title: 'In wenigen Minuten neu fokussieren, zwischen zwei Aufgaben.',
+    b2_p1: 'Das Gleichgewicht zu halten erfordert Konzentration und Präsenz im Moment. Ein echtes Entspannungswerkzeug — eine aktive Pause, die hilft, Stress abzubauen und sich neu zu fokussieren, ohne den Schreibtisch zu verlassen.',
+    b2_li1: 'Spiele, die gezielt das Tempo verlangsamen',
+    b2_li2: 'Ein paar aktive Minuten, ohne Material oder eigene Sitzung',
+    b2_li3: 'Eine konkrete Ergänzung zu bestehenden Wohlbefinden-Massnahmen',
+    b3_eyebrow: 'Teamgeist',
+    b3_title: 'Challenges und Ranglisten, die alle zum Lächeln bringen.',
+    b3_p1: 'PandaFit ist auch verspielt: Challenges unter Kolleginnen und Kollegen, Team-Ranglisten, einmalige Events. Eine einfache Art, Verbindung und gute Laune rund um ein gemeinsames Ziel zu schaffen — ohne dass Prävention zur Pflicht wird.',
+    b3_p2: 'Jedes Unternehmen kann eigene Challenges gestalten, Ergebnisse verfolgen und seine Champions feiern.',
+    pricing_eyebrow: 'Unsere Angebote', pricing_title: 'Drei Wege zum Einstieg',
+    pricing_sub: 'Vom Schnuppertag bis zur ganzjährigen Begleitung, mit Coaching und Personalisierung auf jeder Stufe.',
+    trust_eyebrow: 'Referenzen & Partner',
+    contact_eyebrow: 'Sprechen wir darüber', contact_title: 'Eine Demonstration bei Ihnen vor Ort?',
+    contact_p: 'Hinterlassen Sie uns Ihre Kontaktdaten, wir melden uns innerhalb von 48h für eine massgeschneiderte Präsentation.',
+    form_name: 'Name', form_company: 'Unternehmen', form_email: 'E-Mail', form_phone: 'Telefon', form_message: 'Nachricht',
+    form_submit: 'Anfrage senden',
+    form_ok: 'Danke! Wir melden uns sehr bald.',
+    form_err: 'Ein Fehler ist aufgetreten, bitte versuchen Sie es erneut oder schreiben Sie uns direkt.',
+    footer_note: 'Eine Schweizer Lösung für Prävention und Wohlbefinden am Arbeitsplatz.',
+    price_cta: 'Kontaktieren Sie uns',
+  },
+  it: {
+    nav_benefits: 'Benefici', nav_pricing: 'Offerte', nav_contact: 'Contatto', nav_cta: 'Richiedi una demo',
+    hero_eyebrow: 'Equilibrio sul lavoro',
+    hero_title: 'I vostri team guadagnano <em>equilibrio</em>, giocando.',
+    hero_lead: 'PandaFit trasforma la prevenzione degli infortuni e la gestione dello stress in pochi minuti di gioco, direttamente sul posto di lavoro.',
+    hero_cta1: 'Richiedi una dimostrazione', hero_cta2: 'Vedi le offerte',
+    hero_stat1: 'causa di infortunio n.1 in Svizzera: cadute e passi falsi (Suva)',
+    hero_stat2: 'persone si feriscono ogni anno inciampando o cadendo',
+    hero_stat3: 'minuti a sessione bastano per progredire duraturamente',
+    b1_eyebrow: 'Salute & sicurezza',
+    b1_title: 'La prima causa di infortunio in Svizzera si previene allenandosi.',
+    b1_p1: 'In Svizzera, cadute e passi falsi sono la prima causa di infortunio in assoluto — al lavoro come nella vita quotidiana. Sci, calcio e altri sport amatoriali causano ogni anno migliaia di distorsioni evitabili.',
+    b1_p2: "L'allenamento dell'equilibrio rafforza i riflessi e i muscoli stabilizzatori che proteggono ogni giorno e sul campo sportivo. E questa capacità continua a migliorare a qualsiasi età, se allenata regolarmente.",
+    b2_eyebrow: 'Benessere mentale',
+    b2_title: 'Rifocalizzarsi in pochi minuti, tra due attività.',
+    b2_p1: "Mantenere l'equilibrio richiede concentrazione e presenza nel momento. Un vero strumento di relax — una pausa attiva che aiuta a scaricare lo stress e rifocalizzarsi senza lasciare la scrivania.",
+    b2_li1: 'Giochi pensati appositamente per rallentare il ritmo',
+    b2_li2: 'Pochi minuti attivi, senza materiale né sessione dedicata',
+    b2_li3: 'Un complemento concreto alle iniziative di benessere già in atto',
+    b3_eyebrow: 'Spirito di squadra',
+    b3_title: 'Sfide e classifiche che fanno sorridere tutti.',
+    b3_p1: "PandaFit è anche gioco: sfide tra colleghi, classifiche di squadra, eventi occasionali. Un modo semplice per creare connessione e buonumore attorno a un obiettivo comune — senza trasformare la prevenzione in un obbligo.",
+    b3_p2: 'Ogni azienda può personalizzare le proprie sfide, seguire i risultati e celebrare i propri campioni.',
+    pricing_eyebrow: 'Le nostre offerte', pricing_title: 'Tre modi per iniziare',
+    pricing_sub: "Dalla giornata di scoperta all'accompagnamento annuale completo, con coaching e personalizzazione a ogni livello.",
+    trust_eyebrow: 'Referenze & partner',
+    contact_eyebrow: 'Parliamone', contact_title: 'Una dimostrazione nella vostra sede?',
+    contact_p: 'Lasciateci i vostri contatti, vi risponderemo entro 48h per organizzare una presentazione su misura per la vostra azienda.',
+    form_name: 'Nome', form_company: 'Azienda', form_email: 'Email', form_phone: 'Telefono', form_message: 'Messaggio',
+    form_submit: 'Invia richiesta',
+    form_ok: 'Grazie! Vi risponderemo molto presto.',
+    form_err: 'Si è verificato un errore, riprova o scrivici direttamente.',
+    footer_note: 'Una soluzione svizzera per la prevenzione e il benessere sul lavoro.',
+    price_cta: 'Contattaci',
+  },
+};
+
+let currentLang = 'fr';
+function t(key) { return TRANSLATIONS[currentLang]?.[key] ?? TRANSLATIONS.fr[key] ?? key; }
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
+  document.documentElement.lang = currentLang;
+}
+function setLang(lang) {
+  currentLang = lang;
+  document.querySelectorAll('.lang-switch button').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+  applyI18n();
+  renderPricing();
+}
+document.querySelectorAll('.lang-switch button').forEach(btn => btn.addEventListener('click', () => setLang(btn.dataset.lang)));
+
+document.getElementById('year').textContent = new Date().getFullYear();
+
+/* ---------- Images (éditables depuis l'admin) ---------- */
+async function loadImages() {
+  try {
+    const res = await fetch(`${REST}/website_images?select=*`, { headers: sbHeaders() });
+    const rows = res.ok ? await res.json() : [];
+    const map = {};
+    rows.forEach(r => { map[r.id] = r.image_url; });
+    if (map.hero) document.getElementById('heroVisual').style.backgroundImage = `url('${map.hero}')`;
+    if (map.balance) document.getElementById('visualBalance').style.backgroundImage = `url('${map.balance}')`;
+    if (map.mental) document.getElementById('visualMental').style.backgroundImage = `url('${map.mental}')`;
+    if (map.social) document.getElementById('visualSocial').style.backgroundImage = `url('${map.social}')`;
+  } catch (e) { /* silencieux : les dégradés par défaut restent visibles */ }
+}
+loadImages();
+
+/* ---------- Pricing (éditable depuis l'admin) ---------- */
+let pricingRows = [];
+async function loadPricing() {
+  try {
+    const res = await fetch(`${REST}/website_pricing?select=*`, { headers: sbHeaders() });
+    pricingRows = res.ok ? await res.json() : [];
+  } catch (e) { pricingRows = []; }
+  renderPricing();
+}
+function pickLang(obj, field) {
+  if (!obj) return '';
+  if (currentLang === 'fr') return obj[field] || '';
+  return obj[field + '_' + currentLang] || obj[field] || '';
+}
+function renderPricing() {
+  const order = ['discovery', 'monthly', 'annual'];
+  const grid = document.getElementById('pricingGrid');
+  if (!grid) return;
+  grid.innerHTML = order.map(id => {
+    const row = pricingRows.find(r => r.id === id) || {};
+    const featured = id === 'monthly';
+    return `
+      <div class="price-card ${featured ? 'featured' : ''}">
+        ${featured ? `<span class="badge">Populaire</span>` : ''}
+        <div class="eyebrow">${id === 'discovery' ? '01' : id === 'monthly' ? '02' : '03'}</div>
+        <h3>${pickLang(row, 'title')}</h3>
+        <div class="amount">${row.price_chf || ''}</div>
+        <p class="price-desc">${pickLang(row, 'description')}</p>
+        <a href="#contact" class="btn-secondary">${t('price_cta')}</a>
+      </div>
+    `;
+  }).join('');
+}
+loadPricing();
+
+/* ---------- Formulaire de contact ---------- */
+document.getElementById('contactForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('formMsg');
+  const fd = new FormData(e.target);
+  const payload = {
+    name: fd.get('name'), company: fd.get('company'), email: fd.get('email'),
+    phone: fd.get('phone'), message: fd.get('message'),
+  };
+  msg.textContent = '…';
+  msg.className = 'form-msg';
+  try {
+    const res = await fetch(`${REST}/website_leads`, {
+      method: 'POST',
+      headers: sbHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('request failed');
+    msg.textContent = t('form_ok');
+    msg.className = 'form-msg ok';
+    e.target.reset();
+  } catch (err) {
+    msg.textContent = t('form_err');
+    msg.className = 'form-msg err';
+  }
+});
+
+applyI18n();
+</script>
+</body>
+</html>
