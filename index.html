@@ -2839,7 +2839,8 @@ function renderSkiPlaying(snap) {
     cursorEl.style.left = Math.max(2, Math.min(96, 50 + (quality - 0.5) * 90)) + '%';
   }
   if (banner) banner.style.opacity = snap.finished ? 1 : 0;
-  if (gatesEl) gatesEl.style.opacity = snap.finished ? 0 : 1; // plus aucune porte dans la zone d'arrivée
+  const nearFinish = snap.finished || (snap.totalDist - snap.distLeft) >= (snap.totalDist - 30); // plus de portes sur les 30 derniers mètres
+  if (gatesEl) gatesEl.style.opacity = nearFinish ? 0 : 1;
 
   // Trajectoire automatique à travers les portes (pas la position réelle du capteur) —
   // seule la vitesse dépend du vrai mouvement. L'orientation bascule exactement quand
@@ -2847,7 +2848,7 @@ function renderSkiPlaying(snap) {
   const quality = Math.max(0, Math.min(1, (snap.speedKmh - 10) / 60));
   const traveled = snap.traveled * 0.6; // échelle visuelle (m réels -> unités svg)
   const cyclePos = traveled / (SKI_GATE_SPACING * 2);
-  const swing = skiTriangleWave(cyclePos);
+  const swing = skiTriangleWave(cyclePos - 0.15); // léger délai : la porte est déjà un peu "au-dessus" quand il tourne
   const swingAmp = 8 + quality * ((SKI_GATE_OFFSET + 25) - 8); // très étroit à l'arrêt, très large à pleine vitesse
   const skierX = !snap.finished ? 150 + swing * swingAmp : 150 + Math.sin(Date.now() * 0.005) * 4;
   const swingDelta = swing - (window._skiLastSwing ?? swing);
@@ -2858,7 +2859,7 @@ function renderSkiPlaying(snap) {
 
   // Sécurité : tout élément qui calculerait une position hors de la neige (0-200) est masqué,
   // plutôt que de compter uniquement sur le découpage du cadre SVG.
-  if (!snap.finished) {
+  if (!nearFinish) {
     (window._skiGateEls || []).forEach(({ el, x }) => {
       const baseY = parseFloat(el.dataset.baseY);
       const y = skiWrapY(baseY, traveled, window._skiGateRange, 10);
