@@ -830,8 +830,10 @@ const ZoneGame = (() => {
   const RADIUS_CM = { easy: 4.0, medium: 2.0, hard: 1.0 };
   const POSITION_DIVIDER = 2; // même conversion que l'original : cm ≈ raw / (100 * 2)
   const PREPARE_SECONDS = 5;
+  const SHRINK_START_RATIO = 0.7; // la zone commence à rétrécir aux 70% du temps écoulé
+  const SHRINK_AMOUNT = 0.5; // réduction totale de 50% à la fin
 
-  let cfg = { difficulty: 'medium', duration: 60, lives: 3 }; // lives: 3|5|Infinity
+  let cfg = { difficulty: 'medium', duration: 60, lives: 3, zoneMode: 'fixed' }; // lives: 3|5|Infinity, zoneMode: 'fixed'|'shrink'
   let state = null;
 
   function toCm(rawX, rawY) {
@@ -849,7 +851,15 @@ const ZoneGame = (() => {
     };
   }
 
-  function radiusCm() { return RADIUS_CM[cfg.difficulty]; }
+  function radiusCm() {
+    const full = RADIUS_CM[cfg.difficulty];
+    if (cfg.zoneMode !== 'shrink') return full;
+    const elapsed = cfg.duration - state.timeLeft;
+    const shrinkStart = cfg.duration * SHRINK_START_RATIO;
+    if (elapsed <= shrinkStart) return full;
+    const p = Math.min(1, (elapsed - shrinkStart) / (cfg.duration - shrinkStart));
+    return full - p * (full * SHRINK_AMOUNT);
+  }
   function livesRemaining() {
     return cfg.lives === Infinity ? Infinity : Math.max(0, cfg.lives - state.livesLost);
   }
@@ -909,6 +919,7 @@ const ZoneGame = (() => {
       difficulty: cfg.difficulty,
       duration: cfg.duration,
       lives: cfg.lives,
+      zoneMode: cfg.zoneMode,
     };
   }
 
@@ -2183,7 +2194,7 @@ function wireGamesScreen() {
 }
 
 /* ---------- Jeu : The Zone ---------- */
-let zoneSetupCfg = { difficulty: 'medium', duration: 60, lives: 3 };
+let zoneSetupCfg = { difficulty: 'medium', duration: 60, lives: 3, zoneMode: 'fixed' };
 
 function segmented(name, options, selected) {
   return `<div class="segmented" data-group="${name}">${
@@ -2220,6 +2231,14 @@ function screenZoneSetup() {
         { value: 5, label: '5 vies' },
         { value: 'Infinity', label: 'Illimité' },
       ], zoneSetupCfg.lives === Infinity ? 'Infinity' : zoneSetupCfg.lives)}
+    </div>
+    <div class="card">
+      <h2>Type de zone</h2>
+      ${segmented('zoneMode', [
+        { value: 'fixed', label: 'Zone fixe' },
+        { value: 'shrink', label: 'Zone diminue' },
+      ], zoneSetupCfg.zoneMode)}
+      <p class="page-sub" style="font-size:14px;margin:10px 0 0;">"Zone diminue" : la zone rétrécit de moitié progressivement sur les 30 derniers % du temps.</p>
     </div>
     <button class="btn-primary" id="btnZoneStart" style="width:100%;">Commencer</button>
   </div>
@@ -2262,12 +2281,14 @@ function zonePrepareThenStart() {
 
 function screenZonePrepare(seconds) {
   return `
+    <div class="centered-page">
     <div class="connect-hero">
       <div class="icon"><i data-lucide="footprints"></i></div>
       <h2>Prépare-toi</h2>
       <p>Place ton pied bien centré, ça démarre dans...</p>
       <div style="font-size:64px;font-weight:800;" id="zonePrepareNum">${seconds}</div>
     </div>
+  </div>
   `;
 }
 
@@ -2361,6 +2382,7 @@ function renderZonePlaying(snap) {
 function screenZoneResult(snap, score, reason) {
   const played = zoneSetupCfg.duration - snap.timeLeft;
   return `
+    <div class="centered-page">
     <h1 class="page-title">${reason === 'lives' ? 'Terminé — plus de vies' : 'Terminé — temps écoulé'}</h1>
     <div class="result-score">
       <div class="num">${score}</div>
@@ -2369,12 +2391,14 @@ function screenZoneResult(snap, score, reason) {
     <div class="card">
       <div class="result-stat"><span>Temps joué</span><span>${played}s / ${zoneSetupCfg.duration}s</span></div>
       <div class="result-stat"><span>Difficulté</span><span>${{easy:'Facile',medium:'Moyen',hard:'Difficile'}[snap.difficulty]}</span></div>
+      <div class="result-stat"><span>Type de zone</span><span>${snap.zoneMode === 'shrink' ? 'Diminue' : 'Fixe'}</span></div>
       <div class="result-stat"><span>Vies perdues</span><span>${snap.livesLost}</span></div>
     </div>
     <div class="row">
       <button class="btn-primary" id="btnZoneReplay">Rejouer</button>
       ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnZoneBackHome">Retour aux jeux</button>` : ''}
     </div>
+  </div>
   `;
 }
 function wireZoneResult() {
@@ -2633,6 +2657,7 @@ function renderMigrosPlaying(snap) {
 }
 function screenMigrosResult(snap, score, reason) {
   return `
+    <div class="centered-page">
     <h1 class="page-title">${reason === 'lives' ? 'Terminé — plus de vies' : 'Terminé — temps écoulé'}</h1>
     <div class="result-score"><div class="num">${score}</div><div class="lbl">Score</div></div>
     <div class="card">
@@ -2644,6 +2669,7 @@ function screenMigrosResult(snap, score, reason) {
       <button class="btn-primary" id="btnMigrosReplay">Rejouer</button>
       ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnMigrosBack">Retour aux jeux</button>` : ''}
     </div>
+  </div>
   `;
 }
 function wireMigrosResult() {
@@ -2792,6 +2818,7 @@ function renderSkiPlaying(snap) {
 }
 function screenSkiResult(snap) {
   return `
+    <div class="centered-page">
     <h1 class="page-title">Tracé terminé</h1>
     <div class="result-score"><div class="num">${snap.score}</div><div class="lbl">Score de slalom</div></div>
     <div class="card"><div class="result-stat"><span>Portes ratées</span><span>${snap.livesLost} / ${snap.gateCount}</span></div></div>
@@ -2803,6 +2830,7 @@ function screenSkiResult(snap) {
       <button class="btn-primary" id="btnSkiReplay">Rejouer</button>
       ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnSkiBack">Retour aux jeux</button>` : ''}
     </div>
+  </div>
   `;
 }
 function wireSkiResult() {
@@ -2978,6 +3006,7 @@ function renderEauPlaying(snap) {
 function screenEauResult(snap, score, reason) {
   const played = eauSetupCfg.duration - snap.timeLeft;
   return `
+    <div class="centered-page">
     <h1 class="page-title">${reason === 'lives' ? 'Terminé — trop de débordements' : 'Terminé — temps écoulé'}</h1>
     <div class="result-score">
       <div class="num">${score}</div>
@@ -2992,6 +3021,7 @@ function screenEauResult(snap, score, reason) {
       <button class="btn-primary" id="btnEauReplay">Rejouer</button>
       ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnEauBackHome">Retour aux jeux</button>` : ''}
     </div>
+  </div>
   `;
 }
 function wireEauResult() {
@@ -3171,6 +3201,7 @@ function screenElectroResult(snap, score, reason) {
   const s = snap.elapsedMs / 1000;
   const timeStr = `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
   return `
+    <div class="centered-page">
     <h1 class="page-title">${reason === 'complete' ? 'Terminé !' : 'Terminé — plus de vies'}</h1>
     <div class="result-score">
       <div class="num">${score}</div>
@@ -3185,6 +3216,7 @@ function screenElectroResult(snap, score, reason) {
       <button class="btn-primary" id="btnElectroReplay">Rejouer</button>
       ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnElectroBackHome">Retour aux jeux</button>` : ''}
     </div>
+  </div>
   `;
 }
 function wireElectroResult() {
@@ -3195,12 +3227,14 @@ function wireElectroResult() {
 /* ---------- Écran générique de préparation (réutilisé par les jeux brandés) ---------- */
 function screenGenericPrepare(seconds, iconName, text) {
   return `
+    <div class="centered-page">
     <div class="connect-hero">
       <div class="icon"><i data-lucide="${iconName}"></i></div>
       <h2>Prépare-toi</h2>
       <p>${text}</p>
       <div style="font-size:64px;font-weight:800;" id="genericPrepareNum">${seconds}</div>
     </div>
+  </div>
   `;
 }
 
@@ -3365,6 +3399,7 @@ async function finishIndexTest(overall, staticResult, movementResult) {
 }
 function screenIndexResult(overall, staticResult, movementResult) {
   return `
+    <div class="centered-page">
     <h1 class="page-title">${t('index_result_title')}</h1>
     <div class="index-score-big"><div class="num">${overall}</div><div class="lbl">/ 100</div></div>
     <div class="index-breakdown">
@@ -3390,6 +3425,7 @@ function screenIndexResult(overall, staticResult, movementResult) {
       <button class="btn-primary" id="btnIndexReplay">${t('index_replay')}</button>
       <button class="btn-ghost" id="btnIndexHome">${t('back_home')}</button>
     </div>
+  </div>
   `;
 }
 function wireIndexResult() {
