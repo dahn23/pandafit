@@ -1496,14 +1496,19 @@ async function renderTabletMenuTab() {
   el.innerHTML = '<p class="empty">Chargement...</p>';
   const client = clients.find(c => c.id === selectedClientId);
   const { activeDefis, activeChallenges, activeEvents } = await loadActiveTabletMenuItems(selectedClientId);
-  const allGames = clientGames.filter(cg => cg.game_id !== 'indextest').map(cg => ({
-    type: 'game', sort_order: cg.sort_order || 0, visible: cg.enabled,
-    data: { ...(games.find(g => g.id === cg.game_id) || { id: cg.game_id, name: cg.game_id }), image_url: cg.image_url },
-    id: cg.game_id,
-  }));
+  const allGames = clientGames.filter(cg => cg.game_id !== 'indextest').map(cg => {
+    const catalogRow = games.find(g => g.id === cg.game_id) || { id: cg.game_id, name: cg.game_id };
+    return {
+      type: 'game', sort_order: cg.sort_order || 0, visible: cg.enabled,
+      data: { ...catalogRow, image_url: cg.image_url || catalogRow.image_url },
+      id: cg.game_id,
+    };
+  });
+
+  const indexCatalogRow = games.find(g => g.id === 'indextest');
 
   let stack = [
-    { type: 'index', sort_order: client.index_sort_order ?? -1000, id: 'index', visible: client.show_index_banner, data: { image_url: client.index_image_url } },
+    { type: 'index', sort_order: client.index_sort_order ?? -1000, id: 'index', visible: client.show_index_banner, data: { image_url: client.index_image_url || indexCatalogRow?.image_url } },
     ...activeDefis.map(d => ({ type: 'defi', sort_order: d.sort_order || 0, data: d, id: d.id, visible: d.is_active })),
     ...activeChallenges.map(c => ({ type: 'challenge', sort_order: c.sort_order || 0, data: c, id: c.id, visible: c.is_active })),
     ...allGames,
