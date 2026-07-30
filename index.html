@@ -2755,7 +2755,7 @@ function screenSkiPlaying() {
     </div>
   `;
 }
-const SKI_SKIER_Y = 130, SKI_GATE_OFFSET = 55, SKI_GATE_SPACING = 45, SKI_FINISH_BASE_Y = 900;
+const SKI_SKIER_Y = 130, SKI_GATE_OFFSET = 55, SKI_GATE_VISUAL_OFFSET = 41, SKI_GATE_SPACING = 45, SKI_FINISH_BASE_Y = 900;
 let skiSceneReady = false;
 function wireSkiScene() {
   const treesEl = document.getElementById('skiTrees');
@@ -2786,7 +2786,7 @@ function wireSkiScene() {
     const flag = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     flag.setAttribute('d', 'M0 0 L12 3 L0 7 Z'); flag.setAttribute('fill', color);
     g.appendChild(pole); g.appendChild(flag);
-    const x = 150 + (isLeft ? -SKI_GATE_OFFSET : SKI_GATE_OFFSET);
+    const x = 150 + (isLeft ? -SKI_GATE_VISUAL_OFFSET : SKI_GATE_VISUAL_OFFSET);
     const baseY = 220 - i * SKI_GATE_SPACING;
     g.dataset.baseY = baseY;
     g.setAttribute('transform', `translate(${x},${baseY})`);
