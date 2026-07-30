@@ -82,7 +82,7 @@
     display: flex; align-items: center; justify-content: center;
   }
   .football-goal-distant { position: absolute; top: 14%; width: 90px; transition: transform 0.3s linear; }
-  .football-runner { position: absolute; bottom: 18%; width: 90px; height: 90px; }
+  .football-runner { position: absolute; bottom: 18%; width: 180px; height: 180px; }
   .football-runner img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; }
   .football-runner img.active { opacity: 1; }
   .football-vgauge {
@@ -1062,7 +1062,7 @@ const FootballGame = (() => {
 
   function reset() {
     s = {
-      phase: 'run', runTimeLeft: RUN_SECONDS, upCount: 0, wasUp: false, pose: 'down', runFrame: 0,
+      phase: 'run', runTimeLeft: RUN_SECONDS, upCount: 0, wasUp: false, animWasUp: false, pose: 'down', runFrame: 0,
       transitionTimeLeft: TRANSITION_SECONDS, shootSeconds: 0, shootTimeLeft: 0,
       goals: 0, misses: 0, targetRelX: 0, targetRelY: 0,
       goalShiftX: 0, goalShiftY: 0, goalShiftVX: 0, goalShiftVY: 0,
@@ -1089,8 +1089,13 @@ const FootballGame = (() => {
     if (s.phase === 'run') {
       const isUp = latest.y > UP_THRESHOLD;
       const isDown = latest.y < -UP_THRESHOLD;
-      if (isUp && !s.wasUp) { s.upCount++; s.pose = 'up'; s.wasUp = true; s.runFrame = (s.runFrame + 1) % 4; }
-      else if (isDown && s.wasUp) { s.pose = 'down'; s.wasUp = false; s.runFrame = (s.runFrame + 1) % 4; }
+      if (isUp && !s.wasUp) { s.upCount++; s.pose = 'up'; s.wasUp = true; }
+      else if (isDown && s.wasUp) { s.pose = 'down'; s.wasUp = false; }
+      // Animation 2x plus rapide que le score : seuil moitié moindre, indépendant du comptage "en haut".
+      const animUp = latest.y > UP_THRESHOLD / 2;
+      const animDown = latest.y < -UP_THRESHOLD / 2;
+      if (animUp && !s.animWasUp) { s.animWasUp = true; s.runFrame = (s.runFrame + 1) % 4; }
+      else if (animDown && s.animWasUp) { s.animWasUp = false; s.runFrame = (s.runFrame + 1) % 4; }
       s.runTimeLeft -= dt;
       if (s.runTimeLeft <= 0) {
         s.phase = 'transition';
