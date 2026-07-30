@@ -1256,109 +1256,90 @@ const MigrosGame = (() => {
    il faut garder un rythme régulier gauche-droite, avec une amplitude qui varie.
    ===================================================================================== */
 const SlalomGame = (() => {
-  const DIFFICULTY = {
-    easy:   { minCm: 3, maxCm: 6,  intervalMs: 1600, travelMs: 1900 },
-    medium: { minCm: 4, maxCm: 8,  intervalMs: 1300, travelMs: 1700 },
-    hard:   { minCm: 5, maxCm: 10, intervalMs: 1050, travelMs: 1500 },
-  };
   const PREPARE_SECONDS = 3;
+  const TOTAL_DIST_M = 400;
+  const RUNOUT_MS = 2500; // zone d'arrivée avant la vraie fin
 
-  let cfg = { difficulty: 'medium', gateCount: 20, lives: 3 };
   let s = null;
-  let latestFootX = 0;
-  let rafId = null, spawnTimer = null;
+  let latestX = 0;
+  let tickTimer = null;
   let onFrameCb = null, onFinishCb = null;
-  let startTime = 0;
-  let lastSign = 1;
 
-  function onSensorData(d) { latestFootX = d.x / 200; } // cm, même échelle que The Zone
-
-  function diff() { return DIFFICULTY[cfg.difficulty]; }
+  function onSensorData(d) { latestX = d.x / 200; } // cm, même échelle que The Zone
 
   function reset() {
-    s = { gates: [], spawned: 0, resolved: 0, score: 0, livesLost: 0, combo: 0, running: true, flash: null };
-    lastSign = Math.random() < 0.5 ? -1 : 1;
+    s = {
+      running: true, samples: [], distLeft: TOTAL_DIST_M, elapsedMs: 0,
+      speedKmh: 10, traveled: 0, finished: false, runoutUntil: null, startedAt: 0,
+    };
   }
 
-  function spawnGate() {
-    if (s.spawned >= cfg.gateCount) { clearInterval(spawnTimer); return; }
-    lastSign *= -1; // alternance stricte gauche/droite
-    const { minCm, maxCm } = diff();
-    const amplitude = minCm + Math.random() * (maxCm - minCm);
-    s.gates.push({
-      targetXcm: lastSign * amplitude,
-      side: lastSign < 0 ? 'left' : 'right',
-      spawnTime: performance.now(),
-      resolved: false,
-    });
-    s.spawned++;
-  }
-
-  function start(config, onFrame, onFinish) {
-    cfg = config; onFrameCb = onFrame; onFinishCb = onFinish;
+  function start(onFrame, onFinish) {
+    onFrameCb = onFrame; onFinishCb = onFinish;
     reset();
+    s.startedAt = performance.now();
     PandaFitSensor.off('data', onSensorData);
     PandaFitSensor.on('data', onSensorData);
-    startTime = performance.now();
-    spawnGate();
-    spawnTimer = setInterval(spawnGate, diff().intervalMs);
-    loop();
+    tickTimer = setInterval(tick, 60);
   }
 
-  function loop() {
-    if (!s.running) return;
-    const now = performance.now();
-    const travel = diff().travelMs;
+  function tick() {
+    if (!s || !s.running) return;
+    s.elapsedMs = performance.now() - s.startedAt;
+    s.samples.push(latestX);
+    if (s.samples.length > 40) s.samples.shift();
 
-    for (const g of s.gates) {
-      if (g.resolved) continue;
-      const progress = (now - g.spawnTime) / travel;
-      if (progress >= 1) {
-        g.resolved = true;
-        s.resolved++;
-        const dist = Math.abs(latestFootX - g.targetXcm);
-        let label, points;
-        if (dist < 1.2) { label = 'PARFAIT'; points = 50; s.combo++; }
-        else if (dist < 3) { label = 'BIEN'; points = 25; s.combo++; }
-        else if (dist < 5.5) { label = 'PASSABLE'; points = 10; s.combo = 0; }
-        else { label = 'PORTE RATÉE'; points = 0; s.combo = 0; s.livesLost++; }
-        s.score += points + (label !== 'PORTE RATÉE' ? Math.min(s.combo, 5) * 4 : 0);
-        s.flash = { label, at: now, ok: label !== 'PORTE RATÉE' };
-        if (label === 'PORTE RATÉE') SoundFx.lifeLost(); else SoundFx.ready();
+    let amp = 0, crossings = 0;
+    if (s.samples.length > 4) {
+      const mean = s.samples.reduce((a, b) => a + b, 0) / s.samples.length;
+      const mn = Math.min(...s.samples), mx = Math.max(...s.samples);
+      amp = Math.min(1, (mx - mn) / 14); // 14cm d'amplitude pic-à-pic = plein score
+      for (let i = 1; i < s.samples.length; i++) {
+        if ((s.samples[i - 1] - mean) * (s.samples[i] - mean) < 0) crossings++;
       }
     }
-    // nettoyage des portes trop anciennes
-    s.gates = s.gates.filter(g => (now - g.spawnTime) / travel < 1.6);
+    const regularity = Math.min(1, crossings / 14);
+    const quality = amp * 0.6 + regularity * 0.4;
+    s.speedKmh = Math.round(10 + quality * 60);
 
-    if (cfg.lives !== Infinity && s.livesLost >= cfg.lives) { finish(); return; }
-    if (s.resolved >= cfg.gateCount && s.gates.every(g => g.resolved)) { finish(); return; }
-
+    if (!s.finished) {
+      const distStep = (s.speedKmh / 3.6) * 0.06; // mètres parcourus sur ce tick de 60ms
+      s.traveled += distStep;
+      s.distLeft = Math.max(0, TOTAL_DIST_M - s.traveled);
+      if (s.distLeft <= 0) {
+        s.finished = true;
+        s.runoutUntil = performance.now() + RUNOUT_MS;
+        SoundFx.finish();
+      }
+    } else if (performance.now() > s.runoutUntil) {
+      finish();
+      return;
+    }
     onFrameCb && onFrameCb(snapshot());
-    rafId = requestAnimationFrame(loop);
   }
 
   function finish() {
     if (!s.running) return;
     s.running = false;
-    clearInterval(spawnTimer);
-    cancelAnimationFrame(rafId);
+    clearInterval(tickTimer);
     PandaFitSensor.off('data', onSensorData);
-    SoundFx.finish();
     onFinishCb && onFinishCb(snapshot());
   }
 
   function snapshot() {
-    const travel = diff().travelMs;
     return {
-      gates: s.gates.map(g => ({ ...g, progress: (performance.now() - g.spawnTime) / travel })),
-      spawned: s.spawned, resolved: s.resolved, gateCount: cfg.gateCount,
-      score: s.score, livesLost: s.livesLost, lives: cfg.lives, combo: s.combo,
-      footXcm: latestFootX, flash: s.flash,
-      maxAmplitude: diff().maxCm,
+      distLeft: s.distLeft, elapsedMs: s.elapsedMs, speedKmh: s.speedKmh,
+      traveled: s.traveled, finished: s.finished, totalDist: TOTAL_DIST_M,
     };
   }
 
-  return { start, snapshot, PREPARE_SECONDS };
+  /** Plus le temps total est court, meilleur le score. */
+  function computeScore(snap) {
+    const seconds = snap.elapsedMs / 1000;
+    return Math.max(0, Math.round(2400 - seconds * 8));
+  }
+
+  return { start, finish, snapshot, computeScore, PREPARE_SECONDS };
 })();
 
 /* =====================================================================================
@@ -2685,51 +2666,24 @@ const SKI_TIPS = [
   { ic: 'mountain-snow', txt: "Fais vérifier le réglage de tes fixations chaque saison par un professionnel." },
   { ic: 'moon', txt: "Arrête-toi quand tu es fatigué : la plupart des blessures arrivent en fin de journée." },
 ];
-let skiCfg = { difficulty: 'medium', gateCount: 20, lives: 3 };
+let skiFinished = false;
 function screenSkiSetup() {
   return `
     <div class="centered-page">
     <div style="${SKI_THEME}">
       <h1 class="page-title" style="display:flex;align-items:center;gap:10px;margin-top:56px;"><i data-lucide="mountain-snow"></i> Slalom Réflexe</h1>
-      <p class="page-sub">Habillage inspiré des couleurs du ski suisse. De vraies portes de slalom (rouge/bleu) défilent : garde un rythme régulier gauche-droite, l'amplitude varie à chaque porte — comme un vrai tracé.</p>
-      <div class="card">
-        <h2>Difficulté</h2>
-        ${segmented('skiDifficulty', [
-          { value: 'easy', label: 'Facile' },
-          { value: 'medium', label: 'Moyen' },
-          { value: 'hard', label: 'Difficile' },
-        ], skiCfg.difficulty)}
-      </div>
-      <div class="card">
-        <h2>Nombre de portes</h2>
-        ${segmented('skiGates', [
-          { value: 15, label: '15' },
-          { value: 20, label: '20' },
-          { value: 30, label: '30' },
-        ], skiCfg.gateCount)}
-      </div>
+      <p class="page-sub">400m de piste. Balance-toi gauche/droite de façon régulière et ample pour prendre de la vitesse — jusqu'à 70 km/h si c'est parfait. Franchis la ligne le plus vite possible.</p>
       <button class="btn-primary" id="btnSkiStart" style="width:100%;">Commencer</button>
     </div>
   </div>
   `;
 }
 function wireSkiSetup() {
-  document.querySelectorAll('.segmented').forEach(group => {
-    group.querySelectorAll('button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        let v = btn.dataset.value;
-        if (!isNaN(v)) v = Number(v);
-        if (group.dataset.group === 'skiDifficulty') skiCfg.difficulty = v;
-        if (group.dataset.group === 'skiGates') skiCfg.gateCount = v;
-        group.querySelectorAll('button').forEach(b => b.classList.toggle('selected', b === btn));
-      });
-    });
-  });
   document.getElementById('btnSkiStart')?.addEventListener('click', () => skiPrepareThenStart());
 }
 function skiPrepareThenStart() {
   let remaining = SlalomGame.PREPARE_SECONDS;
-  content.innerHTML = `<div style="${SKI_THEME}">${screenGenericPrepare(remaining, 'mountain-snow', 'Prépare-toi, le tracé démarre dans...')}</div>`;
+  content.innerHTML = `<div style="${SKI_THEME}">${screenGenericPrepare(remaining, 'mountain-snow', 'Prépare-toi, la descente démarre dans...')}</div>`;
   SoundFx.ready();
   const timer = setInterval(() => {
     remaining--;
@@ -2739,89 +2693,163 @@ function skiPrepareThenStart() {
   }, 1000);
 }
 function startSkiGame() {
+  skiFinished = false;
   content.innerHTML = `<div style="${SKI_THEME}">${screenSkiPlaying()}</div>`;
-  SlalomGame.start(skiCfg,
+  wireSkiScene();
+  SlalomGame.start(
     (snap) => renderSkiPlaying(snap),
     (snap) => {
-      PandaFitBackend.recordSession(clientConfig, 'skiprev', snap.score, { difficulty: skiCfg.difficulty, livesLost: snap.livesLost }).then(submitPendingAnswersIfAny);
-      content.innerHTML = `<div style="${SKI_THEME}">${screenSkiResult(snap)}</div>`; wireSkiResult();
+      const score = SlalomGame.computeScore(snap);
+      PandaFitBackend.recordSession(clientConfig, 'skiprev', score, { elapsedMs: Math.round(snap.elapsedMs) }).then(submitPendingAnswersIfAny);
+      content.innerHTML = `<div style="${SKI_THEME}">${screenSkiResult(snap, score)}</div>`; wireSkiResult();
     }
   );
 }
 function screenSkiPlaying() {
   return `
-    <div class="zone-hud">
-      <div class="timer" id="skiRoundInfo">--</div>
-      <div class="timer" id="skiScore">0 pts</div>
+    <div style="display:flex;flex-direction:column;height:72vh;">
+      <div class="zone-hud" style="flex:0 0 auto;">
+        <div class="timer" id="skiDist">400 m</div>
+        <div class="timer" id="skiTime">0:00.0</div>
+      </div>
+      <div style="flex:1;position:relative;margin-top:6px;border-radius:16px;overflow:hidden;">
+        <svg id="skiScene" style="position:absolute;inset:0;width:100%;height:100%;display:block;" viewBox="0 0 300 200" preserveAspectRatio="xMidYMid meet">
+          <rect x="0" y="0" width="300" height="200" fill="#e9f1fb"/>
+          <g id="skiTrees"></g>
+          <g id="skiGates"></g>
+          <g id="skiFinish"></g>
+          <text id="skiSkier" x="0" y="0" font-size="30" text-anchor="middle">⛷️</text>
+        </svg>
+        <div id="skiFinishBanner" style="position:absolute;top:38%;left:0;right:0;text-align:center;color:#fff;font-size:20px;font-weight:800;opacity:0;background:rgba(0,0,0,0.55);padding:10px 0;">Ligne franchie !</div>
+      </div>
+      <div style="flex:0 0 auto;margin-top:8px;">
+        <div style="height:14px;border-radius:7px;background:linear-gradient(90deg,#39ff8a,#e8112d 45%,#e8112d 55%,#39ff8a);position:relative;">
+          <div id="skiCursor" style="position:absolute;top:-4px;width:6px;height:22px;background:#fff;border-radius:3px;left:50%;"></div>
+        </div>
+        <div style="text-align:center;margin-top:6px;">
+          <span id="skiSpeed" style="font-size:26px;font-weight:800;">10</span>
+          <span style="font-size:13px;color:#c7c2db;">km/h</span>
+        </div>
+      </div>
     </div>
-    <div class="slalom-flash" id="skiFlash">&nbsp;</div>
-    <div class="slalom-canvas-wrap"><canvas id="slalomCanvas" width="320" height="380"></canvas></div>
-    <p class="page-sub" style="text-align:center;">Passe au centre de chaque porte, en rythme.</p>
   `;
 }
-let _skiLastFlashAt = 0;
-function renderSkiPlaying(snap) {
-  const info = document.getElementById('skiRoundInfo');
-  const score = document.getElementById('skiScore');
-  const flashEl = document.getElementById('skiFlash');
-  if (info) info.textContent = `Porte ${snap.resolved}/${snap.gateCount}`;
-  if (score) score.innerHTML = `${snap.score} pts${snap.combo > 1 ? ' <i data-lucide="flame"></i>x' + snap.combo : ''}`;
-  if (flashEl && snap.flash && snap.flash.at !== _skiLastFlashAt) {
-    _skiLastFlashAt = snap.flash.at;
-    flashEl.textContent = snap.flash.label;
-    flashEl.style.color = snap.flash.ok ? 'var(--primary-dark)' : '#e6374e';
+const SKI_SKIER_Y = 130, SKI_GATE_OFFSET = 55, SKI_GATE_SPACING = 45, SKI_FINISH_BASE_Y = 900;
+let skiSceneReady = false;
+function wireSkiScene() {
+  const treesEl = document.getElementById('skiTrees');
+  const gatesEl = document.getElementById('skiGates');
+  const finishEl = document.getElementById('skiFinish');
+  treesEl.innerHTML = ''; gatesEl.innerHTML = ''; finishEl.innerHTML = '';
+
+  for (let i = 0; i < 8; i++) {
+    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    t.setAttribute('x', i % 2 === 0 ? 15 : 285);
+    t.dataset.baseY = 220 - i * 35;
+    t.setAttribute('y', t.dataset.baseY);
+    t.setAttribute('font-size', '22');
+    t.textContent = '🌲';
+    treesEl.appendChild(t);
   }
+  window._skiGateEls = [];
+  for (let i = 0; i < 10; i++) {
+    const isLeft = i % 2 === 0;
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const color = isLeft ? '#e8112d' : '#0a3d91';
+    const pole = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    pole.setAttribute('x1', 0); pole.setAttribute('x2', 0); pole.setAttribute('y1', 0); pole.setAttribute('y2', 24);
+    pole.setAttribute('stroke', '#666'); pole.setAttribute('stroke-width', 2);
+    const flag = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    flag.setAttribute('d', 'M0 0 L12 3 L0 7 Z'); flag.setAttribute('fill', color);
+    g.appendChild(pole); g.appendChild(flag);
+    const x = 150 + (isLeft ? -SKI_GATE_OFFSET : SKI_GATE_OFFSET);
+    const baseY = 220 - i * SKI_GATE_SPACING;
+    g.dataset.baseY = baseY;
+    g.setAttribute('transform', `translate(${x},${baseY})`);
+    gatesEl.appendChild(g);
+    window._skiGateEls.push({ el: g, x });
+  }
+  const checkSize = 12;
+  window._skiFinishEls = [];
+  for (let col = 0; col < 26; col++) {
+    for (let row = 0; row < 2; row++) {
+      const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      r.setAttribute('x', col * checkSize); r.setAttribute('width', checkSize); r.setAttribute('height', checkSize);
+      r.setAttribute('fill', (col + row) % 2 === 0 ? '#111' : '#fff');
+      r.dataset.baseY = SKI_FINISH_BASE_Y + row * checkSize;
+      r.setAttribute('y', r.dataset.baseY);
+      finishEl.appendChild(r);
+      window._skiFinishEls.push(r);
+    }
+  }
+  skiSceneReady = true;
+}
+function skiTriangleWave(x) {
+  const p = ((x % 1) + 1) % 1;
+  return p < 0.5 ? (4 * p - 1) : (3 - 4 * p);
+}
+function renderSkiPlaying(snap) {
+  const distEl = document.getElementById('skiDist');
+  const timeEl = document.getElementById('skiTime');
+  const cursorEl = document.getElementById('skiCursor');
+  const speedEl = document.getElementById('skiSpeed');
+  const skier = document.getElementById('skiSkier');
+  const banner = document.getElementById('skiFinishBanner');
+  if (!skiSceneReady || !skier) return;
 
-  const canvas = document.getElementById('slalomCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
-  const hitY = h * 0.82;
-  const pxPerCm = 14;
-  const cx = w / 2;
-  ctx.clearRect(0, 0, w, h);
+  if (distEl) distEl.textContent = snap.finished ? "zone d'arrivée" : `${Math.round(snap.distLeft)} m`;
+  if (timeEl) {
+    const secs = snap.elapsedMs / 1000;
+    timeEl.textContent = `${Math.floor(secs / 60)}:${(secs % 60).toFixed(1).padStart(4, '0')}`;
+  }
+  if (speedEl) speedEl.textContent = snap.speedKmh;
+  if (cursorEl) {
+    const quality = (snap.speedKmh - 10) / 60;
+    cursorEl.style.left = Math.max(2, Math.min(96, 50 + (quality - 0.5) * 90)) + '%';
+  }
+  if (!snap.finished && banner) banner.style.opacity = 0;
+  if (snap.finished && banner) banner.style.opacity = 1;
 
-  // piste : deux lignes de bord qui se resserrent en perspective vers le haut
-  ctx.strokeStyle = 'rgba(10,61,145,0.15)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(cx - w * 0.46, h); ctx.lineTo(cx - w * 0.18, 0); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx + w * 0.46, h); ctx.lineTo(cx + w * 0.18, 0); ctx.stroke();
+  const traveled = snap.traveled * 0.6; // échelle visuelle (m réels -> unités svg)
+  const cyclePos = traveled / (SKI_GATE_SPACING * 2);
+  const swing = skiTriangleWave(cyclePos + 0.25);
+  const swingAmp = SKI_GATE_OFFSET + 12;
+  const skierX = !snap.finished ? 150 + swing * swingAmp : 150 + Math.sin(Date.now() * 0.005) * 4;
+  const facingRight = swing >= 0;
+  skier.setAttribute('transform', `translate(${skierX},${SKI_SKIER_Y}) scale(${facingRight ? -1 : 1},1)`);
 
-  // ligne de passage
-  ctx.strokeStyle = 'rgba(232,17,45,0.35)'; ctx.setLineDash([6, 6]);
-  ctx.beginPath(); ctx.moveTo(0, hitY); ctx.lineTo(w, hitY); ctx.stroke();
-  ctx.setLineDash([]);
-
-  // portes qui défilent (perspective simple : plus loin = plus petit et plus haut)
-  snap.gates.forEach(g => {
-    const p = Math.max(0, Math.min(1.15, g.progress));
-    const y = p * hitY;
-    const scale = 0.45 + p * 0.55;
-    const x = cx + g.targetXcm * pxPerCm * scale;
-    const color = g.side === 'left' ? '#e8112d' : '#0a3d91';
-    ctx.fillStyle = color;
-    ctx.fillRect(x - 4 * scale, y - 26 * scale, 8 * scale, 26 * scale);
-    ctx.beginPath();
-    ctx.moveTo(x + 4 * scale, y - 26 * scale);
-    ctx.lineTo(x + 22 * scale, y - 20 * scale);
-    ctx.lineTo(x + 4 * scale, y - 14 * scale);
-    ctx.fill();
+  (window._skiGateEls || []).forEach(({ el, x }) => {
+    const baseY = parseFloat(el.dataset.baseY);
+    let y = baseY - traveled;
+    while (y < -10) y += 450;
+    el.setAttribute('transform', `translate(${x},${y})`);
+  });
+  document.getElementById('skiTrees')?.querySelectorAll('text').forEach((el) => {
+    const baseY = parseFloat(el.dataset.baseY);
+    let y = baseY - traveled;
+    while (y < -10) y += 450;
+    el.setAttribute('y', y);
   });
 
-  // skieur : petite forme vectorielle (tête + corps + skis) en accent violet
-  const skierX = cx + snap.footXcm * pxPerCm;
-  const sy = hitY;
-  ctx.fillStyle = '#c86dd7';
-  ctx.beginPath(); ctx.arc(skierX, sy - 14, 5, 0, Math.PI * 2); ctx.fill(); // tête
-  ctx.strokeStyle = '#c86dd7'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(skierX, sy - 9); ctx.lineTo(skierX, sy + 6); ctx.stroke(); // corps
-  ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(skierX - 14, sy + 14); ctx.lineTo(skierX + 14, sy + 14); ctx.stroke(); // skis
+  const progress = (snap.totalDist - snap.distLeft) / snap.totalDist;
+  const travelNeeded = SKI_FINISH_BASE_Y - SKI_SKIER_Y;
+  (window._skiFinishEls || []).forEach((el) => {
+    const baseY = parseFloat(el.dataset.baseY);
+    const y = Math.max(SKI_SKIER_Y, baseY - progress * travelNeeded);
+    el.setAttribute('y', y);
+  });
 }
-function screenSkiResult(snap) {
+function screenSkiResult(snap, score) {
+  const secs = snap.elapsedMs / 1000;
+  const timeStr = `${Math.floor(secs / 60)}:${(secs % 60).toFixed(1).padStart(4, '0')}`;
   return `
     <div class="centered-page">
-    <h1 class="page-title">Tracé terminé</h1>
-    <div class="result-score"><div class="num">${snap.score}</div><div class="lbl">Score de slalom</div></div>
-    <div class="card"><div class="result-stat"><span>Portes ratées</span><span>${snap.livesLost} / ${snap.gateCount}</span></div></div>
+    <h1 class="page-title">Ligne franchie !</h1>
+    <div class="result-score"><div class="num">${score}</div><div class="lbl">Score</div></div>
+    <div class="card">
+      <div class="result-stat"><span>Distance</span><span>${snap.totalDist} m</span></div>
+      <div class="result-stat"><span>Temps</span><span>${timeStr}</span></div>
+    </div>
     <div class="card">
       <h2>Conseils de prévention</h2>
       ${SKI_TIPS.map(t => `<div class="ski-tip"><div class="ic"><i data-lucide="${t.ic}"></i></div><div class="txt">${t.txt}</div></div>`).join('')}
