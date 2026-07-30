@@ -226,6 +226,15 @@
   .setting-row .val { font-size: 14px; font-weight: 600; }
 
   /* --- Bottom nav --- */
+  .ads-banner {
+    position: fixed; left: 0; right: 0; z-index: 40; max-width: 900px; margin: 0 auto;
+    height: 35vh; overflow: hidden; background: #000;
+  }
+  .ads-banner img {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    opacity: 0; transition: opacity 0.6s ease;
+  }
+  .ads-banner img.active { opacity: 1; }
   .bottomnav {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
     max-width: 900px; margin: 0 auto;
@@ -398,6 +407,8 @@
 
   <div class="content" id="content"><!-- injected --></div>
 
+  <div class="ads-banner" id="adsBanner" style="display:none;"></div>
+
   <div class="bottomnav">
     <button class="navbtn" data-nav="home"><span class="ic"><i data-lucide="home"></i></span><span data-i18n="nav_home">Accueil</span></button>
     <button class="navbtn" data-nav="games"><span class="ic"><i data-lucide="gamepad-2"></i><i data-lucide="lock" class="lock-badge"></i></span><span data-i18n="nav_games">Jeux</span></button>
@@ -445,7 +456,7 @@ const PandaFitBackend = (() => {
   /** Récupère le client + les jeux activés pour une device_key donnée. */
   async function fetchClientConfig(deviceKey) {
     const devRes = await fetch(
-      `${REST}/devices?device_key=eq.${encodeURIComponent(deviceKey)}&select=id,name,client_id,clients(id,name,show_ready_to_play,show_index_banner,rh_pin,lock_games,index_sort_order,index_questionnaire_id,index_image_url)`,
+      `${REST}/devices?device_key=eq.${encodeURIComponent(deviceKey)}&select=id,name,client_id,clients(id,name,show_ready_to_play,show_index_banner,rh_pin,lock_games,index_sort_order,index_questionnaire_id,index_image_url,ads_enabled)`,
       { headers: headers() }
     );
     if (!devRes.ok) throw new Error('Impossible de contacter le serveur (devices).');
@@ -461,6 +472,7 @@ const PandaFitBackend = (() => {
     const indexSortOrder = device.clients ? (device.clients.index_sort_order ?? -1000) : -1000;
     const indexQuestionnaireId = device.clients ? device.clients.index_questionnaire_id : null;
     const indexImageUrl = device.clients ? device.clients.index_image_url : null;
+    const adsEnabled = device.clients ? !!device.clients.ads_enabled : false;
 
     const cgRes = await fetch(
       `${REST}/client_games?client_id=eq.${clientId}&enabled=eq.true&select=game_id,sort_order,image_url,questionnaire_id&order=sort_order`,
@@ -474,7 +486,7 @@ const PandaFitBackend = (() => {
     const gameQuestionnaires = {};
     rows.forEach(r => { gameSortOrders[r.game_id] = r.sort_order || 0; gameImages[r.game_id] = r.image_url || null; gameQuestionnaires[r.game_id] = r.questionnaire_id || null; });
 
-    return { deviceId: device.id, deviceName: device.name, clientId, clientName, enabledGameIds, gameSortOrders, gameImages, gameQuestionnaires, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder, indexQuestionnaireId, indexImageUrl };
+    return { deviceId: device.id, deviceName: device.name, clientId, clientName, enabledGameIds, gameSortOrders, gameImages, gameQuestionnaires, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder, indexQuestionnaireId, indexImageUrl, adsEnabled };
   }
 
   /** Enregistre le score d'une partie terminée. */
@@ -661,7 +673,25 @@ const PandaFitBackend = (() => {
     } catch (e) { return {}; }
   }
 
-  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses };
+  /** Publicités actives pour ce client, en tenant compte de la programmation date/heure (évaluée au moment du chargement). */
+  async function fetchActiveAds(clientId) {
+    if (!clientId) return [];
+    try {
+      const res = await fetch(
+        `${REST}/client_ads?client_id=eq.${clientId}&is_active=eq.true&order=created_at.desc`,
+        { headers: headers() }
+      );
+      const rows = res.ok ? await res.json() : [];
+      const now = Date.now();
+      return rows.filter(a => {
+        if (a.start_at && new Date(a.start_at).getTime() > now) return false;
+        if (a.end_at && new Date(a.end_at).getTime() < now) return false;
+        return true;
+      });
+    } catch (e) { return []; }
+  }
+
+  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds };
 })();
 
 /* =====================================================================================
@@ -1788,6 +1818,9 @@ function pickLang(obj, field) {
 
 let logLines = [];
 let clientConfig = null; // { deviceId, deviceName, clientId, clientName, enabledGameIds }
+let activeAds = [];
+let adsRotationTimer = null;
+let adsCurrentIndex = 0;
 let gamesCatalog = {}; // { gameId: { name, description, image_url } }
 let qFlowQuestions = [];
 let qFlowIndex = 0;
@@ -1903,6 +1936,45 @@ function render() {
     default: content.innerHTML = screenHome(); wireHomeScreen();
   }
   document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('active', b.dataset.nav === currentRoute));
+  updateAdsBanner();
+}
+
+/** Affiche/masque la bannière de publicités (uniquement sur l'accueil) et gère le défilement toutes les 4s. */
+function updateAdsBanner() {
+  const banner = document.getElementById('adsBanner');
+  if (!banner) return;
+  const shouldShow = currentRoute === 'home' && PandaFitSensor.isConnected() && clientConfig?.adsEnabled && activeAds.length > 0;
+
+  if (!shouldShow) {
+    banner.style.display = 'none';
+    banner.innerHTML = '';
+    if (adsRotationTimer) { clearInterval(adsRotationTimer); adsRotationTimer = null; }
+    content.style.paddingBottom = '';
+    return;
+  }
+
+  const bottomnavEl = document.querySelector('.bottomnav');
+  const navHeight = bottomnavEl ? bottomnavEl.offsetHeight : 64;
+  banner.style.bottom = navHeight + 'px';
+  banner.style.display = 'block';
+  content.style.paddingBottom = `calc(35vh + ${navHeight}px + 24px)`;
+
+  if (!banner.dataset.built || banner.dataset.count !== String(activeAds.length)) {
+    banner.innerHTML = activeAds.map((ad, i) => `<img src="${ad.image_url}" class="${i === 0 ? 'active' : ''}" alt="">`).join('');
+    banner.dataset.built = '1';
+    banner.dataset.count = String(activeAds.length);
+    adsCurrentIndex = 0;
+    if (adsRotationTimer) clearInterval(adsRotationTimer);
+    if (activeAds.length > 1) {
+      adsRotationTimer = setInterval(() => {
+        const imgs = banner.querySelectorAll('img');
+        if (!imgs.length) return;
+        imgs[adsCurrentIndex]?.classList.remove('active');
+        adsCurrentIndex = (adsCurrentIndex + 1) % imgs.length;
+        imgs[adsCurrentIndex]?.classList.add('active');
+      }, 4000);
+    }
+  }
 }
 
 /* ---------- Écran : connexion ---------- */
@@ -3923,6 +3995,7 @@ function wireDeviceSetup() {
       PandaFitBackend.setDeviceKey(val);
       log(`Tablette reliée au client "${clientConfig.clientName}".`);
       gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
+      activeAds = clientConfig.adsEnabled ? await PandaFitBackend.fetchActiveAds(clientConfig.clientId) : [];
       render();
     } catch (e) {
       content.innerHTML = screenDeviceSetup(e.message);
@@ -3953,6 +4026,7 @@ document.getElementById('btnFullscreen')?.addEventListener('click', () => {
     clientConfig = await PandaFitBackend.fetchClientConfig(savedKey);
     log(`Tablette reliée au client "${clientConfig.clientName}".`);
     gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
+    activeAds = clientConfig.adsEnabled ? await PandaFitBackend.fetchActiveAds(clientConfig.clientId) : [];
     // Reconnexion auto testée et non concluante sur ce matériel (le capteur nécessite un vrai scan actif,
     // que seul le sélecteur manuel déclenche) — désactivée pour ne pas perdre de temps à chaque démarrage.
     // La fonction PandaFitSensor.tryAutoReconnect() reste disponible si Chrome s'améliore un jour sur ce point.

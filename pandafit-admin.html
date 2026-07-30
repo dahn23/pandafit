@@ -202,6 +202,7 @@ let allSessions = [];
 let events = [];
 let defis = [];
 let challenges = [];
+let clientAds = [];
 let activeTab = 'details';
 let viewMode = 'client'; // 'client' | 'challenges' | 'content'
 let topView = 'clients'; // 'clients' | 'crm' | 'globalstats' | 'access' | 'calendar'
@@ -295,7 +296,7 @@ async function loadClients() {
   if (!selectedClientId && clients.length) selectedClientId = clients[0].id;
 }
 async function loadClientDetail(clientId) {
-  const [devicesRes, gamesRes, clientGamesRes, sessionsRes, allSessionsRes, eventsRes, defisRes] = await Promise.all([
+  const [devicesRes, gamesRes, clientGamesRes, sessionsRes, allSessionsRes, eventsRes, defisRes, adsRes] = await Promise.all([
     sb.from('devices').select('*').eq('client_id', clientId).order('created_at'),
     sb.from('games').select('*').order('name'),
     sb.from('client_games').select('*').eq('client_id', clientId),
@@ -303,6 +304,7 @@ async function loadClientDetail(clientId) {
     sb.from('sessions').select('*').eq('client_id', clientId).order('played_at', { ascending: true }).limit(2000),
     sb.from('events').select('*').eq('client_id', clientId).order('start_date', { ascending: false }),
     sb.from('defis').select('*').eq('client_id', clientId).order('start_date', { ascending: false }),
+    sb.from('client_ads').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
   ]);
   devices = devicesRes.data || [];
   games = gamesRes.data || [];
@@ -311,6 +313,7 @@ async function loadClientDetail(clientId) {
   allSessions = allSessionsRes.data || [];
   events = eventsRes.data || [];
   defis = defisRes.data || [];
+  clientAds = adsRes.data || [];
 }
 async function loadChallenges() {
   const { data } = await sb.from('challenges')
@@ -478,6 +481,7 @@ function renderMain() {
       <div class="tab ${activeTab === 'clientsettings' ? 'active' : ''}" data-tab="clientsettings">Réglages</div>
       <div class="tab ${activeTab === 'questionnaires' ? 'active' : ''}" data-tab="questionnaires">Questionnaires</div>
       <div class="tab ${activeTab === 'tabletmenu' ? 'active' : ''}" data-tab="tabletmenu">Menu tablette</div>
+      <div class="tab ${activeTab === 'ads' ? 'active' : ''}" data-tab="ads">Publicité</div>
     </div>
     <div id="tabContent"></div>
   `;
@@ -492,6 +496,7 @@ function renderMain() {
   else if (activeTab === 'clientsettings') renderClientSettingsTab();
   else if (activeTab === 'questionnaires') renderQuestionnairesTab();
   else if (activeTab === 'tabletmenu') renderTabletMenuTab();
+  else if (activeTab === 'ads') renderAdsTab();
   else renderDataTab();
 }
 
@@ -1622,6 +1627,103 @@ async function renderTabletMenuTab() {
   }
 
   render();
+}
+
+/* ---------------- Publicité (par client) ---------------- */
+function renderAdsTab() {
+  const el = document.getElementById('tabContent');
+  const client = clients.find(c => c.id === selectedClientId);
+  const sortedAds = [...clientAds].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  el.innerHTML = `
+    <div class="card">
+      <h3>Publicités sur l'écran d'accueil</h3>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:8px;">
+        <input type="checkbox" id="adsEnabledToggle" ${client.ads_enabled ? 'checked' : ''}>
+        Activer les publicités pour ce client
+      </label>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0;">Quand c'est activé, 35% de l'écran d'accueil de la tablette (au-dessus du bas) est consacré à l'affichage des publicités actives, qui défilent automatiquement toutes les 4 secondes. Ce n'est pas cliquable.</p>
+    </div>
+    <div class="card">
+      <h3>Ajouter une publicité</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin-bottom:10px;">
+        Dimensions idéales pour la tablette standard : <b>1600 × 900 px</b> (format paysage, ratio 16:9). L'image occupera toute la largeur sur 35% de la hauteur de l'écran.
+      </p>
+      <input id="newAdImage" type="file" accept="image/*" style="margin-bottom:10px;">
+      <div class="row" style="gap:8px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:160px;">
+          <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Activation programmée (optionnel)</div>
+          <input id="newAdStart" type="datetime-local" style="margin-bottom:6px;">
+        </div>
+        <div style="flex:1;min-width:160px;">
+          <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Désactivation programmée (optionnel)</div>
+          <input id="newAdEnd" type="datetime-local" style="margin-bottom:6px;">
+        </div>
+      </div>
+      <button class="btn-primary" id="btnAddAd" style="width:auto;">Ajouter</button>
+    </div>
+    <div class="card">
+      <h3>Historique des publicités</h3>
+      ${sortedAds.length === 0 ? '<p class="empty">Aucune publicité pour le moment.</p>' : `
+        <table>
+          <tr><th>Aperçu</th><th>Statut</th><th>Programmation</th><th>Ajoutée le</th><th></th></tr>
+          ${sortedAds.map(ad => `
+            <tr>
+              <td><img src="${ad.image_url}" style="width:80px;height:45px;object-fit:cover;border-radius:6px;"></td>
+              <td><label style="display:flex;align-items:center;gap:6px;white-space:nowrap;"><input type="checkbox" data-toggle-ad="${ad.id}" ${ad.is_active ? 'checked' : ''}> ${ad.is_active ? 'Active' : 'Inactive'}</label></td>
+              <td style="font-size:12px;color:var(--text-dim);">
+                ${ad.start_at ? 'Début : ' + new Date(ad.start_at).toLocaleString('fr-CH') + '<br>' : ''}
+                ${ad.end_at ? 'Fin : ' + new Date(ad.end_at).toLocaleString('fr-CH') : ''}
+                ${!ad.start_at && !ad.end_at ? '—' : ''}
+              </td>
+              <td style="font-size:12px;color:var(--text-dim);">${new Date(ad.created_at).toLocaleDateString('fr-CH')}</td>
+              <td><button class="btn-destructive" data-del-ad="${ad.id}" style="width:auto;">Supprimer</button></td>
+            </tr>
+          `).join('')}
+        </table>
+      `}
+    </div>
+  `;
+
+  document.getElementById('adsEnabledToggle').addEventListener('change', async (e) => {
+    await sb.from('clients').update({ ads_enabled: e.target.checked }).eq('id', selectedClientId);
+    await loadClients();
+    await loadClientDetail(selectedClientId);
+    renderAdsTab();
+  });
+
+  document.getElementById('btnAddAd').addEventListener('click', async () => {
+    const file = document.getElementById('newAdImage').files[0];
+    if (!file) { alert('Choisis une image.'); return; }
+    const startVal = document.getElementById('newAdStart').value;
+    const endVal = document.getElementById('newAdEnd').value;
+    let image_url;
+    try { image_url = await uploadBanner(file); } catch (e) { alert("Erreur d'upload : " + e.message); return; }
+    const payload = {
+      client_id: selectedClientId, image_url, is_active: true,
+      start_at: startVal ? new Date(startVal).toISOString() : null,
+      end_at: endVal ? new Date(endVal).toISOString() : null,
+    };
+    const { error } = await sb.from('client_ads').insert(payload);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    await loadClientDetail(selectedClientId);
+    renderAdsTab();
+  });
+
+  el.querySelectorAll('[data-toggle-ad]').forEach(cb => {
+    cb.addEventListener('change', async () => {
+      await sb.from('client_ads').update({ is_active: cb.checked }).eq('id', cb.dataset.toggleAd);
+      await loadClientDetail(selectedClientId);
+      renderAdsTab();
+    });
+  });
+  el.querySelectorAll('[data-del-ad]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Supprimer cette publicité ?')) return;
+      await sb.from('client_ads').delete().eq('id', btn.dataset.delAd);
+      await loadClientDetail(selectedClientId);
+      renderAdsTab();
+    });
+  });
 }
 
 /* ---------------- Contenu global (jeux + Index), indépendant du client ---------------- */
