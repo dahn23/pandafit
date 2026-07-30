@@ -146,7 +146,11 @@
   .row > * { flex: 1; min-width: 140px; }
 
   /* --- Home --- */
-  .home-top-row { display: flex; gap: 10px; align-items: stretch; margin: 4px 0 14px; }
+  .home-top-row {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 45; max-width: 900px; margin: 0 auto;
+    display: flex; gap: 10px; align-items: stretch;
+    background: var(--bg); padding: calc(14px + env(safe-area-inset-top)) 20px 10px;
+  }
   .lang-flags-2x2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; flex: 0 0 auto; }
   .lang-flag-btn {
     width: 44px; height: 44px; border-radius: 50%; border: none; background: var(--panel);
@@ -2014,6 +2018,7 @@ function wireRHPin(targetRoute) {
 
 function render() {
   const connected = PandaFitSensor.isConnected();
+  content.style.paddingTop = '';
   if (!connected && (currentRoute === 'home' || currentRoute === 'games' || currentRoute === 'indextest')) {
     content.innerHTML = screenConnect();
     wireConnectScreen();
@@ -2165,6 +2170,8 @@ function wireHomeScreen() {
   renderCarousel('events', 'eventsWrap');
   startCarouselTimer('events', 'eventsWrap');
   wireInfoCardsSparkle();
+  const headerEl = document.querySelector('.home-top-row');
+  if (headerEl) content.style.paddingTop = (headerEl.offsetHeight + 14) + 'px';
 }
 
 /* ---------- Pile principale (défis/challenges/jeux/index) + carrousel Événements ---------- */
