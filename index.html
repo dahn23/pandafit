@@ -2840,8 +2840,7 @@ function renderSkiPlaying(snap) {
     cursorEl.style.left = Math.max(2, Math.min(96, 50 + (quality - 0.5) * 90)) + '%';
   }
   if (banner) banner.style.opacity = snap.finished ? 1 : 0;
-  const nearFinish = snap.finished || (snap.totalDist - snap.distLeft) >= (snap.totalDist - 30); // plus de portes sur les 30 derniers mètres
-  if (gatesEl) gatesEl.style.opacity = nearFinish ? 0 : 1;
+  if (gatesEl) gatesEl.style.opacity = 1;
 
   // Trajectoire automatique à travers les portes (pas la position réelle du capteur) —
   // seule la vitesse dépend du vrai mouvement. L'orientation bascule exactement quand
@@ -2856,18 +2855,23 @@ function renderSkiPlaying(snap) {
   window._skiLastSwing = swing;
   if (Math.abs(swingDelta) > 0.0001) window._skiFacingRight = swingDelta > 0;
   const facingRight = !!window._skiFacingRight;
-  skier.setAttribute('transform', `translate(${skierX},${SKI_SKIER_Y}) scale(${facingRight ? -1 : 1},1)`);
+  skier.setAttribute('transform', `translate(${skierX},${SKI_SKIER_Y}) scale(${facingRight ? 1 : -1},1)`);
+
+  const progress = (snap.totalDist - snap.distLeft) / snap.totalDist;
+  const travelNeeded = SKI_FINISH_BASE_Y - SKI_SKIER_Y;
+  const finishFrontY = Math.max(SKI_SKIER_Y, SKI_FINISH_BASE_Y - progress * travelNeeded);
 
   // Sécurité : tout élément qui calculerait une position hors de la neige (0-200) est masqué,
-  // plutôt que de compter uniquement sur le découpage du cadre SVG.
-  if (!nearFinish) {
-    (window._skiGateEls || []).forEach(({ el, x }) => {
-      const baseY = parseFloat(el.dataset.baseY);
-      const y = skiWrapY(baseY, traveled, window._skiGateRange, 10);
-      el.setAttribute('transform', `translate(${x},${y})`);
-      el.style.display = (y >= 0 && y <= 196) ? '' : 'none';
-    });
-  }
+  // plutôt que de compter uniquement sur le découpage du cadre SVG. Une porte disparaît
+  // aussi dès que la ligne d'arrivée l'a rattrapée/dépassée (plutôt que toutes en même temps).
+  (window._skiGateEls || []).forEach(({ el, x }) => {
+    const baseY = parseFloat(el.dataset.baseY);
+    const y = skiWrapY(baseY, traveled, window._skiGateRange, 10);
+    el.setAttribute('transform', `translate(${x},${y})`);
+    const inBounds = y >= 0 && y <= 196;
+    const pastFinish = y <= finishFrontY;
+    el.style.display = (inBounds && !pastFinish) ? '' : 'none';
+  });
   document.getElementById('skiTrees')?.querySelectorAll('text').forEach((el) => {
     const baseY = parseFloat(el.dataset.baseY);
     const y = skiWrapY(baseY, traveled, window._skiTreeRange, window._skiTreeMinY);
@@ -2875,8 +2879,6 @@ function renderSkiPlaying(snap) {
     el.style.display = (y >= 0 && y <= 200) ? '' : 'none';
   });
 
-  const progress = (snap.totalDist - snap.distLeft) / snap.totalDist;
-  const travelNeeded = SKI_FINISH_BASE_Y - SKI_SKIER_Y;
   (window._skiFinishEls || []).forEach((el) => {
     const baseY = parseFloat(el.dataset.baseY);
     const y = Math.max(SKI_SKIER_Y, baseY - progress * travelNeeded);
