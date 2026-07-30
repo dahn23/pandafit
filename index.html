@@ -929,8 +929,8 @@ const ZoneGame = (() => {
    ===================================================================================== */
 const ElectroGame = (() => {
   const SENS = { easy: 0.7, hard: 2.4 }; // influence du capteur sur le tremblement du fil
-  const TOLERANCE = 32; // tolérance du doigt, en unités du viewBox SVG (ajustée au trait plus épais)
-  const N = 30;
+  const TOLERANCE = 55; // tolérance du doigt, en unités du viewBox SVG (bien plus généreuse)
+  const N = 50;
   const FREEZE_MS = 2000;
   const PREPARE_SECONDS = 3;
   const Y_TOP = 40, Y_BOTTOM = 460;
@@ -942,11 +942,14 @@ const ElectroGame = (() => {
 
   function generatePath() {
     const pts = [];
-    const seedA = 0.4 + Math.random() * 0.5, seedB = 1.3 + Math.random() * 0.9, phase = Math.random() * 6;
+    // Une seule fréquence basse => courbes douces façon "S", pas de zigzag anguleux.
+    const seedA = 0.12 + Math.random() * 0.1;
+    const amp = 95 + Math.random() * 15;
+    const phase = Math.random() * 6;
     for (let i = 0; i <= N; i++) {
       const y = Y_TOP + ((Y_BOTTOM - Y_TOP) * i) / N;
-      const baseX = 150 + Math.sin(i * seedA + phase) * 70 + Math.sin(i * seedB) * 25;
-      pts.push({ y, baseX: Math.max(40, Math.min(260, baseX)) });
+      const baseX = 150 + Math.sin(i * seedA + phase) * amp;
+      pts.push({ y, baseX: Math.max(25, Math.min(275, baseX)) });
     }
     return pts;
   }
@@ -3001,22 +3004,34 @@ function screenElectroPlaying() {
   `;
 }
 
+let electroSparkInterval = null;
 function electroSpawnSpark(x, y) {
   const spark = document.getElementById('electroSpark');
   if (!spark) return;
-  let html = '';
-  for (let i = 0; i < 8; i++) {
-    const ang = (Math.PI * 2 * i) / 8;
-    html += `<line x1="${x}" y1="${y}" x2="${x + Math.cos(ang) * 26}" y2="${y + Math.sin(ang) * 26}" stroke="#e0a83e" stroke-width="3" stroke-linecap="round"/>`;
-  }
-  spark.innerHTML = html;
-  spark.setAttribute('opacity', 1);
   const hint = document.getElementById('electroHint');
   if (hint) hint.textContent = 'Figé ! Une vie perdue — reprends dès que ça repart.';
+
+  function drawBurst() {
+    let html = '';
+    const nLines = 14;
+    for (let i = 0; i < nLines; i++) {
+      const ang = (Math.PI * 2 * i) / nLines + (Math.random() - 0.5) * 0.4;
+      const len = 30 + Math.random() * 25;
+      html += `<line x1="${x}" y1="${y}" x2="${x + Math.cos(ang) * len}" y2="${y + Math.sin(ang) * len}" stroke="#e0a83e" stroke-width="4" stroke-linecap="round"/>`;
+    }
+    spark.innerHTML = html;
+  }
+
+  clearInterval(electroSparkInterval);
+  drawBurst();
+  spark.setAttribute('opacity', 1);
+  electroSparkInterval = setInterval(drawBurst, 130); // scintillement pendant tout le freeze
+
   setTimeout(() => {
+    clearInterval(electroSparkInterval);
     spark.setAttribute('opacity', 0);
     if (hint) hint.textContent = 'Fais glisser le doigt le long du fil, du vert au orange.';
-  }, 700);
+  }, 2000);
 }
 
 function wireElectroPlaying() {
