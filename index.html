@@ -929,7 +929,7 @@ const ZoneGame = (() => {
    ===================================================================================== */
 const ElectroGame = (() => {
   const SENS = { easy: 0.7, hard: 2.4 }; // influence du capteur sur le tremblement du fil
-  const TOLERANCE = 22; // tolérance du doigt, en unités du viewBox SVG
+  const TOLERANCE = 32; // tolérance du doigt, en unités du viewBox SVG (ajustée au trait plus épais)
   const N = 30;
   const FREEZE_MS = 2000;
   const PREPARE_SECONDS = 3;
@@ -2979,9 +2979,9 @@ function screenElectroPlaying() {
       <div class="timer" id="electroTimer">0:00.0</div>
     </div>
     <div class="zone-canvas-wrap">
-      <svg id="electroScene" style="display:block;width:100%;max-width:280px;height:auto;touch-action:none;" viewBox="0 0 300 500" preserveAspectRatio="xMidYMid meet">
-        <path id="electroDim" d="" fill="none" stroke="#3a3355" stroke-width="7" stroke-linecap="round"/>
-        <path id="electroDone" d="" fill="none" stroke="#7f77dd" stroke-width="7" stroke-linecap="round"/>
+      <svg id="electroScene" style="display:block;width:100%;max-width:280px;height:467px;touch-action:none;" viewBox="0 0 300 500" preserveAspectRatio="xMidYMid meet">
+        <path id="electroDim" d="" fill="none" stroke="#3a3355" stroke-width="28" stroke-linecap="round"/>
+        <path id="electroDone" d="" fill="none" stroke="#7f77dd" stroke-width="28" stroke-linecap="round"/>
         <circle id="electroStartRing" r="15" fill="none" stroke="#43cea2" stroke-width="3"/>
         <circle id="electroEndRing" r="15" fill="none" stroke="#e0a83e" stroke-width="3"/>
         <circle id="electroFinger" r="10" fill="#fefefe"/>
