@@ -64,7 +64,12 @@
 
   /* --- Generic --- */
   h1.page-title { font-size: 22px; font-weight: 700; margin: 6px 0 4px; }
-  p.page-sub { color: var(--text-dim); font-size: 14px; margin: 0 0 22px; line-height: 1.4; }
+  p.page-sub { color: #c7c2db; font-size: 21px; margin: 0 0 22px; line-height: 1.45; }
+  .centered-page { display: flex; flex-direction: column; justify-content: center; min-height: 75vh; }
+  .catch-pulse { position: absolute; width: 50px; height: 50px; border-radius: 50%; animation: catchPulse 0.5s ease-out forwards; }
+  .catch-pulse.good { background: #43cea2; }
+  .catch-pulse.bad { background: #e6374e; }
+  @keyframes catchPulse { 0% { transform: scale(0.3); opacity: 0.9; } 100% { transform: scale(2.4); opacity: 0; } }
 
   .card {
     background: var(--panel); border-radius: 18px; padding: 20px;
@@ -1135,76 +1140,103 @@ const WaterCupGame = (() => {
    et éviter la malbouffe.
    ===================================================================================== */
 const MigrosGame = (() => {
-  const MAX_RANGE_CM = 12; // amplitude du mouvement du pied prise en compte
+  const RADIUS_CM = { easy: 4.0, medium: 2.0, hard: 1.0 }; // taille de la zone à ne pas quitter (comme The Zone)
+  const POSITION_DIVIDER = 2;
   const PREPARE_SECONDS = 3;
+  const HEALTHY_EMOJIS = ['🍎', '🍌', '🍇', '🍓', '🥕', '🍊', '🍉'];
+  const JUNK_EMOJIS = ['🍬', '🍭', '🍩', '🧁', '🍫', '🍟'];
 
-  let cfg = { duration: 45 };
+  let cfg = { difficulty: 'medium', duration: 45, lives: 3 };
   let s = null;
-  let rafId = null, spawnTimer = null, tickTimer = null;
-  let onFrameCb = null, onFinishCb = null;
-  let latestFootX = 0;
+  let latestX = 0, latestY = 0;
+  function onSensorData(d) { latestX = d.x / (100 * POSITION_DIVIDER); latestY = d.y / (100 * POSITION_DIVIDER); } // cm, comme The Zone
 
-  function onSensorData(d) { latestFootX = d.x / 200; } // cm, même échelle que The Zone
+  function radiusCm() { return RADIUS_CM[cfg.difficulty]; }
+  function livesRemaining() { return cfg.lives === Infinity ? Infinity : Math.max(0, cfg.lives - s.livesLost); }
 
   function reset() {
-    s = { basketX: 0.5, items: [], score: 0, livesLost: 0, lives: 3, timeLeft: cfg.duration, running: true };
+    s = {
+      items: [], goodCount: 0, junkCount: 0, livesLost: 0, timeLeft: cfg.duration,
+      running: true, lastZoneState: 'none', xCm: 0, yCm: 0,
+    };
   }
 
   function spawnItem() {
-    const isJunk = Math.random() < 0.35;
-    s.items.push({ kind: isJunk ? 'junk' : 'healthy', x: 0.1 + Math.random() * 0.8, y: -0.05, speed: 0.09 + Math.random() * 0.05 });
+    const isJunk = Math.random() < 0.4;
+    const emoji = isJunk
+      ? JUNK_EMOJIS[Math.floor(Math.random() * JUNK_EMOJIS.length)]
+      : HEALTHY_EMOJIS[Math.floor(Math.random() * HEALTHY_EMOJIS.length)];
+    s.items.push({ id: Math.random().toString(36).slice(2), kind: isJunk ? 'junk' : 'healthy', emoji, x: 0.1 + Math.random() * 0.8, y: -0.06, speed: 0.09 + Math.random() * 0.05 });
   }
 
-  function start(config, onFrame, onFinish) {
-    cfg = config; onFrameCb = onFrame; onFinishCb = onFinish;
+  let rafId = null, spawnTimer = null, tickTimer = null;
+  let onFrameCb = null, onFinishCb = null, onCatchCb = null;
+
+  function start(config, onFrame, onFinish, onCatch) {
+    cfg = config; onFrameCb = onFrame; onFinishCb = onFinish; onCatchCb = onCatch;
     reset();
     PandaFitSensor.off('data', onSensorData);
     PandaFitSensor.on('data', onSensorData);
-    spawnTimer = setInterval(spawnItem, 850);
-    tickTimer = setInterval(() => {
-      s.timeLeft -= 1;
-      if (s.timeLeft <= 0) finish();
-    }, 1000);
+    spawnTimer = setInterval(spawnItem, 800);
+    tickTimer = setInterval(() => { s.timeLeft -= 1; if (s.timeLeft <= 0) finish('time'); }, 1000);
     loop();
   }
 
   function loop() {
     if (!s.running) return;
-    // Position du panier : on mappe le X du pied (cm) sur 0..1
-    const norm = Math.max(-1, Math.min(1, latestFootX / MAX_RANGE_CM));
-    s.basketX = 0.5 + norm * 0.42;
-
+    s.xCm = latestX; s.yCm = latestY;
+    const squared = latestX * latestX + latestY * latestY;
+    const squaredRange = radiusCm() * radiusCm();
+    if (squared > squaredRange && s.lastZoneState !== 'outside') {
+      s.lastZoneState = 'outside';
+      s.livesLost++;
+      SoundFx.lifeLost();
+      if (cfg.lives !== Infinity && livesRemaining() <= 0) { finish('lives'); return; }
+    } else if (squared <= squaredRange && s.lastZoneState !== 'inside') {
+      s.lastZoneState = 'inside';
+    }
     for (let i = s.items.length - 1; i >= 0; i--) {
       const it = s.items[i];
-      it.y += it.speed * 0.03;
-      if (it.y > 0.86 && it.y < 0.97 && Math.abs(it.x - s.basketX) < 0.09) {
-        if (it.kind === 'junk') { s.livesLost++; SoundFx.lifeLost(); }
-        else { s.score += 10; SoundFx.ready(); }
-        s.items.splice(i, 1);
-        if (it.kind === 'junk' && s.livesLost >= s.lives) { finish(); return; }
-        continue;
-      }
+      it.y += it.speed * 0.02;
       if (it.y > 1.05) s.items.splice(i, 1);
     }
     onFrameCb && onFrameCb(snapshot());
     rafId = requestAnimationFrame(loop);
   }
 
-  function finish() {
+  /** À appeler quand le joueur tape sur un item affiché à l'écran (par son id). */
+  function tapItem(id) {
+    if (!s || !s.running) return null;
+    const idx = s.items.findIndex(it => it.id === id);
+    if (idx === -1) return null;
+    const it = s.items[idx];
+    s.items.splice(idx, 1);
+    if (it.kind === 'junk') { s.junkCount++; SoundFx.lifeLost(); }
+    else { s.goodCount++; SoundFx.ready(); }
+    onCatchCb && onCatchCb(it.kind, it.x, it.y);
+    return it.kind;
+  }
+
+  function finish(reason) {
     if (!s.running) return;
     s.running = false;
-    clearInterval(spawnTimer); clearInterval(tickTimer);
-    cancelAnimationFrame(rafId);
+    clearInterval(spawnTimer); clearInterval(tickTimer); cancelAnimationFrame(rafId);
     PandaFitSensor.off('data', onSensorData);
     SoundFx.finish();
-    onFinishCb && onFinishCb(snapshot());
+    onFinishCb && onFinishCb(snapshot(), reason);
   }
 
   function snapshot() {
-    return { basketX: s.basketX, items: s.items.slice(), score: s.score, livesLost: s.livesLost, lives: s.lives, timeLeft: s.timeLeft };
+    return {
+      items: s.items.slice(), goodCount: s.goodCount, junkCount: s.junkCount,
+      livesLost: s.livesLost, livesRemaining: livesRemaining(), timeLeft: s.timeLeft,
+      xCm: s.xCm, yCm: s.yCm, radiusCm: radiusCm(), difficulty: cfg.difficulty, lives: cfg.lives,
+    };
   }
 
-  return { start, finish, snapshot, PREPARE_SECONDS };
+  function computeScore(snap) { return snap.goodCount - snap.junkCount; }
+
+  return { start, finish, snapshot, tapItem, computeScore, radiusCm, PREPARE_SECONDS };
 })();
 
 /* =====================================================================================
@@ -2161,6 +2193,7 @@ function segmented(name, options, selected) {
 
 function screenZoneSetup() {
   return `
+    <div class="centered-page">
     <h1 class="page-title" style="margin-top:56px;">The Zone</h1>
     <p class="page-sub">Reste dans le cercle sans en sortir. Chaque sortie de zone te coûte une vie.</p>
     <div class="card">
@@ -2189,6 +2222,7 @@ function screenZoneSetup() {
       ], zoneSetupCfg.lives === Infinity ? 'Infinity' : zoneSetupCfg.lives)}
     </div>
     <button class="btn-primary" id="btnZoneStart" style="width:100%;">Commencer</button>
+  </div>
   `;
 }
 
@@ -2279,6 +2313,7 @@ function setHeartsIfChanged(el, filled, total) {
 
 function screenZonePlaying() {
   return `
+    <div class="centered-page">
     <div class="zone-hud">
       <div class="hearts" id="zoneHearts"></div>
       <div class="timer" id="zoneTimer">--</div>
@@ -2287,6 +2322,7 @@ function screenZonePlaying() {
       <canvas id="zoneCanvas" width="300" height="300"></canvas>
     </div>
     <p class="page-sub" style="text-align:center;">Reste dans le cercle vert.</p>
+  </div>
   `;
 }
 
@@ -2451,9 +2487,18 @@ const MIGROS_THEME = '--primary:#ff7a00;--primary-dark:#e05a00;--accent:#ffb703;
 
 function screenMigrosSetup() {
   return `
+    <div class="centered-page">
     <div style="${MIGROS_THEME}">
       <h1 class="page-title" style="display:flex;align-items:center;gap:10px;margin-top:56px;"><i data-lucide="shopping-cart"></i> Le Panier Malin</h1>
-      <p class="page-sub">Habillage Migros Vaud — mascotte et couleurs originales, pensé pour promouvoir l'alimentation saine. Déplace le panier avec ton pied (gauche/droite) et attrape les bons produits, évite la malbouffe.</p>
+      <p class="page-sub">Reste dans la zone en bas sans en sortir, et tape sur les bons aliments qui tombent — évite les sucreries.</p>
+      <div class="card">
+        <h2>Difficulté (taille de la zone)</h2>
+        ${segmented('migrosDifficulty', [
+          { value: 'easy', label: 'Facile (4 cm)' },
+          { value: 'medium', label: 'Moyen (2 cm)' },
+          { value: 'hard', label: 'Difficile (1 cm)' },
+        ], migrosCfg.difficulty)}
+      </div>
       <div class="card">
         <h2>Durée</h2>
         ${segmented('migrosDuration', [
@@ -2462,16 +2507,29 @@ function screenMigrosSetup() {
           { value: 60, label: '60 s' },
         ], migrosCfg.duration)}
       </div>
+      <div class="card">
+        <h2>Vies</h2>
+        ${segmented('migrosLives', [
+          { value: 3, label: '3 vies' },
+          { value: 5, label: '5 vies' },
+          { value: 'Infinity', label: 'Illimité' },
+        ], migrosCfg.lives === Infinity ? 'Infinity' : migrosCfg.lives)}
+      </div>
       <button class="btn-primary" id="btnMigrosStart" style="width:100%;">Commencer</button>
     </div>
+  </div>
   `;
 }
-let migrosCfg = { duration: 45 };
+let migrosCfg = { difficulty: 'medium', duration: 45, lives: 3 };
 function wireMigrosSetup() {
   document.querySelectorAll('.segmented').forEach(group => {
     group.querySelectorAll('button').forEach(btn => {
       btn.addEventListener('click', () => {
-        migrosCfg.duration = Number(btn.dataset.value);
+        const group_name = group.dataset.group;
+        let v = btn.dataset.value;
+        if (v === 'Infinity') v = Infinity; else if (!isNaN(v)) v = Number(v);
+        const key = group_name.replace('migros', '').replace(/^./, c => c.toLowerCase());
+        migrosCfg[key] = v;
         group.querySelectorAll('button').forEach(b => b.classList.toggle('selected', b === btn));
       });
     });
@@ -2482,7 +2540,7 @@ function wireMigrosSetup() {
 }
 function migrosPrepareThenStart() {
   let remaining = MigrosGame.PREPARE_SECONDS;
-  content.innerHTML = `<div style="${MIGROS_THEME}">${screenGenericPrepare(remaining, 'shopping-cart', 'Prépare le panier, ça démarre dans...')}</div>`;
+  content.innerHTML = `<div style="${MIGROS_THEME}">${screenGenericPrepare(remaining, 'shopping-cart', 'Prépare-toi, ça démarre dans...')}</div>`;
   SoundFx.ready();
   const timer = setInterval(() => {
     remaining--;
@@ -2493,12 +2551,15 @@ function migrosPrepareThenStart() {
 }
 function startMigrosGame() {
   content.innerHTML = `<div style="${MIGROS_THEME}">${screenMigrosPlaying()}</div>`;
+  wireMigrosPlaying();
   MigrosGame.start(migrosCfg,
     (snap) => renderMigrosPlaying(snap),
-    (snap) => {
-      PandaFitBackend.recordSession(clientConfig, 'migros', snap.score, { livesLost: snap.livesLost }).then(submitPendingAnswersIfAny);
-      content.innerHTML = `<div style="${MIGROS_THEME}">${screenMigrosResult(snap)}</div>`; wireMigrosResult();
-    }
+    (snap, reason) => {
+      const score = MigrosGame.computeScore(snap);
+      PandaFitBackend.recordSession(clientConfig, 'migros', score, { difficulty: migrosCfg.difficulty, goodCount: snap.goodCount, junkCount: snap.junkCount, livesLost: snap.livesLost, reason }).then(submitPendingAnswersIfAny);
+      content.innerHTML = `<div style="${MIGROS_THEME}">${screenMigrosResult(snap, score, reason)}</div>`; wireMigrosResult();
+    },
+    (kind, x, y) => migrosSpawnCatchPulse(kind, x, y)
   );
 }
 function screenMigrosPlaying() {
@@ -2507,55 +2568,78 @@ function screenMigrosPlaying() {
       <div class="hearts" id="migrosHearts"></div>
       <div class="timer" id="migrosTimer">--</div>
     </div>
-    <div class="migros-canvas-wrap"><canvas id="migrosCanvas" width="320" height="360"></canvas></div>
-    <p class="page-sub" style="text-align:center;">Bouge le pied gauche/droite pour attraper les bons produits</p>
+    <div id="migrosFallArea" style="position:relative;width:100%;height:46vh;overflow:hidden;">
+      <div id="migrosItems" style="position:absolute;inset:0;"></div>
+      <div id="migrosPulses" style="position:absolute;inset:0;pointer-events:none;"></div>
+    </div>
+    <div class="zone-canvas-wrap" style="margin-top:4px;">
+      <canvas id="migrosZoneCanvas" width="220" height="220"></canvas>
+    </div>
+    <p class="page-sub" style="text-align:center;">Reste dans le cercle, tape les bons aliments.</p>
   `;
+}
+function wireMigrosPlaying() {
+  const itemsEl = document.getElementById('migrosItems');
+  itemsEl?.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-item-id]');
+    if (!el) return;
+    MigrosGame.tapItem(el.dataset.itemId);
+  });
+}
+function migrosSpawnCatchPulse(kind, xNorm, yNorm) {
+  const area = document.getElementById('migrosFallArea');
+  const pulses = document.getElementById('migrosPulses');
+  if (!area || !pulses) return;
+  const rect = area.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'catch-pulse ' + (kind === 'healthy' ? 'good' : 'bad');
+  el.style.left = (xNorm * rect.width - 25) + 'px';
+  el.style.top = (yNorm * rect.height - 25) + 'px';
+  pulses.appendChild(el);
+  setTimeout(() => el.remove(), 500);
 }
 function renderMigrosPlaying(snap) {
   const heartsEl = document.getElementById('migrosHearts');
   const timerEl = document.getElementById('migrosTimer');
-  setHeartsIfChanged(heartsEl, Math.max(0, snap.lives - snap.livesLost), snap.lives);
-  if (timerEl) timerEl.textContent = `${Math.max(0, snap.timeLeft)}s · ${snap.score} pts`;
-  const canvas = document.getElementById('migrosCanvas');
+  setHeartsIfChanged(heartsEl, snap.livesRemaining, migrosCfg.lives);
+  if (timerEl) timerEl.textContent = `${Math.max(0, snap.timeLeft)}s · 🍎${snap.goodCount} 🍬${snap.junkCount}`;
+
+  const itemsEl = document.getElementById('migrosItems');
+  if (itemsEl) {
+    itemsEl.innerHTML = snap.items.map(it => `
+      <div data-item-id="${it.id}" style="position:absolute;left:${it.x * 100}%;top:${it.y * 100}%;transform:translate(-50%,-50%);font-size:34px;cursor:pointer;line-height:1;">${it.emoji}</div>
+    `).join('');
+  }
+
+  const canvas = document.getElementById('migrosZoneCanvas');
   if (!canvas) return;
-  const ctx = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height, cx = w / 2, cy = h / 2;
+  const pxPerCm = 20;
   ctx.clearRect(0, 0, w, h);
-  // produits qui tombent : cercle plein, vert = sain, rouge = malbouffe
-  snap.items.forEach(it => {
-    const cx = it.x * w, cy = it.y * h, r = 15;
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = it.kind === 'healthy' ? '#43cea2' : '#e6374e';
-    ctx.fill();
-    ctx.beginPath();
-    if (it.kind === 'healthy') {
-      // petit "check" pour les produits sains
-      ctx.strokeStyle = '#0c2018'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
-      ctx.moveTo(cx - 6, cy); ctx.lineTo(cx - 1, cy + 5); ctx.lineTo(cx + 7, cy - 6);
-    } else {
-      // petite croix pour la malbouffe
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
-      ctx.moveTo(cx - 5, cy - 5); ctx.lineTo(cx + 5, cy + 5);
-      ctx.moveTo(cx + 5, cy - 5); ctx.lineTo(cx - 5, cy + 5);
-    }
-    ctx.stroke();
-  });
-  // panier : trapèze arrondi aux couleurs Migros
-  const bx = snap.basketX * w, by = h * 0.9, bw2 = 60, bh = 24;
+  const inside = (snap.xCm * snap.xCm + snap.yCm * snap.yCm) <= (snap.radiusCm * snap.radiusCm);
   ctx.beginPath();
-  ctx.moveTo(bx - bw2 / 2 - 6, by);
-  ctx.lineTo(bx + bw2 / 2 + 6, by);
-  ctx.lineTo(bx + bw2 / 2, by + bh);
-  ctx.lineTo(bx - bw2 / 2, by + bh);
-  ctx.closePath();
-  ctx.fillStyle = '#ff7a00';
+  ctx.arc(cx, cy, snap.radiusCm * pxPerCm, 0, Math.PI * 2);
+  ctx.fillStyle = inside ? 'rgba(67,206,162,0.15)' : 'rgba(230,55,78,0.12)';
   ctx.fill();
-  ctx.strokeStyle = '#e05a00'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = inside ? '#43cea2' : '#e6374e';
+  ctx.stroke();
+  const px = cx + snap.xCm * pxPerCm, py = cy - snap.yCm * pxPerCm;
+  ctx.beginPath();
+  ctx.arc(px, py, 9, 0, Math.PI * 2);
+  ctx.fillStyle = inside ? '#43cea2' : '#e6374e';
+  ctx.fill();
 }
-function screenMigrosResult(snap) {
+function screenMigrosResult(snap, score, reason) {
   return `
-    <h1 class="page-title">Terminé !</h1>
-    <div class="result-score"><div class="num">${snap.score}</div><div class="lbl">Produits sains récoltés</div></div>
-    <div class="card"><div class="result-stat"><span>Malbouffe attrapée</span><span>${snap.livesLost}</span></div></div>
+    <h1 class="page-title">${reason === 'lives' ? 'Terminé — plus de vies' : 'Terminé — temps écoulé'}</h1>
+    <div class="result-score"><div class="num">${score}</div><div class="lbl">Score</div></div>
+    <div class="card">
+      <div class="result-stat"><span>Nombre de bons aliments</span><span>${snap.goodCount}</span></div>
+      <div class="result-stat"><span>Nombre de sucreries</span><span>${snap.junkCount}</span></div>
+      <div class="result-stat"><span>Score</span><span>${snap.goodCount} - ${snap.junkCount} = ${score}</span></div>
+    </div>
     <div class="row">
       <button class="btn-primary" id="btnMigrosReplay">Rejouer</button>
       ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnMigrosBack">Retour aux jeux</button>` : ''}
@@ -2578,6 +2662,7 @@ const SKI_TIPS = [
 let skiCfg = { difficulty: 'medium', gateCount: 20, lives: 3 };
 function screenSkiSetup() {
   return `
+    <div class="centered-page">
     <div style="${SKI_THEME}">
       <h1 class="page-title" style="display:flex;align-items:center;gap:10px;margin-top:56px;"><i data-lucide="mountain-snow"></i> Slalom Réflexe</h1>
       <p class="page-sub">Habillage inspiré des couleurs du ski suisse. De vraies portes de slalom (rouge/bleu) défilent : garde un rythme régulier gauche-droite, l'amplitude varie à chaque porte — comme un vrai tracé.</p>
@@ -2599,6 +2684,7 @@ function screenSkiSetup() {
       </div>
       <button class="btn-primary" id="btnSkiStart" style="width:100%;">Commencer</button>
     </div>
+  </div>
   `;
 }
 function wireSkiSetup() {
@@ -2729,6 +2815,7 @@ let eauSetupCfg = { difficulty: 'medium', duration: 60, lives: 3 };
 
 function screenEauSetup() {
   return `
+    <div class="centered-page">
     <h1 class="page-title" style="margin-top:56px;">Verre d'eau</h1>
     <p class="page-sub">Le panda te sert un verre rempli à ras bord. Reste stable pour ne pas le faire déborder.</p>
     <div class="card">
@@ -2757,6 +2844,7 @@ function screenEauSetup() {
       ], eauSetupCfg.lives === Infinity ? 'Infinity' : eauSetupCfg.lives)}
     </div>
     <button class="btn-primary" id="btnEauStart" style="width:100%;">Commencer</button>
+  </div>
   `;
 }
 
@@ -2916,6 +3004,7 @@ let electroSetupCfg = { sensitivity: 'easy', lives: 3 };
 
 function screenElectroSetup() {
   return `
+    <div class="centered-page">
     <h1 class="page-title" style="margin-top:56px;display:flex;align-items:center;gap:10px;"><i data-lucide="zap"></i> Electro</h1>
     <p class="page-sub">Suis le fil du doigt du haut vers le bas, sans le lâcher. Ton équilibre le fait trembler — reste stable. Le plus rapide gagne.</p>
     <div class="card">
@@ -2934,6 +3023,7 @@ function screenElectroSetup() {
       ], electroSetupCfg.lives === Infinity ? 'Infinity' : electroSetupCfg.lives)}
     </div>
     <button class="btn-primary" id="btnElectroStart" style="width:100%;">Commencer</button>
+  </div>
   `;
 }
 
@@ -3119,6 +3209,7 @@ let currentEmployee = null; // employé reconnu pour cette session de test (ou n
 
 function screenIndexIntro() {
   return `
+    <div class="centered-page">
     <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="activity"></i> ${t('index_title')}</h1>
     <p class="page-sub">${t('index_intro_sub')}</p>
     <div class="card">
@@ -3139,6 +3230,7 @@ function screenIndexIntro() {
       <p id="employeeCodeMsg" class="page-sub" style="margin:8px 0 0;"></p>
     </div>
     <button class="btn-primary" id="btnIndexStart" style="width:100%;">${t('index_start_btn')}</button>
+  </div>
   `;
 }
 function wireIndexIntro() {
