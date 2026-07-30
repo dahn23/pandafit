@@ -1960,6 +1960,7 @@ function renderQuestionnaireFlow() {
   const isLast = qFlowIndex === qFlowQuestions.length - 1;
   const answered = qFlowAnswers[qFlowIndex] != null;
   content.innerHTML = `
+    <button class="btn-ghost" id="btnQBackTop" style="margin-bottom:14px;">← Retour</button>
     <p class="page-sub">${t('q_question')} ${qFlowIndex + 1} / ${qFlowQuestions.length}</p>
     <div class="card">
       <h1 class="page-title" style="font-size:19px;margin-bottom:16px;">${pickLang(q, 'question_text')}</h1>
@@ -1979,6 +1980,10 @@ function renderQuestionnaireFlow() {
         : `<button class="btn-primary" id="btnQNext" ${answered ? '' : 'disabled'}>${t('q_next')}</button>`}
     </div>
   `;
+  document.getElementById('btnQBackTop')?.addEventListener('click', () => {
+    qFlowLaunchFn = null;
+    navigate('home');
+  });
   document.querySelectorAll('.qoption').forEach(btn => {
     btn.addEventListener('click', () => {
       qFlowAnswers[qFlowIndex] = btn.dataset.optionId;
@@ -2185,8 +2190,9 @@ function segmented(name, options, selected) {
 
 function screenZoneSetup() {
   return `
+    <button class="btn-ghost" id="btnZoneBack" style="margin-bottom:14px;">← Retour</button>
     <div class="centered-page">
-    <h1 class="page-title" style="margin-top:56px;">The Zone</h1>
+    <h1 class="page-title">The Zone</h1>
     <p class="page-sub">Reste dans le cercle sans en sortir. Chaque sortie de zone te coûte une vie.</p>
     <div class="card">
       <h2>Difficulté</h2>
@@ -2241,6 +2247,7 @@ function wireZoneSetup() {
   document.getElementById('btnZoneStart')?.addEventListener('click', () => {
     zonePrepareThenStart();
   });
+  document.getElementById('btnZoneBack')?.addEventListener('click', () => navigate('home'));
 }
 
 function zonePrepareThenStart() {
@@ -2492,9 +2499,10 @@ const MIGROS_THEME = '--primary:#ff7a00;--primary-dark:#e05a00;--accent:#ffb703;
 
 function screenMigrosSetup() {
   return `
+    <button class="btn-ghost" id="btnMigrosBackTop" style="margin-bottom:14px;">← Retour</button>
     <div class="centered-page">
     <div style="${MIGROS_THEME}">
-      <h1 class="page-title" style="display:flex;align-items:center;gap:10px;margin-top:56px;"><i data-lucide="shopping-cart"></i> Le Panier Malin</h1>
+      <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="shopping-cart"></i> Le Panier Malin</h1>
       <p class="page-sub">Reste dans la zone en bas sans en sortir, et tape sur les bons aliments qui tombent — évite les sucreries.</p>
       <div class="card">
         <h2>Difficulté (taille de la zone)</h2>
@@ -2542,6 +2550,7 @@ function wireMigrosSetup() {
   document.getElementById('btnMigrosStart')?.addEventListener('click', () => {
     migrosPrepareThenStart();
   });
+  document.getElementById('btnMigrosBackTop')?.addEventListener('click', () => navigate('home'));
 }
 function migrosPrepareThenStart() {
   let remaining = MigrosGame.PREPARE_SECONDS;
@@ -2669,9 +2678,10 @@ const SKI_TIPS = [
 let skiFinished = false;
 function screenSkiSetup() {
   return `
+    <button class="btn-ghost" id="btnSkiBackTop" style="margin-bottom:14px;">← Retour</button>
     <div class="centered-page">
     <div style="${SKI_THEME}">
-      <h1 class="page-title" style="display:flex;align-items:center;gap:10px;margin-top:56px;"><i data-lucide="mountain-snow"></i> Slalom Réflexe</h1>
+      <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="mountain-snow"></i> Slalom Réflexe</h1>
       <p class="page-sub">400m de piste. Balance-toi gauche/droite de façon régulière et ample pour prendre de la vitesse — jusqu'à 70 km/h si c'est parfait. Franchis la ligne le plus vite possible.</p>
       <button class="btn-primary" id="btnSkiStart" style="width:100%;">Commencer</button>
     </div>
@@ -2680,6 +2690,7 @@ function screenSkiSetup() {
 }
 function wireSkiSetup() {
   document.getElementById('btnSkiStart')?.addEventListener('click', () => skiPrepareThenStart());
+  document.getElementById('btnSkiBackTop')?.addEventListener('click', () => navigate('home'));
 }
 function skiPrepareThenStart() {
   let remaining = SlalomGame.PREPARE_SECONDS;
@@ -2871,8 +2882,9 @@ let eauSetupCfg = { difficulty: 'medium', duration: 60, lives: 3 };
 
 function screenEauSetup() {
   return `
+    <button class="btn-ghost" id="btnEauBackTop" style="margin-bottom:14px;">← Retour</button>
     <div class="centered-page">
-    <h1 class="page-title" style="margin-top:56px;">Verre d'eau</h1>
+    <h1 class="page-title">Verre d'eau</h1>
     <p class="page-sub">Le panda te sert un verre rempli à ras bord. Reste stable pour ne pas le faire déborder.</p>
     <div class="card">
       <h2>Difficulté</h2>
@@ -2917,6 +2929,7 @@ function wireEauSetup() {
     });
   });
   document.getElementById('btnEauStart')?.addEventListener('click', () => eauPrepareThenStart());
+  document.getElementById('btnEauBackTop')?.addEventListener('click', () => navigate('home'));
 }
 
 function eauPrepareThenStart() {
@@ -3062,8 +3075,9 @@ let electroSetupCfg = { sensitivity: 'easy', lives: 3 };
 
 function screenElectroSetup() {
   return `
+    <button class="btn-ghost" id="btnElectroBackTop" style="margin-bottom:14px;">← Retour</button>
     <div class="centered-page">
-    <h1 class="page-title" style="margin-top:56px;display:flex;align-items:center;gap:10px;"><i data-lucide="zap"></i> Electro</h1>
+    <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="zap"></i> Electro</h1>
     <p class="page-sub">Suis le fil du doigt du haut vers le bas, sans le lâcher. Ton équilibre le fait trembler — reste stable. Le plus rapide gagne.</p>
     <div class="card">
       <h2>Sensibilité</h2>
@@ -3098,6 +3112,7 @@ function wireElectroSetup() {
     });
   });
   document.getElementById('btnElectroStart')?.addEventListener('click', () => electroPrepareThenStart());
+  document.getElementById('btnElectroBackTop')?.addEventListener('click', () => navigate('home'));
 }
 
 function electroPrepareThenStart() {
@@ -3271,6 +3286,7 @@ let currentEmployee = null; // employé reconnu pour cette session de test (ou n
 
 function screenIndexIntro() {
   return `
+    <button class="btn-ghost" id="btnIndexBackTop" style="margin-bottom:14px;">← Retour</button>
     <div class="centered-page">
     <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="activity"></i> ${t('index_title')}</h1>
     <p class="page-sub">${t('index_intro_sub')}</p>
@@ -3297,6 +3313,7 @@ function screenIndexIntro() {
 }
 function wireIndexIntro() {
   document.getElementById('btnIndexStart')?.addEventListener('click', () => indexPrepareStatic());
+  document.getElementById('btnIndexBackTop')?.addEventListener('click', () => navigate('home'));
   document.getElementById('btnCheckCode')?.addEventListener('click', async () => {
     const code = document.getElementById('employeeCodeInput').value.trim();
     const msg = document.getElementById('employeeCodeMsg');
