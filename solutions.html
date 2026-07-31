@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PandaFit — Le programme complet pour les RH</title>
+<meta name="description" content="Toutes les options du programme PandaFit pour les entreprises : sondages, campagnes de santé, données multi-sites, marque blanche, accompagnement par nos coachs — et la science derrière l'équilibre et le stress.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A1512;
+    --bg-alt: #0E1F1A;
+    --panel: #122A22;
+    --panel-hi: #17362B;
+    --ink: #F3F7F1;
+    --ink-dim: #9FB6AC;
+    --brand: #2FE07C;
+    --brand-deep: #17A461;
+    --brand-glow: rgba(47,224,124,0.35);
+    --coral: #FF6B55;
+    --line: rgba(243,247,241,0.12);
+    --radius: 26px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: 'Inter', sans-serif; font-size: 16px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: 'Bricolage Grotesque', sans-serif; margin: 0; color: var(--ink); font-weight: 700; }
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--brand); display: flex; align-items: center; gap: 8px;
+  }
+  .eyebrow::before { content: ''; width: 20px; height: 2px; background: var(--coral); display: inline-block; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+  .wrap-narrow { max-width: 820px; margin: 0 auto; padding: 0 28px; }
+  a { color: inherit; }
+  img { max-width: 100%; display: block; }
+  button, .btn { font-family: 'Inter', sans-serif; cursor: pointer; }
+
+  .beam { position: relative; height: 1px; background: var(--line); margin: 0; }
+  .beam .bubble {
+    position: absolute; top: 50%; width: 11px; height: 11px; border-radius: 50%;
+    background: var(--brand); box-shadow: 0 0 16px var(--brand-glow); transform: translate(-50%, -50%);
+    animation: sway 5.5s ease-in-out infinite;
+  }
+  @keyframes sway { 0%, 100% { left: 46%; } 25% { left: 60%; } 50% { left: 50%; } 75% { left: 38%; } }
+  .beam.section-divider { max-width: 1180px; margin: 0 auto; }
+
+  header.site-header {
+    position: sticky; top: 0; z-index: 50; background: rgba(10,21,18,0.72); backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; max-width: 1180px; margin: 0 auto; }
+  .nav-brand { display: flex; align-items: center; gap: 10px; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 19px; text-decoration: none; }
+  .nav-brand .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 12px var(--brand-glow); }
+  .nav-links { display: flex; align-items: center; gap: 30px; font-size: 14.5px; font-weight: 500; }
+  .nav-links a { text-decoration: none; color: var(--ink-dim); }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-cta {
+    background: var(--brand); color: #06170F; border: none; border-radius: 100px; padding: 11px 20px;
+    font-size: 14px; font-weight: 700; text-decoration: none;
+  }
+  @media (max-width: 780px) { .nav-links { display: none; } }
+
+  /* ---------- Hero ---------- */
+  .doc-hero { padding: 72px 0 60px; position: relative; overflow: hidden; }
+  .doc-hero::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(55% 60% at 85% 0%, rgba(47,224,124,0.14), transparent 60%);
+    pointer-events: none;
+  }
+  .doc-hero h1 { font-size: clamp(34px, 4.6vw, 54px); line-height: 1.05; letter-spacing: -0.015em; max-width: 800px; margin: 16px 0 20px; }
+  .doc-hero h1 em { font-style: normal; color: var(--brand); }
+  .doc-hero p.lead { font-size: 18px; color: var(--ink-dim); max-width: 620px; margin: 0 0 30px; }
+  .doc-hero .jump-links { display: flex; flex-wrap: wrap; gap: 10px; }
+  .jump-links a {
+    font-size: 13.5px; font-weight: 600; text-decoration: none; color: var(--ink);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 100px; padding: 9px 16px;
+  }
+  .jump-links a:hover { border-color: var(--brand); color: var(--brand); }
+
+  /* ---------- Flagship arguments (full treatment) ---------- */
+  .flagship { padding: 90px 0; }
+  .flagship-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+  .flagship-grid.reverse .flagship-visual { order: 2; }
+  @media (max-width: 900px) { .flagship-grid, .flagship-grid.reverse .flagship-visual { grid-template-columns: 1fr; order: 0; } }
+  .flagship-visual {
+    border-radius: var(--radius); aspect-ratio: 5/4.3; background-size: cover; background-position: center;
+    background-color: var(--panel); position: relative; box-shadow: 0 30px 70px -20px rgba(0,0,0,0.6);
+  }
+  .flagship-visual::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
+  .flagship h2 { font-size: clamp(26px, 3vw, 34px); margin: 12px 0 16px; line-height: 1.15; }
+  .flagship p { font-size: 15.5px; color: var(--ink-dim); margin: 0 0 12px; max-width: 480px; }
+  .flagship ul { margin: 16px 0 0; padding: 0; list-style: none; }
+  .flagship li { font-size: 14.5px; color: var(--ink); padding: 12px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; }
+  .flagship li::before { content: '—'; color: var(--brand); font-weight: 700; }
+
+  /* ---------- Signature: stress/balance oscillo ---------- */
+  .oscillo-card {
+    border-radius: var(--radius); background: linear-gradient(165deg, #163C2C, #0A1815); border: 1px solid var(--line);
+    padding: 30px 28px 26px; box-shadow: 0 30px 70px -20px rgba(0,0,0,0.6);
+  }
+  .oscillo-card svg { width: 100%; height: auto; display: block; }
+  .oscillo-legend { display: flex; justify-content: space-between; margin-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--ink-dim); }
+  .oscillo-legend b { color: var(--ink); }
+  .oscillo-tag { display: inline-flex; align-items: center; gap: 6px; }
+  .oscillo-tag .sw { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ---------- Dossier / accordion ---------- */
+  .dossier { padding: 90px 0; background: var(--bg-alt); }
+  .dossier-head { max-width: 640px; margin: 0 auto 56px; text-align: center; }
+  .dossier-head h2 { font-size: clamp(28px, 3.4vw, 38px); margin: 12px 0 14px; }
+  .dossier-head p { color: var(--ink-dim); font-size: 15.5px; }
+  .dossier-cat { margin-bottom: 14px; }
+  .dossier-cat summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 22px 26px;
+    transition: border-color 0.15s;
+  }
+  .dossier-cat summary::-webkit-details-marker { display: none; }
+  .dossier-cat[open] summary { border-color: var(--brand); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  .dossier-cat summary .cs-left { display: flex; align-items: center; gap: 16px; }
+  .dossier-cat summary .cs-num { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--brand); }
+  .dossier-cat summary h3 { font-size: 17px; font-weight: 700; }
+  .dossier-cat summary .cs-sub { font-size: 13px; color: var(--ink-dim); font-weight: 400; margin-top: 2px; }
+  .dossier-cat summary .chev { width: 22px; height: 22px; flex-shrink: 0; transition: transform 0.2s; color: var(--ink-dim); }
+  .dossier-cat[open] summary .chev { transform: rotate(45deg); color: var(--brand); }
+  .dossier-body {
+    background: rgba(255,255,255,0.02); border: 1px solid var(--line); border-top: none;
+    border-bottom-left-radius: 18px; border-bottom-right-radius: 18px; padding: 8px 26px 22px;
+  }
+  .dossier-item { padding: 16px 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: 200px 1fr; gap: 20px; }
+  @media (max-width: 700px) { .dossier-item { grid-template-columns: 1fr; gap: 6px; } }
+  .dossier-item h4 { font-size: 14.5px; font-weight: 700; color: var(--ink); }
+  .dossier-item p { font-size: 14px; color: var(--ink-dim); margin: 0; }
+
+  /* ---------- Sources ---------- */
+  .sources { padding: 80px 0 100px; }
+  .sources-head { max-width: 640px; margin: 0 auto 40px; text-align: center; }
+  .sources-head h2 { font-size: clamp(26px, 3vw, 32px); margin: 12px 0 14px; }
+  .sources-head p { color: var(--ink-dim); font-size: 15px; }
+  .source-list { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .source-item {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px;
+    font-size: 13.5px; color: var(--ink-dim); display: flex; gap: 14px;
+  }
+  .source-item .src-num { font-family: 'IBM Plex Mono', monospace; color: var(--brand); flex-shrink: 0; }
+  .source-item a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line); }
+  .source-item a:hover { text-decoration-color: var(--brand); }
+  .source-item strong { color: var(--ink); }
+
+  .cta-band { padding: 80px 0 100px; text-align: center; }
+  .cta-band h2 { font-size: clamp(28px, 3.4vw, 38px); max-width: 620px; margin: 12px auto 24px; }
+  .cta-band p { color: var(--ink-dim); font-size: 15.5px; max-width: 480px; margin: 0 auto 30px; }
+  .btn-primary {
+    background: var(--brand); color: #06170F; border: none; border-radius: 100px; padding: 16px 28px;
+    font-size: 15.5px; font-weight: 700; text-decoration: none; display: inline-block;
+    box-shadow: 0 8px 30px var(--brand-glow);
+  }
+  .btn-secondary {
+    background: rgba(255,255,255,0.06); color: var(--ink); border: 1.5px solid var(--line); border-radius: 100px;
+    padding: 14.5px 24px; font-size: 15.5px; font-weight: 600; text-decoration: none; display: inline-block; margin-left: 12px;
+  }
+
+  footer.site-footer { border-top: 1px solid var(--line); padding: 34px 0; }
+  .footer-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--ink-dim); }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="nav-row">
+    <a href="entreprises.html" class="nav-brand"><span class="dot"></span> PandaFit</a>
+    <nav class="nav-links">
+      <a href="#securite">Sécurité</a>
+      <a href="#bien-etre">Bien-être</a>
+      <a href="#dossier">Toutes les options</a>
+      <a href="#sources">Sources</a>
+    </nav>
+    <a href="entreprises.html#contact" class="nav-cta">Demander une démo</a>
+  </div>
+</header>
+
+<section class="doc-hero">
+  <div class="wrap">
+    <div class="eyebrow">Le dossier complet</div>
+    <h1>Tout ce que PandaFit peut faire pour vos RH, <em>sans rien cacher</em>.</h1>
+    <p class="lead">Sécurité, gestion du stress appuyée par la science, campagnes de santé motivantes, données multi-sites, marque blanche, accompagnement par nos coachs — cette page réunit l'intégralité du programme, des arguments qui comptent le plus jusqu'au dernier réglage disponible.</p>
+    <div class="jump-links">
+      <a href="#securite">🛡️ Sécurité & prévention</a>
+      <a href="#bien-etre">🧠 Stress & bien-être</a>
+      <a href="#motivation">🏆 Motivation & cohésion</a>
+      <a href="#sur-mesure">🎛️ Sur-mesure & accompagnement</a>
+      <a href="#dossier">📋 Toutes les fonctionnalités</a>
+      <a href="#sources">📚 Sources scientifiques</a>
+    </div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<!-- ============ FLAGSHIP 1 : SÉCURITÉ ============ -->
+<section class="flagship" id="securite">
+  <div class="wrap flagship-grid">
+    <div>
+      <div class="eyebrow">Argument n°1 — Santé & sécurité</div>
+      <h2>La première cause d'accident en Suisse se prévient en s'entraînant deux minutes par jour.</h2>
+      <p>Les chutes et les faux pas sont la première cause d'accident en Suisse, tous domaines confondus — devant la route. Près de 200'000 personnes se blessent chaque année en trébuchant ou en tombant, pour un coût estimé à 1,4 milliard de francs (Suva).</p>
+      <p>Contrairement à une idée reçue, ce ne sont pas les accidents professionnels qui dominent : ce sont les loisirs — ski, football, vie quotidienne. Travailler l'équilibre et la proprioception réduit directement ce risque, à tout âge, dès que c'est sollicité régulièrement.</p>
+      <ul>
+        <li>Prévention active des entorses, foulures et chutes — au travail comme hors travail</li>
+        <li>Un axe de prévention que la Suva et l'OFSP reconnaissent comme prioritaire</li>
+        <li>Progression mesurable dans le temps, par personne et par site</li>
+      </ul>
+    </div>
+    <div class="flagship-visual" id="visualSecurite"></div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<!-- ============ FLAGSHIP 2 : BIEN-ÊTRE / STRESS (le nouvel argument phare) ============ -->
+<section class="flagship" id="bien-etre">
+  <div class="wrap flagship-grid reverse">
+    <div>
+      <div class="eyebrow">Argument n°2 — Stress & bien-être</div>
+      <h2>Le stress se voit dans l'équilibre. Et le calme, on peut le retrouver en le regardant.</h2>
+      <p>Le stress coûte 6,5 milliards de francs par an à l'économie suisse, entre présentéisme et absentéisme (Promotion Santé Suisse, 2022). Plus d'un quart des actifs suisses se déclarent en stress critique.</p>
+      <p>Ce que la recherche montre depuis longtemps : l'anxiété se traduit physiquement par une oscillation posturale plus marquée — on tient littéralement moins bien en équilibre sous stress, un lien documenté depuis les travaux de référence de Balaban (2002) sur les circuits neuronaux partagés entre équilibre et anxiété, confirmé par des études plus récentes.</p>
+      <p>Or ce déséquilibre est en grande partie <strong>inconscient</strong> — on ne sent pas qu'on oscille. C'est là que le visuel change tout : plusieurs études de rétroaction (biofeedback) montrent qu'un retour visuel en temps réel sur sa propre oscillation aide à la réduire activement. En rendant l'équilibre visible et jouable, PandaFit transforme un signal de stress qu'on ignore en un signal qu'on peut corriger, en quelques minutes, à l'œil.</p>
+      <ul>
+        <li>Des jeux pensés pour ralentir le rythme et recentrer l'attention</li>
+        <li>Un signal physiologique du stress rendu visible et actionnable</li>
+        <li>Une parenthèse active de 2 à 5 minutes, sans quitter le poste de travail</li>
+      </ul>
+    </div>
+    <div class="oscillo-visual">
+      <div class="oscillo-card">
+        <svg viewBox="0 0 480 200" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="fadeStress" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#FF6B55"/>
+              <stop offset="100%" stop-color="#2FE07C"/>
+            </linearGradient>
+          </defs>
+          <line x1="0" y1="100" x2="480" y2="100" stroke="rgba(243,247,241,0.12)" stroke-width="1"/>
+          <path id="oscilloPath" d="M0,100" fill="none" stroke="url(#fadeStress)" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <div class="oscillo-legend">
+          <span class="oscillo-tag"><span class="sw" style="background:#FF6B55;"></span> oscillation sous stress</span>
+          <span class="oscillo-tag"><span class="sw" style="background:#2FE07C;"></span> stabilité retrouvée, en jeu</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<!-- ============ FLAGSHIP 3 : MOTIVATION / COHÉSION ============ -->
+<section class="flagship" id="motivation">
+  <div class="wrap flagship-grid">
+    <div>
+      <div class="eyebrow">Argument n°3 — Motivation & cohésion</div>
+      <h2>Des campagnes de santé qu'on a envie de gagner, pas qu'on subit.</h2>
+      <p>Une prévention qu'on impose ne marche pas longtemps. PandaFit transforme les objectifs de santé en campagnes ludiques, avec de vraies récompenses à la clé — individuelles ou collectives, ponctuelles ou sur plusieurs mois.</p>
+      <p>Chaque entreprise choisit son échelle : un défi entre deux collègues, un classement d'équipe, une compétition tablette contre tablette dans l'openspace, ou carrément un site entier contre un autre.</p>
+      <ul>
+        <li>Défis à prix à la clé : individuels, par équipe, par tablette ou société entière</li>
+        <li>Mode société contre société pour les groupes multi-sites</li>
+        <li>Classements et podiums qui créent une bonne dynamique de groupe, sans pression</li>
+      </ul>
+    </div>
+    <div class="flagship-visual" id="visualMotivation"></div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<!-- ============ FLAGSHIP 4 : SUR-MESURE / ACCOMPAGNEMENT ============ -->
+<section class="flagship" id="sur-mesure">
+  <div class="wrap flagship-grid reverse">
+    <div>
+      <div class="eyebrow">Argument n°4 — Sur-mesure & accompagnement</div>
+      <h2>On s'adapte à vous — jusqu'à porter votre nom.</h2>
+      <p>PandaFit n'est pas un produit figé qu'on installe et qu'on oublie. L'écran peut aussi servir d'affichage d'information ou de publicité interne quand il n'est pas utilisé pour jouer. Et pour les entreprises qui le souhaitent, l'app et même le personnage peuvent être personnalisés à l'image de la marque.</p>
+      <p>Surtout, nos coachs PandaFit accompagnent la planification des campagnes de santé : définir les bons objectifs, choisir le bon rythme, intervenir ponctuellement sur site pour lancer ou relancer une dynamique.</p>
+      <ul>
+        <li>Écran double-usage : jeux ou affichage info/pub selon les moments</li>
+        <li>Marque blanche possible : habillage, couleurs, voire mascotte aux couleurs de l'entreprise</li>
+        <li>Accompagnement humain par nos coachs dans la planification des campagnes</li>
+        <li>Interventions ponctuelles sur site pour lancer une campagne ou remotiver les équipes</li>
+      </ul>
+    </div>
+    <div class="flagship-visual" id="visualSurMesure"></div>
+  </div>
+</section>
+
+<!-- ============ DOSSIER COMPLET (accordéons) ============ -->
+<section class="dossier" id="dossier">
+  <div class="wrap">
+    <div class="dossier-head">
+      <div class="eyebrow" style="justify-content:center;">Le dossier complet</div>
+      <h2>Absolument tout ce qui est réglable, cliquez pour dérouler</h2>
+      <p>Ce sont les options concrètes derrière chacun des arguments ci-dessus — utile pour un service achat, un CHRO ou quiconque veut vérifier qu'on n'a rien laissé de côté.</p>
+    </div>
+
+    <details class="dossier-cat" open>
+      <summary>
+        <div class="cs-left">
+          <span class="cs-num">01</span>
+          <div><h3>Suivi & données</h3><div class="cs-sub">Ce que les RH voient et peuvent comparer</div></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </summary>
+      <div class="dossier-body">
+        <div class="dossier-item"><h4>Sondages de satisfaction</h4><p>Une question rapide (3 boutons, rouge / orange / vert) proposée après usage, pour prendre le pouls du bien-être au quotidien sans lourdeur.</p></div>
+        <div class="dossier-item"><h4>Questionnaires personnalisés</h4><p>Vos propres questions, posées avant ou après un jeu précis, pour croiser ressenti et pratique — configurables par jeu et par site.</p></div>
+        <div class="dossier-item"><h4>Comparaison multi-sites</h4><p>Le niveau d'équilibre moyen (PandaFit Index) est comparable d'un site à l'autre, pour repérer où l'accompagnement doit se concentrer.</p></div>
+        <div class="dossier-item"><h4>Statistiques individuelles & d'équipe</h4><p>Historique de progression par personne (via un code personnel anonyme) et par équipe, sans jamais exposer les données à d'autres collaborateurs.</p></div>
+      </div>
+    </details>
+
+    <details class="dossier-cat">
+      <summary>
+        <div class="cs-left">
+          <span class="cs-num">02</span>
+          <div><h3>Campagnes & motivation</h3><div class="cs-sub">Comment on fait jouer toute l'entreprise</div></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </summary>
+      <div class="dossier-body">
+        <div class="dossier-item"><h4>Campagnes motivées par des prix</h4><p>Des objectifs de santé transformés en défis avec récompense à la clé, sur la durée que vous choisissez.</p></div>
+        <div class="dossier-item"><h4>Mode individuel</h4><p>Un score personnel à améliorer, à son rythme — idéal pour une dynamique de progression sans esprit de compétition.</p></div>
+        <div class="dossier-item"><h4>Mode équipe</h4><p>Un groupe de collaborateurs cumule ses points ensemble — favorise l'entraide et la bonne humeur.</p></div>
+        <div class="dossier-item"><h4>Tablette contre tablette</h4><p>Deux points de passage s'affrontent directement — parfait pour deux services ou deux étages d'un même site.</p></div>
+        <div class="dossier-item"><h4>Société entière</h4><p>Tous les collaborateurs cumulent vers un objectif commun — utile pour une campagne de sensibilisation générale.</p></div>
+        <div class="dossier-item"><h4>Société contre société</h4><p>Pour les groupes avec plusieurs sites ou filiales : une compétition inter-sites, gérée depuis la même console.</p></div>
+      </div>
+    </details>
+
+    <details class="dossier-cat">
+      <summary>
+        <div class="cs-left">
+          <span class="cs-num">03</span>
+          <div><h3>Écran & communication</h3><div class="cs-sub">La tablette ne sert pas qu'à jouer</div></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </summary>
+      <div class="dossier-body">
+        <div class="dossier-item"><h4>Écran d'information</h4><p>Affichez les actualités internes, les événements à venir ou des messages de prévention directement sur l'écran d'accueil.</p></div>
+        <div class="dossier-item"><h4>Espace publicitaire</h4><p>L'écran peut aussi diffuser des visuels publicitaires (internes ou d'un partenaire), en alternance avec le reste du contenu.</p></div>
+      </div>
+    </details>
+
+    <details class="dossier-cat">
+      <summary>
+        <div class="cs-left">
+          <span class="cs-num">04</span>
+          <div><h3>Personnalisation & marque</h3><div class="cs-sub">Jusqu'où on peut vous ressembler</div></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </summary>
+      <div class="dossier-body">
+        <div class="dossier-item"><h4>Marque blanche</h4><p>Nous pouvons habiller l'app et même adapter le personnage-mascotte aux couleurs et à l'identité de votre entreprise.</p></div>
+        <div class="dossier-item"><h4>Visuels par site</h4><p>Chaque site peut avoir ses propres photos de fond, ses propres miniatures de jeux et son propre nom d'accueil.</p></div>
+      </div>
+    </details>
+
+    <details class="dossier-cat">
+      <summary>
+        <div class="cs-left">
+          <span class="cs-num">05</span>
+          <div><h3>Accompagnement humain</h3><div class="cs-sub">Ce n'est pas qu'un logiciel</div></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </summary>
+      <div class="dossier-body">
+        <div class="dossier-item"><h4>Planification des campagnes</h4><p>Nos coachs vous aident à définir le calendrier de santé de l'année : quand lancer quoi, pour quel objectif.</p></div>
+        <div class="dossier-item"><h4>Interventions ponctuelles</h4><p>Un coach PandaFit peut se déplacer sur site pour lancer une campagne, faire une démonstration ou relancer la dynamique.</p></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ============ SOURCES ============ -->
+<section class="sources" id="sources">
+  <div class="wrap">
+    <div class="sources-head">
+      <div class="eyebrow" style="justify-content:center;">Sources</div>
+      <h2>Ce qu'on avance est documenté</h2>
+      <p>Les arguments sécurité et stress s'appuient sur des données publiques et des travaux de recherche. Voici les sources, pour vérifier par vous-même.</p>
+    </div>
+    <div class="source-list">
+      <div class="source-item"><span class="src-num">01</span><div><strong>Suva</strong> — les chutes et faux pas comme première cause d'accident en Suisse, ~200'000 blessés par an. <a href="https://www.suva.ch" target="_blank" rel="noopener">suva.ch</a></div></div>
+      <div class="source-item"><span class="src-num">02</span><div><strong>Promotion Santé Suisse — Job-Stress-Index 2022</strong> : 28,2% des actifs suisses en stress critique ; le stress coûte ~6,5 milliards de francs/an à l'économie (présentéisme + absentéisme). <a href="https://promotionsante.ch/medias/dossier-le-stress-au-travail" target="_blank" rel="noopener">promotionsante.ch</a></div></div>
+      <div class="source-item"><span class="src-num">03</span><div><strong>Balaban, C.D. (2002)</strong>, "Neural substrates linking balance control and anxiety", <em>Physiology & Behavior</em> — les circuits neuronaux de l'équilibre et de l'anxiété sont en partie partagés.</div></div>
+      <div class="source-item"><span class="src-num">04</span><div>Étude sur de jeunes adultes montrant une corrélation positive entre niveau d'anxiété et amplitude de l'oscillation posturale (sway index). <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC12101288/" target="_blank" rel="noopener">PMC12101288</a></div></div>
+      <div class="source-item"><span class="src-num">05</span><div>Hasegawa et al. (2020), "Differential effects of visual versus auditory biofeedback training for voluntary postural sway", <em>PLOS ONE</em> — un retour visuel en temps réel améliore le contrôle postural. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7769480/" target="_blank" rel="noopener">PMC7769480</a></div></div>
+      <div class="source-item"><span class="src-num">06</span><div>Étude sur le contrôle postural du tronc montrant une réduction marquée de l'oscillation avec retour visuel direct. <a href="https://www.sciencedirect.com/science/article/abs/pii/S0966636220302125" target="_blank" rel="noopener">ScienceDirect</a></div></div>
+    </div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<section class="cta-band">
+  <div class="wrap">
+    <div class="eyebrow" style="justify-content:center;">On en discute ?</div>
+    <h2>Vous avez vu large. Voyons maintenant ce qui a du sens pour vous.</h2>
+    <p>Une démo se construit autour de vos priorités — pas besoin d'activer chaque option du jour 1.</p>
+    <a href="entreprises.html#contact" class="btn-primary">Demander une démonstration</a>
+    <a href="entreprises.html#pricing" class="btn-secondary">Voir les offres</a>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap footer-row">
+    <div>© <span id="year"></span> PandaFit</div>
+    <div>Solution suisse de prévention et de bien-être au travail.</div>
+  </div>
+</footer>
+
+<script>
+document.getElementById('year').textContent = new Date().getFullYear();
+
+/* Photos par défaut (mêmes images que le site principal) */
+const DEFAULT_IMAGES = {
+  securite: 'site-ski.jpg',
+  motivation: 'site-football.jpg',
+  surmesure: 'site-hero-meeting.jpg',
+};
+const SUPABASE_URL = 'https://kabjpqvbukhhqvdjnkzr.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_QgLSQJyPJ09Uj3vCKCUykA_ca1LTm5E';
+const REST = `${SUPABASE_URL}/rest/v1`;
+function sbHeaders(extra) { return { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, ...extra }; }
+async function loadImages() {
+  const map = { ...DEFAULT_IMAGES };
+  try {
+    const res = await fetch(`${REST}/website_images?select=*`, { headers: sbHeaders() });
+    const rows = res.ok ? await res.json() : [];
+    const byId = {}; rows.forEach(r => { if (r.image_url) byId[r.id] = r.image_url; });
+    if (byId.balance) map.securite = byId.balance;
+    if (byId.social) map.motivation = byId.social;
+    if (byId.hero) map.surmesure = byId.hero;
+  } catch (e) { /* on garde les photos par défaut */ }
+  document.getElementById('visualSecurite').style.backgroundImage = `url('${map.securite}')`;
+  document.getElementById('visualMotivation').style.backgroundImage = `url('${map.motivation}')`;
+  document.getElementById('visualSurMesure').style.backgroundImage = `url('${map.surmesure}')`;
+}
+loadImages();
+
+/* Signature : anime le tracé de l'oscilloscope stress -> calme */
+(function animateOscillo() {
+  const path = document.getElementById('oscilloPath');
+  if (!path) return;
+  const w = 480, h = 200, mid = 100, steps = 60;
+  let t = 0;
+  function frame() {
+    t += 0.02;
+    let d = `M0,${mid}`;
+    for (let i = 1; i <= steps; i++) {
+      const x = (i / steps) * w;
+      const progress = i / steps; // 0 -> 1 : de "stress" (gauche) à "calme" (droite)
+      const noiseAmp = 34 * (1 - progress) + 3 * progress;
+      const freq = 0.35 + 0.1 * (1 - progress);
+      const y = mid + Math.sin(i * freq + t * 3) * noiseAmp + Math.sin(i * freq * 2.3 + t * 5) * noiseAmp * 0.4 * (1 - progress);
+      d += ` L${x.toFixed(1)},${y.toFixed(1)}`;
+    }
+    path.setAttribute('d', d);
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+</script>
+</body>
+</html>
