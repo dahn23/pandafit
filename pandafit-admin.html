@@ -1693,32 +1693,24 @@ async function renderTabletMenuTab() {
     { type: 'index', sort_order: client.index_sort_order ?? -1000, id: 'index', visible: client.show_index_banner, data: { image_url: client.index_image_url || indexCatalogRow?.image_url } },
     ...activeDefis.map(d => ({ type: 'defi', sort_order: d.sort_order || 0, data: d, id: d.id, visible: d.is_active })),
     ...activeChallenges.map(c => ({ type: 'challenge', sort_order: c.sort_order || 0, data: c, id: c.id, visible: c.is_active })),
+    ...activeEvents.map(ev => ({ type: 'event', sort_order: ev.sort_order || 0, data: ev, id: ev.id, visible: ev.is_active })),
     ...allGames,
   ].sort((a, b) => a.sort_order - b.sort_order);
 
-  let eventsList = activeEvents.map(ev => ({ type: 'event', sort_order: ev.sort_order || 0, data: ev, id: ev.id, visible: ev.is_active }))
-    .sort((a, b) => a.sort_order - b.sort_order);
-
   function render() {
     el.innerHTML = `
-      <p class="section-sub">Tout ce qui est actif pour ce client s'affiche ici automatiquement. Glisse une vignette pour changer son ordre, masque/réaffiche-la avec l'œil, ou change sa photo avec l'icône image.</p>
+      <p class="section-sub">Tout ce qui est actif pour ce client s'affiche ici automatiquement (y compris les événements, désormais mélangés au reste). Glisse une vignette pour changer son ordre, masque/réaffiche-la avec l'œil, ou change sa photo avec l'icône image.</p>
       <div class="menu-section-title">Contenu principal (empilé)</div>
       <div class="menu-stack" id="mainStack">
         ${stack.length ? stack.map(thumbCardHTML).join('') : '<p class="empty">Rien pour l\'instant.</p>'}
       </div>
-      <div class="menu-section-title" style="margin-top:22px;">Événements (défilent toutes les 4s sur la tablette)</div>
-      <div class="menu-row" id="eventsRow">
-        ${eventsList.length ? eventsList.map(thumbCardHTML).join('') : '<p class="empty">Aucun événement actif.</p>'}
-      </div>
     `;
     wireDrag(document.getElementById('mainStack'), stack, persistStack);
-    wireDrag(document.getElementById('eventsRow'), eventsList, persistEvents);
     wireActions(document.getElementById('mainStack'));
-    wireActions(document.getElementById('eventsRow'));
   }
 
   function findItem(type, id) {
-    return [...stack, ...eventsList].find(it => it.type === type && String(it.id) === String(id));
+    return stack.find(it => it.type === type && String(it.id) === String(id));
   }
 
   async function toggleVisible(type, id) {
@@ -1793,13 +1785,10 @@ async function renderTabletMenuTab() {
       if (item.type === 'game') return sb.from('client_games').update({ sort_order: i }).eq('client_id', selectedClientId).eq('game_id', item.id);
       if (item.type === 'defi') return sb.from('defis').update({ sort_order: i }).eq('id', item.id);
       if (item.type === 'challenge') return sb.from('challenges').update({ sort_order: i }).eq('id', item.id);
+      if (item.type === 'event') return sb.from('events').update({ sort_order: i }).eq('id', item.id);
     }));
     await loadClientDetail(selectedClientId);
     await loadClients();
-  }
-  async function persistEvents(items) {
-    await Promise.all(items.map((item, i) => sb.from('events').update({ sort_order: i }).eq('id', item.id)));
-    await loadClientDetail(selectedClientId);
   }
 
   render();
