@@ -276,6 +276,24 @@
     font-size: 22px; font-weight: 700; padding: 4px 20px; color: var(--text);
     background: var(--bg);
   }
+  .arcade-modal-overlay {
+    position: fixed; inset: 0; z-index: 200; background: rgba(10,8,20,0.72); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .arcade-modal {
+    background: var(--panel); border-radius: 24px; padding: 28px 24px; max-width: 380px; width: 100%;
+    text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .arcade-modal-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+  .arcade-modal-question { font-size: 15px; color: var(--text-dim); margin-bottom: 20px; }
+  .arcade-modal-choice { display: flex; flex-direction: column; gap: 10px; }
+  .arcade-modal-nameform { display: flex; flex-direction: column; gap: 12px; }
+  .arcade-modal-nameform input {
+    width: 100%; padding: 14px; border-radius: 12px; border: 2px solid var(--primary); background: var(--bg);
+    color: var(--text); font-size: 22px; font-weight: 800; text-align: center; text-transform: uppercase;
+    letter-spacing: 0.1em; box-sizing: border-box;
+  }
+  .arcade-modal-saved { font-size: 18px; font-weight: 700; color: var(--primary); padding: 10px 0; }
   .ads-banner {
     position: fixed; left: 0; right: 0; z-index: 40; max-width: 900px; margin: 0 auto;
     height: 25vh; overflow: hidden; background: #000;
@@ -476,6 +494,22 @@
 
   <div class="ads-label" id="adsLabel" style="display:none;" data-i18n="ads_label">Annonces</div>
   <div class="ads-banner" id="adsBanner" style="display:none;"></div>
+
+  <div class="arcade-modal-overlay" id="arcadeModalOverlay" style="display:none;">
+    <div class="arcade-modal">
+      <div class="arcade-modal-title" id="arcadeModalTitle"></div>
+      <div class="arcade-modal-question" id="arcadeModalQuestion"></div>
+      <div id="arcadeModalChoice" class="arcade-modal-choice">
+        <button class="btn-primary" id="btnArcadeYes"></button>
+        <button class="btn-ghost" id="btnArcadeNo"></button>
+      </div>
+      <div id="arcadeModalNameForm" class="arcade-modal-nameform" style="display:none;">
+        <input id="arcadeNameInput" maxlength="10" autocomplete="off">
+        <button class="btn-primary" id="btnArcadeValidate"></button>
+      </div>
+      <div id="arcadeModalSaved" class="arcade-modal-saved" style="display:none;"></div>
+    </div>
+  </div>
 
   <div class="bottomnav">
     <button class="navbtn" data-nav="home"><span class="ic"><i data-lucide="home"></i></span><span data-i18n="nav_home">Accueil</span></button>
@@ -779,7 +813,37 @@ const PandaFitBackend = (() => {
     } catch (e) { return []; }
   }
 
-  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps };
+  /** Défi arcade actif pour ce jeu (highscore avec pseudo), s'il y en a un. */
+  async function fetchActiveArcadeDefi(clientId, gameId) {
+    if (!clientId || !gameId) return null;
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      const res = await fetch(
+        `${REST}/defis?client_id=eq.${clientId}&game_id=eq.${gameId}&mode=eq.arcade&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*&limit=1`,
+        { headers: headers() }
+      );
+      const rows = res.ok ? await res.json() : [];
+      return rows[0] || null;
+    } catch (e) { return null; }
+  }
+  async function fetchArcadeScores(defiId) {
+    try {
+      const res = await fetch(`${REST}/defi_arcade_scores?defi_id=eq.${defiId}&select=*&order=score.desc`, { headers: headers() });
+      return res.ok ? await res.json() : [];
+    } catch (e) { return []; }
+  }
+  async function submitArcadeScore(defiId, name, score) {
+    try {
+      const res = await fetch(`${REST}/defi_arcade_scores`, {
+        method: 'POST',
+        headers: headers({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+        body: JSON.stringify({ defi_id: defiId, name: (name || '').slice(0, 10), score }),
+      });
+      return res.ok;
+    } catch (e) { return false; }
+  }
+
+  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore };
 })();
 
 /* =====================================================================================
@@ -1965,6 +2029,9 @@ const TRANSLATIONS = {
     benefits_card_label: 'Les bienfaits du PandaFit', initiation_card_label: 'Initiation au PandaFit',
     do_initiation_first_btn: "Faire d'abord l'initiation au PandaFit",
     game_start_btn: "J'ai déjà fait l'initiation au PandaFit, je veux commencer !",
+    arcade_prompt_title: 'Bravo, tu es dans le top 10 actuel !', arcade_prompt_question: 'Veux-tu entrer ton pseudo ?',
+    arcade_yes: 'Oui', arcade_no: 'Non, ne pas enregistrer', arcade_name_placeholder: 'Ton pseudo (10 caractères max)',
+    arcade_validate: 'Valider', arcade_saved: 'Score enregistré !',
     badge_game: 'Jeu', badge_defi: 'Défi', badge_challenge: 'Challenge', badge_event: 'Événement', badge_first: '1er',
     not_connected: 'Non connecté',
     home_title: 'Salut',
@@ -1990,6 +2057,9 @@ const TRANSLATIONS = {
     benefits_card_label: 'Benefits of PandaFit', initiation_card_label: 'PandaFit walkthrough',
     do_initiation_first_btn: 'Do the PandaFit walkthrough first',
     game_start_btn: "I've already done the PandaFit walkthrough, let's start!",
+    arcade_prompt_title: "Congrats, you're in the current top 10!", arcade_prompt_question: 'Want to enter your name?',
+    arcade_yes: 'Yes', arcade_no: "No, don't save it", arcade_name_placeholder: 'Your name (10 characters max)',
+    arcade_validate: 'Confirm', arcade_saved: 'Score saved!',
     badge_game: 'Game', badge_defi: 'Challenge', badge_challenge: 'Contest', badge_event: 'Event', badge_first: '1st',
     not_connected: 'Not connected',
     home_title: 'Hi there',
@@ -2015,6 +2085,9 @@ const TRANSLATIONS = {
     benefits_card_label: 'Vorteile von PandaFit', initiation_card_label: 'Einführung in PandaFit',
     do_initiation_first_btn: 'Zuerst die PandaFit-Einführung machen',
     game_start_btn: 'Ich habe die PandaFit-Einführung bereits gemacht, ich will starten!',
+    arcade_prompt_title: 'Bravo, du bist aktuell in den Top 10!', arcade_prompt_question: 'Möchtest du deinen Namen eingeben?',
+    arcade_yes: 'Ja', arcade_no: 'Nein, nicht speichern', arcade_name_placeholder: 'Dein Name (max. 10 Zeichen)',
+    arcade_validate: 'Bestätigen', arcade_saved: 'Score gespeichert!',
     badge_game: 'Spiel', badge_defi: 'Challenge', badge_challenge: 'Wettbewerb', badge_event: 'Event', badge_first: '1.',
     not_connected: 'Nicht verbunden',
     home_title: 'Hallo',
@@ -2040,6 +2113,9 @@ const TRANSLATIONS = {
     benefits_card_label: 'I benefici di PandaFit', initiation_card_label: 'Iniziazione a PandaFit',
     do_initiation_first_btn: "Fai prima l'iniziazione a PandaFit",
     game_start_btn: "Ho già fatto l'iniziazione a PandaFit, voglio iniziare!",
+    arcade_prompt_title: 'Bravo, sei nella top 10 attuale!', arcade_prompt_question: 'Vuoi inserire il tuo nome?',
+    arcade_yes: 'Sì', arcade_no: 'No, non salvare', arcade_name_placeholder: 'Il tuo nome (max 10 caratteri)',
+    arcade_validate: 'Conferma', arcade_saved: 'Punteggio salvato!',
     badge_game: 'Gioco', badge_defi: 'Sfida', badge_challenge: 'Torneo', badge_event: 'Evento', badge_first: '1°',
     not_connected: 'Non connesso',
     home_title: 'Ciao',
@@ -2212,6 +2288,50 @@ function render() {
 }
 
 /** Affiche/masque la bannière de publicités (uniquement sur l'accueil) et gère le défilement toutes les 4s. */
+/** Vérifie s'il existe un défi arcade actif pour ce jeu et si le score entre dans le top 10 actuel. */
+async function maybeShowArcadePrompt(gameId, score) {
+  if (!clientConfig?.clientId) return;
+  const defi = await PandaFitBackend.fetchActiveArcadeDefi(clientConfig.clientId, gameId);
+  if (!defi) return;
+  const scores = await PandaFitBackend.fetchArcadeScores(defi.id);
+  const qualifies = scores.length < 10 || score > scores[9].score;
+  if (!qualifies) return;
+  showArcadeModal(defi.id, score);
+}
+function showArcadeModal(defiId, score) {
+  const overlay = document.getElementById('arcadeModalOverlay');
+  if (!overlay) return;
+  document.getElementById('arcadeModalTitle').textContent = t('arcade_prompt_title');
+  document.getElementById('arcadeModalQuestion').textContent = t('arcade_prompt_question');
+  document.getElementById('btnArcadeYes').textContent = t('arcade_yes');
+  document.getElementById('btnArcadeNo').textContent = t('arcade_no');
+  document.getElementById('arcadeModalNameForm').style.display = 'none';
+  document.getElementById('arcadeModalChoice').style.display = 'flex';
+  document.getElementById('arcadeModalSaved').style.display = 'none';
+  const input = document.getElementById('arcadeNameInput');
+  input.value = '';
+  input.placeholder = t('arcade_name_placeholder');
+  document.getElementById('btnArcadeValidate').textContent = t('arcade_validate');
+  overlay.style.display = 'flex';
+
+  document.getElementById('btnArcadeNo').onclick = () => { overlay.style.display = 'none'; };
+  document.getElementById('btnArcadeYes').onclick = () => {
+    document.getElementById('arcadeModalChoice').style.display = 'none';
+    document.getElementById('arcadeModalNameForm').style.display = 'flex';
+    input.focus();
+  };
+  document.getElementById('btnArcadeValidate').onclick = async () => {
+    const name = input.value.trim().slice(0, 10);
+    if (!name) return;
+    await PandaFitBackend.submitArcadeScore(defiId, name, score);
+    document.getElementById('arcadeModalNameForm').style.display = 'none';
+    const savedEl = document.getElementById('arcadeModalSaved');
+    savedEl.textContent = t('arcade_saved');
+    savedEl.style.display = 'block';
+    setTimeout(() => { overlay.style.display = 'none'; }, 1500);
+  };
+}
+
 function updateAdsBanner() {
   const banner = document.getElementById('adsBanner');
   const label = document.getElementById('adsLabel');
@@ -2878,6 +2998,7 @@ function startZoneGame() {
       const elapsed = zoneSetupCfg.duration - snap.timeLeft;
       const score = ZoneGame.computeScore(snap, zoneSetupCfg.duration - snap.timeLeft);
       PandaFitBackend.recordSession(clientConfig, 'thezone', score, { difficulty: zoneSetupCfg.difficulty, livesLost: snap.livesLost, reason }).then(submitPendingAnswersIfAny);
+      maybeShowArcadePrompt('thezone', score);
       content.innerHTML = screenZoneResult(snap, score, reason);
       wireZoneResult();
     }
@@ -3210,6 +3331,7 @@ function startMigrosGame() {
       activeGameModule = null;
       const score = MigrosGame.computeScore(snap);
       PandaFitBackend.recordSession(clientConfig, 'migros', score, { difficulty: migrosCfg.difficulty, goodCount: snap.goodCount, junkCount: snap.junkCount, livesLost: snap.livesLost, reason }).then(submitPendingAnswersIfAny);
+      maybeShowArcadePrompt('migros', score);
       content.innerHTML = `<div style="${MIGROS_THEME}">${screenMigrosResult(snap, score, reason)}</div>`; wireMigrosResult();
     },
     (kind, x, y) => migrosSpawnCatchPulse(kind, x, y)
@@ -3357,6 +3479,7 @@ function startSkiGame() {
       activeGameModule = null;
       const score = SlalomGame.computeScore(snap);
       PandaFitBackend.recordSession(clientConfig, 'skiprev', score, { elapsedMs: Math.round(snap.elapsedMs) }).then(submitPendingAnswersIfAny);
+      maybeShowArcadePrompt('skiprev', score);
       content.innerHTML = `<div style="${SKI_THEME}">${screenSkiResult(snap, score)}</div>`; wireSkiResult();
     }
   );
@@ -3631,6 +3754,7 @@ function startEauGame() {
       const elapsed = eauSetupCfg.duration - snap.timeLeft;
       const score = WaterCupGame.computeScore(snap, elapsed);
       PandaFitBackend.recordSession(clientConfig, 'watercup', score, { difficulty: eauSetupCfg.difficulty, livesLost: snap.livesLost, reason }).then(submitPendingAnswersIfAny);
+      maybeShowArcadePrompt('watercup', score);
       content.innerHTML = screenEauResult(snap, score, reason);
       wireEauResult();
     }
@@ -3818,6 +3942,7 @@ function startElectroGame() {
       activeGameModule = null;
       const score = ElectroGame.computeScore(snap);
       PandaFitBackend.recordSession(clientConfig, 'base', score, { sensitivity: electroSetupCfg.sensitivity, livesLost: snap.livesLost, elapsedMs: Math.round(snap.elapsedMs), reason }).then(submitPendingAnswersIfAny);
+      maybeShowArcadePrompt('base', score);
       content.innerHTML = screenElectroResult(snap, score, reason);
       wireElectroResult();
     },
@@ -3987,6 +4112,7 @@ function startFootballGame() {
       activeGameModule = null;
       const score = FootballGame.computeScore(snap);
       PandaFitBackend.recordSession(clientConfig, 'distance', score, { goals: snap.goals, misses: snap.misses, upCount: snap.upCount }).then(submitPendingAnswersIfAny);
+      maybeShowArcadePrompt('distance', score);
       content.innerHTML = screenFootballResult(snap, score);
       wireFootballResult();
     }
@@ -4201,6 +4327,7 @@ function startRelaxGame() {
       activeGameModule = null;
       const score = RelaxGame.computeScore(snap);
       PandaFitBackend.recordSession(clientConfig, 'cross', score, { mode: relaxSetupCfg.mode, percentInZone: snap.percentInZone }).then(submitPendingAnswersIfAny);
+      maybeShowArcadePrompt('cross', score);
       content.innerHTML = `<div style="${RELAX_THEME}">${screenRelaxResult(snap, score)}</div>`;
       wireRelaxResult();
     }
