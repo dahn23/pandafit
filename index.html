@@ -849,8 +849,12 @@ const PandaFitBackend = (() => {
         headers: headers({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
         body: JSON.stringify({ defi_id: defiId, name: (name || '').slice(0, 10), score }),
       });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        console.error('submitArcadeScore a échoué:', res.status, errText);
+      }
       return res.ok;
-    } catch (e) { return false; }
+    } catch (e) { console.error('submitArcadeScore exception:', e); return false; }
   }
 
   return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore };
@@ -2333,12 +2337,26 @@ function showArcadeModal(defiId, score) {
   document.getElementById('btnArcadeValidate').onclick = async () => {
     const name = input.value.trim().slice(0, 10);
     if (!name) return;
-    await PandaFitBackend.submitArcadeScore(defiId, name, score);
-    document.getElementById('arcadeModalNameForm').style.display = 'none';
+    const btn = document.getElementById('btnArcadeValidate');
+    btn.disabled = true;
+    let ok = false;
+    try {
+      ok = await PandaFitBackend.submitArcadeScore(defiId, name, score);
+    } catch (e) { ok = false; }
+    btn.disabled = false;
     const savedEl = document.getElementById('arcadeModalSaved');
-    savedEl.textContent = t('arcade_saved');
-    savedEl.style.display = 'block';
-    setTimeout(() => { overlay.style.display = 'none'; }, 1500);
+    if (ok) {
+      document.getElementById('arcadeModalNameForm').style.display = 'none';
+      savedEl.textContent = t('arcade_saved');
+      savedEl.style.color = '';
+      savedEl.style.display = 'block';
+      refreshHighlights();
+      setTimeout(() => { overlay.style.display = 'none'; }, 1500);
+    } else {
+      savedEl.textContent = "Erreur : le score n'a pas pu être enregistré. Réessaie.";
+      savedEl.style.color = '#e6374e';
+      savedEl.style.display = 'block';
+    }
   };
 }
 
