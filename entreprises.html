@@ -7,176 +7,176 @@
 <meta name="description" content="PandaFit aide les entreprises suisses à prévenir les accidents, réduire le stress et créer du lien entre collaborateurs, par le jeu.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --paper: #F6F4EC;
-    --paper-hi: #EFEBDD;
-    --ink: #12241E;
-    --ink-dim: #4B5D57;
-    --brand: #0F8F63;
-    --brand-deep: #0B6B4B;
-    --brand-light: #43CEA2;
-    --coral: #FF6552;
-    --panel: #FFFFFF;
-    --line: rgba(18,36,30,0.12);
-    --radius: 22px;
+    --bg: #0A1512;
+    --bg-alt: #0E1F1A;
+    --panel: #122A22;
+    --ink: #F3F7F1;
+    --ink-dim: #9FB6AC;
+    --brand: #2FE07C;
+    --brand-deep: #17A461;
+    --brand-glow: rgba(47,224,124,0.35);
+    --coral: #FF6B55;
+    --line: rgba(243,247,241,0.12);
+    --radius: 26px;
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body {
-    margin: 0; background: var(--paper); color: var(--ink);
-    font-family: 'Inter', sans-serif; font-size: 16px; line-height: 1.5;
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: 'Inter', sans-serif; font-size: 16px; line-height: 1.55;
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3 { font-family: 'Bricolage Grotesque', sans-serif; margin: 0; color: var(--ink); }
+  h1, h2, h3 { font-family: 'Bricolage Grotesque', sans-serif; margin: 0; color: var(--ink); font-weight: 700; }
   .eyebrow {
-    font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; letter-spacing: 0.08em;
-    text-transform: uppercase; color: var(--brand-deep); display: flex; align-items: center; gap: 8px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--brand); display: flex; align-items: center; gap: 8px;
   }
-  .eyebrow::before { content: ''; width: 18px; height: 2px; background: var(--coral); display: inline-block; }
-  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
+  .eyebrow::before { content: ''; width: 20px; height: 2px; background: var(--coral); display: inline-block; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
   a { color: inherit; }
   img { max-width: 100%; display: block; }
   button, .btn { font-family: 'Inter', sans-serif; cursor: pointer; }
 
   /* ---------- Balance beam signature ---------- */
-  .beam { position: relative; height: 2px; background: var(--line); margin: 0; }
+  .beam { position: relative; height: 1px; background: var(--line); margin: 0; }
   .beam .bubble {
-    position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 50%;
-    background: var(--coral); transform: translate(-50%, -50%);
+    position: absolute; top: 50%; width: 11px; height: 11px; border-radius: 50%;
+    background: var(--brand); box-shadow: 0 0 16px var(--brand-glow); transform: translate(-50%, -50%);
     animation: sway 5.5s ease-in-out infinite;
   }
   @keyframes sway {
-    0%, 100% { left: 46%; }
-    25% { left: 58%; }
-    50% { left: 50%; }
-    75% { left: 40%; }
+    0%, 100% { left: 46%; } 25% { left: 60%; } 50% { left: 50%; } 75% { left: 38%; }
   }
-  .beam.section-divider { margin: 0 auto; max-width: 1120px; }
+  .beam.section-divider { max-width: 1180px; margin: 0 auto; }
 
   /* ---------- Nav ---------- */
   header.site-header {
-    position: sticky; top: 0; z-index: 50; background: rgba(246,244,236,0.88); backdrop-filter: blur(10px);
+    position: sticky; top: 0; z-index: 50; background: rgba(10,21,18,0.72); backdrop-filter: blur(14px);
     border-bottom: 1px solid var(--line);
   }
-  .nav-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; max-width: 1120px; margin: 0 auto; }
+  .nav-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; max-width: 1180px; margin: 0 auto; }
   .nav-brand { display: flex; align-items: center; gap: 10px; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 19px; }
-  .nav-brand .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--brand); }
-  .nav-links { display: flex; align-items: center; gap: 26px; font-size: 14.5px; font-weight: 500; }
-  .nav-links a { text-decoration: none; opacity: 0.8; }
-  .nav-links a:hover { opacity: 1; }
-  .lang-switch { display: flex; gap: 4px; }
+  .nav-brand .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 12px var(--brand-glow); }
+  .nav-links { display: flex; align-items: center; gap: 30px; font-size: 14.5px; font-weight: 500; }
+  .nav-links a { text-decoration: none; color: var(--ink-dim); }
+  .nav-links a:hover { color: var(--ink); }
+  .lang-switch { display: flex; gap: 3px; background: rgba(255,255,255,0.05); border-radius: 100px; padding: 3px; }
   .lang-switch button {
-    border: none; background: transparent; font-size: 18px; padding: 4px 6px; border-radius: 8px; opacity: 0.45;
+    border: none; background: transparent; font-size: 16px; padding: 5px 8px; border-radius: 100px; opacity: 0.45; line-height: 1;
   }
-  .lang-switch button.active { opacity: 1; background: var(--panel); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .lang-switch button.active { opacity: 1; background: rgba(255,255,255,0.1); }
   .nav-cta {
-    background: var(--ink); color: var(--paper); border: none; border-radius: 100px; padding: 10px 20px;
-    font-size: 14px; font-weight: 600; text-decoration: none;
+    background: var(--brand); color: #06170F; border: none; border-radius: 100px; padding: 11px 20px;
+    font-size: 14px; font-weight: 700; text-decoration: none;
   }
   @media (max-width: 780px) { .nav-links { display: none; } }
 
-  /* ---------- Hero ---------- */
-  .hero { padding: 64px 0 40px; }
-  .hero-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 48px; align-items: center; }
-  @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } }
-  .hero h1 {
-    font-size: clamp(38px, 5.4vw, 60px); font-weight: 700; line-height: 1.03; letter-spacing: -0.01em;
-    margin: 14px 0 18px;
+  /* ---------- Hero (full-bleed photo) ---------- */
+  .hero {
+    position: relative; min-height: 86vh; display: flex; align-items: flex-end;
+    background-size: cover; background-position: center 30%;
+    overflow: hidden;
   }
-  .hero h1 em { font-style: normal; color: var(--brand-deep); }
-  .hero p.lead { font-size: 18px; color: var(--ink-dim); max-width: 480px; margin: 0 0 28px; }
-  .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+  .hero::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(10,21,18,0.35) 0%, rgba(10,21,18,0.55) 45%, rgba(10,21,18,0.97) 92%);
+  }
+  .hero::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(60% 50% at 15% 0%, rgba(47,224,124,0.18), transparent 60%);
+  }
+  .hero-inner { position: relative; z-index: 2; padding: 60px 0 56px; width: 100%; }
+  .hero h1 {
+    font-size: clamp(40px, 6.2vw, 72px); font-weight: 700; line-height: 1.0; letter-spacing: -0.015em;
+    margin: 16px 0 20px; max-width: 800px;
+  }
+  .hero h1 em { font-style: normal; color: var(--brand); }
+  .hero p.lead { font-size: 19px; color: var(--ink-dim); max-width: 480px; margin: 0 0 30px; }
+  .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 40px; }
   .btn-primary {
-    background: var(--brand); color: #fff; border: none; border-radius: 100px; padding: 15px 26px;
-    font-size: 15.5px; font-weight: 600; text-decoration: none; display: inline-block;
+    background: var(--brand); color: #06170F; border: none; border-radius: 100px; padding: 16px 28px;
+    font-size: 15.5px; font-weight: 700; text-decoration: none; display: inline-block;
+    box-shadow: 0 8px 30px var(--brand-glow);
   }
   .btn-secondary {
-    background: transparent; color: var(--ink); border: 1.5px solid var(--line); border-radius: 100px;
-    padding: 14px 24px; font-size: 15.5px; font-weight: 600; text-decoration: none; display: inline-block;
+    background: rgba(255,255,255,0.06); color: var(--ink); border: 1.5px solid var(--line); border-radius: 100px;
+    padding: 14.5px 24px; font-size: 15.5px; font-weight: 600; text-decoration: none; display: inline-block;
   }
-  .hero-visual {
-    position: relative; border-radius: var(--radius); overflow: hidden; aspect-ratio: 4/3.2;
-    background: linear-gradient(155deg, var(--brand-deep), var(--brand) 60%, var(--brand-light));
-    background-size: cover; background-position: center;
-  }
-  .hero-visual .beam-overlay {
-    position: absolute; left: 8%; right: 8%; bottom: 14%; height: 2px; background: rgba(255,255,255,0.55);
-  }
-  .hero-visual .beam-overlay .bubble2 {
-    position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: #fff;
-    transform: translate(-50%,-50%); box-shadow: 0 0 0 6px rgba(255,255,255,0.18);
-    animation: sway 5.5s ease-in-out infinite;
-  }
-  .hero-stats { display: flex; gap: 28px; margin-top: 34px; flex-wrap: wrap; }
-  .hero-stat .num { font-family: 'IBM Plex Mono', monospace; font-size: 26px; font-weight: 500; color: var(--brand-deep); }
-  .hero-stat .lbl { font-size: 13px; color: var(--ink-dim); max-width: 160px; }
+  .hero-stats { display: flex; gap: 40px; flex-wrap: wrap; }
+  .hero-stat .num { font-family: 'IBM Plex Mono', monospace; font-size: 30px; font-weight: 500; color: var(--brand); }
+  .hero-stat .lbl { font-size: 13px; color: var(--ink-dim); max-width: 170px; margin-top: 2px; }
 
   /* ---------- Benefit sections ---------- */
-  .benefit { padding: 84px 0; }
-  .benefit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+  .benefit { padding: 100px 0; }
+  .benefit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
   .benefit-grid.reverse .benefit-visual { order: 2; }
   @media (max-width: 900px) { .benefit-grid, .benefit-grid.reverse .benefit-visual { grid-template-columns: 1fr; order: 0; } }
   .benefit-visual {
-    border-radius: var(--radius); aspect-ratio: 5/4; background-size: cover; background-position: center;
-    background-color: var(--paper-hi);
+    border-radius: var(--radius); aspect-ratio: 5/4.3; background-size: cover; background-position: center;
+    background-color: var(--panel); position: relative; box-shadow: 0 30px 70px -20px rgba(0,0,0,0.6);
   }
-  .benefit h2 { font-size: clamp(26px, 3vw, 34px); margin: 10px 0 16px; line-height: 1.12; }
+  .benefit-visual::after {
+    content: ''; position: absolute; inset: 0; border-radius: var(--radius);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .benefit h2 { font-size: clamp(28px, 3.2vw, 36px); margin: 12px 0 18px; line-height: 1.1; }
   .benefit p { font-size: 15.5px; color: var(--ink-dim); margin: 0 0 12px; max-width: 460px; }
-  .benefit ul { margin: 16px 0 0; padding: 0; list-style: none; }
-  .benefit li { font-size: 14.5px; color: var(--ink); padding: 10px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; }
-  .benefit li::before { content: '—'; color: var(--coral); font-weight: 700; }
+  .benefit ul { margin: 18px 0 0; padding: 0; list-style: none; }
+  .benefit li { font-size: 14.5px; color: var(--ink); padding: 12px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; }
+  .benefit li::before { content: '—'; color: var(--brand); font-weight: 700; }
 
   /* ---------- Pricing ---------- */
-  .pricing { padding: 84px 0; }
-  .pricing-head { text-align: center; max-width: 560px; margin: 0 auto 48px; }
-  .pricing-head h2 { font-size: clamp(28px, 3.4vw, 38px); margin: 12px 0; }
+  .pricing { padding: 100px 0; background: var(--bg-alt); }
+  .pricing-head { text-align: center; max-width: 560px; margin: 0 auto 52px; }
+  .pricing-head h2 { font-size: clamp(30px, 3.6vw, 40px); margin: 12px 0; }
   .pricing-head p { color: var(--ink-dim); font-size: 15.5px; }
   .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
   @media (max-width: 860px) { .pricing-grid { grid-template-columns: 1fr; } }
   .price-card {
-    background: var(--panel); border-radius: var(--radius); padding: 32px 26px; border: 1px solid var(--line);
+    background: var(--panel); border-radius: var(--radius); padding: 34px 28px; border: 1px solid var(--line);
     display: flex; flex-direction: column;
   }
-  .price-card.featured { background: var(--ink); color: var(--paper); border-color: var(--ink); transform: translateY(-8px); }
-  .price-card.featured .price-desc, .price-card.featured .eyebrow { color: rgba(246,244,236,0.7); }
-  .price-card.featured .eyebrow::before { background: var(--brand-light); }
+  .price-card.featured {
+    background: linear-gradient(165deg, #163C2C, #0F241C); border-color: var(--brand);
+    box-shadow: 0 0 0 1px var(--brand), 0 30px 60px -20px var(--brand-glow); transform: translateY(-10px);
+  }
   .price-card .badge {
     align-self: flex-start; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.06em;
-    background: var(--coral); color: #fff; padding: 4px 10px; border-radius: 100px; margin-bottom: 14px; text-transform: uppercase;
+    background: var(--coral); color: #1a0a06; padding: 5px 11px; border-radius: 100px; margin-bottom: 16px; text-transform: uppercase; font-weight: 700;
   }
-  .price-card h3 { font-size: 20px; margin: 12px 0 6px; }
-  .price-card .amount { font-family: 'IBM Plex Mono', monospace; font-size: 26px; font-weight: 500; margin: 4px 0 14px; }
-  .price-card .price-desc { font-size: 14px; color: var(--ink-dim); flex: 1; margin-bottom: 22px; }
-  .price-card .btn-secondary { text-align: center; border-color: rgba(255,255,255,0.3); }
-  .price-card.featured .btn-secondary { color: var(--paper); }
-  .price-card:not(.featured) .btn-secondary { border-color: var(--line); }
+  .price-card h3 { font-size: 21px; margin: 12px 0 6px; }
+  .price-card .amount { font-family: 'IBM Plex Mono', monospace; font-size: 27px; font-weight: 500; margin: 4px 0 16px; color: var(--brand); }
+  .price-card .price-desc { font-size: 14px; color: var(--ink-dim); flex: 1; margin-bottom: 24px; }
+  .price-card .btn-secondary, .price-card .btn-primary { text-align: center; }
 
-  /* ---------- Trust / references ---------- */
-  .trust { padding: 50px 0; text-align: center; }
-  .trust .eyebrow { justify-content: center; margin-bottom: 18px; }
-  .trust-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 28px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--ink-dim); }
+  /* ---------- Trust ---------- */
+  .trust { padding: 56px 0; text-align: center; }
+  .trust .eyebrow { justify-content: center; margin-bottom: 20px; }
+  .trust-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px 32px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--ink-dim); }
 
   /* ---------- Contact ---------- */
-  .contact { padding: 84px 0 100px; }
-  .contact-grid { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 56px; }
+  .contact { padding: 100px 0 110px; }
+  .contact-grid { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 60px; }
   @media (max-width: 900px) { .contact-grid { grid-template-columns: 1fr; } }
-  .contact h2 { font-size: clamp(28px, 3.4vw, 38px); margin: 12px 0 16px; }
+  .contact h2 { font-size: clamp(30px, 3.6vw, 40px); margin: 12px 0 16px; }
   .contact p { color: var(--ink-dim); font-size: 15.5px; max-width: 420px; }
-  form.contact-form { background: var(--panel); border-radius: var(--radius); padding: 30px; border: 1px solid var(--line); }
+  form.contact-form { background: var(--panel); border-radius: var(--radius); padding: 32px; border: 1px solid var(--line); }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
   @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
   .contact-form label { font-size: 12.5px; color: var(--ink-dim); display: block; margin-bottom: 6px; }
   .contact-form input, .contact-form textarea {
-    width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper);
+    width: 100%; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,0.03);
     font-family: 'Inter', sans-serif; font-size: 14.5px; color: var(--ink); box-sizing: border-box;
   }
+  .contact-form input:focus, .contact-form textarea:focus { outline: none; border-color: var(--brand); }
   .contact-form textarea { min-height: 100px; resize: vertical; }
   .contact-form .full { grid-column: 1 / -1; margin-bottom: 14px; }
-  .contact-form button { width: 100%; margin-top: 4px; }
+  .contact-form button { width: 100%; margin-top: 4px; border: none; }
   .form-msg { font-size: 13.5px; margin-top: 12px; }
-  .form-msg.ok { color: var(--brand-deep); }
+  .form-msg.ok { color: var(--brand); }
   .form-msg.err { color: var(--coral); }
 
   footer.site-footer { border-top: 1px solid var(--line); padding: 34px 0; }
@@ -205,24 +205,19 @@
   </div>
 </header>
 
-<section class="hero">
-  <div class="wrap hero-grid">
-    <div>
-      <div class="eyebrow" data-i18n="hero_eyebrow">Équilibre au travail</div>
-      <h1 data-i18n="hero_title">Vos équipes gagnent en <em>équilibre</em>, en jouant.</h1>
-      <p class="lead" data-i18n="hero_lead">PandaFit transforme la prévention des accidents et la gestion du stress en quelques minutes de jeu, directement sur le lieu de travail.</p>
-      <div class="hero-ctas">
-        <a href="#contact" class="btn-primary" data-i18n="hero_cta1">Demander une démonstration</a>
-        <a href="#pricing" class="btn-secondary" data-i18n="hero_cta2">Voir les offres</a>
-      </div>
-      <div class="hero-stats">
-        <div class="hero-stat"><div class="num">#1</div><div class="lbl" data-i18n="hero_stat1">cause d'accident en Suisse : les chutes et faux pas (source Suva)</div></div>
-        <div class="hero-stat"><div class="num">200K</div><div class="lbl" data-i18n="hero_stat2">personnes blessées chaque année en trébuchant ou en tombant</div></div>
-        <div class="hero-stat"><div class="num">2 min</div><div class="lbl" data-i18n="hero_stat3">suffisent par session pour progresser durablement</div></div>
-      </div>
+<section class="hero" id="heroVisual">
+  <div class="wrap hero-inner">
+    <div class="eyebrow" data-i18n="hero_eyebrow">Équilibre au travail</div>
+    <h1 data-i18n="hero_title">Vos équipes gagnent en <em>équilibre</em>, en jouant.</h1>
+    <p class="lead" data-i18n="hero_lead">PandaFit transforme la prévention des accidents et la gestion du stress en quelques minutes de jeu, directement sur le lieu de travail.</p>
+    <div class="hero-ctas">
+      <a href="#contact" class="btn-primary" data-i18n="hero_cta1">Demander une démonstration</a>
+      <a href="#pricing" class="btn-secondary" data-i18n="hero_cta2">Voir les offres</a>
     </div>
-    <div class="hero-visual" id="heroVisual">
-      <div class="beam-overlay"><div class="bubble2"></div></div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="num">#1</div><div class="lbl" data-i18n="hero_stat1">cause d'accident en Suisse : les chutes et faux pas (source Suva)</div></div>
+      <div class="hero-stat"><div class="num">200K</div><div class="lbl" data-i18n="hero_stat2">personnes blessées chaque année en trébuchant ou en tombant</div></div>
+      <div class="hero-stat"><div class="num">2 min</div><div class="lbl" data-i18n="hero_stat3">suffisent par session pour progresser durablement</div></div>
     </div>
   </div>
 </section>
@@ -272,8 +267,6 @@
     <div class="benefit-visual" id="visualSocial"></div>
   </div>
 </section>
-
-<div class="beam section-divider"><div class="bubble"></div></div>
 
 <section class="pricing" id="pricing">
   <div class="wrap">
@@ -335,6 +328,14 @@ const SUPABASE_URL = 'https://kabjpqvbukhhqvdjnkzr.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QgLSQJyPJ09Uj3vCKCUykA_ca1LTm5E';
 const REST = `${SUPABASE_URL}/rest/v1`;
 function sbHeaders(extra) { return { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, ...extra }; }
+
+/* Images par défaut (les vraies photos PandaFit), remplaçables depuis l'admin */
+const DEFAULT_IMAGES = {
+  hero: 'site-hero-meeting.jpg',
+  balance: 'site-ski.jpg',
+  mental: 'site-meditation.jpg',
+  social: 'site-football.jpg',
+};
 
 const TRANSLATIONS = {
   fr: {
@@ -495,18 +496,18 @@ document.querySelectorAll('.lang-switch button').forEach(btn => btn.addEventList
 
 document.getElementById('year').textContent = new Date().getFullYear();
 
-/* ---------- Images (éditables depuis l'admin) ---------- */
+/* ---------- Images (photos par défaut, remplaçables depuis l'admin) ---------- */
 async function loadImages() {
+  const map = { ...DEFAULT_IMAGES };
   try {
     const res = await fetch(`${REST}/website_images?select=*`, { headers: sbHeaders() });
     const rows = res.ok ? await res.json() : [];
-    const map = {};
-    rows.forEach(r => { map[r.id] = r.image_url; });
-    if (map.hero) document.getElementById('heroVisual').style.backgroundImage = `url('${map.hero}')`;
-    if (map.balance) document.getElementById('visualBalance').style.backgroundImage = `url('${map.balance}')`;
-    if (map.mental) document.getElementById('visualMental').style.backgroundImage = `url('${map.mental}')`;
-    if (map.social) document.getElementById('visualSocial').style.backgroundImage = `url('${map.social}')`;
-  } catch (e) { /* silencieux : les dégradés par défaut restent visibles */ }
+    rows.forEach(r => { if (r.image_url) map[r.id] = r.image_url; });
+  } catch (e) { /* on garde les photos par défaut */ }
+  document.getElementById('heroVisual').style.backgroundImage = `url('${map.hero}')`;
+  document.getElementById('visualBalance').style.backgroundImage = `url('${map.balance}')`;
+  document.getElementById('visualMental').style.backgroundImage = `url('${map.mental}')`;
+  document.getElementById('visualSocial').style.backgroundImage = `url('${map.social}')`;
 }
 loadImages();
 
@@ -538,7 +539,7 @@ function renderPricing() {
         <h3>${pickLang(row, 'title')}</h3>
         <div class="amount">${row.price_chf || ''}</div>
         <p class="price-desc">${pickLang(row, 'description')}</p>
-        <a href="#contact" class="btn-secondary">${t('price_cta')}</a>
+        <a href="#contact" class="${featured ? 'btn-primary' : 'btn-secondary'}">${t('price_cta')}</a>
       </div>
     `;
   }).join('');
