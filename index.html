@@ -667,6 +667,12 @@ const PandaFitBackend = (() => {
    *  mélangés en "un de chaque catégorie" (round-robin). */
   async function computeDefiStandings(defi, config, devicesCache) {
     try {
+      if (defi.mode === 'arcade') {
+        const res = await fetch(`${REST}/defi_arcade_scores?defi_id=eq.${defi.id}&select=*&order=score.desc`, { headers: headers() });
+        const rows = res.ok ? await res.json() : [];
+        const fullRanking = rows.map(r => ({ name: r.name, total: r.score }));
+        return { mode: 'arcade', yours: fullRanking[0]?.total || 0, yoursLabel: 'Meilleur score actuel', fullRanking };
+      }
       const res = await fetch(
         `${REST}/sessions?client_id=eq.${config.clientId}&game_id=eq.${defi.game_id}&played_at=gte.${defi.start_date}&played_at=lte.${defi.end_date}T23:59:59&select=score,device_id`,
         { headers: headers() }
@@ -676,14 +682,14 @@ const PandaFitBackend = (() => {
         const byDevice = {};
         rows.forEach(r => { byDevice[r.device_id] = (byDevice[r.device_id] || 0) + (r.score || 0); });
         const yours = byDevice[config.deviceId] || 0;
-        let leaderName = null, leaderPoints = 0;
-        Object.entries(byDevice).forEach(([devId, total]) => {
-          if (total > leaderPoints) { leaderPoints = total; leaderName = devicesCache[devId] || 'Tablette'; }
-        });
-        return { mode: 'tablet_vs_tablet', yours, yoursLabel: 'Ta tablette', leaderName, leaderPoints };
+        const fullRanking = Object.entries(byDevice)
+          .map(([devId, total]) => ({ name: devicesCache[devId] || 'Tablette', total }))
+          .sort((a, b) => b.total - a.total);
+        const leader = fullRanking[0];
+        return { mode: 'tablet_vs_tablet', yours, yoursLabel: 'Ta tablette', leaderName: leader?.name, leaderPoints: leader?.total || 0, fullRanking };
       }
       const total = rows.reduce((a, r) => a + (r.score || 0), 0);
-      return { mode: 'company_total', yours: total, yoursLabel: 'Total entreprise' };
+      return { mode: 'company_total', yours: total, yoursLabel: 'Total entreprise', fullRanking: [{ name: 'Total entreprise', total }] };
     } catch (e) { return null; }
   }
 
@@ -705,7 +711,7 @@ const PandaFitBackend = (() => {
         .sort((a, b) => b.total - a.total);
       const yours = standings.find(s => s.clientId === config.clientId)?.total || 0;
       const leader = standings[0];
-      return { mode: 'company_vs_company', yours, yoursLabel: 'Tes points', leaderName: leader?.name, leaderPoints: leader?.total || 0 };
+      return { mode: 'company_vs_company', yours, yoursLabel: 'Tes points', leaderName: leader?.name, leaderPoints: leader?.total || 0, fullRanking: standings };
     } catch (e) { return null; }
   }
 
@@ -2773,8 +2779,28 @@ function formatCountdown(endDate) {
 }
 function openHighlightDetail(item) {
   stopCarouselTimer('events');
+  currentRoute = 'detail';
+  updateAdsBanner();
   content.innerHTML = screenHighlightDetail(item);
   wireHighlightDetail(item);
+}
+/** Beau tableau de classement (top 10, médailles pour le podium) — version tablette, lecture seule. */
+function leaderboardTableHTML(entries) {
+  if (!entries || !entries.length) return '';
+  const medals = ['🥇', '🥈', '🥉'];
+  return `
+    <div style="max-width:420px;margin:14px auto 0;">
+      ${entries.slice(0, 10).map((e, i) => `
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:12px;margin-bottom:7px;
+                    background:${i === 0 ? 'linear-gradient(90deg,rgba(255,215,0,0.16),rgba(255,215,0,0.03))' : i === 1 ? 'linear-gradient(90deg,rgba(192,192,192,0.14),rgba(192,192,192,0.02))' : i === 2 ? 'linear-gradient(90deg,rgba(205,127,50,0.14),rgba(205,127,50,0.02))' : 'var(--panel)'};
+                    border:1px solid ${i < 3 ? 'rgba(255,255,255,0.1)' : 'transparent'};">
+          <div style="width:30px;text-align:center;font-size:${i < 3 ? '20px' : '14px'};color:var(--text-dim);">${medals[i] || (i + 1)}</div>
+          <div style="flex:1;font-weight:${i < 3 ? 800 : 600};font-size:${i < 3 ? '15.5px' : '14px'};">${e.name}</div>
+          <div style="font-family:monospace;font-weight:700;font-size:${i < 3 ? '16px' : '14px'};">${e.total}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 function screenHighlightDetail(item) {
   const badge = { defi: '<i data-lucide="flame"></i> Défi', challenge: '<i data-lucide="trophy"></i> Challenge', event: '<i data-lucide="calendar"></i> Événement' }[item.type];
@@ -2795,6 +2821,7 @@ function screenHighlightDetail(item) {
       ${objective ? `<div class="detail-row"><div class="lbl"><i data-lucide="target"></i> Objectif</div><div class="val">${objective}</div></div>` : ''}
       ${reward ? `<div class="detail-row"><div class="lbl"><i data-lucide="gift"></i> Récompense</div><div class="val">${reward}</div></div>` : ''}
     `;
+    body += leaderboardTableHTML(item.standings?.fullRanking);
   } else if (item.type === 'challenge') {
     showPlay = true;
     const names = (item.data.challenge_participants || []).map(p => p.clients?.name).filter(Boolean).join(' vs ');
@@ -2805,6 +2832,7 @@ function screenHighlightDetail(item) {
       <div class="result-stat"><span>Jeu</span><span>${item.data.games?.name || item.data.game_id}</span></div>
       <div class="result-stat"><span>Se termine dans</span><span id="detailCountdown">${formatCountdown(item.data.end_date)}</span></div>
     `;
+    body += leaderboardTableHTML(item.standings?.fullRanking);
   } else {
     const when = item.data.all_day
       ? 'Toute la journée'
