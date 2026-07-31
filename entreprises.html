@@ -613,6 +613,7 @@ const TRANSLATIONS = {
     form_err: "Une erreur est survenue, réessayez ou écrivez-nous directement.",
     footer_note: 'Solution suisse de prévention et de bien-être au travail.',
     price_cta: 'Nous contacter',
+    price_badge: 'Populaire', price_from: 'Dès', price_per_day: '/jour', price_per_month: '/mois', price_per_year: '/an',
   },
   en: {
     nav_benefits: 'Benefits', nav_pricing: 'Plans', nav_contact: 'Contact', nav_cta: 'Book a demo',
@@ -690,6 +691,7 @@ const TRANSLATIONS = {
     form_err: 'Something went wrong, please try again or email us directly.',
     footer_note: 'A Swiss solution for workplace prevention and wellbeing.',
     price_cta: 'Contact us',
+    price_badge: 'Popular', price_from: 'From', price_per_day: '/day', price_per_month: '/month', price_per_year: '/year',
   },
   de: {
     nav_benefits: 'Vorteile', nav_pricing: 'Angebote', nav_contact: 'Kontakt', nav_cta: 'Demo anfragen',
@@ -767,6 +769,7 @@ const TRANSLATIONS = {
     form_err: 'Ein Fehler ist aufgetreten, bitte versuchen Sie es erneut oder schreiben Sie uns direkt.',
     footer_note: 'Eine Schweizer Lösung für Prävention und Wohlbefinden am Arbeitsplatz.',
     price_cta: 'Kontaktieren Sie uns',
+    price_badge: 'Beliebt', price_from: 'Ab', price_per_day: '/Tag', price_per_month: '/Monat', price_per_year: '/Jahr',
   },
   it: {
     nav_benefits: 'Benefici', nav_pricing: 'Offerte', nav_contact: 'Contatto', nav_cta: 'Richiedi una demo',
@@ -844,6 +847,7 @@ const TRANSLATIONS = {
     form_err: 'Si è verificato un errore, riprova o scrivici direttamente.',
     footer_note: 'Una soluzione svizzera per la prevenzione e il benessere sul lavoro.',
     price_cta: 'Contattaci',
+    price_badge: 'Popolare', price_from: 'Da', price_per_day: '/giorno', price_per_month: '/mese', price_per_year: '/anno',
   },
 };
 
@@ -916,6 +920,17 @@ function pickLang(obj, field) {
   if (currentLang === 'fr') return obj[field] || '';
   return obj[field + '_' + currentLang] || obj[field] || '';
 }
+function translatePriceLabel(str) {
+  if (!str) return '';
+  let out = str;
+  if (currentLang !== 'fr') {
+    out = out.replace(/^Dès\s*/i, t('price_from') + ' ');
+    out = out.replace(/\/jour\b/i, t('price_per_day'));
+    out = out.replace(/\/mois\b/i, t('price_per_month'));
+    out = out.replace(/\/an\b/i, t('price_per_year'));
+  }
+  return out;
+}
 function renderPricing() {
   const order = ['discovery', 'monthly', 'annual'];
   const grid = document.getElementById('pricingGrid');
@@ -925,10 +940,10 @@ function renderPricing() {
     const featured = id === 'monthly';
     return `
       <div class="price-card ${featured ? 'featured' : ''}">
-        ${featured ? `<span class="badge">Populaire</span>` : ''}
+        ${featured ? `<span class="badge">${t('price_badge')}</span>` : ''}
         <div class="eyebrow">${id === 'discovery' ? '01' : id === 'monthly' ? '02' : '03'}</div>
         <h3>${pickLang(row, 'title')}</h3>
-        <div class="amount">${row.price_chf || ''}</div>
+        <div class="amount">${translatePriceLabel(row.price_chf)}</div>
         <p class="price-desc">${pickLang(row, 'description')}</p>
         <a href="#contact" class="${featured ? 'btn-primary' : 'btn-secondary'}">${t('price_cta')}</a>
       </div>
