@@ -4202,9 +4202,12 @@ function screenRelaxPlaying() {
         <div class="timer" id="relaxTimer">--</div>
       </div>
       <div class="zone-canvas-wrap">
-        <canvas id="relaxCanvas" width="300" height="300"></canvas>
+        <canvas id="relaxBreathCanvas" width="300" height="300"></canvas>
       </div>
       <p class="page-sub" id="relaxPhaseLabel" style="text-align:center;font-size:22px;font-weight:700;color:#fff;">Installe-toi...</p>
+      <div class="zone-canvas-wrap" style="margin-top:6px;">
+        <canvas id="relaxZoneCanvas" width="180" height="180"></canvas>
+      </div>
     </div>
   `;
 }
@@ -4221,28 +4224,35 @@ function renderRelaxPlaying(snap) {
     else if (snap.breathPhase === 'hold') labelEl.textContent = 'Retiens...';
     else labelEl.textContent = 'Expire...';
   }
-  const canvas = document.getElementById('relaxCanvas');
+
+  // anneau de respiration (visuel, ne compte pas pour l'équilibre) — au-dessus, séparé de la cible
+  const breathCanvas = document.getElementById('relaxBreathCanvas');
+  if (breathCanvas) {
+    const ctx = breathCanvas.getContext('2d');
+    const w = breathCanvas.width, h = breathCanvas.height, cx = w / 2, cy = h / 2;
+    ctx.clearRect(0, 0, w, h);
+    if (!snap.settling) {
+      const minR = 45, maxR = 130;
+      let ringR;
+      if (snap.breathPhase === 'inhale') ringR = minR + snap.breathProgress * (maxR - minR);
+      else if (snap.breathPhase === 'hold') ringR = maxR;
+      else ringR = maxR - snap.breathProgress * (maxR - minR);
+      ctx.beginPath();
+      ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(150,190,255,0.55)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+  }
+
+  // cible d'équilibre PandaFit — séparée, en dessous du texte
+  const canvas = document.getElementById('relaxZoneCanvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const w = canvas.width, h = canvas.height, cx = w / 2, cy = h / 2;
   const pxPerCm = 26;
   ctx.clearRect(0, 0, w, h);
 
-  // anneau de respiration (visuel, ne compte pas pour l'équilibre)
-  if (!snap.settling) {
-    const minR = 45, maxR = 130;
-    let ringR;
-    if (snap.breathPhase === 'inhale') ringR = minR + snap.breathProgress * (maxR - minR);
-    else if (snap.breathPhase === 'hold') ringR = maxR;
-    else ringR = maxR - snap.breathProgress * (maxR - minR);
-    ctx.beginPath();
-    ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(150,190,255,0.55)';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-  }
-
-  // zone d'équilibre
   const inside = (snap.xCm * snap.xCm + snap.yCm * snap.yCm) <= (snap.radiusCm * snap.radiusCm);
   ctx.beginPath();
   ctx.arc(cx, cy, snap.radiusCm * pxPerCm, 0, Math.PI * 2);
