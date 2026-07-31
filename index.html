@@ -404,9 +404,13 @@
   }
   .hc-score-box.leading { background: linear-gradient(160deg, #43cea2, #1a7a52); }
   .hc-score-box.trailing { background: linear-gradient(160deg, #ff9a3c, #d9480f); }
+  .hc-score-box.blue { background: linear-gradient(160deg, #3a8dde, #1a4d8f); }
+  .hc-score-box.yellow { background: linear-gradient(160deg, #ffd43a, #d99a00); }
   .hc-score-box .pulse-ring { position: absolute; inset: 0; border-radius: 20px; z-index: 0; animation: hcPulse 1.8s ease-out infinite; }
   .hc-score-box.leading .pulse-ring { background: #43cea2; }
   .hc-score-box.trailing .pulse-ring { background: #ff9a3c; }
+  .hc-score-box.blue .pulse-ring { background: #3a8dde; }
+  .hc-score-box.yellow .pulse-ring { background: #ffd43a; }
   @keyframes hcPulse { 0% { transform: scale(1); opacity: 0.5; } 100% { transform: scale(1.4); opacity: 0; } }
   .hc-score-box > * { position: relative; z-index: 1; }
   .hc-score-box .crown-row { display: flex; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.9; }
@@ -1690,7 +1694,7 @@ const MigrosGame = (() => {
     reset();
     PandaFitSensor.off('data', onSensorData);
     PandaFitSensor.on('data', onSensorData);
-    spawnTimer = setInterval(spawnItem, 800);
+    spawnTimer = setInterval(spawnItem, 267); // 3x plus fréquent qu'avant (800ms/3) = 3x plus d'items à l'écran
     tickTimer = setInterval(() => { s.timeLeft -= 1; if (s.timeLeft <= 0) finish('time'); }, 1000);
     loop();
   }
@@ -2566,13 +2570,14 @@ function highlightCardHTML(item) {
     sub = `${new Date(item.data.start_date).toLocaleDateString('fr-CH')} → ${new Date(item.data.end_date).toLocaleDateString('fr-CH')}${desc ? ' · ' + desc : ''}`;
   }
 
+  const showsBox = item.standings && (item.standings.leaderName || item.standings.mode === 'company_total' || item.standings.mode === 'arcade');
   const mediaCard = `
     <div class="highlight-card" style="${highlightBgStyle(item)}">
       <div class="hc-badge">${badge}</div>
       <div class="hc-content">
         <div class="hc-title">${title}</div>
         <div class="hc-sub">${sub}</div>
-        ${item.standings && !item.standings.leaderName ? standingsLineHTML(item.standings) : ''}
+        ${item.standings && !showsBox ? standingsLineHTML(item.standings) : ''}
       </div>
     </div>
   `;
@@ -2593,6 +2598,31 @@ function highlightCardHTML(item) {
           <div class="divider"></div>
           <div class="tablet-name">${yoursName}</div>
           <div class="tablet-score">${item.standings.yours} pts</div>
+        </div>
+      </div>
+    `;
+  }
+  if (item.standings && item.standings.mode === 'company_total') {
+    return `
+      <div class="highlight-row">
+        ${mediaCard}
+        <div class="hc-score-box blue">
+          <div class="pulse-ring"></div>
+          <div class="crown-row"><i data-lucide="trending-up"></i> ${item.standings.yoursLabel}</div>
+          <div class="leader-score" style="margin-top:8px;">${item.standings.yours} pts</div>
+        </div>
+      </div>
+    `;
+  }
+  if (item.standings && item.standings.mode === 'arcade') {
+    const top = (item.standings.fullRanking || [])[0];
+    return `
+      <div class="highlight-row">
+        ${mediaCard}
+        <div class="hc-score-box yellow">
+          <div class="pulse-ring"></div>
+          <div class="crown-row"><i data-lucide="crown"></i> ${t('badge_first')}</div>
+          ${top ? `<div class="leader-name">${top.name}</div><div class="leader-score">${top.total} pts</div>` : `<div class="leader-score" style="margin-top:8px;">—</div>`}
         </div>
       </div>
     `;
@@ -3027,6 +3057,7 @@ function startZoneGame() {
       const score = ZoneGame.computeScore(snap, zoneSetupCfg.duration - snap.timeLeft);
       PandaFitBackend.recordSession(clientConfig, 'thezone', score, { difficulty: zoneSetupCfg.difficulty, livesLost: snap.livesLost, reason }).then(submitPendingAnswersIfAny);
       maybeShowArcadePrompt('thezone', score);
+      refreshHighlights(); // pour que les scores soient à jour au retour à l'accueil, sans reconnexion
       content.innerHTML = screenZoneResult(snap, score, reason);
       wireZoneResult();
     }
@@ -3288,51 +3319,15 @@ function screenMigrosSetup() {
     <div style="${MIGROS_THEME}">
       <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="shopping-cart"></i> Le Panier Malin</h1>
       <p class="page-sub">Reste dans la zone en bas sans en sortir, et tape sur les bons aliments qui tombent — évite les sucreries.</p>
-      <div class="card">
-        <h2>Difficulté (taille de la zone)</h2>
-        ${segmented('migrosDifficulty', [
-          { value: 'easy', label: 'Facile (4 cm)' },
-          { value: 'medium', label: 'Moyen (2 cm)' },
-          { value: 'hard', label: 'Difficile (1 cm)' },
-        ], migrosCfg.difficulty)}
-      </div>
-      <div class="card">
-        <h2>Durée</h2>
-        ${segmented('migrosDuration', [
-          { value: 30, label: '30 s' },
-          { value: 45, label: '45 s' },
-          { value: 60, label: '60 s' },
-        ], migrosCfg.duration)}
-      </div>
-      <div class="card">
-        <h2>Vies</h2>
-        ${segmented('migrosLives', [
-          { value: 3, label: '3 vies' },
-          { value: 5, label: '5 vies' },
-          { value: 'Infinity', label: 'Illimité' },
-        ], migrosCfg.lives === Infinity ? 'Infinity' : migrosCfg.lives)}
-      </div>
       <button class="btn-primary" id="btnMigrosStart" style="width:100%;">${t('game_start_btn')}</button>
 <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
     </div>
   </div>
   `;
 }
-let migrosCfg = { difficulty: 'medium', duration: 45, lives: 3 };
+let migrosCfg = { difficulty: 'medium', duration: 30, lives: 5 };
 function wireMigrosSetup() {
   document.getElementById('btnDoInitiationFirst')?.addEventListener('click', () => navigate('initiation'));
-  document.querySelectorAll('.segmented').forEach(group => {
-    group.querySelectorAll('button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const group_name = group.dataset.group;
-        let v = btn.dataset.value;
-        if (v === 'Infinity') v = Infinity; else if (!isNaN(v)) v = Number(v);
-        const key = group_name.replace('migros', '').replace(/^./, c => c.toLowerCase());
-        migrosCfg[key] = v;
-        group.querySelectorAll('button').forEach(b => b.classList.toggle('selected', b === btn));
-      });
-    });
-  });
   document.getElementById('btnMigrosStart')?.addEventListener('click', () => {
     migrosPrepareThenStart();
   });
@@ -3360,6 +3355,7 @@ function startMigrosGame() {
       const score = MigrosGame.computeScore(snap);
       PandaFitBackend.recordSession(clientConfig, 'migros', score, { difficulty: migrosCfg.difficulty, goodCount: snap.goodCount, junkCount: snap.junkCount, livesLost: snap.livesLost, reason }).then(submitPendingAnswersIfAny);
       maybeShowArcadePrompt('migros', score);
+      refreshHighlights(); // pour que les scores soient à jour au retour à l'accueil, sans reconnexion
       content.innerHTML = `<div style="${MIGROS_THEME}">${screenMigrosResult(snap, score, reason)}</div>`; wireMigrosResult();
     },
     (kind, x, y) => migrosSpawnCatchPulse(kind, x, y)
@@ -3508,6 +3504,7 @@ function startSkiGame() {
       const score = SlalomGame.computeScore(snap);
       PandaFitBackend.recordSession(clientConfig, 'skiprev', score, { elapsedMs: Math.round(snap.elapsedMs) }).then(submitPendingAnswersIfAny);
       maybeShowArcadePrompt('skiprev', score);
+      refreshHighlights(); // pour que les scores soient à jour au retour à l'accueil, sans reconnexion
       content.innerHTML = `<div style="${SKI_THEME}">${screenSkiResult(snap, score)}</div>`; wireSkiResult();
     }
   );
@@ -3783,6 +3780,7 @@ function startEauGame() {
       const score = WaterCupGame.computeScore(snap, elapsed);
       PandaFitBackend.recordSession(clientConfig, 'watercup', score, { difficulty: eauSetupCfg.difficulty, livesLost: snap.livesLost, reason }).then(submitPendingAnswersIfAny);
       maybeShowArcadePrompt('watercup', score);
+      refreshHighlights(); // pour que les scores soient à jour au retour à l'accueil, sans reconnexion
       content.innerHTML = screenEauResult(snap, score, reason);
       wireEauResult();
     }
@@ -3971,6 +3969,7 @@ function startElectroGame() {
       const score = ElectroGame.computeScore(snap);
       PandaFitBackend.recordSession(clientConfig, 'base', score, { sensitivity: electroSetupCfg.sensitivity, livesLost: snap.livesLost, elapsedMs: Math.round(snap.elapsedMs), reason }).then(submitPendingAnswersIfAny);
       maybeShowArcadePrompt('base', score);
+      refreshHighlights(); // pour que les scores soient à jour au retour à l'accueil, sans reconnexion
       content.innerHTML = screenElectroResult(snap, score, reason);
       wireElectroResult();
     },
@@ -4141,6 +4140,7 @@ function startFootballGame() {
       const score = FootballGame.computeScore(snap);
       PandaFitBackend.recordSession(clientConfig, 'distance', score, { goals: snap.goals, misses: snap.misses, upCount: snap.upCount }).then(submitPendingAnswersIfAny);
       maybeShowArcadePrompt('distance', score);
+      refreshHighlights(); // pour que les scores soient à jour au retour à l'accueil, sans reconnexion
       content.innerHTML = screenFootballResult(snap, score);
       wireFootballResult();
     }
@@ -4356,6 +4356,7 @@ function startRelaxGame() {
       const score = RelaxGame.computeScore(snap);
       PandaFitBackend.recordSession(clientConfig, 'cross', score, { mode: relaxSetupCfg.mode, percentInZone: snap.percentInZone }).then(submitPendingAnswersIfAny);
       maybeShowArcadePrompt('cross', score);
+      refreshHighlights(); // pour que les scores soient à jour au retour à l'accueil, sans reconnexion
       content.innerHTML = `<div style="${RELAX_THEME}">${screenRelaxResult(snap, score)}</div>`;
       wireRelaxResult();
     }
