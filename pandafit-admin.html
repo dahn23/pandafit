@@ -1175,6 +1175,29 @@ function renderEventsTab() {
 }
 
 /* ---------------- Défis (internes à un client) ---------------- */
+/** Beau tableau de classement (top 10, médailles pour le podium). entries: [{id, name, score}] */
+function leaderboardTableHTML(entries, editable) {
+  if (!entries.length) return '<p class="empty">Aucun score pour le moment.</p>';
+  const medals = ['🥇', '🥈', '🥉'];
+  return `
+    <div style="max-width:440px;margin:0 auto;">
+      ${entries.slice(0, 10).map((e, i) => `
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:12px;margin-bottom:7px;
+                    background:${i === 0 ? 'linear-gradient(90deg,rgba(255,215,0,0.16),rgba(255,215,0,0.03))' : i === 1 ? 'linear-gradient(90deg,rgba(192,192,192,0.14),rgba(192,192,192,0.02))' : i === 2 ? 'linear-gradient(90deg,rgba(205,127,50,0.14),rgba(205,127,50,0.02))' : 'var(--panel-hi,#17132a)'};
+                    border:1px solid ${i < 3 ? 'rgba(255,255,255,0.1)' : 'transparent'};">
+          <div style="width:30px;text-align:center;font-size:${i < 3 ? '20px' : '14px'};color:var(--text-dim);">${medals[i] || (i + 1)}</div>
+          <div style="flex:1;font-weight:${i < 3 ? 800 : 600};font-size:${i < 3 ? '15.5px' : '14px'};">${e.name}</div>
+          <div style="font-family:monospace;font-weight:700;font-size:${i < 3 ? '16px' : '14px'};">${e.score}</div>
+          ${editable ? `
+            <button class="btn-ghost" data-edit-score="${e.id}" style="width:auto;padding:5px 9px;">✎</button>
+            <button class="btn-destructive" data-del-score="${e.id}" style="width:auto;padding:5px 9px;">✕</button>
+          ` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 function computeDefiStandings(defi) {
   const relevant = allSessions.filter(s =>
     s.game_id === defi.game_id &&
@@ -1193,6 +1216,9 @@ function computeDefiStandings(defi) {
 }
 
 let editingDefiId = null;
+let showingScoresDefiId = null;
+let arcadeScoresCache = {}; // defi_id -> [{id,name,score}]
+let editingArcadeScoreId = null;
 function renderDefisTab() {
   const el = document.getElementById('tabContent');
   const today = new Date().toISOString().slice(0, 10);
@@ -1212,6 +1238,7 @@ function renderDefisTab() {
         <select id="defiMode" style="padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
           <option value="company_total" ${editing && editing.mode === 'company_total' ? 'selected' : ''}>Total cumulé entreprise</option>
           <option value="tablet_vs_tablet" ${editing && editing.mode === 'tablet_vs_tablet' ? 'selected' : ''}>Classement tablette contre tablette</option>
+          <option value="arcade" ${editing && editing.mode === 'arcade' ? 'selected' : ''}>Défi interne (highscore façon arcade, avec pseudo)</option>
         </select>
         <input id="defiImage" type="file" accept="image/*" style="padding:9px;">
       </div>
@@ -1226,25 +1253,72 @@ function renderDefisTab() {
       <h3>Défis de ce client</h3>
       ${defis.length ? defis.map(d => {
         const standings = computeDefiStandings(d);
+        const modeLabel = d.mode === 'tablet_vs_tablet' ? 'Tablette vs tablette' : d.mode === 'arcade' ? 'Défi interne (arcade)' : 'Total entreprise';
         return `
         <div class="event-item" style="${d.is_active ? '' : 'opacity:0.5;'}">
           <div class="title-row">
             <b>${d.title} ${d.is_active ? '' : '<span class="badge">Suspendu</span>'}</b>
             <span style="display:flex;gap:6px;">
+              <button class="btn-ghost" data-show-scores="${d.id}">${showingScoresDefiId === d.id ? 'Masquer' : 'Afficher'}</button>
               <button class="btn-ghost" data-edit-defi="${d.id}">Modifier</button>
               <button class="btn-ghost" data-toggle-defi="${d.id}">${d.is_active ? 'Suspendre' : 'Réactiver'}</button>
               <button class="btn-destructive" data-del-defi="${d.id}">Supprimer</button>
             </span>
           </div>
-          <div class="dates">${games.find(g => g.id === d.game_id)?.name || d.game_id} · ${new Date(d.start_date).toLocaleDateString('fr-CH')} → ${new Date(d.end_date).toLocaleDateString('fr-CH')} · ${d.mode === 'tablet_vs_tablet' ? 'Tablette vs tablette' : 'Total entreprise'}</div>
+          <div class="dates">${games.find(g => g.id === d.game_id)?.name || d.game_id} · ${new Date(d.start_date).toLocaleDateString('fr-CH')} → ${new Date(d.end_date).toLocaleDateString('fr-CH')} · ${modeLabel}</div>
           ${d.objective_text ? `<div class="desc"><i data-lucide="target"></i> ${d.objective_text}</div>` : ''}
           ${d.reward_text ? `<div class="desc"><i data-lucide="gift"></i> ${d.reward_text}</div>` : ''}
-          <div class="desc" style="margin-top:8px;"><b>Classement actuel :</b> ${standings.map(s => `${s.name} : ${s.total} pts`).join(' — ') || 'aucune donnée pour l\'instant'}</div>
+          ${d.mode !== 'arcade' ? `<div class="desc" style="margin-top:8px;"><b>Classement actuel :</b> ${standings.map(s => `${s.name} : ${s.total} pts`).join(' — ') || 'aucune donnée pour l\'instant'}</div>` : ''}
+          ${showingScoresDefiId === d.id ? `
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+              ${d.mode === 'arcade'
+                ? leaderboardTableHTML((arcadeScoresCache[d.id] || []), true)
+                : leaderboardTableHTML(standings.map((s, i) => ({ id: 'agg_' + i, name: s.name, score: s.total })), false)
+              }
+            </div>
+          ` : ''}
         </div>
       `; }).join('') : '<div class="empty">Aucun défi pour ce client.</div>'}
     </div>
   `;
   document.getElementById('btnCancelEditDefi')?.addEventListener('click', () => { editingDefiId = null; renderDefisTab(); });
+  el.querySelectorAll('[data-show-scores]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const defiId = btn.dataset.showScores;
+      if (showingScoresDefiId === defiId) { showingScoresDefiId = null; renderDefisTab(); return; }
+      showingScoresDefiId = defiId;
+      const d = defis.find(x => x.id === defiId);
+      if (d && d.mode === 'arcade') {
+        const { data } = await sb.from('defi_arcade_scores').select('*').eq('defi_id', defiId).order('score', { ascending: false });
+        arcadeScoresCache[defiId] = data || [];
+      }
+      renderDefisTab();
+    });
+  });
+  el.querySelectorAll('[data-edit-score]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const row = (arcadeScoresCache[showingScoresDefiId] || []).find(s => s.id === btn.dataset.editScore);
+      if (!row) return;
+      const newName = prompt('Pseudo (max 10 caractères)', row.name);
+      if (newName === null) return;
+      const newScoreStr = prompt('Score', row.score);
+      if (newScoreStr === null) return;
+      const { error } = await sb.from('defi_arcade_scores').update({ name: newName.slice(0, 10), score: parseFloat(newScoreStr) || 0 }).eq('id', row.id);
+      if (error) { alert('Erreur : ' + error.message); return; }
+      const { data } = await sb.from('defi_arcade_scores').select('*').eq('defi_id', showingScoresDefiId).order('score', { ascending: false });
+      arcadeScoresCache[showingScoresDefiId] = data || [];
+      renderDefisTab();
+    });
+  });
+  el.querySelectorAll('[data-del-score]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Supprimer ce score ?')) return;
+      await sb.from('defi_arcade_scores').delete().eq('id', btn.dataset.delScore);
+      const { data } = await sb.from('defi_arcade_scores').select('*').eq('defi_id', showingScoresDefiId).order('score', { ascending: false });
+      arcadeScoresCache[showingScoresDefiId] = data || [];
+      renderDefisTab();
+    });
+  });
   document.getElementById('btnAddDefi').addEventListener('click', async () => {
     const start_date = document.getElementById('defiStart').value;
     const end_date = document.getElementById('defiEnd').value;
@@ -1304,6 +1378,7 @@ async function fetchChallengeTotals(challenge) {
 }
 
 let editingChallengeId = null;
+let showingScoresChallengeId = null;
 async function renderChallengesView() {
   const main = document.getElementById('main');
   await loadChallenges();
@@ -1375,6 +1450,7 @@ async function renderChallengesView() {
         <div class="title-row">
           <b>${c.title} ${c.is_active ? '' : '<span class="badge">Suspendu</span>'}</b>
           <span style="display:flex;gap:6px;">
+            <button class="btn-ghost" data-show-ch-scores="${c.id}">${showingScoresChallengeId === c.id ? 'Masquer' : 'Afficher'}</button>
             <button class="btn-ghost" data-edit-challenge="${c.id}">Modifier</button>
             <button class="btn-ghost" data-toggle-challenge="${c.id}">${c.is_active ? 'Suspendre' : 'Réactiver'}</button>
             <button class="btn-destructive" data-del-challenge="${c.id}">Supprimer</button>
@@ -1382,10 +1458,21 @@ async function renderChallengesView() {
         </div>
         <div class="dates">${games.find(g => g.id === c.game_id)?.name || c.game_id} · ${new Date(c.start_date).toLocaleDateString('fr-CH')} → ${new Date(c.end_date).toLocaleDateString('fr-CH')}</div>
         <div class="desc" style="margin-top:8px;"><b>Classement actuel :</b> ${standings.map((s, i) => `${i + 1}. ${s.name} (${s.total} pts)`).join(' — ') || 'aucun participant'}</div>
+        ${showingScoresChallengeId === c.id ? `
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+            ${leaderboardTableHTML(standings.map((s, i) => ({ id: 'ch_' + i, name: s.name, score: s.total })), false)}
+          </div>
+        ` : ''}
       </div>
     `;
   }));
   listEl.innerHTML = rows.join('');
+  listEl.querySelectorAll('[data-show-ch-scores]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      showingScoresChallengeId = showingScoresChallengeId === btn.dataset.showChScores ? null : btn.dataset.showChScores;
+      renderChallengesView();
+    });
+  });
   listEl.querySelectorAll('[data-edit-challenge]').forEach(btn => {
     btn.addEventListener('click', () => { editingChallengeId = btn.dataset.editChallenge; renderChallengesView(); });
   });
