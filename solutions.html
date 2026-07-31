@@ -90,7 +90,7 @@
   .flagship-grid.reverse .flagship-visual { order: 2; }
   @media (max-width: 900px) { .flagship-grid, .flagship-grid.reverse .flagship-visual { grid-template-columns: 1fr; order: 0; } }
   .flagship-visual {
-    border-radius: var(--radius); aspect-ratio: 5/4.3; background-size: cover; background-position: center;
+    border-radius: var(--radius); aspect-ratio: 16/9; background-size: cover; background-position: center;
     background-color: var(--panel); position: relative; box-shadow: 0 30px 70px -20px rgba(0,0,0,0.6);
   }
   .flagship-visual::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
@@ -240,6 +240,7 @@
       </ul>
     </div>
     <div class="oscillo-visual">
+      <div class="flagship-visual" id="visualScience" style="margin-bottom:16px;"></div>
       <div class="oscillo-card">
         <svg viewBox="0 0 480 200" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -434,6 +435,7 @@ const DEFAULT_IMAGES = {
   securite: 'site-ski.jpg',
   motivation: 'site-football.jpg',
   surmesure: 'site-hero-meeting.jpg',
+  science: 'site-science.jpg',
 };
 const SUPABASE_URL = 'https://kabjpqvbukhhqvdjnkzr.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QgLSQJyPJ09Uj3vCKCUykA_ca1LTm5E';
@@ -452,6 +454,7 @@ async function loadImages() {
   document.getElementById('visualSecurite').style.backgroundImage = `url('${map.securite}')`;
   document.getElementById('visualMotivation').style.backgroundImage = `url('${map.motivation}')`;
   document.getElementById('visualSurMesure').style.backgroundImage = `url('${map.surmesure}')`;
+  document.getElementById('visualScience').style.backgroundImage = `url('${map.science}')`;
 }
 loadImages();
 
