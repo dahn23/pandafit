@@ -1799,28 +1799,44 @@ function renderAdsTab() {
   const el = document.getElementById('tabContent');
   const client = clients.find(c => c.id === selectedClientId);
   const sortedAds = [...clientAds].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  const hm = client.home_display_mode || 'auto';
-  const homeModeLabel = hm === 'none' ? '🚫 Masqué — suspendu par le RH'
-    : hm === 'satisfaction' ? 'Indice de satisfaction — choisi par le RH'
-    : hm === 'ads' ? 'Publicité — choisie par le RH'
-    : 'Automatique — affiche le contenu activé ci-dessous';
+  const satAvail = !!client.satisfaction_enabled;
+  const adsAvail = !!client.ads_enabled;
+  // Mode "affiché" effectif (repli sur auto si le contenu choisi n'est plus disponible)
+  let effMode = client.home_display_mode || 'auto';
+  if (effMode === 'satisfaction' && !satAvail) effMode = 'auto';
+  if (effMode === 'ads' && !adsAvail) effMode = 'auto';
+  if (effMode === 'auto') effMode = satAvail ? 'satisfaction' : (adsAvail ? 'ads' : 'none');
+  const activeBtn = (mode, lbl) =>
+    `<button class="${effMode === mode ? 'btn-primary' : 'btn-ghost'}" data-active-mode="${mode}" style="width:auto;">${lbl}</button>`;
   el.innerHTML = `
     <div class="card">
-      <h3>Publicités <span style="color:var(--text-dim);font-weight:400;">ou</span> Indice de satisfaction</h3>
-      <p style="font-size:12.5px;color:var(--text-dim);margin-bottom:12px;">Les deux partagent le même espace (25% de l'écran d'accueil) — un seul des deux peut être actif à la fois.</p>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:10px;">
-        <input type="checkbox" id="adsEnabledToggle" ${client.ads_enabled ? 'checked' : ''}>
-        Activer les publicités pour ce client
-      </label>
+      <h3>Contenu d'accueil</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin-bottom:14px;">
+        <b>Disponible</b> = ce que vous mettez à disposition de ce client (l'un, l'autre, ou les deux).
+        <b>Affiché</b> = ce qui apparaît sur l'accueil. Le RH peut aussi changer l'affichage depuis la tablette (sans toucher à la disponibilité).
+        Les deux partagent le même espace (25% de l'écran) — un seul est affiché à la fois.
+      </p>
+
+      <div style="font-size:11.5px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Disponible pour ce client</div>
       <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:8px;">
-        <input type="checkbox" id="satisfactionEnabledToggle" ${client.satisfaction_enabled ? 'checked' : ''}>
-        Activer l'indice de satisfaction pour ce client
+        <input type="checkbox" id="adsEnabledToggle" ${adsAvail ? 'checked' : ''}>
+        Publicité
       </label>
-      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Le texte de la question, le message de remerciement et la vidéo sont communs à tous les clients — modifiables dans "Contenu global".</p>
-      <div style="padding:8px 10px;border-radius:8px;background:rgba(127,127,127,.12);font-size:12.5px;">
-        <b>Réglage RH (accueil) :</b> ${homeModeLabel}
-        <div style="color:var(--text-dim);margin-top:2px;">Le RH peut afficher ou suspendre ce contenu depuis la tablette (Réglages) — sans pouvoir le modifier.</div>
-      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:16px;">
+        <input type="checkbox" id="satisfactionEnabledToggle" ${satAvail ? 'checked' : ''}>
+        Indice de satisfaction
+      </label>
+
+      <div style="font-size:11.5px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Affiché actuellement</div>
+      ${(adsAvail || satAvail)
+        ? `<div class="row" id="activeModeButtons" style="gap:8px;flex-wrap:wrap;">
+             ${satAvail ? activeBtn('satisfaction', 'Indice de satisfaction') : ''}
+             ${adsAvail ? activeBtn('ads', 'Publicité') : ''}
+             ${activeBtn('none', 'Rien')}
+           </div>`
+        : `<p style="font-size:12.5px;color:var(--text-dim);margin:0;">Rien de disponible — cochez au moins une option ci-dessus.</p>`}
+
+      <p style="font-size:12.5px;color:var(--text-dim);margin:14px 0 0;">Le texte de la question, le message de remerciement et la vidéo de l'indice sont communs à tous les clients — modifiables dans "Contenu global".</p>
     </div>
     <div class="card">
       <h3>Ajouter une publicité</h3>
@@ -1863,21 +1879,27 @@ function renderAdsTab() {
     </div>
   `;
 
+  // Disponibilité (indépendante) : contrôlée uniquement par l'admin
   document.getElementById('adsEnabledToggle').addEventListener('change', async (e) => {
-    const payload = { ads_enabled: e.target.checked };
-    if (e.target.checked) payload.satisfaction_enabled = false; // exclusivité mutuelle
-    await sb.from('clients').update(payload).eq('id', selectedClientId);
+    await sb.from('clients').update({ ads_enabled: e.target.checked }).eq('id', selectedClientId);
     await loadClients();
     await loadClientDetail(selectedClientId);
     renderAdsTab();
   });
   document.getElementById('satisfactionEnabledToggle').addEventListener('change', async (e) => {
-    const payload = { satisfaction_enabled: e.target.checked };
-    if (e.target.checked) payload.ads_enabled = false; // exclusivité mutuelle
-    await sb.from('clients').update(payload).eq('id', selectedClientId);
+    await sb.from('clients').update({ satisfaction_enabled: e.target.checked }).eq('id', selectedClientId);
     await loadClients();
     await loadClientDetail(selectedClientId);
     renderAdsTab();
+  });
+  // Affichage actuel : réglable par l'admin (le RH peut aussi le changer depuis la tablette)
+  document.querySelectorAll('#activeModeButtons [data-active-mode]').forEach(b => {
+    b.addEventListener('click', async () => {
+      await sb.from('clients').update({ home_display_mode: b.dataset.activeMode }).eq('id', selectedClientId);
+      await loadClients();
+      await loadClientDetail(selectedClientId);
+      renderAdsTab();
+    });
   });
 
   document.getElementById('btnAddAd').addEventListener('click', async () => {
