@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PandaFit — Le dossier complet pour les RH</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+
+  :root{
+    --ink:#16241d;
+    --ink-soft:rgba(22,36,29,0.66);
+    --ink-faint:rgba(22,36,29,0.42);
+    --paper:#f6f3ea;
+    --paper-dim:#eeebdc;
+    --paper-card:#fffdf6;
+    --bamboo:#4f7a34;
+    --bamboo-deep:#345423;
+    --bamboo-tint:#e5edd9;
+    --signal:#b83a2c;
+    --signal-tint:#f6e1dc;
+    --line:rgba(22,36,29,0.14);
+    --radius: 3px;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;}
+  ::selection{background:var(--bamboo); color:var(--paper);}
+  a{color:inherit;}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 32px;}
+  @media (max-width:700px){ .wrap{padding:0 20px;} }
+
+  header.site{position:sticky; top:0; z-index:50; background:rgba(246,243,234,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line);}
+  .site-bar{display:flex; align-items:center; justify-content:space-between; padding:18px 0; gap:20px;}
+  .logo{display:flex; align-items:center; gap:10px; font-family:'Fraunces', serif; font-weight:600; font-size:20px; letter-spacing:-0.01em;}
+  .logo .mark{width:26px; height:26px; border-radius:50%; background: conic-gradient(var(--bamboo) 0 62%, var(--signal) 62% 100%); display:inline-block;}
+  nav.top{display:flex; gap:28px; font-size:14px; font-weight:500; flex-wrap:wrap;}
+  nav.top a{text-decoration:none; color:var(--ink-soft); border-bottom:1px solid transparent; padding-bottom:2px;}
+  nav.top a:hover{color:var(--ink); border-color:var(--bamboo);}
+  @media (max-width:900px){ nav.top{display:none;} }
+
+  .langswitch{display:flex; gap:4px; background:var(--paper-dim); border:1px solid var(--line); border-radius:20px; padding:3px;}
+  .langswitch button{
+    font-family:'IBM Plex Mono', monospace; font-size:11.5px; font-weight:500;
+    border:none; background:transparent; color:var(--ink-soft);
+    padding:6px 11px; border-radius:16px; cursor:pointer; letter-spacing:0.03em;
+  }
+  .langswitch button.active{background:var(--ink); color:var(--paper);}
+
+  .eyebrow{font-family:'IBM Plex Mono', monospace; font-size:11.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--bamboo-deep); display:inline-flex; align-items:center; gap:8px;}
+  .eyebrow::before{content:''; width:16px; height:1px; background:var(--bamboo-deep);}
+
+  .hero{padding:76px 0 60px; display:grid; grid-template-columns:1.15fr 0.85fr; gap:56px; align-items:center;}
+  @media (max-width:900px){ .hero{grid-template-columns:1fr; padding:48px 0 40px;} }
+
+  h1.hero-title{font-family:'Fraunces', serif; font-weight:600; font-size:clamp(30px, 4.6vw, 58px); line-height:1.06; letter-spacing:-0.015em; margin:18px 0 22px;}
+  h1.hero-title em{font-style:italic; font-weight:500; color:var(--bamboo-deep);}
+  .hero-sub{font-size:17px; line-height:1.6; color:var(--ink-soft); max-width:52ch; margin-bottom:30px;}
+
+  .cta-row{display:flex; gap:14px; flex-wrap:wrap;}
+  .btn{font-family:'Inter', sans-serif; font-weight:600; font-size:14.5px; padding:13px 22px; border-radius:var(--radius); text-decoration:none; display:inline-flex; align-items:center; gap:8px; border:1px solid transparent; cursor:pointer;}
+  .btn-primary{background:var(--ink); color:var(--paper);}
+  .btn-primary:hover{background:var(--bamboo-deep);}
+  .btn-ghost{border-color:var(--line); color:var(--ink);}
+  .btn-ghost:hover{border-color:var(--ink);}
+
+  .gauge-wrap{display:flex; flex-direction:column; align-items:center; background:var(--paper-card); border:1px solid var(--line); border-radius:6px; padding:30px 20px 22px;}
+  .gauge-label{font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.1em; color:var(--ink-faint); text-transform:uppercase; margin-bottom:6px;}
+  .gauge-value{font-family:'Fraunces', serif; font-size:15px; margin-top:10px; color:var(--ink-soft);}
+  .gauge-value b{color:var(--bamboo-deep); font-weight:600;}
+  svg#gauge{width:220px; height:150px; overflow:visible;}
+  #needle{transform-origin: 110px 118px; animation: settle 4.5s cubic-bezier(.2,.9,.25,1) infinite;}
+  @keyframes settle{
+    0%{transform:rotate(-34deg);} 8%{transform:rotate(26deg);} 16%{transform:rotate(-16deg);}
+    24%{transform:rotate(10deg);} 32%{transform:rotate(-4deg);} 40%{transform:rotate(2deg);}
+    50%,90%{transform:rotate(0deg);} 100%{transform:rotate(-34deg);}
+  }
+  @media (prefers-reduced-motion:reduce){ #needle{animation:none; transform:rotate(0deg);} }
+
+  .stat-strip{border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:26px 0;}
+  .stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:20px;}
+  @media (max-width:800px){ .stat-grid{grid-template-columns:repeat(2,1fr);} }
+  .stat .num{font-family:'Fraunces', serif; font-weight:600; font-size:clamp(22px,2.6vw,34px); color:var(--signal); letter-spacing:-0.01em;}
+  .stat .desc{font-size:13px; color:var(--ink-soft); margin-top:4px; line-height:1.4;}
+
+  section{padding:64px 0;}
+  .section-head{max-width:640px; margin-bottom:38px;}
+  h2.section-title{font-family:'Fraunces', serif; font-weight:600; font-size:clamp(24px,3vw,36px); letter-spacing:-0.01em; margin:10px 0 12px; line-height:1.1;}
+  .section-desc{color:var(--ink-soft); font-size:15.5px; line-height:1.6;}
+
+  .pillars{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line); border:1px solid var(--line);}
+  @media (max-width:900px){ .pillars{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:560px){ .pillars{grid-template-columns:1fr;} }
+  .pillar{background:var(--paper-card); padding:26px 24px 24px; display:flex; flex-direction:column;}
+  .pillar .pnum{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-faint); margin-bottom:14px;}
+  .pillar h3{font-family:'Fraunces', serif; font-weight:600; font-size:18px; margin:0 0 10px; line-height:1.25;}
+  .pillar p{font-size:13.6px; color:var(--ink-soft); line-height:1.55; margin:0 0 14px; flex-grow:1;}
+  .pillar .src{font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--bamboo-deep); text-transform:uppercase; letter-spacing:0.06em; padding-top:12px; border-top:1px solid var(--line);}
+
+  .toolbox{border-top:1px solid var(--line);}
+  details.tool{border-bottom:1px solid var(--line);}
+  details.tool summary{list-style:none; cursor:pointer; padding:22px 0; display:flex; align-items:center; gap:20px; justify-content:space-between;}
+  details.tool summary::-webkit-details-marker{display:none;}
+  .tool-head{display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;}
+  .tool-tag{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-faint); min-width:26px;}
+  .tool-title{font-family:'Fraunces', serif; font-weight:600; font-size:18px;}
+  .tool-hint{font-size:13px; color:var(--ink-soft); display:none;}
+  @media (min-width:760px){ .tool-hint{display:block;} }
+  .chevron{width:20px; height:20px; flex-shrink:0; border:1px solid var(--line); border-radius:50%; display:flex; align-items:center; justify-content:center; transition:transform 0.25s ease; position:relative;}
+  .chevron::before, .chevron::after{content:''; position:absolute; background:var(--ink);}
+  .chevron::before{width:8px; height:1px;}
+  .chevron::after{width:1px; height:8px; transition:opacity .2s;}
+  details[open] .chevron{transform:rotate(180deg);}
+  details[open] .chevron::after{opacity:0;}
+
+  .tool-body{padding:0 0 26px; display:grid; grid-template-columns:1fr 1fr; gap:28px; font-size:14.3px; color:var(--ink-soft); line-height:1.65;}
+  @media (max-width:760px){ .tool-body{grid-template-columns:1fr;} }
+  .tool-body ul{margin:0; padding-left:18px;}
+  .tool-body li{margin-bottom:7px;}
+  .tool-body strong{color:var(--ink);}
+
+  .study{border:1px solid var(--line); background:var(--paper-card); border-radius:4px; margin-bottom:14px;}
+  .study summary{list-style:none; cursor:pointer; padding:18px 20px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;}
+  .study summary::-webkit-details-marker{display:none;}
+  .study-claim{font-weight:600; font-size:15px;}
+  .study-source{font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--bamboo-deep); white-space:nowrap;}
+  .study-body{padding:0 20px 20px; font-size:14px; color:var(--ink-soft); line-height:1.65; border-top:1px solid var(--line); padding-top:14px;}
+
+  .cost-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line);}
+  @media (max-width:800px){ .cost-grid{grid-template-columns:1fr;} }
+  .cost-card{background:var(--signal-tint); padding:26px;}
+  .cost-card .num{font-family:'Fraunces', serif; font-weight:700; font-size:30px; color:var(--signal);}
+  .cost-card .lbl{font-size:13.5px; margin-top:8px; color:var(--ink-soft); line-height:1.5;}
+  .cost-card .src{font-family:'IBM Plex Mono', monospace; font-size:10.5px; margin-top:12px; color:var(--ink-faint);}
+
+  .modes{display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;}
+  .mode-chip{font-family:'IBM Plex Mono', monospace; font-size:11.5px; background:var(--bamboo-tint); color:var(--bamboo-deep); padding:6px 10px; border-radius:20px;}
+
+  .closing{background:var(--ink); color:var(--paper); padding:70px 0; margin-top:40px; text-align:center;}
+  .closing h2{font-family:'Fraunces', serif; font-weight:600; font-size:clamp(24px,3.4vw,40px); margin:0 0 16px; letter-spacing:-0.01em;}
+  .closing p{color:rgba(246,243,234,0.7); max-width:50ch; margin:0 auto 30px; font-size:15.5px; line-height:1.6;}
+  .closing .btn-primary{background:var(--bamboo);}
+  .closing .btn-primary:hover{background:#628f43;}
+  .closing .btn-ghost{border-color:rgba(246,243,234,0.3); color:var(--paper);}
+  .closing .btn-ghost:hover{border-color:var(--paper);}
+
+  footer.foot{padding:26px 0; font-size:12.5px; color:var(--ink-faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap site-bar">
+    <div class="logo"><span class="mark"></span>PandaFit</div>
+    <nav class="top">
+      <a href="#pilliers" data-i18n="nav_essentiel">L'essentiel</a>
+      <a href="#boite-a-outils" data-i18n="nav_boite">La boîte à outils</a>
+      <a href="#science" data-i18n="nav_science">La science</a>
+      <a href="#cout" data-i18n="nav_cout">Le coût de l'inaction</a>
+      <a href="#contact" data-i18n="nav_contact">Contact</a>
+    </nav>
+    <div class="langswitch" id="langswitch">
+      <button data-lang="fr" class="active">FR</button>
+      <button data-lang="en">EN</button>
+      <button data-lang="de">DE</button>
+      <button data-lang="it">IT</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="hero">
+    <div>
+      <span class="eyebrow" data-i18n="eyebrow_dossier">Dossier RH — édition entreprise</span>
+      <h1 class="hero-title" data-i18n-html="hero_title">L'équilibre de vos équipes,<br><em>mesuré</em>, pas deviné.</h1>
+      <p class="hero-sub" data-i18n="hero_sub">PandaFit transforme un geste tout simple — tenir son équilibre quelques secondes sur une tablette — en un indicateur mesurable de stress, de récupération et de sécurité au travail. Ce dossier réunit tout ce qu'un service RH peut activer avec PandaFit, et pourquoi la science lui donne raison.</p>
+      <div class="cta-row">
+        <a href="#boite-a-outils" class="btn btn-primary" data-i18n="cta_primary">Voir toutes les options →</a>
+        <a href="#science" class="btn btn-ghost" data-i18n="cta_secondary">Voir les études</a>
+      </div>
+    </div>
+    <div class="gauge-wrap">
+      <span class="gauge-label" data-i18n="gauge_label">Capteur d'équilibre — en direct</span>
+      <svg id="gauge" viewBox="0 0 220 150">
+        <path d="M 20 118 A 90 90 0 0 1 200 118" fill="none" stroke="#e3ddc9" stroke-width="14"/>
+        <path d="M 20 118 A 90 90 0 0 1 200 118" fill="none" stroke="#4f7a34" stroke-width="14" stroke-dasharray="283" stroke-dashoffset="70" stroke-linecap="round"/>
+        <g id="needle">
+          <line x1="110" y1="118" x2="110" y2="42" stroke="#16241d" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="110" cy="118" r="7" fill="#16241d"/>
+        </g>
+      </svg>
+      <div class="gauge-value" data-i18n-html="gauge_value">Score du jour : <b>Stable</b></div>
+    </div>
+  </section>
+</div>
+
+<div class="stat-strip">
+  <div class="wrap stat-grid">
+    <div class="stat"><div class="num" data-i18n="stat1_num">17,6 mia CHF</div><div class="desc" data-i18n="stat1_desc">de PIB perdu chaque année en Suisse à cause des problèmes de santé liés au travail — étude AXA Mind Health, 2024.</div></div>
+    <div class="stat"><div class="num" data-i18n="stat2_num">1 sur 3</div><div class="desc" data-i18n="stat2_desc">actifs suisses se disent souvent voire très souvent stressés au travail — SECO, enquête sur le stress 2010.</div></div>
+    <div class="stat"><div class="num" data-i18n="stat3_num">6 : 1</div><div class="desc" data-i18n="stat3_desc">retour sur investissement moyen constaté pour les programmes de santé en entreprise, toutes sources combinées.</div></div>
+    <div class="stat"><div class="num" data-i18n="stat4_num">89 %</div><div class="desc" data-i18n="stat4_desc">des responsables RH constatent une baisse des jours d'absence après la mise en place d'un programme de bien-être.</div></div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section id="pilliers">
+    <div class="section-head">
+      <span class="eyebrow" data-i18n="pillars_eyebrow">Ce qui compte en premier</span>
+      <h2 class="section-title" data-i18n="pillars_title">Quatre raisons qui suffisent déjà</h2>
+      <p class="section-desc" data-i18n="pillars_desc">Le reste du dossier détaille chaque option. Mais si vous ne devez retenir que quatre arguments pour votre direction, ce sont ceux-là.</p>
+    </div>
+    <div class="pillars">
+      <div class="pillar">
+        <div class="pnum">01</div>
+        <h3 data-i18n="pillar1_title">L'équilibre est le miroir du stress</h3>
+        <p data-i18n="pillar1_body">Le corps trahit l'anxiété avant que la personne n'en parle : la posture devient instable, oscille davantage, se raidit. Mesurer l'équilibre, c'est donc mesurer — indirectement mais objectivement — une partie de la charge de stress vécue, sans questionnaire intrusif.</p>
+        <div class="src" data-i18n="pillar1_src">Scientific Reports, 2019 · PMC, Posturographie & anxiété sociale</div>
+      </div>
+      <div class="pillar">
+        <div class="pnum">02</div>
+        <h3 data-i18n="pillar2_title">Le jeu calme sans qu'on le décide</h3>
+        <p data-i18n="pillar2_body">Un retour visuel en temps réel pousse le corps à s'auto-corriger avant même que la conscience n'intervienne. C'est tout le principe du biofeedback : on ne "décide" pas de se calmer, le jeu rend le déséquilibre visible et le corps rétablit seul le calme.</p>
+        <div class="src" data-i18n="pillar2_src">Biofeedback relaxation training, PMC, 2023</div>
+      </div>
+      <div class="pillar">
+        <div class="pnum">03</div>
+        <h3 data-i18n="pillar3_title">Sécurité & prévention concrète</h3>
+        <p data-i18n="pillar3_body">Un équilibre qui se dégrade est un facteur de risque de chute reconnu, dans les métiers physiques comme dans les bureaux en fin de journée. Un signal précoce, suivi dans le temps, permet d'agir avant l'incident plutôt qu'après.</p>
+        <div class="src" data-i18n="pillar3_src">Winter, Gait & Posture · littérature en posturologie</div>
+      </div>
+      <div class="pillar">
+        <div class="pnum">04</div>
+        <h3 data-i18n="pillar4_title">Un investissement qui se justifie</h3>
+        <p data-i18n="pillar4_body">Les programmes de santé en entreprise ne sont plus un coût social : ils affichent un retour mesurable, en francs, sur l'absentéisme, la rétention et la productivité — de quoi construire un dossier solide pour votre direction financière.</p>
+        <div class="src" data-i18n="pillar4_src">Harvard, méta-analyse · Great Place To Work, 2025</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="boite-a-outils">
+    <div class="section-head">
+      <span class="eyebrow" data-i18n="toolbox_eyebrow">Le catalogue complet</span>
+      <h2 class="section-title" data-i18n="toolbox_title">Tout ce qu'un ou une RH peut activer</h2>
+      <p class="section-desc" data-i18n="toolbox_desc">Chaque module est indépendant : vous les activez un par un, selon votre maturité et vos objectifs de campagne. Cliquez pour déplier.</p>
+    </div>
+
+    <div class="toolbox">
+
+      <details class="tool">
+        <summary>
+          <div class="tool-head">
+            <span class="tool-tag">01</span>
+            <span class="tool-title" data-i18n="tool1_title">Sondages de satisfaction</span>
+            <span class="tool-hint" data-i18n="tool1_hint">Le pouls de l'équipe, en continu</span>
+          </div>
+          <span class="chevron"></span>
+        </summary>
+        <div class="tool-body">
+          <div data-i18n-html="tool1_left">
+            <p>Des sondages courts, poussés directement sur la tablette ou envoyés aux collaborateurs, pour suivre l'humeur et la satisfaction générale sans alourdir les entretiens RH.</p>
+          </div>
+          <div data-i18n-html="tool1_right">
+            <ul>
+              <li><strong>Fréquence libre</strong> : ponctuel, mensuel, ou déclenché après un évènement (réorganisation, pic de charge).</li>
+              <li><strong>Anonymisé</strong> par équipe ou par site, jamais nominatif dans les rapports agrégés.</li>
+              <li>Résultats croisés avec les données d'équilibre pour distinguer ressenti et signal physiologique.</li>
+            </ul>
+          </div>
+        </div>
+      </details>
+
+      <details class="tool">
+        <summary>
+          <div class="tool-head">
+            <span class="tool-tag">02</span>
+            <span class="tool-title" data-i18n="tool2_title">Questionnaires santé & onboarding</span>
+            <span class="tool-hint" data-i18n="tool2_hint">Contexte, pas juste des chiffres</span>
+          </div>
+          <span class="chevron"></span>
+        </summary>
+        <div class="tool-body">
+          <div data-i18n-html="tool2_left">
+            <p>Des questionnaires structurés à l'arrivée d'un nouveau collaborateur ou au lancement d'une campagne, pour recueillir le contexte (activité physique, contraintes de poste, antécédents) qui donne du sens aux mesures d'équilibre.</p>
+          </div>
+          <div data-i18n-html="tool2_right">
+            <ul>
+              <li>Modèles prêts à l'emploi, personnalisables par votre équipe RH ou santé au travail.</li>
+              <li>Sert de base de référence individuelle pour mesurer une évolution, pas une valeur absolue.</li>
+              <li>Export structuré pour votre médecin du travail ou votre partenaire santé.</li>
+            </ul>
+          </div>
+        </div>
+      </details>
+
+      <details class="tool">
+        <summary>
+          <div class="tool-head">
+            <span class="tool-tag">03</span>
+            <span class="tool-title" data-i18n="tool3_title">Comparatif multi-sites</span>
+            <span class="tool-hint" data-i18n="tool3_hint">Où votre entreprise respire, où elle retient son souffle</span>
+          </div>
+          <span class="chevron"></span>
+        </summary>
+        <div class="tool-body">
+          <div data-i18n-html="tool3_left">
+            <p>Pour les entreprises à plusieurs sites : une cartographie du niveau d'équilibre moyen par site, par département ou par équipe, pour repérer les zones sous tension avant qu'elles ne remontent en plainte RH ou en arrêt maladie.</p>
+          </div>
+          <div data-i18n-html="tool3_right">
+            <ul>
+              <li>Vue superadmin consolidée, drill-down site → équipe → tendance dans le temps.</li>
+              <li>Alertes seuils configurables si un site décroche par rapport à la moyenne du groupe.</li>
+              <li>Benchmark interne uniquement — jamais de comparaison entre entreprises clientes.</li>
+            </ul>
+          </div>
+        </div>
+      </details>
+
+      <details class="tool">
+        <summary>
+          <div class="tool-head">
+            <span class="tool-tag">04</span>
+            <span class="tool-title" data-i18n="tool4_title">Campagnes & challenges santé</span>
+            <span class="tool-hint" data-i18n="tool4_hint">Individuel, équipe, ou entreprise contre entreprise</span>
+          </div>
+          <span class="chevron"></span>
+        </summary>
+        <div class="tool-body">
+          <div>
+            <p data-i18n="tool4_left_p">Le moteur d'engagement de PandaFit : des campagnes limitées dans le temps, motivées par des récompenses, déclinables à toutes les échelles.</p>
+            <div class="modes">
+              <span class="mode-chip" data-i18n="mode1">Individuel</span>
+              <span class="mode-chip" data-i18n="mode2">Par équipe</span>
+              <span class="mode-chip" data-i18n="mode3">Par tablette</span>
+              <span class="mode-chip" data-i18n="mode4">Toute l'entreprise</span>
+              <span class="mode-chip" data-i18n="mode5">Entreprise vs entreprise</span>
+            </div>
+          </div>
+          <div data-i18n-html="tool4_right">
+            <ul>
+              <li>Classements, badges et récompenses configurables par votre équipe RH (bons, jours de congé, dons à une cause).</li>
+              <li>Formats prêts à l'emploi : "Mois de l'équilibre", défi inter-équipes, tournoi inter-sites.</li>
+              <li>Le levier de compétition amicale augmente la fréquence d'usage — donc la qualité du signal collecté.</li>
+            </ul>
+          </div>
+        </div>
+      </details>
+
+      <details class="tool">
+        <summary>
+          <div class="tool-head">
+            <span class="tool-tag">05</span>
+            <span class="tool-title" data-i18n="tool5_title">La tablette comme écran de communication</span>
+            <span class="tool-hint" data-i18n="tool5_hint">Un écran déjà installé, déjà regardé</span>
+          </div>
+          <span class="chevron"></span>
+        </summary>
+        <div class="tool-body">
+          <div data-i18n-html="tool5_left">
+            <p>En dehors des sessions de mesure, la tablette peut afficher vos communications internes, les résultats de la campagne en cours, ou du contenu publicitaire — un écran d'affichage dynamique que vous possédez déjà dans vos espaces de pause.</p>
+          </div>
+          <div data-i18n-html="tool5_right">
+            <ul>
+              <li>Playlist de contenus programmable (annonces RH, résultats de campagne, sécurité, offres partenaires).</li>
+              <li>Retour automatique au mode capteur dès qu'un collaborateur s'approche.</li>
+              <li>Espace publicitaire interne monétisable auprès de vos propres partenaires si vous le souhaitez.</li>
+            </ul>
+          </div>
+        </div>
+      </details>
+
+      <details class="tool">
+        <summary>
+          <div class="tool-head">
+            <span class="tool-tag">06</span>
+            <span class="tool-title" data-i18n="tool6_title">Marque blanche</span>
+            <span class="tool-hint" data-i18n="tool6_hint">PandaFit s'efface, votre marque reste</span>
+          </div>
+          <span class="chevron"></span>
+        </summary>
+        <div class="tool-body">
+          <div data-i18n-html="tool6_left">
+            <p>Habillez l'application et la tablette aux couleurs et au nom de votre entreprise : logo, palette, ton des messages. Vos collaborateurs voient votre marque, PandaFit reste l'infrastructure invisible derrière.</p>
+          </div>
+          <div data-i18n-html="tool6_right">
+            <ul>
+              <li>Habillage graphique complet de l'écran tablette et des rapports RH.</li>
+              <li>Nom de campagne personnalisable ("Le Défi Équilibre [Votre Entreprise]").</li>
+              <li>Option pour les grands comptes ou les groupes multi-marques.</li>
+            </ul>
+          </div>
+        </div>
+      </details>
+
+      <details class="tool">
+        <summary>
+          <div class="tool-head">
+            <span class="tool-tag">07</span>
+            <span class="tool-title" data-i18n="tool7_title">Accompagnement & coaching humain</span>
+            <span class="tool-hint" data-i18n="tool7_hint">La donnée ne suffit jamais seule</span>
+          </div>
+          <span class="chevron"></span>
+        </summary>
+        <div class="tool-body">
+          <div data-i18n-html="tool7_left">
+            <p>PandaFit n'est pas qu'un outil : c'est aussi un accompagnement dans la planification de vos campagnes de santé, avec l'appui ponctuel de nos coachs pour donner du sens aux résultats et maintenir l'engagement dans la durée.</p>
+          </div>
+          <div data-i18n-html="tool7_right">
+            <ul>
+              <li>Aide à la construction du calendrier annuel de campagnes santé.</li>
+              <li>Interventions humaines ponctuelles (lancement de campagne, restitution des résultats, ateliers gestion du stress).</li>
+              <li>Recommandations basées sur vos données réelles, pas des conseils génériques.</li>
+            </ul>
+          </div>
+        </div>
+      </details>
+
+    </div>
+  </section>
+
+  <section id="science">
+    <div class="section-head">
+      <span class="eyebrow" data-i18n="science_eyebrow">Pourquoi ça marche</span>
+      <h2 class="section-title" data-i18n="science_title">Ce que dit la recherche</h2>
+      <p class="section-desc" data-i18n="science_desc">Nous ne prétendons pas mesurer le stress directement — personne ne le peut avec un simple capteur. Voici, en revanche, ce que la littérature scientifique établit sur le lien entre équilibre, retour visuel et régulation du stress.</p>
+    </div>
+
+    <details class="study">
+      <summary>
+        <span class="study-claim" data-i18n="study1_claim">L'anxiété se lit dans la stabilité posturale</span>
+        <span class="study-source" data-i18n="study1_source">PMC · posturographie</span>
+      </summary>
+      <div class="study-body" data-i18n="study1_body">Une étude en posturographie a comparé des personnes souffrant d'anxiété sociale à des témoins sains face à des images à charge émotionnelle : le contrôle postural différait mesurablement selon l'état émotionnel déclenché, confirmant que l'équilibre n'est pas qu'une question mécanique mais aussi un indicateur de l'état de stress du système nerveux.</div>
+    </details>
+
+    <details class="study">
+      <summary>
+        <span class="study-claim" data-i18n="study2_claim">S'exposer à un défi d'équilibre répété réduit l'anxiété associée</span>
+        <span class="study-source" data-i18n="study2_source">Scientific Reports, 2019</span>
+      </summary>
+      <div class="study-body" data-i18n="study2_body">Une étude publiée dans Scientific Reports a suivi des participants exposés de manière répétée à une menace posturale (une plateforme en hauteur) : à mesure des expositions, la confiance en son équilibre augmentait tandis que l'anxiété, la peur et l'activation du système nerveux sympathique diminuaient. L'entraînement régulier de l'équilibre agit donc comme un entraînement à la régulation du stress.</div>
+    </details>
+
+    <details class="study">
+      <summary>
+        <span class="study-claim" data-i18n="study3_claim">Le retour visuel en temps réel réduit le stress mesuré</span>
+        <span class="study-source" data-i18n="study3_source">Biofeedback, PMC, 2023</span>
+      </summary>
+      <div class="study-body" data-i18n="study3_body">Un essai contrôlé mené auprès d'étudiants de première année de médecine a comparé un groupe suivant des séances de relaxation assistée par biofeedback à un groupe témoin sans intervention. Après une dizaine de séances, le groupe biofeedback affichait des scores de stress et d'anxiété significativement plus bas que le groupe témoin — la preuve qu'un simple retour visuel sur son propre état physiologique suffit à enclencher une régulation, sans effort conscient de "relaxation".</div>
+    </details>
+
+    <details class="study">
+      <summary>
+        <span class="study-claim" data-i18n="study4_claim">S'entraîner à l'équilibre change littéralement l'activité du cerveau</span>
+        <span class="study-source" data-i18n="study4_source">Université de Fribourg (Suisse), 2018</span>
+      </summary>
+      <div class="study-body" data-i18n="study4_body">Une équipe de l'Université de Fribourg a montré, par imagerie cérébrale, que cinq semaines d'entraînement à l'équilibre réduisaient l'activation de zones du cortex mobilisées pendant l'effort postural — un signe que le contrôle de l'équilibre devient plus automatique, moins coûteux en ressources attentionnelles, après un entraînement régulier. Ce travail suisse rejoint directement le principe de PandaFit : de courtes sessions répétées suffisent à produire un effet mesurable.</div>
+    </details>
+
+    <details class="study">
+      <summary>
+        <span class="study-claim" data-i18n="study5_claim">Un entraînement d'équilibre "ludique et visuel" améliore aussi l'anxiété ressentie</span>
+        <span class="study-source" data-i18n="study5_source">Étude de preuve de concept, guidage visuel, PMC</span>
+      </summary>
+      <div class="study-body" data-i18n="study5_body">Une étude de preuve de concept utilisant un entraînement d'équilibre guidé par retour visuel en temps réel a rapporté, après une seule session de dix minutes, une amélioration à la fois de la stabilité posturale objective et des scores d'anxiété auto-rapportés une semaine plus tard. C'est exactement le mécanisme que PandaFit exploite sous forme de mini-jeux : le retour visuel rend le rééquilibrage intuitif, sans qu'il soit besoin d'expliquer la notion de "gestion du stress".</div>
+    </details>
+
+  </section>
+
+  <section id="cout">
+    <div class="section-head">
+      <span class="eyebrow" data-i18n="cost_eyebrow">Le dossier chiffré</span>
+      <h2 class="section-title" data-i18n="cost_title">Le coût de ne rien faire</h2>
+      <p class="section-desc" data-i18n="cost_desc">Des chiffres suisses, à présenter tels quels à votre direction financière.</p>
+    </div>
+    <div class="cost-grid">
+      <div class="cost-card">
+        <div class="num" data-i18n="cost1_num">17,6 mia CHF</div>
+        <div class="lbl" data-i18n="cost1_lbl">de perte annuelle de PIB en Suisse liée aux problèmes de santé au travail.</div>
+        <div class="src" data-i18n="cost1_src">AXA Mind Health Study, 2024</div>
+      </div>
+      <div class="cost-card">
+        <div class="num" data-i18n="cost2_num">34,4 %</div>
+        <div class="lbl" data-i18n="cost2_lbl">des actifs suisses se disent souvent voire très souvent stressés — en hausse de dix points en dix ans.</div>
+        <div class="src" data-i18n="cost2_src">SECO, enquête sur le stress 2010</div>
+      </div>
+      <div class="cost-card">
+        <div class="num" data-i18n="cost3_num">3,27 CHF</div>
+        <div class="lbl" data-i18n="cost3_lbl">économisés en frais de santé pour chaque franc investi dans un programme de bien-être en entreprise.</div>
+        <div class="src" data-i18n="cost3_src">Méta-analyse Harvard, citée par Great Place To Work</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="closing" id="contact">
+  <div class="wrap">
+    <span class="eyebrow" style="color:rgba(246,243,234,0.55)" data-i18n="closing_eyebrow">Prochaine étape</span>
+    <h2 data-i18n="closing_title">Un dossier, ça se discute.</h2>
+    <p data-i18n="closing_desc">Montrons-vous en 20 minutes comment tout ceci prend forme sur une tablette, avec vos propres équipes et vos propres couleurs.</p>
+    <div class="cta-row" style="justify-content:center;">
+      <a href="#" class="btn btn-primary" data-i18n="closing_cta1">Demander une démo</a>
+      <a href="#" class="btn btn-ghost" data-i18n="closing_cta2">Télécharger le dossier en PDF</a>
+    </div>
+  </div>
+</div>
+
+<footer class="foot">
+  <div class="wrap" style="display:flex; justify-content:space-between; width:100%; flex-wrap:wrap;">
+    <span>© PandaFit — Katapult SA</span>
+    <span data-i18n="footer_right">Technologie de mesure d'équilibre, conçue en Suisse.</span>
+  </div>
+</footer>
+
+<script>
+const I18N = {
+  nav_essentiel:{fr:"L'essentiel",en:"The essentials",de:"Das Wesentliche",it:"L'essenziale"},
+  nav_boite:{fr:"La boîte à outils",en:"The toolbox",de:"Der Werkzeugkasten",it:"La cassetta degli attrezzi"},
+  nav_science:{fr:"La science",en:"The science",de:"Die Wissenschaft",it:"La scienza"},
+  nav_cout:{fr:"Le coût de l'inaction",en:"The cost of inaction",de:"Die Kosten des Nichtstuns",it:"Il costo dell'inazione"},
+  nav_contact:{fr:"Contact",en:"Contact",de:"Kontakt",it:"Contatto"},
+  eyebrow_dossier:{fr:"Dossier RH — édition entreprise",en:"HR dossier — enterprise edition",de:"HR-Dossier — Unternehmensausgabe",it:"Dossier HR — edizione aziendale"},
+  hero_title:{
+    fr:"L'équilibre de vos équipes,<br><em>mesuré</em>, pas deviné.",
+    en:"Your teams' balance,<br><em>measured</em>, not guessed.",
+    de:"Die Balance Ihrer Teams,<br><em>gemessen</em>, nicht geschätzt.",
+    it:"L'equilibrio dei vostri team,<br><em>misurato</em>, non presunto."
+  },
+  hero_sub:{
+    fr:"PandaFit transforme un geste tout simple — tenir son équilibre quelques secondes sur une tablette — en un indicateur mesurable de stress, de récupération et de sécurité au travail. Ce dossier réunit tout ce qu'un service RH peut activer avec PandaFit, et pourquoi la science lui donne raison.",
+    en:"PandaFit turns a simple gesture — holding your balance for a few seconds on a tablet — into a measurable indicator of stress, recovery and workplace safety. This dossier gathers everything an HR team can activate with PandaFit, and why the science backs it up.",
+    de:"PandaFit verwandelt eine denkbar einfache Geste — ein paar Sekunden lang das Gleichgewicht auf einem Tablet zu halten — in einen messbaren Indikator für Stress, Erholung und Arbeitssicherheit. Dieses Dossier versammelt alles, was ein HR-Team mit PandaFit aktivieren kann, und warum die Wissenschaft dies stützt.",
+    it:"PandaFit trasforma un gesto semplicissimo — mantenere l'equilibrio per qualche secondo su un tablet — in un indicatore misurabile di stress, recupero e sicurezza sul lavoro. Questo dossier raccoglie tutto ciò che un team HR può attivare con PandaFit, e perché la scienza gli dà ragione."
+  },
+  cta_primary:{fr:"Voir toutes les options →",en:"See all the options →",de:"Alle Optionen ansehen →",it:"Vedi tutte le opzioni →"},
+  cta_secondary:{fr:"Voir les études",en:"See the studies",de:"Studien ansehen",it:"Vedi gli studi"},
+  gauge_label:{fr:"Capteur d'équilibre — en direct",en:"Balance sensor — live",de:"Gleichgewichtssensor — live",it:"Sensore di equilibrio — in diretta"},
+  gauge_value:{
+    fr:"Score du jour : <b>Stable</b>",
+    en:"Today's score: <b>Stable</b>",
+    de:"Heutiger Wert: <b>Stabil</b>",
+    it:"Punteggio del giorno: <b>Stabile</b>"
+  },
+  stat1_num:{fr:"17,6 mia CHF",en:"CHF 17.6 bn",de:"17,6 Mrd. CHF",it:"17,6 mld CHF"},
+  stat1_desc:{
+    fr:"de PIB perdu chaque année en Suisse à cause des problèmes de santé liés au travail — étude AXA Mind Health, 2024.",
+    en:"in GDP lost every year in Switzerland due to work-related health problems — AXA Mind Health study, 2024.",
+    de:"an BIP gehen der Schweiz jedes Jahr durch arbeitsbedingte Gesundheitsprobleme verloren — AXA Mind Health Studie, 2024.",
+    it:"di PIL perso ogni anno in Svizzera a causa di problemi di salute legati al lavoro — studio AXA Mind Health, 2024."
+  },
+  stat2_num:{fr:"1 sur 3",en:"1 in 3",de:"1 von 3",it:"1 su 3"},
+  stat2_desc:{
+    fr:"actifs suisses se disent souvent voire très souvent stressés au travail — SECO, enquête sur le stress 2010.",
+    en:"Swiss employees say they feel stressed at work often or very often — SECO, stress survey 2010.",
+    de:"der Schweizer Erwerbstätigen fühlen sich am Arbeitsplatz oft oder sehr oft gestresst — SECO, Stressstudie 2010.",
+    it:"dei lavoratori svizzeri dichiara di sentirsi spesso o molto spesso stressato al lavoro — SECO, indagine sullo stress 2010."
+  },
+  stat3_num:{fr:"6 : 1",en:"6 : 1",de:"6 : 1",it:"6 : 1"},
+  stat3_desc:{
+    fr:"retour sur investissement moyen constaté pour les programmes de santé en entreprise, toutes sources combinées.",
+    en:"average return on investment observed for corporate health programs, across all sources combined.",
+    de:"durchschnittlicher Return on Investment betrieblicher Gesundheitsprogramme, über alle Quellen hinweg.",
+    it:"ritorno sull'investimento medio osservato per i programmi di salute aziendale, considerando tutte le fonti."
+  },
+  stat4_num:{fr:"89 %",en:"89%",de:"89 %",it:"89 %"},
+  stat4_desc:{
+    fr:"des responsables RH constatent une baisse des jours d'absence après la mise en place d'un programme de bien-être.",
+    en:"of HR leaders report fewer sick days after rolling out a wellness program.",
+    de:"der HR-Verantwortlichen stellen weniger Fehltage nach Einführung eines Wellness-Programms fest.",
+    it:"dei responsabili HR rileva una diminuzione dei giorni di assenza dopo l'introduzione di un programma di benessere."
+  },
+  pillars_eyebrow:{fr:"Ce qui compte en premier",en:"What matters first",de:"Was zuerst zählt",it:"Ciò che conta per primo"},
+  pillars_title:{fr:"Quatre raisons qui suffisent déjà",en:"Four reasons that already suffice",de:"Vier Gründe, die bereits genügen",it:"Quattro motivi già sufficienti"},
+  pillars_desc:{
+    fr:"Le reste du dossier détaille chaque option. Mais si vous ne devez retenir que quatre arguments pour votre direction, ce sont ceux-là.",
+    en:"The rest of the dossier details every option. But if you only need four arguments for your management, these are them.",
+    de:"Der Rest des Dossiers erläutert jede Option im Detail. Wenn Sie Ihrer Geschäftsleitung aber nur vier Argumente mitgeben müssen, sind es diese.",
+    it:"Il resto del dossier descrive ogni opzione. Ma se dovete portare solo quattro argomenti alla vostra direzione, sono questi."
+  },
+  pillar1_title:{fr:"L'équilibre est le miroir du stress",en:"Balance is a mirror of stress",de:"Gleichgewicht spiegelt Stress wider",it:"L'equilibrio è lo specchio dello stress"},
+  pillar1_body:{
+    fr:"Le corps trahit l'anxiété avant que la personne n'en parle : la posture devient instable, oscille davantage, se raidit. Mesurer l'équilibre, c'est donc mesurer — indirectement mais objectivement — une partie de la charge de stress vécue, sans questionnaire intrusif.",
+    en:"The body reveals anxiety before a person puts it into words: posture becomes unstable, sways more, stiffens. Measuring balance therefore measures — indirectly but objectively — part of the stress load a person carries, without any intrusive questionnaire.",
+    de:"Der Körper verrät Anxiety, bevor die Person darüber spricht: Die Haltung wird instabil, schwankt stärker, verspannt sich. Das Gleichgewicht zu messen bedeutet daher, indirekt aber objektiv, einen Teil der erlebten Stressbelastung zu messen — ganz ohne aufdringlichen Fragebogen.",
+    it:"Il corpo tradisce l'ansia prima che la persona ne parli: la postura diventa instabile, oscilla di più, si irrigidisce. Misurare l'equilibrio significa quindi misurare — indirettamente ma oggettivamente — una parte del carico di stress vissuto, senza alcun questionario invasivo."
+  },
+  pillar1_src:{fr:"Scientific Reports, 2019 · PMC, Posturographie & anxiété sociale",en:"Scientific Reports, 2019 · PMC, Posturography & social anxiety",de:"Scientific Reports, 2019 · PMC, Posturographie & soziale Angst",it:"Scientific Reports, 2019 · PMC, Posturografia e ansia sociale"},
+  pillar2_title:{fr:"Le jeu calme sans qu'on le décide",en:"The game calms without you deciding to",de:"Das Spiel beruhigt, ohne dass man es entscheidet",it:"Il gioco calma senza che tu lo decida"},
+  pillar2_body:{
+    fr:"Un retour visuel en temps réel pousse le corps à s'auto-corriger avant même que la conscience n'intervienne. C'est tout le principe du biofeedback : on ne \"décide\" pas de se calmer, le jeu rend le déséquilibre visible et le corps rétablit seul le calme.",
+    en:"Real-time visual feedback pushes the body to self-correct before conscious thought even steps in. That's the whole principle of biofeedback: you don't \"decide\" to calm down — the game makes the imbalance visible, and the body restores calm on its own.",
+    de:"Ein visuelles Echtzeit-Feedback bringt den Körper dazu, sich selbst zu korrigieren, noch bevor das Bewusstsein eingreift. Das ist das ganze Prinzip von Biofeedback: Man \"entscheidet\" sich nicht, ruhig zu werden — das Spiel macht das Ungleichgewicht sichtbar, und der Körper stellt die Ruhe von selbst wieder her.",
+    it:"Un feedback visivo in tempo reale spinge il corpo ad autocorreggersi ancor prima che intervenga la coscienza. È tutto il principio del biofeedback: non si \"decide\" di calmarsi, il gioco rende visibile lo squilibrio e il corpo ristabilisce da solo la calma."
+  },
+  pillar2_src:{fr:"Biofeedback relaxation training, PMC, 2023",en:"Biofeedback relaxation training, PMC, 2023",de:"Biofeedback-Entspannungstraining, PMC, 2023",it:"Allenamento di rilassamento con biofeedback, PMC, 2023"},
+  pillar3_title:{fr:"Sécurité & prévention concrète",en:"Safety & concrete prevention",de:"Sicherheit & konkrete Prävention",it:"Sicurezza e prevenzione concreta"},
+  pillar3_body:{
+    fr:"Un équilibre qui se dégrade est un facteur de risque de chute reconnu, dans les métiers physiques comme dans les bureaux en fin de journée. Un signal précoce, suivi dans le temps, permet d'agir avant l'incident plutôt qu'après.",
+    en:"Deteriorating balance is a recognised fall-risk factor, in physical jobs as well as in offices toward the end of the day. An early signal, tracked over time, lets you act before an incident rather than after.",
+    de:"Ein sich verschlechterndes Gleichgewicht ist ein anerkannter Sturzrisikofaktor — bei körperlicher Arbeit ebenso wie im Büro am späten Nachmittag. Ein frühes, über die Zeit verfolgtes Signal erlaubt es, vor einem Vorfall zu handeln statt danach.",
+    it:"Un equilibrio che peggiora è un fattore di rischio di caduta riconosciuto, sia nei mestieri fisici sia in ufficio a fine giornata. Un segnale precoce, seguito nel tempo, permette di agire prima dell'incidente anziché dopo."
+  },
+  pillar3_src:{fr:"Winter, Gait & Posture · littérature en posturologie",en:"Winter, Gait & Posture · posturology literature",de:"Winter, Gait & Posture · posturologische Fachliteratur",it:"Winter, Gait & Posture · letteratura di posturologia"},
+  pillar4_title:{fr:"Un investissement qui se justifie",en:"An investment that justifies itself",de:"Eine Investition, die sich rechtfertigt",it:"Un investimento che si giustifica"},
+  pillar4_body:{
+    fr:"Les programmes de santé en entreprise ne sont plus un coût social : ils affichent un retour mesurable, en francs, sur l'absentéisme, la rétention et la productivité — de quoi construire un dossier solide pour votre direction financière.",
+    en:"Corporate health programs are no longer a social cost line: they show a measurable return, in hard currency, on absenteeism, retention and productivity — enough to build a solid case for your CFO.",
+    de:"Betriebliche Gesundheitsprogramme sind längst kein reiner Sozialkostenpunkt mehr: Sie zeigen einen messbaren, in Franken bezifferbaren Ertrag bei Absentismus, Mitarbeiterbindung und Produktivität — genug, um Ihrer Finanzabteilung ein solides Dossier vorzulegen.",
+    it:"I programmi di salute aziendale non sono più un semplice costo sociale: mostrano un ritorno misurabile, in franchi, su assenteismo, retention e produttività — abbastanza per costruire un dossier solido per la vostra direzione finanziaria."
+  },
+  pillar4_src:{fr:"Harvard, méta-analyse · Great Place To Work, 2025",en:"Harvard meta-analysis · Great Place To Work, 2025",de:"Harvard-Metaanalyse · Great Place To Work, 2025",it:"Meta-analisi Harvard · Great Place To Work, 2025"},
+
+  toolbox_eyebrow:{fr:"Le catalogue complet",en:"The complete catalogue",de:"Der vollständige Katalog",it:"Il catalogo completo"},
+  toolbox_title:{fr:"Tout ce qu'un ou une RH peut activer",en:"Everything an HR team can activate",de:"Alles, was ein HR-Team aktivieren kann",it:"Tutto ciò che un team HR può attivare"},
+  toolbox_desc:{
+    fr:"Chaque module est indépendant : vous les activez un par un, selon votre maturité et vos objectifs de campagne. Cliquez pour déplier.",
+    en:"Each module is independent: you switch them on one at a time, based on your maturity and campaign goals. Click to expand.",
+    de:"Jedes Modul ist unabhängig: Sie aktivieren sie einzeln, je nach Reifegrad und Kampagnenzielen. Zum Ausklappen klicken.",
+    it:"Ogni modulo è indipendente: li attivate uno alla volta, in base alla vostra maturità e agli obiettivi di campagna. Cliccate per espandere."
+  },
+
+  tool1_title:{fr:"Sondages de satisfaction",en:"Satisfaction surveys",de:"Zufriedenheitsumfragen",it:"Sondaggi di soddisfazione"},
+  tool1_hint:{fr:"Le pouls de l'équipe, en continu",en:"The team's pulse, continuously",de:"Der Puls des Teams, laufend",it:"Il polso del team, in continuo"},
+  tool1_left:{
+    fr:"<p>Des sondages courts, poussés directement sur la tablette ou envoyés aux collaborateurs, pour suivre l'humeur et la satisfaction générale sans alourdir les entretiens RH.</p>",
+    en:"<p>Short surveys, pushed directly to the tablet or sent to employees, to track mood and overall satisfaction without weighing down HR interviews.</p>",
+    de:"<p>Kurze Umfragen, direkt auf das Tablet gespielt oder an die Mitarbeitenden gesendet, um Stimmung und allgemeine Zufriedenheit zu verfolgen, ohne HR-Gespräche zu belasten.</p>",
+    it:"<p>Sondaggi brevi, inviati direttamente sul tablet o ai collaboratori, per monitorare l'umore e la soddisfazione generale senza appesantire i colloqui HR.</p>"
+  },
+  tool1_right:{
+    fr:"<ul><li><strong>Fréquence libre</strong> : ponctuel, mensuel, ou déclenché après un évènement (réorganisation, pic de charge).</li><li><strong>Anonymisé</strong> par équipe ou par site, jamais nominatif dans les rapports agrégés.</li><li>Résultats croisés avec les données d'équilibre pour distinguer ressenti et signal physiologique.</li></ul>",
+    en:"<ul><li><strong>Flexible frequency</strong>: one-off, monthly, or triggered after an event (reorganisation, workload spike).</li><li><strong>Anonymised</strong> by team or site, never named in aggregated reports.</li><li>Results cross-referenced with balance data to separate how people feel from the physiological signal.</li></ul>",
+    de:"<ul><li><strong>Freie Frequenz</strong>: einmalig, monatlich oder ausgelöst nach einem Ereignis (Reorganisation, Arbeitsspitze).</li><li><strong>Anonymisiert</strong> nach Team oder Standort, in aggregierten Berichten nie namentlich.</li><li>Ergebnisse werden mit Gleichgewichtsdaten abgeglichen, um Empfinden vom physiologischen Signal zu unterscheiden.</li></ul>",
+    it:"<ul><li><strong>Frequenza libera</strong>: puntuale, mensile, o attivata dopo un evento (riorganizzazione, picco di carico).</li><li><strong>Anonimizzato</strong> per team o sede, mai nominativo nei report aggregati.</li><li>Risultati incrociati con i dati di equilibrio per distinguere percezione e segnale fisiologico.</li></ul>"
+  },
+
+  tool2_title:{fr:"Questionnaires santé & onboarding",en:"Health & onboarding questionnaires",de:"Gesundheits- & Onboarding-Fragebögen",it:"Questionari salute e onboarding"},
+  tool2_hint:{fr:"Contexte, pas juste des chiffres",en:"Context, not just numbers",de:"Kontext, nicht nur Zahlen",it:"Contesto, non solo numeri"},
+  tool2_left:{
+    fr:"<p>Des questionnaires structurés à l'arrivée d'un nouveau collaborateur ou au lancement d'une campagne, pour recueillir le contexte (activité physique, contraintes de poste, antécédents) qui donne du sens aux mesures d'équilibre.</p>",
+    en:"<p>Structured questionnaires when a new employee arrives or a campaign launches, to collect the context (physical activity, job constraints, history) that gives meaning to balance measurements.</p>",
+    de:"<p>Strukturierte Fragebögen beim Eintritt neuer Mitarbeitender oder zum Start einer Kampagne, um den Kontext (körperliche Aktivität, Arbeitsplatzanforderungen, Vorgeschichte) zu erfassen, der den Gleichgewichtsmessungen Bedeutung verleiht.</p>",
+    it:"<p>Questionari strutturati all'arrivo di un nuovo collaboratore o al lancio di una campagna, per raccogliere il contesto (attività fisica, vincoli di ruolo, precedenti) che dà senso alle misurazioni di equilibrio.</p>"
+  },
+  tool2_right:{
+    fr:"<ul><li>Modèles prêts à l'emploi, personnalisables par votre équipe RH ou santé au travail.</li><li>Sert de base de référence individuelle pour mesurer une évolution, pas une valeur absolue.</li><li>Export structuré pour votre médecin du travail ou votre partenaire santé.</li></ul>",
+    en:"<ul><li>Ready-to-use templates, customisable by your HR or occupational-health team.</li><li>Serves as an individual baseline to measure change over time, not an absolute value.</li><li>Structured export for your occupational physician or health partner.</li></ul>",
+    de:"<ul><li>Einsatzbereite Vorlagen, anpassbar durch Ihr HR- oder Arbeitsmedizin-Team.</li><li>Dient als individuelle Referenzgrundlage, um eine Entwicklung zu messen, nicht einen absoluten Wert.</li><li>Strukturierter Export für Ihren Betriebsarzt oder Gesundheitspartner.</li></ul>",
+    it:"<ul><li>Modelli pronti all'uso, personalizzabili dal vostro team HR o di medicina del lavoro.</li><li>Serve come base di riferimento individuale per misurare un'evoluzione, non un valore assoluto.</li><li>Esportazione strutturata per il vostro medico del lavoro o partner sanitario.</li></ul>"
+  },
+
+  tool3_title:{fr:"Comparatif multi-sites",en:"Multi-site comparison",de:"Standortübergreifender Vergleich",it:"Confronto multi-sede"},
+  tool3_hint:{fr:"Où votre entreprise respire, où elle retient son souffle",en:"Where your company breathes, where it's holding its breath",de:"Wo Ihr Unternehmen durchatmet, wo es die Luft anhält",it:"Dove la vostra azienda respira, dove trattiene il fiato"},
+  tool3_left:{
+    fr:"<p>Pour les entreprises à plusieurs sites : une cartographie du niveau d'équilibre moyen par site, par département ou par équipe, pour repérer les zones sous tension avant qu'elles ne remontent en plainte RH ou en arrêt maladie.</p>",
+    en:"<p>For multi-site companies: a map of the average balance level per site, department or team, to spot areas under strain before they surface as HR complaints or sick leave.</p>",
+    de:"<p>Für Unternehmen mit mehreren Standorten: eine Übersicht des durchschnittlichen Gleichgewichtsniveaus pro Standort, Abteilung oder Team, um belastete Bereiche zu erkennen, bevor sie sich in HR-Beschwerden oder Krankmeldungen niederschlagen.</p>",
+    it:"<p>Per le aziende multisede: una mappatura del livello medio di equilibrio per sede, reparto o team, per individuare le zone sotto tensione prima che si traducano in lamentele HR o assenze per malattia.</p>"
+  },
+  tool3_right:{
+    fr:"<ul><li>Vue superadmin consolidée, drill-down site → équipe → tendance dans le temps.</li><li>Alertes seuils configurables si un site décroche par rapport à la moyenne du groupe.</li><li>Benchmark interne uniquement — jamais de comparaison entre entreprises clientes.</li></ul>",
+    en:"<ul><li>Consolidated superadmin view, drill-down site → team → trend over time.</li><li>Configurable threshold alerts if a site falls behind the group average.</li><li>Internal benchmarking only — never a comparison between client companies.</li></ul>",
+    de:"<ul><li>Konsolidierte Superadmin-Ansicht, Drilldown Standort → Team → Verlauf über die Zeit.</li><li>Konfigurierbare Schwellenwert-Alarme, wenn ein Standort vom Gruppendurchschnitt abweicht.</li><li>Ausschließlich interner Vergleich — nie ein Vergleich zwischen Kundenunternehmen.</li></ul>",
+    it:"<ul><li>Vista superadmin consolidata, drill-down sede → team → tendenza nel tempo.</li><li>Avvisi di soglia configurabili se una sede si discosta dalla media del gruppo.</li><li>Benchmark solo interno — mai un confronto tra aziende clienti.</li></ul>"
+  },
+
+  tool4_title:{fr:"Campagnes & challenges santé",en:"Health campaigns & challenges",de:"Gesundheitskampagnen & Challenges",it:"Campagne e sfide per la salute"},
+  tool4_hint:{fr:"Individuel, équipe, ou entreprise contre entreprise",en:"Individual, team, or company vs company",de:"Individuell, Team oder Unternehmen gegen Unternehmen",it:"Individuale, team, o azienda contro azienda"},
+  tool4_left_p:{
+    fr:"Le moteur d'engagement de PandaFit : des campagnes limitées dans le temps, motivées par des récompenses, déclinables à toutes les échelles.",
+    en:"PandaFit's engagement engine: time-limited campaigns, driven by rewards, adaptable to every scale.",
+    de:"Der Engagement-Motor von PandaFit: zeitlich begrenzte, belohnungsgetriebene Kampagnen, skalierbar auf jeder Ebene.",
+    it:"Il motore di coinvolgimento di PandaFit: campagne a tempo limitato, motivate da premi, adattabili a ogni scala."
+  },
+  mode1:{fr:"Individuel",en:"Individual",de:"Individuell",it:"Individuale"},
+  mode2:{fr:"Par équipe",en:"By team",de:"Nach Team",it:"Per team"},
+  mode3:{fr:"Par tablette",en:"By tablet",de:"Nach Tablet",it:"Per tablet"},
+  mode4:{fr:"Toute l'entreprise",en:"Whole company",de:"Ganzes Unternehmen",it:"Tutta l'azienda"},
+  mode5:{fr:"Entreprise vs entreprise",en:"Company vs company",de:"Unternehmen vs Unternehmen",it:"Azienda contro azienda"},
+  tool4_right:{
+    fr:"<ul><li>Classements, badges et récompenses configurables par votre équipe RH (bons, jours de congé, dons à une cause).</li><li>Formats prêts à l'emploi : \"Mois de l'équilibre\", défi inter-équipes, tournoi inter-sites.</li><li>Le levier de compétition amicale augmente la fréquence d'usage — donc la qualité du signal collecté.</li></ul>",
+    en:"<ul><li>Leaderboards, badges and rewards configurable by your HR team (vouchers, days off, donations to a cause).</li><li>Ready-to-use formats: \"Balance Month\", inter-team challenge, inter-site tournament.</li><li>Friendly competition increases usage frequency — and therefore the quality of the signal collected.</li></ul>",
+    de:"<ul><li>Ranglisten, Abzeichen und Belohnungen, konfigurierbar durch Ihr HR-Team (Gutscheine, freie Tage, Spenden für einen guten Zweck).</li><li>Einsatzbereite Formate: \"Monat des Gleichgewichts\", teamübergreifende Challenge, standortübergreifendes Turnier.</li><li>Der freundschaftliche Wettbewerb erhöht die Nutzungshäufigkeit — und damit die Qualität des erfassten Signals.</li></ul>",
+    it:"<ul><li>Classifiche, badge e premi configurabili dal vostro team HR (buoni, giorni di ferie, donazioni a una causa).</li><li>Formati pronti all'uso: \"Mese dell'equilibrio\", sfida tra team, torneo tra sedi.</li><li>La leva della competizione amichevole aumenta la frequenza d'uso — quindi la qualità del segnale raccolto.</li></ul>"
+  },
+
+  tool5_title:{fr:"La tablette comme écran de communication",en:"The tablet as a communication screen",de:"Das Tablet als Kommunikationsbildschirm",it:"Il tablet come schermo di comunicazione"},
+  tool5_hint:{fr:"Un écran déjà installé, déjà regardé",en:"A screen already installed, already watched",de:"Ein Bildschirm, der bereits installiert und bereits im Blick ist",it:"Uno schermo già installato, già osservato"},
+  tool5_left:{
+    fr:"<p>En dehors des sessions de mesure, la tablette peut afficher vos communications internes, les résultats de la campagne en cours, ou du contenu publicitaire — un écran d'affichage dynamique que vous possédez déjà dans vos espaces de pause.</p>",
+    en:"<p>Outside of measurement sessions, the tablet can display your internal communications, the results of the current campaign, or advertising content — a digital signage screen you already own in your break areas.</p>",
+    de:"<p>Außerhalb der Messsitzungen kann das Tablet Ihre interne Kommunikation, die Ergebnisse der laufenden Kampagne oder Werbeinhalte anzeigen — ein Digital-Signage-Bildschirm, den Sie in Ihren Pausenräumen bereits besitzen.</p>",
+    it:"<p>Al di fuori delle sessioni di misurazione, il tablet può mostrare le vostre comunicazioni interne, i risultati della campagna in corso o contenuti pubblicitari — uno schermo di digital signage che possedete già nelle vostre aree pausa.</p>"
+  },
+  tool5_right:{
+    fr:"<ul><li>Playlist de contenus programmable (annonces RH, résultats de campagne, sécurité, offres partenaires).</li><li>Retour automatique au mode capteur dès qu'un collaborateur s'approche.</li><li>Espace publicitaire interne monétisable auprès de vos propres partenaires si vous le souhaitez.</li></ul>",
+    en:"<ul><li>Programmable content playlist (HR announcements, campaign results, safety, partner offers).</li><li>Automatic return to sensor mode as soon as an employee steps up.</li><li>Internal ad space you can monetise with your own partners if you wish.</li></ul>",
+    de:"<ul><li>Programmierbare Inhalts-Playlist (HR-Ankündigungen, Kampagnenergebnisse, Sicherheit, Partnerangebote).</li><li>Automatische Rückkehr in den Sensor-Modus, sobald sich ein Mitarbeitender nähert.</li><li>Interner Werbeplatz, den Sie bei Bedarf mit eigenen Partnern monetarisieren können.</li></ul>",
+    it:"<ul><li>Playlist di contenuti programmabile (annunci HR, risultati campagna, sicurezza, offerte partner).</li><li>Ritorno automatico alla modalità sensore non appena un collaboratore si avvicina.</li><li>Spazio pubblicitario interno monetizzabile con i vostri partner, se lo desiderate.</li></ul>"
+  },
+
+  tool6_title:{fr:"Marque blanche",en:"White label",de:"White Label",it:"Marchio bianco"},
+  tool6_hint:{fr:"PandaFit s'efface, votre marque reste",en:"PandaFit fades away, your brand stays",de:"PandaFit tritt zurück, Ihre Marke bleibt",it:"PandaFit si eclissa, il vostro marchio resta"},
+  tool6_left:{
+    fr:"<p>Habillez l'application et la tablette aux couleurs et au nom de votre entreprise : logo, palette, ton des messages. Vos collaborateurs voient votre marque, PandaFit reste l'infrastructure invisible derrière.</p>",
+    en:"<p>Dress the app and the tablet in your company's colours and name: logo, palette, tone of voice. Your employees see your brand, PandaFit stays the invisible infrastructure behind it.</p>",
+    de:"<p>Gestalten Sie die App und das Tablet in den Farben und mit dem Namen Ihres Unternehmens: Logo, Farbpalette, Tonalität. Ihre Mitarbeitenden sehen Ihre Marke, PandaFit bleibt die unsichtbare Infrastruktur dahinter.</p>",
+    it:"<p>Vestite l'app e il tablet con i colori e il nome della vostra azienda: logo, palette, tono dei messaggi. I vostri collaboratori vedono il vostro marchio, PandaFit resta l'infrastruttura invisibile dietro.</p>"
+  },
+  tool6_right:{
+    fr:"<ul><li>Habillage graphique complet de l'écran tablette et des rapports RH.</li><li>Nom de campagne personnalisable (\"Le Défi Équilibre [Votre Entreprise]\").</li><li>Option pour les grands comptes ou les groupes multi-marques.</li></ul>",
+    en:"<ul><li>Full graphic redesign of the tablet screen and HR reports.</li><li>Customisable campaign name (\"The [Your Company] Balance Challenge\").</li><li>An option for large accounts or multi-brand groups.</li></ul>",
+    de:"<ul><li>Vollständige grafische Anpassung des Tablet-Bildschirms und der HR-Berichte.</li><li>Anpassbarer Kampagnenname (\"Die [Ihr Unternehmen] Balance-Challenge\").</li><li>Option für Grosskunden oder Mehrmarken-Gruppen.</li></ul>",
+    it:"<ul><li>Personalizzazione grafica completa dello schermo tablet e dei report HR.</li><li>Nome campagna personalizzabile (\"La Sfida Equilibrio [Vostra Azienda]\").</li><li>Opzione per grandi clienti o gruppi multi-marchio.</li></ul>"
+  },
+
+  tool7_title:{fr:"Accompagnement & coaching humain",en:"Guidance & human coaching",de:"Begleitung & persönliches Coaching",it:"Accompagnamento e coaching umano"},
+  tool7_hint:{fr:"La donnée ne suffit jamais seule",en:"Data is never enough on its own",de:"Daten allein reichen nie aus",it:"Il dato da solo non basta mai"},
+  tool7_left:{
+    fr:"<p>PandaFit n'est pas qu'un outil : c'est aussi un accompagnement dans la planification de vos campagnes de santé, avec l'appui ponctuel de nos coachs pour donner du sens aux résultats et maintenir l'engagement dans la durée.</p>",
+    en:"<p>PandaFit isn't just a tool: it's also guidance for planning your health campaigns, with occasional support from our coaches to make sense of the results and keep engagement up over time.</p>",
+    de:"<p>PandaFit ist nicht nur ein Werkzeug: Es ist auch eine Begleitung bei der Planung Ihrer Gesundheitskampagnen, mit punktueller Unterstützung durch unsere Coaches, um den Ergebnissen einen Sinn zu geben und das Engagement langfristig aufrechtzuerhalten.</p>",
+    it:"<p>PandaFit non è solo uno strumento: è anche un accompagnamento nella pianificazione delle vostre campagne di salute, con il supporto puntuale dei nostri coach per dare senso ai risultati e mantenere l'engagement nel tempo.</p>"
+  },
+  tool7_right:{
+    fr:"<ul><li>Aide à la construction du calendrier annuel de campagnes santé.</li><li>Interventions humaines ponctuelles (lancement de campagne, restitution des résultats, ateliers gestion du stress).</li><li>Recommandations basées sur vos données réelles, pas des conseils génériques.</li></ul>",
+    en:"<ul><li>Help building your annual calendar of health campaigns.</li><li>Occasional human interventions (campaign kickoffs, results debriefs, stress-management workshops).</li><li>Recommendations based on your actual data, not generic advice.</li></ul>",
+    de:"<ul><li>Unterstützung beim Aufbau Ihres jährlichen Kalenders für Gesundheitskampagnen.</li><li>Punktuelle persönliche Einsätze (Kampagnenstart, Ergebnispräsentation, Stressmanagement-Workshops).</li><li>Empfehlungen basierend auf Ihren tatsächlichen Daten, keine generischen Ratschläge.</li></ul>",
+    it:"<ul><li>Supporto nella costruzione del calendario annuale delle campagne salute.</li><li>Interventi umani puntuali (lancio campagna, restituzione risultati, workshop di gestione dello stress).</li><li>Raccomandazioni basate sui vostri dati reali, non consigli generici.</li></ul>"
+  },
+
+  science_eyebrow:{fr:"Pourquoi ça marche",en:"Why it works",de:"Warum es funktioniert",it:"Perché funziona"},
+  science_title:{fr:"Ce que dit la recherche",en:"What the research says",de:"Was die Forschung sagt",it:"Cosa dice la ricerca"},
+  science_desc:{
+    fr:"Nous ne prétendons pas mesurer le stress directement — personne ne le peut avec un simple capteur. Voici, en revanche, ce que la littérature scientifique établit sur le lien entre équilibre, retour visuel et régulation du stress.",
+    en:"We don't claim to measure stress directly — no one can with a simple sensor. Here, however, is what the scientific literature establishes about the link between balance, visual feedback and stress regulation.",
+    de:"Wir behaupten nicht, Stress direkt zu messen — das kann niemand mit einem einfachen Sensor. Hier ist jedoch, was die wissenschaftliche Literatur über den Zusammenhang zwischen Gleichgewicht, visuellem Feedback und Stressregulation belegt.",
+    it:"Non pretendiamo di misurare lo stress direttamente — nessuno può farlo con un semplice sensore. Ecco però ciò che la letteratura scientifica stabilisce sul legame tra equilibrio, feedback visivo e regolazione dello stress."
+  },
+  study1_claim:{fr:"L'anxiété se lit dans la stabilité posturale",en:"Anxiety shows up in postural stability",de:"Angst zeigt sich in der posturalen Stabilität",it:"L'ansia si legge nella stabilità posturale"},
+  study1_source:{fr:"PMC · posturographie",en:"PMC · posturography",de:"PMC · Posturographie",it:"PMC · posturografia"},
+  study1_body:{
+    fr:"Une étude en posturographie a comparé des personnes souffrant d'anxiété sociale à des témoins sains face à des images à charge émotionnelle : le contrôle postural différait mesurablement selon l'état émotionnel déclenché, confirmant que l'équilibre n'est pas qu'une question mécanique mais aussi un indicateur de l'état de stress du système nerveux.",
+    en:"A posturography study compared people with social anxiety to healthy controls when shown emotionally charged images: postural control differed measurably depending on the emotional state triggered, confirming that balance is not just a mechanical matter but also an indicator of the nervous system's stress state.",
+    de:"Eine posturographische Studie verglich Personen mit sozialer Angst mit gesunden Kontrollpersonen bei emotional aufgeladenen Bildern: Die posturale Kontrolle unterschied sich messbar je nach ausgelöstem emotionalem Zustand — ein Beleg dafür, dass Gleichgewicht nicht nur mechanisch, sondern auch ein Indikator für den Stresszustand des Nervensystems ist.",
+    it:"Uno studio di posturografia ha confrontato persone con ansia sociale e controlli sani di fronte a immagini emotivamente cariche: il controllo posturale differiva in modo misurabile a seconda dello stato emotivo suscitato, confermando che l'equilibrio non è solo una questione meccanica ma anche un indicatore dello stato di stress del sistema nervoso."
+  },
+  study2_claim:{fr:"S'exposer à un défi d'équilibre répété réduit l'anxiété associée",en:"Repeated exposure to a balance challenge reduces the associated anxiety",de:"Wiederholte Exposition gegenüber einer Gleichgewichtsherausforderung reduziert die damit verbundene Angst",it:"L'esposizione ripetuta a una sfida di equilibrio riduce l'ansia associata"},
+  study2_source:{fr:"Scientific Reports, 2019",en:"Scientific Reports, 2019",de:"Scientific Reports, 2019",it:"Scientific Reports, 2019"},
+  study2_body:{
+    fr:"Une étude publiée dans Scientific Reports a suivi des participants exposés de manière répétée à une menace posturale (une plateforme en hauteur) : à mesure des expositions, la confiance en son équilibre augmentait tandis que l'anxiété, la peur et l'activation du système nerveux sympathique diminuaient. L'entraînement régulier de l'équilibre agit donc comme un entraînement à la régulation du stress.",
+    en:"A study published in Scientific Reports followed participants repeatedly exposed to a postural threat (an elevated platform): with each exposure, confidence in their balance increased while anxiety, fear and sympathetic nervous system activation decreased. Regular balance training therefore acts as training for stress regulation.",
+    de:"Eine in Scientific Reports veröffentlichte Studie begleitete Teilnehmende, die wiederholt einer posturalen Bedrohung (einer erhöhten Plattform) ausgesetzt waren: Mit jeder Exposition stieg das Vertrauen in das eigene Gleichgewicht, während Angst, Furcht und die Aktivierung des sympathischen Nervensystems abnahmen. Regelmässiges Gleichgewichtstraining wirkt somit wie ein Training zur Stressregulation.",
+    it:"Uno studio pubblicato su Scientific Reports ha seguito partecipanti esposti ripetutamente a una minaccia posturale (una piattaforma in altezza): con il ripetersi delle esposizioni, la fiducia nel proprio equilibrio aumentava mentre ansia, paura e attivazione del sistema nervoso simpatico diminuivano. L'allenamento regolare dell'equilibrio agisce quindi come un allenamento alla regolazione dello stress."
+  },
+  study3_claim:{fr:"Le retour visuel en temps réel réduit le stress mesuré",en:"Real-time visual feedback reduces measured stress",de:"Visuelles Echtzeit-Feedback reduziert den gemessenen Stress",it:"Il feedback visivo in tempo reale riduce lo stress misurato"},
+  study3_source:{fr:"Biofeedback, PMC, 2023",en:"Biofeedback, PMC, 2023",de:"Biofeedback, PMC, 2023",it:"Biofeedback, PMC, 2023"},
+  study3_body:{
+    fr:"Un essai contrôlé mené auprès d'étudiants de première année de médecine a comparé un groupe suivant des séances de relaxation assistée par biofeedback à un groupe témoin sans intervention. Après une dizaine de séances, le groupe biofeedback affichait des scores de stress et d'anxiété significativement plus bas que le groupe témoin — la preuve qu'un simple retour visuel sur son propre état physiologique suffit à enclencher une régulation, sans effort conscient de \"relaxation\".",
+    en:"A controlled trial among first-year medical students compared a group receiving biofeedback-assisted relaxation sessions to a control group with no intervention. After about ten sessions, the biofeedback group showed significantly lower stress and anxiety scores than the control group — proof that simple visual feedback on one's own physiological state is enough to trigger regulation, with no conscious \"relaxation\" effort.",
+    de:"Eine kontrollierte Studie an Medizinstudierenden im ersten Jahr verglich eine Gruppe mit Biofeedback-gestützten Entspannungssitzungen mit einer Kontrollgruppe ohne Intervention. Nach rund zehn Sitzungen zeigte die Biofeedback-Gruppe signifikant niedrigere Stress- und Angstwerte als die Kontrollgruppe — der Beweis, dass ein einfaches visuelles Feedback zum eigenen physiologischen Zustand genügt, um eine Regulation auszulösen, ganz ohne bewusste \"Entspannungsanstrengung\".",
+    it:"Uno studio controllato su studenti di medicina del primo anno ha confrontato un gruppo con sessioni di rilassamento assistite da biofeedback a un gruppo di controllo senza intervento. Dopo una decina di sessioni, il gruppo biofeedback mostrava punteggi di stress e ansia significativamente più bassi rispetto al gruppo di controllo — la prova che un semplice feedback visivo sul proprio stato fisiologico basta a innescare una regolazione, senza alcuno sforzo cosciente di \"rilassamento\"."
+  },
+  study4_claim:{fr:"S'entraîner à l'équilibre change littéralement l'activité du cerveau",en:"Balance training literally changes brain activity",de:"Gleichgewichtstraining verändert buchstäblich die Hirnaktivität",it:"Allenare l'equilibrio cambia letteralmente l'attività cerebrale"},
+  study4_source:{fr:"Université de Fribourg (Suisse), 2018",en:"University of Fribourg (Switzerland), 2018",de:"Universität Freiburg (Schweiz), 2018",it:"Università di Friburgo (Svizzera), 2018"},
+  study4_body:{
+    fr:"Une équipe de l'Université de Fribourg a montré, par imagerie cérébrale, que cinq semaines d'entraînement à l'équilibre réduisaient l'activation de zones du cortex mobilisées pendant l'effort postural — un signe que le contrôle de l'équilibre devient plus automatique, moins coûteux en ressources attentionnelles, après un entraînement régulier. Ce travail suisse rejoint directement le principe de PandaFit : de courtes sessions répétées suffisent à produire un effet mesurable.",
+    en:"A team from the University of Fribourg used brain imaging to show that five weeks of balance training reduced the activation of cortical areas mobilised during postural effort — a sign that balance control becomes more automatic, less costly in attentional resources, after regular training. This Swiss research directly aligns with PandaFit's principle: short, repeated sessions are enough to produce a measurable effect.",
+    de:"Ein Team der Universität Freiburg zeigte mittels Hirnbildgebung, dass fünf Wochen Gleichgewichtstraining die Aktivierung von Kortexarealen reduzierten, die bei posturaler Anstrengung beansprucht werden — ein Zeichen dafür, dass die Gleichgewichtskontrolle nach regelmässigem Training automatischer und weniger aufmerksamkeitsintensiv wird. Diese Schweizer Arbeit deckt sich direkt mit dem Prinzip von PandaFit: kurze, wiederholte Sitzungen genügen, um eine messbare Wirkung zu erzielen.",
+    it:"Un team dell'Università di Friburgo ha mostrato, tramite neuroimaging, che cinque settimane di allenamento all'equilibrio riducevano l'attivazione di aree corticali mobilitate durante lo sforzo posturale — un segno che il controllo dell'equilibrio diventa più automatico, meno costoso in risorse attentive, dopo un allenamento regolare. Questo lavoro svizzero si ricollega direttamente al principio di PandaFit: brevi sessioni ripetute bastano a produrre un effetto misurabile."
+  },
+  study5_claim:{fr:'Un entraînement d\'équilibre "ludique et visuel" améliore aussi l\'anxiété ressentie',en:'A "playful and visual" balance training also improves perceived anxiety',de:'Ein "spielerisches und visuelles" Gleichgewichtstraining verbessert auch die empfundene Angst',it:'Un allenamento di equilibrio "ludico e visivo" migliora anche l\'ansia percepita'},
+  study5_source:{fr:"Étude de preuve de concept, guidage visuel, PMC",en:"Proof-of-concept study, visual guidance, PMC",de:"Proof-of-Concept-Studie, visuelle Führung, PMC",it:"Studio proof-of-concept, guida visiva, PMC"},
+  study5_body:{
+    fr:"Une étude de preuve de concept utilisant un entraînement d'équilibre guidé par retour visuel en temps réel a rapporté, après une seule session de dix minutes, une amélioration à la fois de la stabilité posturale objective et des scores d'anxiété auto-rapportés une semaine plus tard. C'est exactement le mécanisme que PandaFit exploite sous forme de mini-jeux : le retour visuel rend le rééquilibrage intuitif, sans qu'il soit besoin d'expliquer la notion de \"gestion du stress\".",
+    en:"A proof-of-concept study using real-time visual-feedback-guided balance training reported, after a single ten-minute session, an improvement in both objective postural stability and self-reported anxiety scores one week later. This is exactly the mechanism PandaFit exploits through mini-games: visual feedback makes rebalancing intuitive, with no need to ever explain the concept of \"stress management\".",
+    de:"Eine Proof-of-Concept-Studie mit visuell in Echtzeit geführtem Gleichgewichtstraining berichtete nach einer einzigen zehnminütigen Sitzung eine Verbesserung sowohl der objektiven posturalen Stabilität als auch der selbstberichteten Angstwerte eine Woche später. Genau diesen Mechanismus nutzt PandaFit in Form von Minispielen: Das visuelle Feedback macht das Wiederherstellen des Gleichgewichts intuitiv, ohne dass der Begriff \"Stressbewältigung\" je erklärt werden müsste.",
+    it:"Uno studio proof-of-concept con allenamento all'equilibrio guidato da feedback visivo in tempo reale ha riportato, dopo una singola sessione di dieci minuti, un miglioramento sia della stabilità posturale oggettiva sia dei punteggi di ansia autoriferiti una settimana dopo. È esattamente il meccanismo che PandaFit sfrutta sotto forma di mini-giochi: il feedback visivo rende intuitivo il riequilibrio, senza bisogno di spiegare mai il concetto di \"gestione dello stress\"."
+  },
+
+  cost_eyebrow:{fr:"Le dossier chiffré",en:"The numbers dossier",de:"Das Zahlendossier",it:"Il dossier numerico"},
+  cost_title:{fr:"Le coût de ne rien faire",en:"The cost of doing nothing",de:"Die Kosten des Nichtstuns",it:"Il costo di non fare nulla"},
+  cost_desc:{
+    fr:"Des chiffres suisses, à présenter tels quels à votre direction financière.",
+    en:"Swiss figures, ready to present as they are to your CFO.",
+    de:"Schweizer Zahlen, die Sie so Ihrer Finanzabteilung vorlegen können.",
+    it:"Numeri svizzeri, da presentare così come sono alla vostra direzione finanziaria."
+  },
+  cost1_num:{fr:"17,6 mia CHF",en:"CHF 17.6 bn",de:"17,6 Mrd. CHF",it:"17,6 mld CHF"},
+  cost1_lbl:{
+    fr:"de perte annuelle de PIB en Suisse liée aux problèmes de santé au travail.",
+    en:"in annual GDP loss in Switzerland linked to work-related health problems.",
+    de:"jährlicher BIP-Verlust in der Schweiz durch arbeitsbedingte Gesundheitsprobleme.",
+    it:"di perdita annuale di PIL in Svizzera legata a problemi di salute sul lavoro."
+  },
+  cost1_src:{fr:"AXA Mind Health Study, 2024",en:"AXA Mind Health Study, 2024",de:"AXA Mind Health Study, 2024",it:"AXA Mind Health Study, 2024"},
+  cost2_num:{fr:"34,4 %",en:"34.4%",de:"34,4 %",it:"34,4 %"},
+  cost2_lbl:{
+    fr:"des actifs suisses se disent souvent voire très souvent stressés — en hausse de dix points en dix ans.",
+    en:"of Swiss employees say they are often or very often stressed — up ten points in ten years.",
+    de:"der Schweizer Erwerbstätigen fühlen sich oft oder sehr oft gestresst — ein Anstieg um zehn Punkte in zehn Jahren.",
+    it:"dei lavoratori svizzeri si dichiara spesso o molto spesso stressato — in aumento di dieci punti in dieci anni."
+  },
+  cost2_src:{fr:"SECO, enquête sur le stress 2010",en:"SECO, stress survey 2010",de:"SECO, Stressstudie 2010",it:"SECO, indagine sullo stress 2010"},
+  cost3_num:{fr:"3,27 CHF",en:"CHF 3.27",de:"3,27 CHF",it:"3,27 CHF"},
+  cost3_lbl:{
+    fr:"économisés en frais de santé pour chaque franc investi dans un programme de bien-être en entreprise.",
+    en:"saved in healthcare costs for every franc invested in a corporate wellness program.",
+    de:"eingesparte Gesundheitskosten für jeden in ein betriebliches Wellness-Programm investierten Franken.",
+    it:"risparmiati in spese sanitarie per ogni franco investito in un programma di benessere aziendale."
+  },
+  cost3_src:{fr:"Méta-analyse Harvard, citée par Great Place To Work",en:"Harvard meta-analysis, cited by Great Place To Work",de:"Harvard-Metaanalyse, zitiert von Great Place To Work",it:"Meta-analisi Harvard, citata da Great Place To Work"},
+
+  closing_eyebrow:{fr:"Prochaine étape",en:"Next step",de:"Nächster Schritt",it:"Prossimo passo"},
+  closing_title:{fr:"Un dossier, ça se discute.",en:"A dossier is meant to be discussed.",de:"Ein Dossier will besprochen werden.",it:"Un dossier va discusso."},
+  closing_desc:{
+    fr:"Montrons-vous en 20 minutes comment tout ceci prend forme sur une tablette, avec vos propres équipes et vos propres couleurs.",
+    en:"In 20 minutes, we'll show you how all of this comes to life on a tablet, with your own teams and your own colours.",
+    de:"In 20 Minuten zeigen wir Ihnen, wie all das auf einem Tablet Gestalt annimmt — mit Ihren eigenen Teams und Ihren eigenen Farben.",
+    it:"In 20 minuti vi mostriamo come tutto questo prende forma su un tablet, con i vostri team e i vostri colori."
+  },
+  closing_cta1:{fr:"Demander une démo",en:"Request a demo",de:"Demo anfragen",it:"Richiedi una demo"},
+  closing_cta2:{fr:"Télécharger le dossier en PDF",en:"Download the dossier as PDF",de:"Dossier als PDF herunterladen",it:"Scarica il dossier in PDF"},
+  footer_right:{fr:"Technologie de mesure d'équilibre, conçue en Suisse.",en:"Balance-measurement technology, designed in Switzerland.",de:"Technologie zur Gleichgewichtsmessung, entwickelt in der Schweiz.",it:"Tecnologia di misurazione dell'equilibrio, sviluppata in Svizzera."}
+};
+
+function applyLang(lang){
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key = el.getAttribute('data-i18n');
+    if(I18N[key] && I18N[key][lang]) el.textContent = I18N[key][lang];
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(el=>{
+    const key = el.getAttribute('data-i18n-html');
+    if(I18N[key] && I18N[key][lang]) el.innerHTML = I18N[key][lang];
+  });
+  document.querySelectorAll('#langswitch button').forEach(b=>{
+    b.classList.toggle('active', b.getAttribute('data-lang')===lang);
+  });
+  try{ localStorage.setItem('pandafit_lang', lang); }catch(e){}
+}
+
+document.querySelectorAll('#langswitch button').forEach(btn=>{
+  btn.addEventListener('click', ()=> applyLang(btn.getAttribute('data-lang')));
+});
+
+let initialLang = 'fr';
+try{
+  const saved = localStorage.getItem('pandafit_lang');
+  if(saved && I18N.nav_essentiel[saved]) initialLang = saved;
+}catch(e){}
+applyLang(initialLang);
+</script>
+
+</body>
+</html>
