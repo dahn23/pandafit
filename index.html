@@ -563,7 +563,7 @@ const PandaFitBackend = (() => {
   async function fetchClientConfig(deviceKey) {
     const devRes = await fetch(
       `${REST}/devices?device_key=eq.${encodeURIComponent(deviceKey)}&select=id,name,client_id,clients(id,name,show_ready_to_play,show_index_banner,rh_pin,lock_games,index_sort_order,index_questionnaire_id,index_image_url,ads_enabled,show_benefits_page,show_initiation_page)`,
-      { headers: headers() }
+      { headers: headers(), cache: 'no-store' }
     );
     if (!devRes.ok) throw new Error('Impossible de contacter le serveur (devices).');
     const devices = await devRes.json();
@@ -584,7 +584,7 @@ const PandaFitBackend = (() => {
 
     const cgRes = await fetch(
       `${REST}/client_games?client_id=eq.${clientId}&enabled=eq.true&select=game_id,sort_order,image_url,questionnaire_id&order=sort_order`,
-      { headers: headers() }
+      { headers: headers(), cache: 'no-store' }
     );
     if (!cgRes.ok) throw new Error('Impossible de contacter le serveur (client_games).');
     const rows = (await cgRes.json()).filter(r => r.game_id !== 'indextest');
@@ -624,7 +624,7 @@ const PandaFitBackend = (() => {
     try {
       const res = await fetch(
         `${REST}/questions?questionnaire_id=eq.${questionnaireId}&select=*,question_options(*)&order=sort_order`,
-        { headers: headers() }
+        { headers: headers(), cache: 'no-store' }
       );
       const rows = res.ok ? await res.json() : [];
       rows.forEach(q => q.question_options.sort((a, b) => a.sort_order - b.sort_order));
@@ -647,7 +647,7 @@ const PandaFitBackend = (() => {
   /** Retrouve un employé à partir de son code personnel. */
   async function findEmployeeByCode(config, code) {
     try {
-      const res = await fetch(`${REST}/employees?claim_token=eq.${encodeURIComponent(code.trim().toUpperCase())}&select=*`, { headers: headers() });
+      const res = await fetch(`${REST}/employees?claim_token=eq.${encodeURIComponent(code.trim().toUpperCase())}&select=*`, { headers: headers(), cache: 'no-store' });
       const rows = res.ok ? await res.json() : [];
       return rows[0] || null;
     } catch (e) { return null; }
@@ -672,14 +672,14 @@ const PandaFitBackend = (() => {
   async function computeDefiStandings(defi, config, devicesCache) {
     try {
       if (defi.mode === 'arcade') {
-        const res = await fetch(`${REST}/defi_arcade_scores?defi_id=eq.${defi.id}&select=*&order=score.desc`, { headers: headers() });
+        const res = await fetch(`${REST}/defi_arcade_scores?defi_id=eq.${defi.id}&select=*&order=score.desc`, { headers: headers(), cache: 'no-store' });
         const rows = res.ok ? await res.json() : [];
         const fullRanking = rows.map(r => ({ name: r.name, total: r.score }));
         return { mode: 'arcade', yours: fullRanking[0]?.total || 0, yoursLabel: 'Meilleur score actuel', fullRanking };
       }
       const res = await fetch(
         `${REST}/sessions?client_id=eq.${config.clientId}&game_id=eq.${defi.game_id}&played_at=gte.${defi.start_date}&played_at=lte.${defi.end_date}T23:59:59&select=score,device_id`,
-        { headers: headers() }
+        { headers: headers(), cache: 'no-store' }
       );
       const rows = res.ok ? await res.json() : [];
       if (defi.mode === 'tablet_vs_tablet') {
@@ -705,7 +705,7 @@ const PandaFitBackend = (() => {
       const idsFilter = participantIds.join(',');
       const res = await fetch(
         `${REST}/sessions?client_id=in.(${idsFilter})&game_id=eq.${challenge.game_id}&played_at=gte.${challenge.start_date}&played_at=lte.${challenge.end_date}T23:59:59&select=score,client_id`,
-        { headers: headers() }
+        { headers: headers(), cache: 'no-store' }
       );
       const rows = res.ok ? await res.json() : [];
       const totals = {};
@@ -724,10 +724,10 @@ const PandaFitBackend = (() => {
     const today = new Date().toISOString().slice(0, 10);
     try {
       const [defisRes, participRes, eventsRes, devicesRes] = await Promise.all([
-        fetch(`${REST}/defis?client_id=eq.${config.clientId}&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*,games(name)`, { headers: headers() }),
-        fetch(`${REST}/challenge_participants?client_id=eq.${config.clientId}&select=challenge_id`, { headers: headers() }),
-        fetch(`${REST}/events?client_id=eq.${config.clientId}&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*,event_devices(device_id)`, { headers: headers() }),
-        fetch(`${REST}/devices?client_id=eq.${config.clientId}&select=id,name`, { headers: headers() }),
+        fetch(`${REST}/defis?client_id=eq.${config.clientId}&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*,games(name)`, { headers: headers(), cache: 'no-store' }),
+        fetch(`${REST}/challenge_participants?client_id=eq.${config.clientId}&select=challenge_id`, { headers: headers(), cache: 'no-store' }),
+        fetch(`${REST}/events?client_id=eq.${config.clientId}&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*,event_devices(device_id)`, { headers: headers(), cache: 'no-store' }),
+        fetch(`${REST}/devices?client_id=eq.${config.clientId}&select=id,name`, { headers: headers(), cache: 'no-store' }),
       ]);
       const defisActive = defisRes.ok ? await defisRes.json() : [];
       const participations = participRes.ok ? await participRes.json() : [];
@@ -742,7 +742,7 @@ const PandaFitBackend = (() => {
         const idsFilter = challengeIds.join(',');
         const chRes = await fetch(
           `${REST}/challenges?id=in.(${idsFilter})&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*,games(name),challenge_participants(client_id,clients(name))`,
-          { headers: headers() }
+          { headers: headers(), cache: 'no-store' }
         );
         challengesActive = chRes.ok ? await chRes.json() : [];
       }
@@ -779,7 +779,7 @@ const PandaFitBackend = (() => {
   /** Catalogue global des jeux (nom/description/photo par défaut, valable pour tous les clients). */
   async function fetchGamesCatalog() {
     try {
-      const res = await fetch(`${REST}/games?select=id,name,description,image_url,name_en,name_de,name_it,description_en,description_de,description_it`, { headers: headers() });
+      const res = await fetch(`${REST}/games?select=id,name,description,image_url,name_en,name_de,name_it,description_en,description_de,description_it`, { headers: headers(), cache: 'no-store' });
       const rows = res.ok ? await res.json() : [];
       const catalog = {};
       rows.forEach(r => { catalog[r.id] = r; });
@@ -793,7 +793,7 @@ const PandaFitBackend = (() => {
     try {
       const res = await fetch(
         `${REST}/client_ads?client_id=eq.${clientId}&is_active=eq.true&order=created_at.desc`,
-        { headers: headers() }
+        { headers: headers(), cache: 'no-store' }
       );
       const rows = res.ok ? await res.json() : [];
       const now = Date.now();
@@ -808,7 +808,7 @@ const PandaFitBackend = (() => {
   /** Pages "Les bienfaits du PandaFit" et "Initiation au PandaFit" (contenu global, multilingue). */
   async function fetchInfoPages() {
     try {
-      const res = await fetch(`${REST}/info_pages?select=*`, { headers: headers() });
+      const res = await fetch(`${REST}/info_pages?select=*`, { headers: headers(), cache: 'no-store' });
       const rows = res.ok ? await res.json() : [];
       const catalog = {};
       rows.forEach(r => { catalog[r.id] = r; });
@@ -818,7 +818,7 @@ const PandaFitBackend = (() => {
   /** Étapes de l'initiation (liste modifiable, avec image par étape). */
   async function fetchInitiationSteps() {
     try {
-      const res = await fetch(`${REST}/initiation_steps?select=*&order=sort_order.asc`, { headers: headers() });
+      const res = await fetch(`${REST}/initiation_steps?select=*&order=sort_order.asc`, { headers: headers(), cache: 'no-store' });
       return res.ok ? await res.json() : [];
     } catch (e) { return []; }
   }
@@ -830,7 +830,7 @@ const PandaFitBackend = (() => {
     try {
       const res = await fetch(
         `${REST}/defis?client_id=eq.${clientId}&game_id=eq.${gameId}&mode=eq.arcade&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*&limit=1`,
-        { headers: headers() }
+        { headers: headers(), cache: 'no-store' }
       );
       const rows = res.ok ? await res.json() : [];
       return rows[0] || null;
@@ -838,7 +838,7 @@ const PandaFitBackend = (() => {
   }
   async function fetchArcadeScores(defiId) {
     try {
-      const res = await fetch(`${REST}/defi_arcade_scores?defi_id=eq.${defiId}&select=*&order=score.desc`, { headers: headers() });
+      const res = await fetch(`${REST}/defi_arcade_scores?defi_id=eq.${defiId}&select=*&order=score.desc`, { headers: headers(), cache: 'no-store' });
       return res.ok ? await res.json() : [];
     } catch (e) { return []; }
   }
