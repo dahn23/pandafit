@@ -3055,9 +3055,8 @@ function startZoneGame() {
       activeGameModule = null;
       const elapsed = zoneSetupCfg.duration - snap.timeLeft;
       const score = ZoneGame.computeScore(snap, zoneSetupCfg.duration - snap.timeLeft);
-      PandaFitBackend.recordSession(clientConfig, 'thezone', score, { difficulty: zoneSetupCfg.difficulty, livesLost: snap.livesLost, reason }).then(submitPendingAnswersIfAny);
+      PandaFitBackend.recordSession(clientConfig, 'thezone', score, { difficulty: zoneSetupCfg.difficulty, livesLost: snap.livesLost, reason }).then(submitPendingAnswersIfAny).then(() => refreshHighlights()); // attend l'enregistrement réel avant de rafraîchir, sinon on lit encore l'ancienne donnée
       maybeShowArcadePrompt('thezone', score);
-      refreshHighlights(); // pour que les scores soient à jour au retour à l'accueil, sans reconnexion
       content.innerHTML = screenZoneResult(snap, score, reason);
       wireZoneResult();
     }
@@ -3353,9 +3352,8 @@ function startMigrosGame() {
     (snap, reason) => {
       activeGameModule = null;
       const score = MigrosGame.computeScore(snap);
-      PandaFitBackend.recordSession(clientConfig, 'migros', score, { difficulty: migrosCfg.difficulty, goodCount: snap.goodCount, junkCount: snap.junkCount, livesLost: snap.livesLost, reason }).then(submitPendingAnswersIfAny);
+      PandaFitBackend.recordSession(clientConfig, 'migros', score, { difficulty: migrosCfg.difficulty, goodCount: snap.goodCount, junkCount: snap.junkCount, livesLost: snap.livesLost, reason }).then(submitPendingAnswersIfAny).then(() => refreshHighlights()); // attend l'enregistrement réel avant de rafraîchir, sinon on lit encore l'ancienne donnée
       maybeShowArcadePrompt('migros', score);
-      refreshHighlights(); // pour que les scores soient à jour au retour à l'accueil, sans reconnexion
       content.innerHTML = `<div style="${MIGROS_THEME}">${screenMigrosResult(snap, score, reason)}</div>`; wireMigrosResult();
     },
     (kind, x, y) => migrosSpawnCatchPulse(kind, x, y)
@@ -3502,9 +3500,8 @@ function startSkiGame() {
     (snap) => {
       activeGameModule = null;
       const score = SlalomGame.computeScore(snap);
-      PandaFitBackend.recordSession(clientConfig, 'skiprev', score, { elapsedMs: Math.round(snap.elapsedMs) }).then(submitPendingAnswersIfAny);
+      PandaFitBackend.recordSession(clientConfig, 'skiprev', score, { elapsedMs: Math.round(snap.elapsedMs) }).then(submitPendingAnswersIfAny).then(() => refreshHighlights()); // attend l'enregistrement réel avant de rafraîchir, sinon on lit encore l'ancienne donnée
       maybeShowArcadePrompt('skiprev', score);
-      refreshHighlights(); // pour que les scores soient à jour au retour à l'accueil, sans reconnexion
       content.innerHTML = `<div style="${SKI_THEME}">${screenSkiResult(snap, score)}</div>`; wireSkiResult();
     }
   );
@@ -3778,9 +3775,8 @@ function startEauGame() {
       activeGameModule = null;
       const elapsed = eauSetupCfg.duration - snap.timeLeft;
       const score = WaterCupGame.computeScore(snap, elapsed);
-      PandaFitBackend.recordSession(clientConfig, 'watercup', score, { difficulty: eauSetupCfg.difficulty, livesLost: snap.livesLost, reason }).then(submitPendingAnswersIfAny);
+      PandaFitBackend.recordSession(clientConfig, 'watercup', score, { difficulty: eauSetupCfg.difficulty, livesLost: snap.livesLost, reason }).then(submitPendingAnswersIfAny).then(() => refreshHighlights()); // attend l'enregistrement réel avant de rafraîchir, sinon on lit encore l'ancienne donnée
       maybeShowArcadePrompt('watercup', score);
-      refreshHighlights(); // pour que les scores soient à jour au retour à l'accueil, sans reconnexion
       content.innerHTML = screenEauResult(snap, score, reason);
       wireEauResult();
     }
@@ -3967,9 +3963,8 @@ function startElectroGame() {
     (snap, reason) => {
       activeGameModule = null;
       const score = ElectroGame.computeScore(snap);
-      PandaFitBackend.recordSession(clientConfig, 'base', score, { sensitivity: electroSetupCfg.sensitivity, livesLost: snap.livesLost, elapsedMs: Math.round(snap.elapsedMs), reason }).then(submitPendingAnswersIfAny);
+      PandaFitBackend.recordSession(clientConfig, 'base', score, { sensitivity: electroSetupCfg.sensitivity, livesLost: snap.livesLost, elapsedMs: Math.round(snap.elapsedMs), reason }).then(submitPendingAnswersIfAny).then(() => refreshHighlights()); // attend l'enregistrement réel avant de rafraîchir, sinon on lit encore l'ancienne donnée
       maybeShowArcadePrompt('base', score);
-      refreshHighlights(); // pour que les scores soient à jour au retour à l'accueil, sans reconnexion
       content.innerHTML = screenElectroResult(snap, score, reason);
       wireElectroResult();
     },
@@ -4138,9 +4133,8 @@ function startFootballGame() {
     (snap) => {
       activeGameModule = null;
       const score = FootballGame.computeScore(snap);
-      PandaFitBackend.recordSession(clientConfig, 'distance', score, { goals: snap.goals, misses: snap.misses, upCount: snap.upCount }).then(submitPendingAnswersIfAny);
+      PandaFitBackend.recordSession(clientConfig, 'distance', score, { goals: snap.goals, misses: snap.misses, upCount: snap.upCount }).then(submitPendingAnswersIfAny).then(() => refreshHighlights()); // attend l'enregistrement réel avant de rafraîchir, sinon on lit encore l'ancienne donnée
       maybeShowArcadePrompt('distance', score);
-      refreshHighlights(); // pour que les scores soient à jour au retour à l'accueil, sans reconnexion
       content.innerHTML = screenFootballResult(snap, score);
       wireFootballResult();
     }
@@ -4354,9 +4348,8 @@ function startRelaxGame() {
     (snap) => {
       activeGameModule = null;
       const score = RelaxGame.computeScore(snap);
-      PandaFitBackend.recordSession(clientConfig, 'cross', score, { mode: relaxSetupCfg.mode, percentInZone: snap.percentInZone }).then(submitPendingAnswersIfAny);
+      PandaFitBackend.recordSession(clientConfig, 'cross', score, { mode: relaxSetupCfg.mode, percentInZone: snap.percentInZone }).then(submitPendingAnswersIfAny).then(() => refreshHighlights()); // attend l'enregistrement réel avant de rafraîchir, sinon on lit encore l'ancienne donnée
       maybeShowArcadePrompt('cross', score);
-      refreshHighlights(); // pour que les scores soient à jour au retour à l'accueil, sans reconnexion
       content.innerHTML = `<div style="${RELAX_THEME}">${screenRelaxResult(snap, score)}</div>`;
       wireRelaxResult();
     }
