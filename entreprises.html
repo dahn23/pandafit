@@ -181,6 +181,59 @@
 
   footer.site-footer { border-top: 1px solid var(--line); padding: 34px 0; }
   .footer-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--ink-dim); }
+
+  /* ---------- Signature bien-être : oscillo stress/calme ---------- */
+  .oscillo-card {
+    border-radius: var(--radius); background: linear-gradient(165deg, #163C2C, #0A1815); border: 1px solid var(--line);
+    padding: 30px 28px 26px; box-shadow: 0 30px 70px -20px rgba(0,0,0,0.6); margin-top: 16px;
+  }
+  .oscillo-card svg { width: 100%; height: auto; display: block; }
+  .oscillo-legend { display: flex; justify-content: space-between; margin-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--ink-dim); }
+  .oscillo-tag { display: inline-flex; align-items: center; gap: 6px; }
+  .oscillo-tag .sw { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ---------- Dossier complet / accordéons ---------- */
+  .dossier { padding: 90px 0; background: var(--bg-alt); }
+  .dossier-head { max-width: 640px; margin: 0 auto 56px; text-align: center; }
+  .dossier-head h2 { font-size: clamp(28px, 3.4vw, 38px); margin: 12px 0 14px; }
+  .dossier-head p { color: var(--ink-dim); font-size: 15.5px; }
+  .dossier-cat { margin-bottom: 14px; }
+  .dossier-cat summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 22px 26px;
+    transition: border-color 0.15s;
+  }
+  .dossier-cat summary::-webkit-details-marker { display: none; }
+  .dossier-cat[open] summary { border-color: var(--brand); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  .dossier-cat summary .cs-left { display: flex; align-items: center; gap: 16px; }
+  .dossier-cat summary .cs-num { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--brand); }
+  .dossier-cat summary h3 { font-size: 17px; font-weight: 700; }
+  .dossier-cat summary .cs-sub { font-size: 13px; color: var(--ink-dim); font-weight: 400; margin-top: 2px; }
+  .dossier-cat summary .chev { width: 22px; height: 22px; flex-shrink: 0; transition: transform 0.2s; color: var(--ink-dim); }
+  .dossier-cat[open] summary .chev { transform: rotate(45deg); color: var(--brand); }
+  .dossier-body {
+    background: rgba(255,255,255,0.02); border: 1px solid var(--line); border-top: none;
+    border-bottom-left-radius: 18px; border-bottom-right-radius: 18px; padding: 8px 26px 22px;
+  }
+  .dossier-item { padding: 16px 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: 200px 1fr; gap: 20px; }
+  @media (max-width: 700px) { .dossier-item { grid-template-columns: 1fr; gap: 6px; } }
+  .dossier-item h4 { font-size: 14.5px; font-weight: 700; color: var(--ink); }
+  .dossier-item p { font-size: 14px; color: var(--ink-dim); margin: 0; }
+
+  /* ---------- Sources ---------- */
+  .sources { padding: 80px 0 100px; }
+  .sources-head { max-width: 640px; margin: 0 auto 40px; text-align: center; }
+  .sources-head h2 { font-size: clamp(26px, 3vw, 32px); margin: 12px 0 14px; }
+  .sources-head p { color: var(--ink-dim); font-size: 15px; }
+  .source-list { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .source-item {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px;
+    font-size: 13.5px; color: var(--ink-dim); display: flex; gap: 14px;
+  }
+  .source-item .src-num { font-family: 'IBM Plex Mono', monospace; color: var(--brand); flex-shrink: 0; }
+  .source-item a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line); }
+  .source-item a:hover { text-decoration-color: var(--brand); }
+  .source-item strong { color: var(--ink); }
 </style>
 </head>
 <body>
@@ -190,7 +243,7 @@
     <div class="nav-brand"><span class="dot"></span> PandaFit</div>
     <nav class="nav-links">
       <a href="#benefits" data-i18n="nav_benefits">Bienfaits</a>
-      <a href="solutions.html">Toutes les options</a>
+      <a href="#dossier">Toutes les options</a>
       <a href="#pricing" data-i18n="nav_pricing">Offres</a>
       <a href="#contact" data-i18n="nav_contact">Contact</a>
     </nav>
@@ -243,15 +296,34 @@
   <div class="wrap benefit-grid reverse">
     <div>
       <div class="eyebrow" data-i18n="b2_eyebrow">Bien-être mental</div>
-      <h2 data-i18n="b2_title">Se recentrer, en quelques minutes, entre deux tâches.</h2>
-      <p data-i18n="b2_p1">Garder l'équilibre demande de la concentration et un ancrage dans l'instant présent. C'est un vrai outil de relaxation — une parenthèse active qui aide à déstresser et à se reconcentrer sans quitter le bureau.</p>
+      <h2 data-i18n="b2_title">Le stress se voit dans l'équilibre. Et le calme, on peut le retrouver en le regardant.</h2>
+      <p data-i18n="b2_p1">Le stress coûte 6,5 milliards de francs par an à l'économie suisse, entre présentéisme et absentéisme (Promotion Santé Suisse, 2022). Plus d'un quart des actifs suisses se déclarent en stress critique.</p>
+      <p>Ce que la recherche montre : l'anxiété se traduit physiquement par une oscillation posturale plus marquée — un lien documenté depuis les travaux de référence de Balaban (2002) sur les circuits neuronaux partagés entre équilibre et anxiété. Ce déséquilibre est en grande partie inconscient. C'est là que le visuel change tout : plusieurs études de biofeedback montrent qu'un retour visuel en temps réel sur sa propre oscillation aide à la réduire activement.</p>
       <ul>
         <li data-i18n="b2_li1">Des jeux pensés spécifiquement pour ralentir le rythme</li>
         <li data-i18n="b2_li2">Une pause active de quelques minutes, sans matériel ni séance dédiée</li>
-        <li data-i18n="b2_li3">Un complément concret aux démarches bien-être déjà en place</li>
+        <li>Un signal physiologique du stress rendu visible et actionnable, sur un écran</li>
       </ul>
     </div>
-    <div class="benefit-visual" id="visualMental"></div>
+    <div>
+      <div class="benefit-visual" id="visualMental"></div>
+      <div class="oscillo-card">
+        <svg viewBox="0 0 480 200" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="fadeStress" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#FF6B55"/>
+              <stop offset="100%" stop-color="#2FE07C"/>
+            </linearGradient>
+          </defs>
+          <line x1="0" y1="100" x2="480" y2="100" stroke="rgba(243,247,241,0.12)" stroke-width="1"/>
+          <path id="oscilloPath" d="M0,100" fill="none" stroke="url(#fadeStress)" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <div class="oscillo-legend">
+          <span class="oscillo-tag"><span class="sw" style="background:#FF6B55;"></span> oscillation sous stress</span>
+          <span class="oscillo-tag"><span class="sw" style="background:#2FE07C;"></span> stabilité retrouvée, en jeu</span>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -266,6 +338,131 @@
       <p data-i18n="b3_p2">Chaque entreprise peut personnaliser ses propres défis, suivre les résultats et célébrer ses champions du jour.</p>
     </div>
     <div class="benefit-visual" id="visualSocial"></div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<section class="benefit" id="sur-mesure">
+  <div class="wrap benefit-grid reverse">
+    <div>
+      <div class="eyebrow">Sur-mesure & accompagnement</div>
+      <h2>On s'adapte à vous — jusqu'à porter votre nom.</h2>
+      <p>L'écran peut aussi servir d'affichage d'information ou de publicité interne quand il n'est pas utilisé pour jouer. Et pour les entreprises qui le souhaitent, l'app et même le personnage peuvent être personnalisés à l'image de la marque.</p>
+      <p>Surtout, nos coachs PandaFit accompagnent la planification des campagnes de santé : définir les bons objectifs, choisir le bon rythme, intervenir ponctuellement sur site pour lancer ou relancer une dynamique.</p>
+      <ul>
+        <li>Écran double-usage : jeux ou affichage info/pub selon les moments</li>
+        <li>Marque blanche possible : habillage, couleurs, voire mascotte aux couleurs de l'entreprise</li>
+        <li>Accompagnement humain par nos coachs, avec interventions ponctuelles sur site</li>
+      </ul>
+    </div>
+    <div class="benefit-visual" id="visualSurMesure"></div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<section class="dossier" id="dossier">
+  <div class="wrap">
+    <div class="dossier-head">
+      <div class="eyebrow" style="justify-content:center;">Le dossier complet</div>
+      <h2>Absolument tout ce qui est réglable, cliquez pour dérouler</h2>
+      <p>Ce sont les options concrètes derrière chacun des arguments ci-dessus — utile pour un service achat, un CHRO ou quiconque veut vérifier qu'on n'a rien laissé de côté.</p>
+    </div>
+
+    <details class="dossier-cat">
+      <summary>
+        <div class="cs-left">
+          <span class="cs-num">01</span>
+          <div><h3>Suivi & données</h3><div class="cs-sub">Ce que les RH voient et peuvent comparer</div></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </summary>
+      <div class="dossier-body">
+        <div class="dossier-item"><h4>Sondages de satisfaction</h4><p>Une question rapide (3 boutons, rouge / orange / vert) proposée après usage, pour prendre le pouls du bien-être au quotidien sans lourdeur.</p></div>
+        <div class="dossier-item"><h4>Questionnaires personnalisés</h4><p>Vos propres questions, posées avant ou après un jeu précis, pour croiser ressenti et pratique — configurables par jeu et par site.</p></div>
+        <div class="dossier-item"><h4>Comparaison multi-sites</h4><p>Le niveau d'équilibre moyen (PandaFit Index) est comparable d'un site à l'autre, pour repérer où l'accompagnement doit se concentrer.</p></div>
+        <div class="dossier-item"><h4>Statistiques individuelles & d'équipe</h4><p>Historique de progression par personne (via un code personnel anonyme) et par équipe, sans jamais exposer les données à d'autres collaborateurs.</p></div>
+      </div>
+    </details>
+
+    <details class="dossier-cat">
+      <summary>
+        <div class="cs-left">
+          <span class="cs-num">02</span>
+          <div><h3>Campagnes & motivation</h3><div class="cs-sub">Comment on fait jouer toute l'entreprise</div></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </summary>
+      <div class="dossier-body">
+        <div class="dossier-item"><h4>Campagnes motivées par des prix</h4><p>Des objectifs de santé transformés en défis avec récompense à la clé, sur la durée que vous choisissez.</p></div>
+        <div class="dossier-item"><h4>Mode individuel</h4><p>Un score personnel à améliorer, à son rythme — idéal pour une dynamique de progression sans esprit de compétition.</p></div>
+        <div class="dossier-item"><h4>Mode équipe</h4><p>Un groupe de collaborateurs cumule ses points ensemble — favorise l'entraide et la bonne humeur.</p></div>
+        <div class="dossier-item"><h4>Tablette contre tablette</h4><p>Deux points de passage s'affrontent directement — parfait pour deux services ou deux étages d'un même site.</p></div>
+        <div class="dossier-item"><h4>Société entière</h4><p>Tous les collaborateurs cumulent vers un objectif commun — utile pour une campagne de sensibilisation générale.</p></div>
+        <div class="dossier-item"><h4>Société contre société</h4><p>Pour les groupes avec plusieurs sites ou filiales : une compétition inter-sites, gérée depuis la même console.</p></div>
+      </div>
+    </details>
+
+    <details class="dossier-cat">
+      <summary>
+        <div class="cs-left">
+          <span class="cs-num">03</span>
+          <div><h3>Écran & communication</h3><div class="cs-sub">La tablette ne sert pas qu'à jouer</div></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </summary>
+      <div class="dossier-body">
+        <div class="dossier-item"><h4>Écran d'information</h4><p>Affichez les actualités internes, les événements à venir ou des messages de prévention directement sur l'écran d'accueil.</p></div>
+        <div class="dossier-item"><h4>Espace publicitaire</h4><p>L'écran peut aussi diffuser des visuels publicitaires (internes ou d'un partenaire), en alternance avec le reste du contenu.</p></div>
+      </div>
+    </details>
+
+    <details class="dossier-cat">
+      <summary>
+        <div class="cs-left">
+          <span class="cs-num">04</span>
+          <div><h3>Personnalisation & marque</h3><div class="cs-sub">Jusqu'où on peut vous ressembler</div></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </summary>
+      <div class="dossier-body">
+        <div class="dossier-item"><h4>Marque blanche</h4><p>Nous pouvons habiller l'app et même adapter le personnage-mascotte aux couleurs et à l'identité de votre entreprise.</p></div>
+        <div class="dossier-item"><h4>Visuels par site</h4><p>Chaque site peut avoir ses propres photos de fond, ses propres miniatures de jeux et son propre nom d'accueil.</p></div>
+      </div>
+    </details>
+
+    <details class="dossier-cat">
+      <summary>
+        <div class="cs-left">
+          <span class="cs-num">05</span>
+          <div><h3>Accompagnement humain</h3><div class="cs-sub">Ce n'est pas qu'un logiciel</div></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </summary>
+      <div class="dossier-body">
+        <div class="dossier-item"><h4>Planification des campagnes</h4><p>Nos coachs vous aident à définir le calendrier de santé de l'année : quand lancer quoi, pour quel objectif.</p></div>
+        <div class="dossier-item"><h4>Interventions ponctuelles</h4><p>Un coach PandaFit peut se déplacer sur site pour lancer une campagne, faire une démonstration ou relancer la dynamique.</p></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="sources" id="sources">
+  <div class="wrap">
+    <div class="sources-head">
+      <div class="eyebrow" style="justify-content:center;">Sources</div>
+      <h2>Ce qu'on avance est documenté</h2>
+      <p>Les arguments sécurité et stress s'appuient sur des données publiques et des travaux de recherche. Voici les sources, pour vérifier par vous-même.</p>
+    </div>
+    <div class="source-list">
+      <div class="source-item"><span class="src-num">01</span><div><strong>Suva</strong> — les chutes et faux pas comme première cause d'accident en Suisse, ~200'000 blessés par an. <a href="https://www.suva.ch" target="_blank" rel="noopener">suva.ch</a></div></div>
+      <div class="source-item"><span class="src-num">02</span><div><strong>Promotion Santé Suisse — Job-Stress-Index 2022</strong> : 28,2% des actifs suisses en stress critique ; le stress coûte ~6,5 milliards de francs/an à l'économie (présentéisme + absentéisme). <a href="https://promotionsante.ch/medias/dossier-le-stress-au-travail" target="_blank" rel="noopener">promotionsante.ch</a></div></div>
+      <div class="source-item"><span class="src-num">03</span><div><strong>Balaban, C.D. (2002)</strong>, "Neural substrates linking balance control and anxiety", <em>Physiology & Behavior</em> — les circuits neuronaux de l'équilibre et de l'anxiété sont en partie partagés.</div></div>
+      <div class="source-item"><span class="src-num">04</span><div>Étude sur de jeunes adultes montrant une corrélation positive entre niveau d'anxiété et amplitude de l'oscillation posturale (sway index). <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC12101288/" target="_blank" rel="noopener">PMC12101288</a></div></div>
+      <div class="source-item"><span class="src-num">05</span><div>Hasegawa et al. (2020), "Differential effects of visual versus auditory biofeedback training for voluntary postural sway", <em>PLOS ONE</em> — un retour visuel en temps réel améliore le contrôle postural. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7769480/" target="_blank" rel="noopener">PMC7769480</a></div></div>
+      <div class="source-item"><span class="src-num">06</span><div>Étude sur le contrôle postural du tronc montrant une réduction marquée de l'oscillation avec retour visuel direct. <a href="https://www.sciencedirect.com/science/article/abs/pii/S0966636220302125" target="_blank" rel="noopener">ScienceDirect</a></div></div>
+    </div>
   </div>
 </section>
 
@@ -334,8 +531,9 @@ function sbHeaders(extra) { return { apikey: SUPABASE_KEY, Authorization: `Beare
 const DEFAULT_IMAGES = {
   hero: 'site-hero-meeting.jpg',
   balance: 'site-ski.jpg',
-  mental: 'site-meditation.jpg',
+  mental: 'site-science.jpg',
   social: 'site-football.jpg',
+  surmesure: 'site-meditation.jpg',
 };
 
 const TRANSLATIONS = {
@@ -509,8 +707,32 @@ async function loadImages() {
   document.getElementById('visualBalance').style.backgroundImage = `url('${map.balance}')`;
   document.getElementById('visualMental').style.backgroundImage = `url('${map.mental}')`;
   document.getElementById('visualSocial').style.backgroundImage = `url('${map.social}')`;
+  document.getElementById('visualSurMesure').style.backgroundImage = `url('${map.surmesure}')`;
 }
 loadImages();
+
+/* Signature : anime le tracé de l'oscilloscope stress -> calme */
+(function animateOscillo() {
+  const path = document.getElementById('oscilloPath');
+  if (!path) return;
+  const w = 480, h = 200, mid = 100, steps = 60;
+  let t = 0;
+  function frame() {
+    t += 0.02;
+    let d = `M0,${mid}`;
+    for (let i = 1; i <= steps; i++) {
+      const x = (i / steps) * w;
+      const progress = i / steps;
+      const noiseAmp = 34 * (1 - progress) + 3 * progress;
+      const freq = 0.35 + 0.1 * (1 - progress);
+      const y = mid + Math.sin(i * freq + t * 3) * noiseAmp + Math.sin(i * freq * 2.3 + t * 5) * noiseAmp * 0.4 * (1 - progress);
+      d += ` L${x.toFixed(1)},${y.toFixed(1)}`;
+    }
+    path.setAttribute('d', d);
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
 
 /* ---------- Pricing (éditable depuis l'admin) ---------- */
 let pricingRows = [];
