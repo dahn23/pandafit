@@ -4074,6 +4074,9 @@ function renderFootballPlaying(snap) {
     if (window.lucide) lucide.createIcons();
   }
 
+  const watcherEl = document.getElementById('footballPandaWatcher');
+  if (watcherEl) watcherEl.style.display = snap.phase === 'transition' ? 'none' : '';
+
   const calmEl = document.getElementById('footballPandaCalm');
   const scaredEl = document.getElementById('footballPandaScared');
   const runVidEl = document.getElementById('footballPandaRun');
