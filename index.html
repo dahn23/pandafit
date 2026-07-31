@@ -1125,6 +1125,109 @@ const ZoneGame = (() => {
    JEU : TIR AU BUT — phase 1 course (20s, compte les "en haut" sur l'axe Y), phase transition
    (calcule le temps de tir), phase tir (le but entier bouge selon l'instabilité).
    ===================================================================================== */
+/* =====================================================================================
+   JEU : ZEN — respiration guidée (4s inspire / 2s retiens / 4s expire). La cible rétrécit
+   doucement au tout début (le temps de se stabiliser) puis reste fixe. Pas de vies/échec :
+   juste un % de temps passé en équilibre, dans un esprit détente plutôt que performance.
+   ===================================================================================== */
+const RelaxGame = (() => {
+  const MODES = {
+    long: { duration: 90, settleSeconds: 5 },
+    sport: { duration: 30, settleSeconds: 3 },
+  };
+  const START_RADIUS_CM = 5;   // rayon large au tout début
+  const FINAL_RADIUS_CM = 2.2; // rayon final, fixe et jouable, une fois stabilisé
+  const BREATH_TOTAL = 10; // 4s inspire + 2s retiens + 4s expire
+
+  let cfg = { mode: 'long' };
+  let s = null;
+  let latest = { x: 0, y: 0 };
+  function onSensorData(d) { latest = { x: d.x / 200, y: d.y / 200 }; }
+
+  function radiusCm() {
+    const m = MODES[cfg.mode];
+    if (!s) return FINAL_RADIUS_CM;
+    const elapsed = m.duration - s.timeLeft;
+    if (elapsed >= m.settleSeconds) return FINAL_RADIUS_CM;
+    const p = elapsed / m.settleSeconds;
+    return START_RADIUS_CM - p * (START_RADIUS_CM - FINAL_RADIUS_CM);
+  }
+
+  function breathPhaseAt(t) {
+    const c = t % BREATH_TOTAL;
+    if (c < 4) return { phase: 'inhale', progress: c / 4 };
+    if (c < 6) return { phase: 'hold', progress: (c - 4) / 2 };
+    return { phase: 'exhale', progress: (c - 6) / 4 };
+  }
+
+  function reset() {
+    const m = MODES[cfg.mode];
+    s = {
+      timeLeft: m.duration, inZoneTicks: 0, totalTicks: 0,
+      xCm: 0, yCm: 0, lastTickAt: performance.now(),
+    };
+  }
+
+  let tickTimer = null;
+  let onTickCb = null, onFinishCb = null;
+
+  function start(config, onTick, onFinish) {
+    cfg = config;
+    onTickCb = onTick; onFinishCb = onFinish;
+    reset();
+    PandaFitSensor.off('data', onSensorData);
+    PandaFitSensor.on('data', onSensorData);
+    s.lastTickAt = performance.now();
+    tickTimer = setInterval(tick, 60);
+  }
+
+  function tick() {
+    if (!s) return;
+    const now = performance.now();
+    const dt = (now - s.lastTickAt) / 1000;
+    s.lastTickAt = now;
+    s.xCm = latest.x; s.yCm = latest.y;
+    const r = radiusCm();
+    const inside = (latest.x * latest.x + latest.y * latest.y) <= r * r;
+    s.totalTicks++;
+    if (inside) s.inZoneTicks++;
+    s.timeLeft -= dt;
+    if (s.timeLeft <= 0) { finish(); return; }
+    onTickCb && onTickCb(snapshot());
+  }
+
+  function finish() {
+    if (!s) return;
+    clearInterval(tickTimer);
+    PandaFitSensor.off('data', onSensorData);
+    onFinishCb && onFinishCb(snapshot());
+  }
+  function abort() {
+    if (!s) return;
+    clearInterval(tickTimer);
+    PandaFitSensor.off('data', onSensorData);
+    s = null;
+  }
+
+  function snapshot() {
+    const m = MODES[cfg.mode];
+    const elapsed = m.duration - Math.max(0, s.timeLeft);
+    const isSettling = elapsed < m.settleSeconds;
+    const breathElapsed = isSettling ? 0 : (elapsed - m.settleSeconds);
+    const bp = breathPhaseAt(breathElapsed);
+    return {
+      timeLeft: Math.max(0, s.timeLeft), totalDuration: m.duration,
+      radiusCm: radiusCm(), xCm: s.xCm, yCm: s.yCm,
+      settling: isSettling,
+      breathPhase: bp.phase, breathProgress: bp.progress,
+      percentInZone: s.totalTicks ? Math.round(100 * s.inZoneTicks / s.totalTicks) : 100,
+    };
+  }
+  function computeScore(snap) { return snap.percentInZone; }
+
+  return { start, abort, computeScore, MODES };
+})();
+
 const FootballGame = (() => {
   const RUN_SECONDS = 10;
   const TRANSITION_SECONDS = 3;
@@ -2530,6 +2633,7 @@ const GAME_LAUNCHERS = {
   watercup: () => { content.innerHTML = screenEauSetup(); wireEauSetup(); },
   base: () => { content.innerHTML = screenElectroSetup(); wireElectroSetup(); },
   distance: () => { content.innerHTML = screenFootballSetup(); wireFootballSetup(); },
+  cross: () => { content.innerHTML = screenRelaxSetup(); wireRelaxSetup(); },
 };
 function formatCountdown(endDate) {
   const end = new Date(endDate + 'T23:59:59');
@@ -2620,7 +2724,7 @@ const GAMES = [
   { id: 'distance', icon: 'footprints', name: 'Tir au but', desc: 'Cours, puis marque un maximum de buts', playable: true },
   { id: 'base', icon: 'zap', name: 'Electro', desc: 'Suis le fil sans le lâcher', playable: true },
   { id: 'thezone', icon: 'circle-dot', name: 'The Zone', desc: 'Reste dans la zone, ne perds pas de vies', playable: true },
-  { id: 'cross', icon: 'crosshair', name: 'Cross', desc: 'Précision et rapidité' },
+  { id: 'cross', icon: 'wind', name: 'Zen', desc: 'Respiration guidée pour se détendre', playable: true },
   { id: 'migros', icon: 'shopping-cart', name: 'Le Panier Malin', desc: 'Jeu Migros Vaud — attrape les bons produits', playable: true },
   { id: 'skiprev', icon: 'mountain-snow', name: 'Slalom Réflexe', desc: 'Prévention ski — inspiré Swiss-Ski', playable: true },
   { id: 'watercup', icon: 'droplet', name: "Verre d'eau", desc: 'Reste stable, ne fais pas déborder le verre', playable: true },
@@ -4029,6 +4133,148 @@ function screenFootballResult(snap, score) {
 function wireFootballResult() {
   document.getElementById('btnFootballReplay')?.addEventListener('click', () => launchGameWithQuestionnaire('distance'));
   document.getElementById('btnFootballBack')?.addEventListener('click', () => navigate('games'));
+}
+
+/* ---------- Jeu : Zen (respiration guidée) ---------- */
+let relaxSetupCfg = { mode: 'long' };
+const RELAX_THEME = 'background:linear-gradient(160deg,#1b2e3a,#12202a);min-height:100%;';
+
+function screenRelaxSetup() {
+  return `
+    <div style="${RELAX_THEME}">
+    <button class="btn-ghost" id="btnRelaxBackTop" style="margin-bottom:14px;">← Retour</button>
+    <div class="centered-page">
+    <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="wind"></i> Zen</h1>
+    <p class="page-sub">Une respiration guidée pour te détendre avant un moment important — inspire, retiens, expire, en gardant ton équilibre.</p>
+    <p class="page-sub" style="margin-top:14px;">Durée</p>
+    ${segmented('relaxMode', [{ value: 'long', label: '1 min 30' }, { value: 'sport', label: 'Mode sport (30s)' }], relaxSetupCfg.mode)}
+    <button class="btn-primary" id="btnRelaxStart" style="width:100%;margin-top:18px;">${t('game_start_btn')}</button>
+    <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
+  </div>
+  </div>
+  `;
+}
+function wireRelaxSetup() {
+  document.getElementById('btnRelaxBackTop')?.addEventListener('click', () => navigate('home'));
+  document.getElementById('btnDoInitiationFirst')?.addEventListener('click', () => navigate('initiation'));
+  document.querySelector('[data-group="relaxMode"]')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-value]');
+    if (!btn) return;
+    relaxSetupCfg.mode = btn.dataset.value;
+    content.innerHTML = screenRelaxSetup();
+    wireRelaxSetup();
+    if (window.lucide) lucide.createIcons();
+  });
+  document.getElementById('btnRelaxStart')?.addEventListener('click', () => relaxPrepareThenStart());
+}
+function relaxPrepareThenStart() {
+  let remaining = 3;
+  content.innerHTML = screenGenericPrepare(remaining, 'wind', 'Installe-toi confortablement, ça démarre dans...');
+  SoundFx.ready();
+  const timer = setInterval(() => {
+    remaining--;
+    const el = document.getElementById('genericPrepareNum');
+    if (remaining <= 0) { clearInterval(timer); SoundFx.go(); startRelaxGame(); }
+    else if (el) el.textContent = remaining;
+  }, 1000);
+}
+function startRelaxGame() {
+  content.innerHTML = `<div style="${RELAX_THEME}">${screenRelaxPlaying()}</div>`;
+  activeGameModule = RelaxGame;
+  RelaxGame.start(relaxSetupCfg,
+    (snap) => renderRelaxPlaying(snap),
+    (snap) => {
+      activeGameModule = null;
+      const score = RelaxGame.computeScore(snap);
+      PandaFitBackend.recordSession(clientConfig, 'cross', score, { mode: relaxSetupCfg.mode, percentInZone: snap.percentInZone }).then(submitPendingAnswersIfAny);
+      content.innerHTML = `<div style="${RELAX_THEME}">${screenRelaxResult(snap, score)}</div>`;
+      wireRelaxResult();
+    }
+  );
+}
+function screenRelaxPlaying() {
+  return `
+    <div class="panda-watcher" id="relaxPandaWatcher">
+      <img src="${PANDA_FACE_CALM_B64}" class="panda-watcher-face active" alt="">
+    </div>
+    <div class="centered-page">
+      <div class="zone-hud" style="justify-content:center;">
+        <div class="timer" id="relaxTimer">--</div>
+      </div>
+      <div class="zone-canvas-wrap">
+        <canvas id="relaxCanvas" width="300" height="300"></canvas>
+      </div>
+      <p class="page-sub" id="relaxPhaseLabel" style="text-align:center;font-size:22px;font-weight:700;color:#fff;">Installe-toi...</p>
+    </div>
+  `;
+}
+function renderRelaxPlaying(snap) {
+  const timerEl = document.getElementById('relaxTimer');
+  const labelEl = document.getElementById('relaxPhaseLabel');
+  if (timerEl) {
+    const m = Math.floor(snap.timeLeft / 60), sec = Math.floor(snap.timeLeft % 60);
+    timerEl.textContent = `${m}:${String(sec).padStart(2, '0')}`;
+  }
+  if (labelEl) {
+    if (snap.settling) labelEl.textContent = 'Installe-toi, trouve ton équilibre...';
+    else if (snap.breathPhase === 'inhale') labelEl.textContent = 'Inspire...';
+    else if (snap.breathPhase === 'hold') labelEl.textContent = 'Retiens...';
+    else labelEl.textContent = 'Expire...';
+  }
+  const canvas = document.getElementById('relaxCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height, cx = w / 2, cy = h / 2;
+  const pxPerCm = 26;
+  ctx.clearRect(0, 0, w, h);
+
+  // anneau de respiration (visuel, ne compte pas pour l'équilibre)
+  if (!snap.settling) {
+    const minR = 45, maxR = 130;
+    let ringR;
+    if (snap.breathPhase === 'inhale') ringR = minR + snap.breathProgress * (maxR - minR);
+    else if (snap.breathPhase === 'hold') ringR = maxR;
+    else ringR = maxR - snap.breathProgress * (maxR - minR);
+    ctx.beginPath();
+    ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(150,190,255,0.55)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // zone d'équilibre
+  const inside = (snap.xCm * snap.xCm + snap.yCm * snap.yCm) <= (snap.radiusCm * snap.radiusCm);
+  ctx.beginPath();
+  ctx.arc(cx, cy, snap.radiusCm * pxPerCm, 0, Math.PI * 2);
+  ctx.fillStyle = inside ? 'rgba(67,206,162,0.18)' : 'rgba(230,55,78,0.10)';
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = inside ? '#43cea2' : '#e6374e';
+  ctx.stroke();
+
+  const px = cx + snap.xCm * pxPerCm;
+  const py = cy - snap.yCm * pxPerCm;
+  ctx.beginPath();
+  ctx.arc(px, py, 10, 0, Math.PI * 2);
+  ctx.fillStyle = inside ? '#43cea2' : '#e6374e';
+  ctx.fill();
+}
+function screenRelaxResult(snap, score) {
+  return `
+    <div class="centered-page">
+    <h1 class="page-title">Bien joué</h1>
+    <div class="result-score"><div class="num">${snap.percentInZone}%</div><div class="lbl">du temps en équilibre</div></div>
+    <p class="page-sub" style="text-align:center;">Prends un instant de plus si tu en as besoin, ou repars l'esprit un peu plus léger.</p>
+    <div class="row">
+      <button class="btn-primary" id="btnRelaxReplay">Refaire une session</button>
+      ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnRelaxBack">Retour aux jeux</button>` : ''}
+    </div>
+  </div>
+  `;
+}
+function wireRelaxResult() {
+  document.getElementById('btnRelaxReplay')?.addEventListener('click', () => launchGameWithQuestionnaire('cross'));
+  document.getElementById('btnRelaxBack')?.addEventListener('click', () => navigate('games'));
 }
 
 /* ---------- Écran générique de préparation (réutilisé par les jeux brandés) ---------- */
