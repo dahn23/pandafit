@@ -1678,10 +1678,10 @@ async function renderTabletMenuTab() {
   el.innerHTML = '<p class="empty">Chargement...</p>';
   const client = clients.find(c => c.id === selectedClientId);
   const { activeDefis, activeChallenges, activeEvents } = await loadActiveTabletMenuItems(selectedClientId);
-  const allGames = clientGames.filter(cg => cg.game_id !== 'indextest').map(cg => {
+  const allGames = clientGames.filter(cg => cg.game_id !== 'indextest' && cg.enabled).map(cg => {
     const catalogRow = games.find(g => g.id === cg.game_id) || { id: cg.game_id, name: cg.game_id };
     return {
-      type: 'game', sort_order: cg.sort_order || 0, visible: cg.enabled,
+      type: 'game', sort_order: cg.sort_order || 0, visible: cg.show_on_home !== false,
       data: { ...catalogRow, image_url: cg.image_url || catalogRow.image_url },
       id: cg.game_id,
     };
@@ -1699,7 +1699,7 @@ async function renderTabletMenuTab() {
 
   function render() {
     el.innerHTML = `
-      <p class="section-sub">Tout ce qui est actif pour ce client s'affiche ici automatiquement (y compris les événements, désormais mélangés au reste). Glisse une vignette pour changer son ordre, masque/réaffiche-la avec l'œil, ou change sa photo avec l'icône image.</p>
+      <p class="section-sub">Tout ce qui est actif pour ce client s'affiche ici automatiquement (y compris les événements, désormais mélangés au reste). Glisse une vignette pour changer son ordre. L'œil masque/réaffiche uniquement sur l'écran d'accueil — pour un jeu, ça ne l'enlève pas de l'onglet "Jeux" (ça se gère dans l'onglet Jeux). Change sa photo avec l'icône image.</p>
       <div class="menu-section-title">Contenu principal (empilé)</div>
       <div class="menu-stack" id="mainStack">
         ${stack.length ? stack.map(thumbCardHTML).join('') : '<p class="empty">Rien pour l\'instant.</p>'}
@@ -1718,7 +1718,7 @@ async function renderTabletMenuTab() {
     if (!item) return;
     const newVisible = !item.visible;
     if (type === 'index') await sb.from('clients').update({ show_index_banner: newVisible }).eq('id', selectedClientId);
-    else if (type === 'game') await sb.from('client_games').update({ enabled: newVisible }).eq('client_id', selectedClientId).eq('game_id', id);
+    else if (type === 'game') await sb.from('client_games').update({ show_on_home: newVisible }).eq('client_id', selectedClientId).eq('game_id', id);
     else if (type === 'defi') await sb.from('defis').update({ is_active: newVisible }).eq('id', id);
     else if (type === 'challenge') await sb.from('challenges').update({ is_active: newVisible }).eq('id', id);
     else if (type === 'event') await sb.from('events').update({ is_active: newVisible }).eq('id', id);
