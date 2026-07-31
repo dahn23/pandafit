@@ -1799,6 +1799,11 @@ function renderAdsTab() {
   const el = document.getElementById('tabContent');
   const client = clients.find(c => c.id === selectedClientId);
   const sortedAds = [...clientAds].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const hm = client.home_display_mode || 'auto';
+  const homeModeLabel = hm === 'none' ? '🚫 Masqué — suspendu par le RH'
+    : hm === 'satisfaction' ? 'Indice de satisfaction — choisi par le RH'
+    : hm === 'ads' ? 'Publicité — choisie par le RH'
+    : 'Automatique — affiche le contenu activé ci-dessous';
   el.innerHTML = `
     <div class="card">
       <h3>Publicités <span style="color:var(--text-dim);font-weight:400;">ou</span> Indice de satisfaction</h3>
@@ -1811,7 +1816,11 @@ function renderAdsTab() {
         <input type="checkbox" id="satisfactionEnabledToggle" ${client.satisfaction_enabled ? 'checked' : ''}>
         Activer l'indice de satisfaction pour ce client
       </label>
-      <p style="font-size:12.5px;color:var(--text-dim);margin:0;">Le texte de la question, le message de remerciement et la vidéo sont communs à tous les clients — modifiables dans "Contenu global".</p>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Le texte de la question, le message de remerciement et la vidéo sont communs à tous les clients — modifiables dans "Contenu global".</p>
+      <div style="padding:8px 10px;border-radius:8px;background:rgba(127,127,127,.12);font-size:12.5px;">
+        <b>Réglage RH (accueil) :</b> ${homeModeLabel}
+        <div style="color:var(--text-dim);margin-top:2px;">Le RH peut afficher ou suspendre ce contenu depuis la tablette (Réglages) — sans pouvoir le modifier.</div>
+      </div>
     </div>
     <div class="card">
       <h3>Ajouter une publicité</h3>
