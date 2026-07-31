@@ -941,6 +941,17 @@ async function renderStatsTab() {
     opts[optId].sessionIds.push(r.session_id);
   });
 
+  // ---- Section : Indice de satisfaction (mêmes filtres date/tablette) ----
+  let satQuery = sb.from('satisfaction_responses').select('*').eq('client_id', selectedClientId)
+    .gte('created_at', statsFilters.start)
+    .lte('created_at', statsFilters.end + 'T23:59:59');
+  if (statsFilters.deviceId) satQuery = satQuery.eq('device_id', statsFilters.deviceId);
+  const { data: satisfactionRows } = await satQuery;
+  const satisfactionResponses = satisfactionRows || [];
+  const satCounts = { red: 0, yellow: 0, green: 0 };
+  satisfactionResponses.forEach(r => { satCounts[r.rating] = (satCounts[r.rating] || 0) + 1; });
+  const satTotal = satisfactionResponses.length;
+
   // ---- Rendu ----
   const deviceOptions = devices.map(d => `<option value="${d.id}" ${statsFilters.deviceId === d.id ? 'selected' : ''}>${d.name}</option>`).join('');
 
@@ -985,6 +996,18 @@ async function renderStatsTab() {
     <div class="card">
       <h3>Répartition par jeu</h3>
       <div class="chart-wrap"><canvas id="chartByGame"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h3>Indice de satisfaction</h3>
+      ${satTotal === 0 ? '<p class="empty">Aucune réponse sur cette période.</p>' : `
+        <div class="stat-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:0;">
+          <div class="stat-box"><div class="n" style="color:#e6374e;">${satCounts.red}</div><div class="l">🔴 ${Math.round(satCounts.red / satTotal * 100)}%</div></div>
+          <div class="stat-box"><div class="n" style="color:#e0a83e;">${satCounts.yellow}</div><div class="l">🟡 ${Math.round(satCounts.yellow / satTotal * 100)}%</div></div>
+          <div class="stat-box"><div class="n" style="color:#43cea2;">${satCounts.green}</div><div class="l">🟢 ${Math.round(satCounts.green / satTotal * 100)}%</div></div>
+        </div>
+        <p style="font-size:12.5px;color:var(--text-dim);margin-top:12px;margin-bottom:0;">${satTotal} réponse${satTotal > 1 ? 's' : ''} au total sur la période filtrée</p>
+      `}
     </div>
 
     <div class="menu-section-title" style="margin-top:22px;">Résumé des questionnaires</div>
@@ -1764,12 +1787,17 @@ function renderAdsTab() {
   const sortedAds = [...clientAds].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   el.innerHTML = `
     <div class="card">
-      <h3>Publicités sur l'écran d'accueil</h3>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:8px;">
+      <h3>Publicités <span style="color:var(--text-dim);font-weight:400;">ou</span> Indice de satisfaction</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin-bottom:12px;">Les deux partagent le même espace (25% de l'écran d'accueil) — un seul des deux peut être actif à la fois.</p>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:10px;">
         <input type="checkbox" id="adsEnabledToggle" ${client.ads_enabled ? 'checked' : ''}>
         Activer les publicités pour ce client
       </label>
-      <p style="font-size:12.5px;color:var(--text-dim);margin:0;">Quand c'est activé, 35% de l'écran d'accueil de la tablette (au-dessus du bas) est consacré à l'affichage des publicités actives, qui défilent automatiquement toutes les 4 secondes. Ce n'est pas cliquable.</p>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:8px;">
+        <input type="checkbox" id="satisfactionEnabledToggle" ${client.satisfaction_enabled ? 'checked' : ''}>
+        Activer l'indice de satisfaction pour ce client
+      </label>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0;">Le texte de la question, le message de remerciement et la vidéo sont communs à tous les clients — modifiables dans "Contenu global".</p>
     </div>
     <div class="card">
       <h3>Ajouter une publicité</h3>
@@ -1813,7 +1841,17 @@ function renderAdsTab() {
   `;
 
   document.getElementById('adsEnabledToggle').addEventListener('change', async (e) => {
-    await sb.from('clients').update({ ads_enabled: e.target.checked }).eq('id', selectedClientId);
+    const payload = { ads_enabled: e.target.checked };
+    if (e.target.checked) payload.satisfaction_enabled = false; // exclusivité mutuelle
+    await sb.from('clients').update(payload).eq('id', selectedClientId);
+    await loadClients();
+    await loadClientDetail(selectedClientId);
+    renderAdsTab();
+  });
+  document.getElementById('satisfactionEnabledToggle').addEventListener('change', async (e) => {
+    const payload = { satisfaction_enabled: e.target.checked };
+    if (e.target.checked) payload.ads_enabled = false; // exclusivité mutuelle
+    await sb.from('clients').update(payload).eq('id', selectedClientId);
     await loadClients();
     await loadClientDetail(selectedClientId);
     renderAdsTab();
@@ -1870,6 +1908,9 @@ async function renderContentView() {
   const { data: stepsData } = await sb.from('initiation_steps').select('*').order('sort_order');
   const steps = stepsData || [];
   const editingStep = steps.find(s => s.id === editingInitiationStepId);
+
+  const { data: satisfactionData } = await sb.from('satisfaction_settings').select('*').eq('id', 'default').limit(1);
+  const satisfaction = (satisfactionData || [])[0] || {};
 
   main.innerHTML = `
     <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="layout-grid"></i> Contenu (jeux + Index)</div>
@@ -1955,6 +1996,14 @@ async function renderContentView() {
         ${editingStep ? `<button class="btn-ghost" id="btnCancelStep" style="width:auto;">Annuler</button>` : ''}
       </div>
     </div>
+
+    <div class="section-title" style="display:flex;align-items:center;gap:10px;margin-top:28px;"><i data-lucide="smile"></i> Indice de satisfaction</div>
+    <div class="section-sub">Question posée et message de remerciement — communs à tous les clients qui ont l'indice de satisfaction activé (réglable par client dans "Publicité").</div>
+    <div class="card">
+      ${i18nFieldGroup('satisfaction', 'question', 'Question posée', satisfaction, false)}
+      ${i18nFieldGroup('satisfaction', 'thanks', 'Message de remerciement', satisfaction, false)}
+      <button class="btn-primary" id="btnSaveSatisfaction" style="width:auto;">Enregistrer</button>
+    </div>
   `;
 
   document.getElementById('btnCancelGame')?.addEventListener('click', () => { editingGameId = null; renderContentView(); });
@@ -2019,6 +2068,13 @@ async function renderContentView() {
     }
     if (error) { alert('Erreur : ' + error.message); return; }
     editingInitiationStepId = null;
+    renderContentView();
+  });
+
+  document.getElementById('btnSaveSatisfaction')?.addEventListener('click', async () => {
+    const payload = { ...readI18nField('satisfaction', 'question'), ...readI18nField('satisfaction', 'thanks') };
+    const { error } = await sb.from('satisfaction_settings').update(payload).eq('id', 'default');
+    if (error) { alert('Erreur : ' + error.message); return; }
     renderContentView();
   });
 }
