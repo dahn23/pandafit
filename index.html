@@ -148,9 +148,11 @@
   /* --- Home --- */
   .home-top-row {
     position: fixed; top: 0; left: 0; right: 0; z-index: 45; max-width: 900px; margin: 0 auto;
-    display: flex; gap: 10px; align-items: stretch;
+    display: flex; flex-direction: column; gap: 10px;
     background: var(--bg); padding: calc(14px + env(safe-area-inset-top)) 20px 10px;
   }
+  .home-top-row .home-title { font-size: 20px; font-weight: 800; margin: 0; }
+  .home-top-row .home-row { display: flex; gap: 10px; align-items: stretch; }
   .lang-flags-2x2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; flex: 0 0 auto; }
   .lang-flag-btn {
     width: 44px; height: 44px; border-radius: 50%; border: none; background: var(--panel);
@@ -2283,6 +2285,8 @@ function screenHome() {
   const initiationImg = infoPagesCatalog?.initiation?.image_url;
   return `
     <div class="home-top-row">
+      <h1 class="home-title">PandaFit</h1>
+      <div class="home-row">
       <div class="lang-flags-2x2">
         <button class="lang-flag-btn ${currentLang === 'fr' ? 'active' : ''}" data-lang="fr" title="Français">🇫🇷</button>
         <button class="lang-flag-btn ${currentLang === 'en' ? 'active' : ''}" data-lang="en" title="English">🇬🇧</button>
@@ -2302,6 +2306,7 @@ function screenHome() {
             <span class="info-card-label">${t('initiation_card_label')}</span>
           </button>
         ` : ''}
+      </div>
       </div>
     </div>
 
