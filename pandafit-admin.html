@@ -527,6 +527,7 @@ function renderMain() {
 
 function renderDevicesTab() {
   const el = document.getElementById('tabContent');
+  const client = clients.find(c => c.id === selectedClientId);
   el.innerHTML = `
     <div class="card">
       <h3>Tablettes de ce client</h3>
