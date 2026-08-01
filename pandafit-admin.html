@@ -548,6 +548,15 @@ function renderDevicesTab() {
         <button class="btn-primary" id="btnAddDevice" style="width:auto;">Créer</button>
       </div>
     </div>
+    <div class="card">
+      <h3>Rafraîchir les tablettes à distance</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin-bottom:12px;">Pousse les dernières données (pubs, réglages, jeux…) sur les tablettes <b>sans les recharger</b> — le capteur Bluetooth reste connecté. Effet en ~20 s.</p>
+      <div class="row" style="gap:8px;flex-wrap:wrap;">
+        <button class="btn-primary" id="btnRefreshThisClient" style="width:auto;">🔄 Rafraîchir les tablettes de ce client</button>
+        <button class="btn-ghost" id="btnRefreshAllClients" style="width:auto;">Rafraîchir TOUTES les tablettes</button>
+      </div>
+      <div id="refreshFeedback" style="font-size:12.5px;color:var(--text-dim);margin-top:8px;"></div>
+    </div>
   `;
   el.querySelectorAll('[data-del]').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -567,6 +576,26 @@ function renderDevicesTab() {
     await loadClientDetail(selectedClientId);
     await loadClients();
     renderMain(); renderClientList();
+  });
+
+  // Refresh doux : on change le jeton refresh_token ; les tablettes concernées le
+  // détectent (polling ~20 s) et rechargent leurs données sans recharger la page.
+  async function bumpRefresh(scope) {
+    const fb = document.getElementById('refreshFeedback');
+    if (fb) fb.textContent = 'Envoi…';
+    const token = crypto.randomUUID();
+    let q = sb.from('clients').update({ refresh_token: token });
+    q = (scope === 'all') ? q.not('id', 'is', null) : q.eq('id', selectedClientId);
+    const { error } = await q;
+    if (!fb) return;
+    fb.textContent = error ? ('Erreur : ' + error.message)
+      : (scope === 'all'
+          ? 'Signal envoyé à toutes les tablettes ✅ (appliqué en ~20 s).'
+          : 'Signal envoyé aux tablettes de ce client ✅ (appliqué en ~20 s).');
+  }
+  document.getElementById('btnRefreshThisClient')?.addEventListener('click', () => bumpRefresh('client'));
+  document.getElementById('btnRefreshAllClients')?.addEventListener('click', () => {
+    if (confirm('Rafraîchir les tablettes de TOUS les clients ?')) bumpRefresh('all');
   });
 }
 
