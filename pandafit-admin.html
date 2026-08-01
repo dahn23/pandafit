@@ -557,12 +557,26 @@ function renderDevicesTab() {
         <button class="btn-ghost" id="btnRefreshAllClients" style="width:auto;">Tous les clients</button>
       </div>
       <div style="font-size:11.5px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Rechargement complet — mise à jour de code</div>
-      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 8px;">Recharge la page des tablettes (pour appliquer une nouvelle version). Le capteur se coupe puis se <b>reconnecte tout seul</b> (~30 s). Appliqué aussi automatiquement chaque nuit vers 2h.</p>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 8px;">Recharge la page des tablettes (pour appliquer une nouvelle version). Le capteur se coupe puis se <b>reconnecte tout seul</b> (~30 s). Voir aussi le rechargement nocturne automatique ci-dessous.</p>
       <div class="row" style="gap:8px;flex-wrap:wrap;">
         <button class="btn-ghost" id="btnReloadThisClient" style="width:auto;">♻️ Recharger ce client</button>
         <button class="btn-ghost" id="btnReloadAllClients" style="width:auto;">Recharger tous les clients</button>
       </div>
-      <div id="refreshFeedback" style="font-size:12.5px;color:var(--text-dim);margin-top:10px;"></div>
+
+      <div style="height:1px;background:var(--panel-hi);margin:18px 0;"></div>
+      <div style="font-size:11.5px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Rechargement nocturne automatique (ce client)</div>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 8px;">Recharge chaque nuit les tablettes de ce client, à l'heure choisie, pour appliquer les mises à jour de code — sans interrompre de partie en cours.</p>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:10px;">
+        <input type="checkbox" id="nightlyEnabledToggle" ${client.nightly_reload_enabled ? 'checked' : ''}>
+        Activé pour ce client
+      </label>
+      <div class="row" style="align-items:center;gap:8px;">
+        <span style="font-size:13px;color:var(--text-dim);">Heure du rechargement :</span>
+        <select id="nightlyHourSelect">
+          ${Array.from({ length: 24 }, (_, h) => `<option value="${h}" ${Number(client.nightly_reload_hour) === h ? 'selected' : ''}>${String(h).padStart(2, '0')}h00</option>`).join('')}
+        </select>
+      </div>
+      <div id="refreshFeedback" style="font-size:12.5px;color:var(--text-dim);margin-top:12px;"></div>
     </div>
   `;
   el.querySelectorAll('[data-del]').forEach(btn => {
@@ -625,6 +639,27 @@ function renderDevicesTab() {
   });
   document.getElementById('btnReloadAllClients')?.addEventListener('click', () => {
     if (confirm('Recharger complètement les tablettes de TOUS les clients ?')) bumpReload('all');
+  });
+
+  // Rechargement nocturne, par client. On change aussi refresh_token pour que les tablettes
+  // récupèrent le nouveau réglage sous ~20 s (sans attendre un redémarrage).
+  document.getElementById('nightlyEnabledToggle')?.addEventListener('change', async (e) => {
+    const fb = document.getElementById('refreshFeedback');
+    const { error } = await sb.from('clients')
+      .update({ nightly_reload_enabled: e.target.checked, refresh_token: crypto.randomUUID() })
+      .eq('id', selectedClientId);
+    await loadClients();
+    if (fb) fb.textContent = error ? ('Erreur : ' + error.message)
+      : (e.target.checked ? 'Rechargement nocturne activé pour ce client ✅' : 'Rechargement nocturne désactivé pour ce client ✅');
+  });
+  document.getElementById('nightlyHourSelect')?.addEventListener('change', async (e) => {
+    const fb = document.getElementById('refreshFeedback');
+    const { error } = await sb.from('clients')
+      .update({ nightly_reload_hour: Number(e.target.value), refresh_token: crypto.randomUUID() })
+      .eq('id', selectedClientId);
+    await loadClients();
+    if (fb) fb.textContent = error ? ('Erreur : ' + error.message)
+      : ('Heure du rechargement nocturne réglée sur ' + String(e.target.value).padStart(2, '0') + 'h ✅');
   });
 }
 
