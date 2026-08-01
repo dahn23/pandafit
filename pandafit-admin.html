@@ -549,13 +549,20 @@ function renderDevicesTab() {
       </div>
     </div>
     <div class="card">
-      <h3>Rafraîchir les tablettes à distance</h3>
-      <p style="font-size:12.5px;color:var(--text-dim);margin-bottom:12px;">Pousse les dernières données (pubs, réglages, jeux…) sur les tablettes <b>sans les recharger</b> — le capteur Bluetooth reste connecté. Effet en ~20 s.</p>
-      <div class="row" style="gap:8px;flex-wrap:wrap;">
-        <button class="btn-primary" id="btnRefreshThisClient" style="width:auto;">🔄 Rafraîchir les tablettes de ce client</button>
-        <button class="btn-ghost" id="btnRefreshAllClients" style="width:auto;">Rafraîchir TOUTES les tablettes</button>
+      <h3>Mettre à jour les tablettes à distance</h3>
+      <div style="font-size:11.5px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Refresh doux — contenu & réglages</div>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 8px;">Pousse les dernières données (pubs, réglages, jeux…) <b>sans recharger</b> — le capteur Bluetooth reste connecté. Effet en ~20 s.</p>
+      <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:18px;">
+        <button class="btn-primary" id="btnRefreshThisClient" style="width:auto;">🔄 Ce client</button>
+        <button class="btn-ghost" id="btnRefreshAllClients" style="width:auto;">Tous les clients</button>
       </div>
-      <div id="refreshFeedback" style="font-size:12.5px;color:var(--text-dim);margin-top:8px;"></div>
+      <div style="font-size:11.5px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Rechargement complet — mise à jour de code</div>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 8px;">Recharge la page des tablettes (pour appliquer une nouvelle version). Le capteur se coupe puis se <b>reconnecte tout seul</b> (~30 s). Appliqué aussi automatiquement chaque nuit vers 2h.</p>
+      <div class="row" style="gap:8px;flex-wrap:wrap;">
+        <button class="btn-ghost" id="btnReloadThisClient" style="width:auto;">♻️ Recharger ce client</button>
+        <button class="btn-ghost" id="btnReloadAllClients" style="width:auto;">Recharger tous les clients</button>
+      </div>
+      <div id="refreshFeedback" style="font-size:12.5px;color:var(--text-dim);margin-top:10px;"></div>
     </div>
   `;
   el.querySelectorAll('[data-del]').forEach(btn => {
@@ -596,6 +603,28 @@ function renderDevicesTab() {
   document.getElementById('btnRefreshThisClient')?.addEventListener('click', () => bumpRefresh('client'));
   document.getElementById('btnRefreshAllClients')?.addEventListener('click', () => {
     if (confirm('Rafraîchir les tablettes de TOUS les clients ?')) bumpRefresh('all');
+  });
+
+  // Rechargement complet : on change reload_token ; les tablettes rechargent la page
+  // (puis se reconnectent automatiquement au capteur).
+  async function bumpReload(scope) {
+    const fb = document.getElementById('refreshFeedback');
+    if (fb) fb.textContent = 'Envoi…';
+    const token = crypto.randomUUID();
+    let q = sb.from('clients').update({ reload_token: token });
+    q = (scope === 'all') ? q.not('id', 'is', null) : q.eq('id', selectedClientId);
+    const { error } = await q;
+    if (!fb) return;
+    fb.textContent = error ? ('Erreur : ' + error.message)
+      : (scope === 'all'
+          ? 'Rechargement demandé à toutes les tablettes ✅ (elles rechargent puis se reconnectent, ~30 s).'
+          : 'Rechargement demandé aux tablettes de ce client ✅ (elles rechargent puis se reconnectent, ~30 s).');
+  }
+  document.getElementById('btnReloadThisClient')?.addEventListener('click', () => {
+    if (confirm('Recharger complètement les tablettes de ce client ? (bref écran de reconnexion capteur)')) bumpReload('client');
+  });
+  document.getElementById('btnReloadAllClients')?.addEventListener('click', () => {
+    if (confirm('Recharger complètement les tablettes de TOUS les clients ?')) bumpReload('all');
   });
 }
 
