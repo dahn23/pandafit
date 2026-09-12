@@ -59,3 +59,6 @@ PandaFit = application web pour **tablette**, autour d'un **capteur d'équilibre
 ## Note dépôt / Google Drive
 - Le dépôt vit dans **Google Drive** → `git status` signale souvent des fichiers « modifiés » à tort (Drive touche les métadonnées). **Le contenu est identique** : se fier à `git diff` (contenu), pas au status. Config déjà en place (`core.autocrlf false`, `core.checkStat minimal`, `core.trustctime false`).
 - Une copie propre hors Drive existe aussi dans `C:\Users\danha\dev\pandafit` (non utilisée par défaut ; Dan garde le dossier Drive + son raccourci).
+
+## Site vitrine pandafit.ch (dossier `site/`)
+Page publique 4 langues (`site/index.html`, `site/assets/`), issue de `entreprises.html` et enrichie le 13.09.2026 (appareil, sport & performance, références Sommaruga/Streit, chronologie). **Site Netlify séparé `pandafit-site`, base directory = `site`** ; domaine `pandafit.ch` (Hostpoint : A 75.2.60.5, CNAME www → pandafit-site.netlify.app). Tarifs/images/leads = même Supabase que la page d'origine. Toute nouvelle phrase = clé `data-i18n` + 4 traductions dans `EXTRA`. `entreprises.html` à la racine reste l'ancienne version (à retirer quand pandafit.ch est en ligne).

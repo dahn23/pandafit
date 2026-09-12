@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PandaFit — L'équilibre, en jouant</title>
+<meta name="description" content="PandaFit : la plateforme d'équilibre suisse. Prévention des accidents, gestion du stress et performance sportive, en jouant. Plus de 90'000 tests en 10 ans.">
+<link rel="icon" type="image/png" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A1512;
+    --bg-alt: #0E1F1A;
+    --panel: #122A22;
+    --ink: #F3F7F1;
+    --ink-dim: #9FB6AC;
+    --brand: #2FE07C;
+    --brand-deep: #17A461;
+    --brand-glow: rgba(47,224,124,0.35);
+    --coral: #FF6B55;
+    --line: rgba(243,247,241,0.12);
+    --radius: 26px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: 'Inter', sans-serif; font-size: 16px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: 'Bricolage Grotesque', sans-serif; margin: 0; color: var(--ink); font-weight: 700; }
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--brand); display: flex; align-items: center; gap: 8px;
+  }
+  .eyebrow::before { content: ''; width: 20px; height: 2px; background: var(--coral); display: inline-block; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+  a { color: inherit; }
+  img { max-width: 100%; display: block; }
+  button, .btn { font-family: 'Inter', sans-serif; cursor: pointer; }
+
+  /* ---------- Balance beam signature ---------- */
+  .beam { position: relative; height: 1px; background: var(--line); margin: 0; }
+  .beam .bubble {
+    position: absolute; top: 50%; width: 11px; height: 11px; border-radius: 50%;
+    background: var(--brand); box-shadow: 0 0 16px var(--brand-glow); transform: translate(-50%, -50%);
+    animation: sway 5.5s ease-in-out infinite;
+  }
+  @keyframes sway {
+    0%, 100% { left: 46%; } 25% { left: 60%; } 50% { left: 50%; } 75% { left: 38%; }
+  }
+  .beam.section-divider { max-width: 1180px; margin: 0 auto; }
+
+  /* ---------- Nav ---------- */
+  header.site-header {
+    position: sticky; top: 0; z-index: 50; background: rgba(10,21,18,0.72); backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; max-width: 1180px; margin: 0 auto; }
+  .nav-brand { display: flex; align-items: center; gap: 10px; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 19px; }
+  .nav-brand .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 12px var(--brand-glow); }
+  .nav-links { display: flex; align-items: center; gap: 30px; font-size: 14.5px; font-weight: 500; }
+  .nav-links a { text-decoration: none; color: var(--ink-dim); }
+  .nav-links a:hover { color: var(--ink); }
+  .lang-switch { display: flex; gap: 3px; background: rgba(255,255,255,0.05); border-radius: 100px; padding: 3px; }
+  .lang-switch button {
+    border: none; background: transparent; font-size: 16px; padding: 5px 8px; border-radius: 100px; opacity: 0.45; line-height: 1;
+  }
+  .lang-switch button.active { opacity: 1; background: rgba(255,255,255,0.1); }
+  .nav-cta {
+    background: var(--brand); color: #06170F; border: none; border-radius: 100px; padding: 11px 20px;
+    font-size: 14px; font-weight: 700; text-decoration: none;
+  }
+  @media (max-width: 780px) { .nav-links { display: none; } }
+
+  /* ---------- Hero (full-bleed photo) ---------- */
+  .hero {
+    position: relative; min-height: 86vh; display: flex; align-items: flex-end;
+    background-size: cover; background-position: center 30%;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(10,21,18,0.35) 0%, rgba(10,21,18,0.55) 45%, rgba(10,21,18,0.97) 92%);
+  }
+  .hero::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(60% 50% at 15% 0%, rgba(47,224,124,0.18), transparent 60%);
+  }
+  .hero-inner { position: relative; z-index: 2; padding: 60px 0 56px; width: 100%; }
+  .hero h1 {
+    font-size: clamp(40px, 6.2vw, 72px); font-weight: 700; line-height: 1.0; letter-spacing: -0.015em;
+    margin: 16px 0 20px; max-width: 800px;
+  }
+  .hero h1 em { font-style: normal; color: var(--brand); }
+  .hero p.lead { font-size: 19px; color: var(--ink-dim); max-width: 480px; margin: 0 0 30px; }
+  .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 40px; }
+  .btn-primary {
+    background: var(--brand); color: #06170F; border: none; border-radius: 100px; padding: 16px 28px;
+    font-size: 15.5px; font-weight: 700; text-decoration: none; display: inline-block;
+    box-shadow: 0 8px 30px var(--brand-glow);
+  }
+  .btn-secondary {
+    background: rgba(255,255,255,0.06); color: var(--ink); border: 1.5px solid var(--line); border-radius: 100px;
+    padding: 14.5px 24px; font-size: 15.5px; font-weight: 600; text-decoration: none; display: inline-block;
+  }
+  .hero-stats { display: flex; gap: 40px; flex-wrap: wrap; }
+  .hero-stat .num { font-family: 'IBM Plex Mono', monospace; font-size: 30px; font-weight: 500; color: var(--brand); }
+  .hero-stat .lbl { font-size: 13px; color: var(--ink-dim); max-width: 170px; margin-top: 2px; }
+
+  /* ---------- Benefit sections ---------- */
+  .benefit { padding: 100px 0; }
+  .benefit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+  .benefit-grid.reverse .benefit-visual { order: 2; }
+  @media (max-width: 900px) { .benefit-grid, .benefit-grid.reverse .benefit-visual { grid-template-columns: 1fr; order: 0; } }
+  .benefit-visual {
+    border-radius: var(--radius); aspect-ratio: 16/9; background-size: cover; background-position: center;
+    background-color: var(--panel); position: relative; box-shadow: 0 30px 70px -20px rgba(0,0,0,0.6);
+  }
+  .benefit-visual::after {
+    content: ''; position: absolute; inset: 0; border-radius: var(--radius);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .benefit h2 { font-size: clamp(28px, 3.2vw, 36px); margin: 12px 0 18px; line-height: 1.1; }
+  .benefit p { font-size: 15.5px; color: var(--ink-dim); margin: 0 0 12px; max-width: 460px; }
+  .benefit ul { margin: 18px 0 0; padding: 0; list-style: none; }
+  .benefit li { font-size: 14.5px; color: var(--ink); padding: 12px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; }
+  .benefit li::before { content: '—'; color: var(--brand); font-weight: 700; }
+
+  /* ---------- Pricing ---------- */
+  .pricing { padding: 100px 0; background: var(--bg-alt); }
+  .pricing-head { text-align: center; max-width: 560px; margin: 0 auto 52px; }
+  .pricing-head h2 { font-size: clamp(30px, 3.6vw, 40px); margin: 12px 0; }
+  .pricing-head p { color: var(--ink-dim); font-size: 15.5px; }
+  .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 860px) { .pricing-grid { grid-template-columns: 1fr; } }
+  .price-card {
+    background: var(--panel); border-radius: var(--radius); padding: 34px 28px; border: 1px solid var(--line);
+    display: flex; flex-direction: column;
+  }
+  .price-card.featured {
+    background: linear-gradient(165deg, #163C2C, #0F241C); border-color: var(--brand);
+    box-shadow: 0 0 0 1px var(--brand), 0 30px 60px -20px var(--brand-glow); transform: translateY(-10px);
+  }
+  .price-card .badge {
+    align-self: flex-start; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.06em;
+    background: var(--coral); color: #1a0a06; padding: 5px 11px; border-radius: 100px; margin-bottom: 16px; text-transform: uppercase; font-weight: 700;
+  }
+  .price-card h3 { font-size: 21px; margin: 12px 0 6px; }
+  .price-card .amount { font-family: 'IBM Plex Mono', monospace; font-size: 27px; font-weight: 500; margin: 4px 0 16px; color: var(--brand); }
+  .price-card .price-desc { font-size: 14px; color: var(--ink-dim); flex: 1; margin-bottom: 24px; }
+  .price-card .btn-secondary, .price-card .btn-primary { text-align: center; }
+
+  /* ---------- Trust ---------- */
+  .trust { padding: 56px 0; text-align: center; }
+  .trust .eyebrow { justify-content: center; margin-bottom: 20px; }
+  .trust-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px 32px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--ink-dim); }
+
+  /* ---------- Contact ---------- */
+  .contact { padding: 100px 0 110px; }
+  .contact-grid { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 60px; }
+  @media (max-width: 900px) { .contact-grid { grid-template-columns: 1fr; } }
+  .contact h2 { font-size: clamp(30px, 3.6vw, 40px); margin: 12px 0 16px; }
+  .contact p { color: var(--ink-dim); font-size: 15.5px; max-width: 420px; }
+  form.contact-form { background: var(--panel); border-radius: var(--radius); padding: 32px; border: 1px solid var(--line); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+  .contact-form label { font-size: 12.5px; color: var(--ink-dim); display: block; margin-bottom: 6px; }
+  .contact-form input, .contact-form textarea {
+    width: 100%; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,0.03);
+    font-family: 'Inter', sans-serif; font-size: 14.5px; color: var(--ink); box-sizing: border-box;
+  }
+  .contact-form input:focus, .contact-form textarea:focus { outline: none; border-color: var(--brand); }
+  .contact-form textarea { min-height: 100px; resize: vertical; }
+  .contact-form .full { grid-column: 1 / -1; margin-bottom: 14px; }
+  .contact-form button { width: 100%; margin-top: 4px; border: none; }
+  .form-msg { font-size: 13.5px; margin-top: 12px; }
+  .form-msg.ok { color: var(--brand); }
+  .form-msg.err { color: var(--coral); }
+
+  footer.site-footer { border-top: 1px solid var(--line); padding: 34px 0; }
+  .footer-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--ink-dim); }
+
+  /* ---------- Signature bien-être : oscillo stress/calme ---------- */
+  .oscillo-card {
+    border-radius: var(--radius); background: linear-gradient(165deg, #163C2C, #0A1815); border: 1px solid var(--line);
+    padding: 30px 28px 26px; box-shadow: 0 30px 70px -20px rgba(0,0,0,0.6); margin-top: 16px;
+  }
+  .oscillo-card svg { width: 100%; height: auto; display: block; }
+  .oscillo-legend { display: flex; justify-content: space-between; margin-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--ink-dim); }
+  .oscillo-tag { display: inline-flex; align-items: center; gap: 6px; }
+  .oscillo-tag .sw { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ---------- Dossier complet / accordéons ---------- */
+  .dossier { padding: 90px 0; background: var(--bg-alt); }
+  .dossier-head { max-width: 640px; margin: 0 auto 56px; text-align: center; }
+  .dossier-head h2 { font-size: clamp(28px, 3.4vw, 38px); margin: 12px 0 14px; }
+  .dossier-head p { color: var(--ink-dim); font-size: 15.5px; }
+  .dossier-cat { margin-bottom: 14px; }
+  .dossier-cat summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 22px 26px;
+    transition: border-color 0.15s;
+  }
+  .dossier-cat summary::-webkit-details-marker { display: none; }
+  .dossier-cat[open] summary { border-color: var(--brand); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  .dossier-cat summary .cs-left { display: flex; align-items: center; gap: 16px; }
+  .dossier-cat summary .cs-num { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--brand); }
+  .dossier-cat summary h3 { font-size: 17px; font-weight: 700; }
+  .dossier-cat summary .cs-sub { font-size: 13px; color: var(--ink-dim); font-weight: 400; margin-top: 2px; }
+  .dossier-cat summary .chev { width: 22px; height: 22px; flex-shrink: 0; transition: transform 0.2s; color: var(--ink-dim); }
+  .dossier-cat[open] summary .chev { transform: rotate(45deg); color: var(--brand); }
+  .dossier-body {
+    background: rgba(255,255,255,0.02); border: 1px solid var(--line); border-top: none;
+    border-bottom-left-radius: 18px; border-bottom-right-radius: 18px; padding: 8px 26px 22px;
+  }
+  .dossier-item { padding: 16px 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: 200px 1fr; gap: 20px; }
+  @media (max-width: 700px) { .dossier-item { grid-template-columns: 1fr; gap: 6px; } }
+  .dossier-item h4 { font-size: 14.5px; font-weight: 700; color: var(--ink); }
+  .dossier-item p { font-size: 14px; color: var(--ink-dim); margin: 0; }
+
+  /* ---------- Sources ---------- */
+  .sources { padding: 80px 0 100px; }
+  .sources-head { max-width: 640px; margin: 0 auto 40px; text-align: center; }
+  .sources-head h2 { font-size: clamp(26px, 3vw, 32px); margin: 12px 0 14px; }
+  .sources-head p { color: var(--ink-dim); font-size: 15px; }
+  .source-list { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .source-item {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px;
+    font-size: 13.5px; color: var(--ink-dim); display: flex; gap: 14px;
+  }
+  .source-item .src-num { font-family: 'IBM Plex Mono', monospace; color: var(--brand); flex-shrink: 0; }
+  .source-item a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line); }
+  .source-item a:hover { text-decoration-color: var(--brand); }
+  .source-item strong { color: var(--ink); }
+
+  /* ---------- L'appareil ---------- */
+  .product-grid { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 60px; align-items: center; }
+  @media (max-width: 900px) { .product-grid { grid-template-columns: 1fr; } }
+  .product-photo { margin: 0; position: relative; display: flex; justify-content: center; }
+  .product-photo::before {
+    content: ''; position: absolute; inset: 10% 8%; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(47,224,124,0.22), transparent 70%); filter: blur(30px); z-index: 0;
+  }
+  .product-photo img { position: relative; z-index: 1; max-height: 620px; width: auto; filter: drop-shadow(0 30px 50px rgba(0,0,0,0.55)); animation: hover 6s ease-in-out infinite; }
+  @keyframes hover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 26px; }
+  @media (max-width: 560px) { .stat-grid { grid-template-columns: 1fr; } }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; }
+  .stat .num { font-family: 'IBM Plex Mono', monospace; font-size: 28px; color: var(--brand); line-height: 1.1; }
+  .stat .lbl { font-size: 13px; color: var(--ink-dim); margin-top: 6px; }
+
+  /* ---------- Vidéos ---------- */
+  .video-card { margin: 0; border-radius: var(--radius); overflow: hidden; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 30px 70px -20px rgba(0,0,0,0.6); }
+  .video-card video { width: 100%; display: block; background: #000; }
+  .video-card.square video { aspect-ratio: 1 / 1; }
+  .video-card.wide video { aspect-ratio: 1104 / 540; }
+  .video-card figcaption { padding: 14px 18px; font-size: 13.5px; color: var(--ink-dim); }
+  .video-card figcaption strong { color: var(--ink); }
+  .benefit-grid.reverse .video-card { order: 2; }
+  @media (max-width: 900px) { .benefit-grid.reverse .video-card { order: 0; } }
+
+  /* ---------- Références ---------- */
+  .refs { padding: 100px 0 60px; background: var(--bg-alt); }
+  .refs-head { max-width: 640px; margin: 0 auto 48px; text-align: center; }
+  .refs-head h2 { font-size: clamp(28px, 3.4vw, 38px); margin: 12px 0 14px; }
+  .refs-head p { color: var(--ink-dim); font-size: 15.5px; }
+  .refs-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 22px; align-items: stretch; }
+  @media (max-width: 900px) { .refs-grid { grid-template-columns: 1fr; } }
+  .refs-side { display: flex; flex-direction: column; gap: 22px; }
+  .ref-card { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px 26px 22px; }
+  .ref-card h3 { font-size: 26px; margin: 12px 0 8px; }
+  .ref-card p { font-size: 14px; color: var(--ink-dim); margin: 0; }
+  .timeline { list-style: none; margin: 56px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  @media (max-width: 900px) { .timeline { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .timeline { grid-template-columns: 1fr; } }
+  .timeline li { position: relative; padding: 18px 0 0; border-top: 2px solid var(--line); font-size: 13.5px; color: var(--ink-dim); }
+  .timeline li::before { content: ''; position: absolute; top: -6px; left: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 12px var(--brand-glow); }
+  .tl-year { display: block; font-family: 'IBM Plex Mono', monospace; color: var(--brand); font-size: 14px; margin-bottom: 6px; }
+  .refs .trust { padding: 56px 0 0; }
+  .trust-list.sports { margin-top: 14px; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="nav-row">
+    <div class="nav-brand"><span class="dot"></span> PandaFit</div>
+    <nav class="nav-links">
+      <a href="#benefits" data-i18n="nav_benefits">Bienfaits</a>
+      <a href="#sport" data-i18n="nav_sport">Sport</a>
+      <a href="#refs" data-i18n="nav_refs">Références</a>
+      <a href="#dossier" data-i18n="nav_dossier">Toutes les options</a>
+      <a href="#pricing" data-i18n="nav_pricing">Offres</a>
+      <a href="#contact" data-i18n="nav_contact">Contact</a>
+    </nav>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="lang-switch">
+        <button data-lang="fr" class="active">🇫🇷</button>
+        <button data-lang="en">🇬🇧</button>
+        <button data-lang="de">🇩🇪</button>
+        <button data-lang="it">🇮🇹</button>
+      </div>
+      <a href="#contact" class="nav-cta" data-i18n="nav_cta">Demander une démo</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero" id="heroVisual">
+  <div class="wrap hero-inner">
+    <div class="eyebrow" data-i18n="hero_eyebrow">Équilibre au travail</div>
+    <h1 data-i18n="hero_title">Vos équipes gagnent en <em>équilibre</em>, en jouant.</h1>
+    <p class="lead" data-i18n="hero_lead">PandaFit transforme la prévention des accidents et la gestion du stress en quelques minutes de jeu, directement sur le lieu de travail.</p>
+    <div class="hero-ctas">
+      <a href="#contact" class="btn-primary" data-i18n="hero_cta1">Demander une démonstration</a>
+      <a href="#pricing" class="btn-secondary" data-i18n="hero_cta2">Voir les offres</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="num">#1</div><div class="lbl" data-i18n="hero_stat1">cause d'accident en Suisse : les chutes et faux pas (source Suva)</div></div>
+      <div class="hero-stat"><div class="num">200K</div><div class="lbl" data-i18n="hero_stat2">personnes blessées chaque année en trébuchant ou en tombant</div></div>
+      <div class="hero-stat"><div class="num">2 min</div><div class="lbl" data-i18n="hero_stat3">suffisent par session pour progresser durablement</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<!-- ---------- L'appareil ---------- -->
+<section class="benefit product" id="appareil">
+  <div class="wrap product-grid">
+    <figure class="product-photo">
+      <img src="assets/pandafit-appareil.webp" alt="La plateforme d'équilibre PandaFit avec sa tablette" loading="lazy">
+    </figure>
+    <div>
+      <div class="eyebrow" data-i18n="prod_eyebrow">L'appareil</div>
+      <h2 data-i18n="prod_title">Une plateforme d'équilibre, une tablette, et c'est parti.</h2>
+      <p data-i18n="prod_p1">PandaFit, c'est une plateforme d'équilibre suisse reliée en Bluetooth à une tablette. On monte dessus, on joue une minute trente, et l'algorithme transforme la signature de l'équilibre en un score de 0 à 100 : le PandaFit Index.</p>
+      <p data-i18n="prod_p2">Il s'installe partout en quelques minutes, se déplace facilement et ne demande aucune séance dédiée : on y passe entre deux réunions.</p>
+      <div class="stat-grid">
+        <div class="stat"><div class="num">90'000+</div><div class="lbl" data-i18n="prod_stat1">tests d'équilibre en 10 ans dans notre base de calcul</div></div>
+        <div class="stat"><div class="num">1'30</div><div class="lbl" data-i18n="prod_stat2">par passage, tout compris, sans quitter son poste</div></div>
+        <div class="stat"><div class="num">+23 %</div><div class="lbl" data-i18n="prod_stat3">d'index d'équilibre après un mois de test aux CFF (2021)</div></div>
+        <div class="stat"><div class="num">100 %</div><div class="lbl" data-i18n="prod_stat4">Swiss made, conçu à l'EPFL Innovation Park</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<section class="benefit" id="benefits">
+  <div class="wrap benefit-grid">
+    <div>
+      <div class="eyebrow" data-i18n="b1_eyebrow">Santé & sécurité</div>
+      <h2 data-i18n="b1_title">La première cause d'accident en Suisse se prévient en s'entraînant.</h2>
+      <p data-i18n="b1_p1">En Suisse, les chutes et les faux pas sont la première cause d'accident, tous domaines confondus — au travail comme dans la vie de tous les jours. Le ski, le football et les autres loisirs pratiqués en amateur y contribuent chaque année pour des milliers d'entorses et de foulures évitables.</p>
+      <p data-i18n="b1_p2">Travailler son équilibre renforce les réflexes et les muscles stabilisateurs qui protègent au quotidien comme sur le terrain de sport. Et cette capacité continue de progresser à tout âge, dès qu'on la sollicite régulièrement.</p>
+    </div>
+    <div class="benefit-visual" id="visualBalance"></div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<section class="benefit" id="mental">
+  <div class="wrap benefit-grid reverse">
+    <div>
+      <div class="eyebrow" data-i18n="b2_eyebrow">Bien-être mental</div>
+      <h2 data-i18n="b2_title">Le stress se voit dans l'équilibre. Et le calme, on peut le retrouver en le regardant.</h2>
+      <p data-i18n="b2_p1">Le stress coûte 6,5 milliards de francs par an à l'économie suisse, entre présentéisme et absentéisme (Promotion Santé Suisse, 2022). Plus d'un quart des actifs suisses se déclarent en stress critique.</p>
+      <p data-i18n="b2_p2">Ce que la recherche montre : l'anxiété se traduit physiquement par une oscillation posturale plus marquée — un lien documenté depuis les travaux de référence de Balaban (2002) sur les circuits neuronaux partagés entre équilibre et anxiété. Ce déséquilibre est en grande partie inconscient. C'est là que le visuel change tout : plusieurs études de biofeedback montrent qu'un retour visuel en temps réel sur sa propre oscillation aide à la réduire activement.</p>
+      <ul>
+        <li data-i18n="b2_li1">Des jeux pensés spécifiquement pour ralentir le rythme</li>
+        <li data-i18n="b2_li2">Une pause active de quelques minutes, sans matériel ni séance dédiée</li>
+        <li data-i18n="b2_li3">Un signal physiologique du stress rendu visible et actionnable, sur un écran</li>
+      </ul>
+    </div>
+    <div>
+      <div class="benefit-visual" id="visualMental"></div>
+      <div class="oscillo-card">
+        <svg viewBox="0 0 480 200" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="fadeStress" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#FF6B55"/>
+              <stop offset="100%" stop-color="#2FE07C"/>
+            </linearGradient>
+          </defs>
+          <line x1="0" y1="100" x2="480" y2="100" stroke="rgba(243,247,241,0.12)" stroke-width="1"/>
+          <path id="oscilloPath" d="M0,100" fill="none" stroke="url(#fadeStress)" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <div class="oscillo-legend">
+          <span class="oscillo-tag"><span class="sw" style="background:#FF6B55;"></span> <span data-i18n="oscillo_tag1">oscillation sous stress</span></span>
+          <span class="oscillo-tag"><span class="sw" style="background:#2FE07C;"></span> <span data-i18n="oscillo_tag2">stabilité retrouvée, en jeu</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<section class="benefit" id="social">
+  <div class="wrap benefit-grid">
+    <div>
+      <div class="eyebrow" data-i18n="b3_eyebrow">Cohésion d'équipe</div>
+      <h2 data-i18n="b3_title">Des défis et des classements qui font sourire tout le monde.</h2>
+      <p data-i18n="b3_p1">PandaFit, c'est aussi du jeu : défis entre collègues, classements par équipe, événements ponctuels. Une manière simple de créer du lien et de la bonne humeur autour d'un objectif commun — sans transformer la prévention en corvée.</p>
+      <p data-i18n="b3_p2">Chaque entreprise peut personnaliser ses propres défis, suivre les résultats et célébrer ses champions du jour.</p>
+    </div>
+    <div class="benefit-visual" id="visualSocial"></div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<!-- ---------- Sport & performance ---------- -->
+<section class="benefit" id="sport">
+  <div class="wrap benefit-grid reverse">
+    <div>
+      <div class="eyebrow" data-i18n="sport_eyebrow">Sport & performance</div>
+      <h2 data-i18n="sport_title">Du bureau au haut niveau : le même équilibre.</h2>
+      <p data-i18n="sport_p1">PandaFit est né dans le sport. Les mêmes jeux servent aux athlètes, jusqu'à l'élite, pour travailler ce qu'aucune séance de musculation ne donne : le recentrage, la qualité des appuis et la capacité à retrouver vite son équilibre après un effort.</p>
+      <p data-i18n="sport_p2">Certains jeux ajoutent une double tâche : répondre à des questions tout en restant en équilibre. Exactement ce que vit un joueur qui doit décider vite, sur un appui instable, le souffle court.</p>
+      <ul>
+        <li data-i18n="sport_li1">Recentrage et concentration, avant ou après l'effort</li>
+        <li data-i18n="sport_li2">Appuis, stabilité et retour rapide à l'équilibre après une charge</li>
+        <li data-i18n="sport_li3">Double tâche : réfléchir et répondre en restant en équilibre</li>
+        <li data-i18n="sport_li4">Utilisé avec des fédérations et des clubs : tennis, hockey, tir à l'arc, football, universiades</li>
+      </ul>
+    </div>
+    <figure class="video-card square">
+      <video controls playsinline preload="none" poster="assets/video/pandafit-film-poster.jpg">
+        <source src="assets/video/pandafit-film.mp4" type="video/mp4">
+      </video>
+      <figcaption data-i18n="sport_film">Le film PandaFit, 35 secondes.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<section class="benefit" id="sur-mesure">
+  <div class="wrap benefit-grid reverse">
+    <div>
+      <div class="eyebrow" data-i18n="sm_eyebrow">Sur-mesure & accompagnement</div>
+      <h2 data-i18n="sm_title">On s'adapte à vous — jusqu'à porter votre nom.</h2>
+      <p data-i18n="sm_p1">L'écran peut aussi servir d'affichage d'information ou de publicité interne quand il n'est pas utilisé pour jouer. Et pour les entreprises qui le souhaitent, l'app et même le personnage peuvent être personnalisés à l'image de la marque.</p>
+      <p data-i18n="sm_p2">Surtout, nos coachs PandaFit accompagnent la planification des campagnes de santé : définir les bons objectifs, choisir le bon rythme, intervenir ponctuellement sur site pour lancer ou relancer une dynamique.</p>
+      <ul>
+        <li data-i18n="sm_li1">Écran double-usage : jeux ou affichage info/pub selon les moments</li>
+        <li data-i18n="sm_li2">Marque blanche possible : habillage, couleurs, voire mascotte aux couleurs de l'entreprise</li>
+        <li data-i18n="sm_li3">Accompagnement humain par nos coachs, avec interventions ponctuelles sur site</li>
+      </ul>
+    </div>
+    <div class="benefit-visual" id="visualSurMesure"></div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<section class="dossier" id="dossier">
+  <div class="wrap">
+    <div class="dossier-head">
+      <div class="eyebrow" style="justify-content:center;" data-i18n="dossier_eyebrow">Le dossier complet</div>
+      <h2 data-i18n="dossier_title">Absolument tout ce qui est réglable, cliquez pour dérouler</h2>
+      <p data-i18n="dossier_sub">Ce sont les options concrètes derrière chacun des arguments ci-dessus — utile pour un service achat, un CHRO ou quiconque veut vérifier qu'on n'a rien laissé de côté.</p>
+    </div>
+
+    <details class="dossier-cat">
+      <summary>
+        <div class="cs-left">
+          <span class="cs-num">01</span>
+          <div><h3 data-i18n="d1_title">Suivi & données</h3><div class="cs-sub" data-i18n="d1_sub">Ce que les RH voient et peuvent comparer</div></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </summary>
+      <div class="dossier-body">
+        <div class="dossier-item"><h4 data-i18n="d1_i1_h">Sondages de satisfaction</h4><p data-i18n="d1_i1_p">Une question rapide (3 boutons, rouge / orange / vert) proposée après usage, pour prendre le pouls du bien-être au quotidien sans lourdeur.</p></div>
+        <div class="dossier-item"><h4 data-i18n="d1_i2_h">Questionnaires personnalisés</h4><p data-i18n="d1_i2_p">Vos propres questions, posées avant ou après un jeu précis, pour croiser ressenti et pratique — configurables par jeu et par site.</p></div>
+        <div class="dossier-item"><h4 data-i18n="d1_i3_h">Comparaison multi-sites</h4><p data-i18n="d1_i3_p">Le niveau d'équilibre moyen (PandaFit Index) est comparable d'un site à l'autre, pour repérer où l'accompagnement doit se concentrer.</p></div>
+        <div class="dossier-item"><h4 data-i18n="d1_i4_h">Statistiques individuelles & d'équipe</h4><p data-i18n="d1_i4_p">Historique de progression par personne (via un code personnel anonyme) et par équipe, sans jamais exposer les données à d'autres collaborateurs.</p></div>
+      </div>
+    </details>
+
+    <details class="dossier-cat">
+      <summary>
+        <div class="cs-left">
+          <span class="cs-num">02</span>
+          <div><h3 data-i18n="d2_title">Campagnes & motivation</h3><div class="cs-sub" data-i18n="d2_sub">Comment on fait jouer toute l'entreprise</div></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </summary>
+      <div class="dossier-body">
+        <div class="dossier-item"><h4 data-i18n="d2_i1_h">Campagnes motivées par des prix</h4><p data-i18n="d2_i1_p">Des objectifs de santé transformés en défis avec récompense à la clé, sur la durée que vous choisissez.</p></div>
+        <div class="dossier-item"><h4 data-i18n="d2_i2_h">Mode individuel</h4><p data-i18n="d2_i2_p">Un score personnel à améliorer, à son rythme — idéal pour une dynamique de progression sans esprit de compétition.</p></div>
+        <div class="dossier-item"><h4 data-i18n="d2_i3_h">Mode équipe</h4><p data-i18n="d2_i3_p">Un groupe de collaborateurs cumule ses points ensemble — favorise l'entraide et la bonne humeur.</p></div>
+        <div class="dossier-item"><h4 data-i18n="d2_i4_h">Tablette contre tablette</h4><p data-i18n="d2_i4_p">Deux points de passage s'affrontent directement — parfait pour deux services ou deux étages d'un même site.</p></div>
+        <div class="dossier-item"><h4 data-i18n="d2_i5_h">Société entière</h4><p data-i18n="d2_i5_p">Tous les collaborateurs cumulent vers un objectif commun — utile pour une campagne de sensibilisation générale.</p></div>
+        <div class="dossier-item"><h4 data-i18n="d2_i6_h">Société contre société</h4><p data-i18n="d2_i6_p">Pour les groupes avec plusieurs sites ou filiales : une compétition inter-sites, gérée depuis la même console.</p></div>
+      </div>
+    </details>
+
+    <details class="dossier-cat">
+      <summary>
+        <div class="cs-left">
+          <span class="cs-num">03</span>
+          <div><h3 data-i18n="d3_title">Écran & communication</h3><div class="cs-sub" data-i18n="d3_sub">La tablette ne sert pas qu'à jouer</div></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </summary>
+      <div class="dossier-body">
+        <div class="dossier-item"><h4 data-i18n="d3_i1_h">Écran d'information</h4><p data-i18n="d3_i1_p">Affichez les actualités internes, les événements à venir ou des messages de prévention directement sur l'écran d'accueil.</p></div>
+        <div class="dossier-item"><h4 data-i18n="d3_i2_h">Espace publicitaire</h4><p data-i18n="d3_i2_p">L'écran peut aussi diffuser des visuels publicitaires (internes ou d'un partenaire), en alternance avec le reste du contenu.</p></div>
+      </div>
+    </details>
+
+    <details class="dossier-cat">
+      <summary>
+        <div class="cs-left">
+          <span class="cs-num">04</span>
+          <div><h3 data-i18n="d4_title">Personnalisation & marque</h3><div class="cs-sub" data-i18n="d4_sub">Jusqu'où on peut vous ressembler</div></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </summary>
+      <div class="dossier-body">
+        <div class="dossier-item"><h4 data-i18n="d4_i1_h">Marque blanche</h4><p data-i18n="d4_i1_p">Nous pouvons habiller l'app et même adapter le personnage-mascotte aux couleurs et à l'identité de votre entreprise.</p></div>
+        <div class="dossier-item"><h4 data-i18n="d4_i2_h">Visuels par site</h4><p data-i18n="d4_i2_p">Chaque site peut avoir ses propres photos de fond, ses propres miniatures de jeux et son propre nom d'accueil.</p></div>
+      </div>
+    </details>
+
+    <details class="dossier-cat">
+      <summary>
+        <div class="cs-left">
+          <span class="cs-num">05</span>
+          <div><h3 data-i18n="d5_title">Accompagnement humain</h3><div class="cs-sub" data-i18n="d5_sub">Ce n'est pas qu'un logiciel</div></div>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </summary>
+      <div class="dossier-body">
+        <div class="dossier-item"><h4 data-i18n="d5_i1_h">Planification des campagnes</h4><p data-i18n="d5_i1_p">Nos coachs vous aident à définir le calendrier de santé de l'année : quand lancer quoi, pour quel objectif.</p></div>
+        <div class="dossier-item"><h4 data-i18n="d5_i2_h">Interventions ponctuelles</h4><p data-i18n="d5_i2_p">Un coach PandaFit peut se déplacer sur site pour lancer une campagne, faire une démonstration ou relancer la dynamique.</p></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="sources" id="sources">
+  <div class="wrap">
+    <div class="sources-head">
+      <div class="eyebrow" style="justify-content:center;" data-i18n="sources_eyebrow">Sources</div>
+      <h2 data-i18n="sources_title">Ce qu'on avance est documenté</h2>
+      <p data-i18n="sources_sub">Les arguments sécurité et stress s'appuient sur des données publiques et des travaux de recherche. Voici les sources, pour vérifier par vous-même.</p>
+    </div>
+    <div class="source-list">
+      <div class="source-item"><span class="src-num">01</span><div><strong>Suva</strong> — <span data-i18n="src1">les chutes et faux pas comme première cause d'accident en Suisse, ~200'000 blessés par an.</span> <a href="https://www.suva.ch" target="_blank" rel="noopener">suva.ch</a></div></div>
+      <div class="source-item"><span class="src-num">02</span><div><strong>Promotion Santé Suisse — Job-Stress-Index 2022</strong> : <span data-i18n="src2">28,2% des actifs suisses en stress critique ; le stress coûte ~6,5 milliards de francs/an à l'économie (présentéisme + absentéisme).</span> <a href="https://promotionsante.ch/medias/dossier-le-stress-au-travail" target="_blank" rel="noopener">promotionsante.ch</a></div></div>
+      <div class="source-item"><span class="src-num">03</span><div><strong>Balaban, C.D. (2002)</strong>, "Neural substrates linking balance control and anxiety", <em>Physiology & Behavior</em> — <span data-i18n="src3">les circuits neuronaux de l'équilibre et de l'anxiété sont en partie partagés.</span></div></div>
+      <div class="source-item"><span class="src-num">04</span><div><span data-i18n="src4">Étude sur de jeunes adultes montrant une corrélation positive entre niveau d'anxiété et amplitude de l'oscillation posturale (sway index).</span> <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC12101288/" target="_blank" rel="noopener">PMC12101288</a></div></div>
+      <div class="source-item"><span class="src-num">05</span><div>Hasegawa et al. (2020), "Differential effects of visual versus auditory biofeedback training for voluntary postural sway", <em>PLOS ONE</em> — <span data-i18n="src5">un retour visuel en temps réel améliore le contrôle postural.</span> <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7769480/" target="_blank" rel="noopener">PMC7769480</a></div></div>
+      <div class="source-item"><span class="src-num">06</span><div><span data-i18n="src6">Étude sur le contrôle postural du tronc montrant une réduction marquée de l'oscillation avec retour visuel direct.</span> <a href="https://www.sciencedirect.com/science/article/abs/pii/S0966636220302125" target="_blank" rel="noopener">ScienceDirect</a></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="pricing" id="pricing">
+  <div class="wrap">
+    <div class="pricing-head">
+      <div class="eyebrow" style="justify-content:center;" data-i18n="pricing_eyebrow">Nos offres</div>
+      <h2 data-i18n="pricing_title">Trois façons de démarrer</h2>
+      <p data-i18n="pricing_sub">De la journée découverte à l'accompagnement complet sur l'année, avec coaching et personnalisation à chaque niveau.</p>
+    </div>
+    <div class="pricing-grid" id="pricingGrid"><!-- injecté --></div>
+  </div>
+</section>
+
+<!-- ---------- Références : leaders d'opinion, chronologie, institutions ---------- -->
+<section class="refs" id="refs">
+  <div class="wrap">
+    <div class="refs-head">
+      <div class="eyebrow" style="justify-content:center;" data-i18n="refs_eyebrow">Ils l'ont testé</div>
+      <h2 data-i18n="refs_title">Des Jeux Olympiques de la Jeunesse aux CFF.</h2>
+      <p data-i18n="refs_sub">Développé à l'EPFL Innovation Park, PandaFit a été l'attraction des JOJ Lausanne 2020, puis validé scientifiquement et déployé en entreprise.</p>
+    </div>
+    <div class="refs-grid">
+      <figure class="video-card wide">
+        <video controls playsinline preload="none" poster="assets/video/sommaruga-poster.jpg">
+          <source src="assets/video/sommaruga-joj-2020.mp4" type="video/mp4">
+        </video>
+        <figcaption><strong>Simonetta Sommaruga</strong> — <span data-i18n="refs_somm_role">Présidente de la Confédération en 2020, en équilibre sur PandaFit aux JOJ de Lausanne.</span></figcaption>
+      </figure>
+      <div class="refs-side">
+        <div class="ref-card">
+          <div class="eyebrow" data-i18n="refs_leader">Leader d'opinion</div>
+          <h3>Mark Streit</h3>
+          <p data-i18n="refs_streit_txt">Légende du hockey suisse et ancien joueur de NHL, sur la plateforme PandaFit aux JOJ de Lausanne 2020.</p>
+        </div>
+        <div class="ref-card">
+          <div class="eyebrow" data-i18n="refs_science">Validation scientifique</div>
+          <h3>+16 %</h3>
+          <p data-i18n="refs_science_txt">d'amélioration en un mois au test POMA / Tinetti, référence clinique de l'évaluation de l'équilibre (2022).</p>
+        </div>
+      </div>
+    </div>
+
+    <ol class="timeline">
+      <li><span class="tl-year">2019</span><span data-i18n="tl_2019">Développement à l'EPFL Innovation Park, Lausanne.</span></li>
+      <li><span class="tl-year">2020</span><span data-i18n="tl_2020">Attraction des Jeux Olympiques de la Jeunesse Lausanne 2020.</span></li>
+      <li><span class="tl-year">2021</span><span data-i18n="tl_2021">Mois de test aux CFF : +23 % d'index d'équilibre.</span></li>
+      <li><span class="tl-year">2022</span><span data-i18n="tl_2022">Validation scientifique avec le test POMA / Tinetti : +16 % en un mois.</span></li>
+      <li><span class="tl-year">2026</span><span data-i18n="tl_2026">Plus de 90'000 tests dans la base qui calcule le PandaFit Index.</span></li>
+    </ol>
+
+    <div class="trust">
+      <div class="eyebrow" data-i18n="trust_eyebrow">Références & partenaires</div>
+      <div class="trust-list">
+        <span>JOJ Lausanne 2020</span><span>FISU · Universiades</span><span>SUVA</span><span>CFF SBB FFS</span><span>OFSP</span><span>CSS · UNIL · EPFL</span><span>CHUV</span>
+      </div>
+      <div class="trust-list sports"><span data-i18n="refs_sports">Fédérations & clubs : tennis · hockey · tir à l'arc · football</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
+<section class="contact" id="contact">
+  <div class="wrap contact-grid">
+    <div>
+      <div class="eyebrow" data-i18n="contact_eyebrow">Parlons-en</div>
+      <h2 data-i18n="contact_title">Une démonstration dans vos locaux ?</h2>
+      <p data-i18n="contact_p">Laissez-nous vos coordonnées, nous revenons vers vous sous 48h pour organiser une présentation adaptée à votre entreprise.</p>
+    </div>
+    <form class="contact-form" id="contactForm">
+      <div class="form-row">
+        <div><label data-i18n="form_name">Nom</label><input name="name" required></div>
+        <div><label data-i18n="form_company">Entreprise</label><input name="company"></div>
+      </div>
+      <div class="form-row">
+        <div><label data-i18n="form_email">Email</label><input name="email" type="email" required></div>
+        <div><label data-i18n="form_phone">Téléphone</label><input name="phone"></div>
+      </div>
+      <div class="full">
+        <label data-i18n="form_message">Message</label>
+        <textarea name="message"></textarea>
+      </div>
+      <button type="submit" class="btn-primary" data-i18n="form_submit">Envoyer la demande</button>
+      <div class="form-msg" id="formMsg"></div>
+    </form>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap footer-row">
+    <div>© <span id="year"></span> PandaFit</div>
+    <div><span data-i18n="footer_note">Solution suisse de prévention et de bien-être au travail.</span> · Katapult SA, Ecublens</div>
+  </div>
+</footer>
+
+<script>
+const SUPABASE_URL = 'https://kabjpqvbukhhqvdjnkzr.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_QgLSQJyPJ09Uj3vCKCUykA_ca1LTm5E';
+const REST = `${SUPABASE_URL}/rest/v1`;
+function sbHeaders(extra) { return { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, ...extra }; }
+
+/* Images par défaut (les vraies photos PandaFit), remplaçables depuis l'admin */
+const DEFAULT_IMAGES = {
+  hero: 'assets/site-hero-meeting.jpg',
+  balance: 'assets/site-ski.jpg',
+  mental: 'assets/site-science.jpg',
+  social: 'assets/site-football.jpg',
+  surmesure: 'assets/site-meditation.jpg',
+};
+
+const TRANSLATIONS = {
+  fr: {
+    nav_benefits: 'Bienfaits', nav_pricing: 'Offres', nav_contact: 'Contact', nav_cta: 'Demander une démo',
+    hero_eyebrow: 'Équilibre au travail',
+    hero_title: "Vos équipes gagnent en <em>équilibre</em>, en jouant.",
+    hero_lead: "PandaFit transforme la prévention des accidents et la gestion du stress en quelques minutes de jeu, directement sur le lieu de travail.",
+    hero_cta1: 'Demander une démonstration', hero_cta2: 'Voir les offres',
+    hero_stat1: "cause d'accident en Suisse : les chutes et faux pas (source Suva)",
+    hero_stat2: 'personnes blessées chaque année en trébuchant ou en tombant',
+    hero_stat3: 'suffisent par session pour progresser durablement',
+    b1_eyebrow: 'Santé & sécurité',
+    b1_title: "La première cause d'accident en Suisse se prévient en s'entraînant.",
+    b1_p1: "En Suisse, les chutes et les faux pas sont la première cause d'accident, tous domaines confondus — au travail comme dans la vie de tous les jours. Le ski, le football et les autres loisirs pratiqués en amateur y contribuent chaque année pour des milliers d'entorses et de foulures évitables.",
+    b1_p2: "Travailler son équilibre renforce les réflexes et les muscles stabilisateurs qui protègent au quotidien comme sur le terrain de sport. Et cette capacité continue de progresser à tout âge, dès qu'on la sollicite régulièrement.",
+    b2_eyebrow: 'Bien-être mental',
+    b2_title: "Le stress se voit dans l'équilibre. Et le calme, on peut le retrouver en le regardant.",
+    b2_p1: "Le stress coûte 6,5 milliards de francs par an à l'économie suisse, entre présentéisme et absentéisme (Promotion Santé Suisse, 2022). Plus d'un quart des actifs suisses se déclarent en stress critique.",
+    b2_p2: "Ce que la recherche montre : l'anxiété se traduit physiquement par une oscillation posturale plus marquée — un lien documenté depuis les travaux de référence de Balaban (2002) sur les circuits neuronaux partagés entre équilibre et anxiété. Ce déséquilibre est en grande partie inconscient. C'est là que le visuel change tout : plusieurs études de biofeedback montrent qu'un retour visuel en temps réel sur sa propre oscillation aide à la réduire activement.",
+    b2_li1: 'Des jeux pensés spécifiquement pour ralentir le rythme',
+    b2_li2: 'Une pause active de quelques minutes, sans matériel ni séance dédiée',
+    b2_li3: 'Un signal physiologique du stress rendu visible et actionnable, sur un écran',
+    oscillo_tag1: 'oscillation sous stress',
+    oscillo_tag2: 'stabilité retrouvée, en jeu',
+    b3_eyebrow: "Cohésion d'équipe",
+    b3_title: 'Des défis et des classements qui font sourire tout le monde.',
+    b3_p1: "PandaFit, c'est aussi du jeu : défis entre collègues, classements par équipe, événements ponctuels. Une manière simple de créer du lien et de la bonne humeur autour d'un objectif commun — sans transformer la prévention en corvée.",
+    b3_p2: 'Chaque entreprise peut personnaliser ses propres défis, suivre les résultats et célébrer ses champions du jour.',
+    sm_eyebrow: 'Sur-mesure & accompagnement',
+    sm_title: "On s'adapte à vous — jusqu'à porter votre nom.",
+    sm_p1: "L'écran peut aussi servir d'affichage d'information ou de publicité interne quand il n'est pas utilisé pour jouer. Et pour les entreprises qui le souhaitent, l'app et même le personnage peuvent être personnalisés à l'image de la marque.",
+    sm_p2: 'Surtout, nos coachs PandaFit accompagnent la planification des campagnes de santé : définir les bons objectifs, choisir le bon rythme, intervenir ponctuellement sur site pour lancer ou relancer une dynamique.',
+    sm_li1: 'Écran double-usage : jeux ou affichage info/pub selon les moments',
+    sm_li2: "Marque blanche possible : habillage, couleurs, voire mascotte aux couleurs de l'entreprise",
+    sm_li3: 'Accompagnement humain par nos coachs, avec interventions ponctuelles sur site',
+    dossier_eyebrow: 'Le dossier complet',
+    dossier_title: 'Absolument tout ce qui est réglable, cliquez pour dérouler',
+    dossier_sub: "Ce sont les options concrètes derrière chacun des arguments ci-dessus — utile pour un service achat, un CHRO ou quiconque veut vérifier qu'on n'a rien laissé de côté.",
+    d1_title: 'Suivi & données', d1_sub: 'Ce que les RH voient et peuvent comparer',
+    d1_i1_h: 'Sondages de satisfaction', d1_i1_p: 'Une question rapide (3 boutons, rouge / orange / vert) proposée après usage, pour prendre le pouls du bien-être au quotidien sans lourdeur.',
+    d1_i2_h: 'Questionnaires personnalisés', d1_i2_p: 'Vos propres questions, posées avant ou après un jeu précis, pour croiser ressenti et pratique — configurables par jeu et par site.',
+    d1_i3_h: 'Comparaison multi-sites', d1_i3_p: "Le niveau d'équilibre moyen (PandaFit Index) est comparable d'un site à l'autre, pour repérer où l'accompagnement doit se concentrer.",
+    d1_i4_h: "Statistiques individuelles & d'équipe", d1_i4_p: "Historique de progression par personne (via un code personnel anonyme) et par équipe, sans jamais exposer les données à d'autres collaborateurs.",
+    d2_title: 'Campagnes & motivation', d2_sub: "Comment on fait jouer toute l'entreprise",
+    d2_i1_h: 'Campagnes motivées par des prix', d2_i1_p: 'Des objectifs de santé transformés en défis avec récompense à la clé, sur la durée que vous choisissez.',
+    d2_i2_h: 'Mode individuel', d2_i2_p: 'Un score personnel à améliorer, à son rythme — idéal pour une dynamique de progression sans esprit de compétition.',
+    d2_i3_h: 'Mode équipe', d2_i3_p: "Un groupe de collaborateurs cumule ses points ensemble — favorise l'entraide et la bonne humeur.",
+    d2_i4_h: 'Tablette contre tablette', d2_i4_p: "Deux points de passage s'affrontent directement — parfait pour deux services ou deux étages d'un même site.",
+    d2_i5_h: 'Société entière', d2_i5_p: 'Tous les collaborateurs cumulent vers un objectif commun — utile pour une campagne de sensibilisation générale.',
+    d2_i6_h: 'Société contre société', d2_i6_p: 'Pour les groupes avec plusieurs sites ou filiales : une compétition inter-sites, gérée depuis la même console.',
+    d3_title: 'Écran & communication', d3_sub: "La tablette ne sert pas qu'à jouer",
+    d3_i1_h: "Écran d'information", d3_i1_p: "Affichez les actualités internes, les événements à venir ou des messages de prévention directement sur l'écran d'accueil.",
+    d3_i2_h: 'Espace publicitaire', d3_i2_p: "L'écran peut aussi diffuser des visuels publicitaires (internes ou d'un partenaire), en alternance avec le reste du contenu.",
+    d4_title: 'Personnalisation & marque', d4_sub: "Jusqu'où on peut vous ressembler",
+    d4_i1_h: 'Marque blanche', d4_i1_p: "Nous pouvons habiller l'app et même adapter le personnage-mascotte aux couleurs et à l'identité de votre entreprise.",
+    d4_i2_h: 'Visuels par site', d4_i2_p: "Chaque site peut avoir ses propres photos de fond, ses propres miniatures de jeux et son propre nom d'accueil.",
+    d5_title: 'Accompagnement humain', d5_sub: "Ce n'est pas qu'un logiciel",
+    d5_i1_h: 'Planification des campagnes', d5_i1_p: "Nos coachs vous aident à définir le calendrier de santé de l'année : quand lancer quoi, pour quel objectif.",
+    d5_i2_h: 'Interventions ponctuelles', d5_i2_p: 'Un coach PandaFit peut se déplacer sur site pour lancer une campagne, faire une démonstration ou relancer la dynamique.',
+    sources_eyebrow: 'Sources', sources_title: "Ce qu'on avance est documenté",
+    sources_sub: "Les arguments sécurité et stress s'appuient sur des données publiques et des travaux de recherche. Voici les sources, pour vérifier par vous-même.",
+    src1: "les chutes et faux pas comme première cause d'accident en Suisse, ~200'000 blessés par an.",
+    src2: "28,2% des actifs suisses en stress critique ; le stress coûte ~6,5 milliards de francs/an à l'économie (présentéisme + absentéisme).",
+    src3: "les circuits neuronaux de l'équilibre et de l'anxiété sont en partie partagés.",
+    src4: "Étude sur de jeunes adultes montrant une corrélation positive entre niveau d'anxiété et amplitude de l'oscillation posturale (sway index).",
+    src5: 'un retour visuel en temps réel améliore le contrôle postural.',
+    src6: "Étude sur le contrôle postural du tronc montrant une réduction marquée de l'oscillation avec retour visuel direct.",
+    pricing_eyebrow: 'Nos offres', pricing_title: 'Trois façons de démarrer',
+    pricing_sub: "De la journée découverte à l'accompagnement complet sur l'année, avec coaching et personnalisation à chaque niveau.",
+    trust_eyebrow: 'Références & partenaires',
+    contact_eyebrow: 'Parlons-en', contact_title: 'Une démonstration dans vos locaux ?',
+    contact_p: 'Laissez-nous vos coordonnées, nous revenons vers vous sous 48h pour organiser une présentation adaptée à votre entreprise.',
+    form_name: 'Nom', form_company: 'Entreprise', form_email: 'Email', form_phone: 'Téléphone', form_message: 'Message',
+    form_submit: 'Envoyer la demande',
+    form_ok: 'Merci ! Nous revenons vers vous très vite.',
+    form_err: "Une erreur est survenue, réessayez ou écrivez-nous directement.",
+    footer_note: 'Solution suisse de prévention et de bien-être au travail.',
+    price_cta: 'Nous contacter',
+    price_badge: 'Populaire', price_from: 'Dès', price_per_day: '/jour', price_per_month: '/mois', price_per_year: '/an',
+  },
+  en: {
+    nav_benefits: 'Benefits', nav_pricing: 'Plans', nav_contact: 'Contact', nav_cta: 'Book a demo',
+    hero_eyebrow: 'Balance at work',
+    hero_title: 'Your teams build real <em>balance</em>, by playing.',
+    hero_lead: 'PandaFit turns accident prevention and stress management into a few minutes of play, right at the workplace.',
+    hero_cta1: 'Book a demonstration', hero_cta2: 'See our plans',
+    hero_stat1: "leading cause of accidents in Switzerland: trips and falls (Suva)",
+    hero_stat2: 'people injured every year by tripping or falling',
+    hero_stat3: 'minutes per session are enough for lasting progress',
+    b1_eyebrow: 'Health & safety',
+    b1_title: "Switzerland's #1 cause of accidents can be trained away.",
+    b1_p1: "In Switzerland, trips and falls are the leading cause of accidents overall — at work and in everyday life. Skiing, football and other amateur sports add thousands of preventable sprains every year.",
+    b1_p2: 'Balance training strengthens the reflexes and stabilising muscles that protect you daily and on the field. And this ability keeps improving at any age, as long as it is trained regularly.',
+    b2_eyebrow: 'Mental wellbeing',
+    b2_title: "Stress shows itself in one's balance. And you can find calm by observing it.",
+    b2_p1: 'Stress costs the Swiss economy 6.5 billion francs a year due to presenteeism and absenteeism (Health Promotion Switzerland, 2022). More than a quarter of the Swiss workforce reports experiencing critical stress.',
+    b2_p2: "What research shows: Anxiety manifests physically as more pronounced postural oscillation—a link documented since Balaban's (2002) seminal work on the neural circuits shared by balance and anxiety. This imbalance is largely unconscious. This is where visual feedback makes all the difference: several biofeedback studies show that real-time visual feedback on one's own sway helps to actively reduce it.",
+    b2_li1: 'Games specifically designed to slow the pace down',
+    b2_li2: 'A few active minutes, no equipment or dedicated session needed',
+    b2_li3: 'A physiological indicator of stress made visible and actionable, on a screen',
+    oscillo_tag1: 'stress-induced oscillation',
+    oscillo_tag2: 'stability restored, in play',
+    b3_eyebrow: 'Team spirit',
+    b3_title: 'Challenges and leaderboards that make everyone smile.',
+    b3_p1: 'PandaFit is also playful: challenges between colleagues, team leaderboards, one-off events. A simple way to build connection and good mood around a shared goal — without turning prevention into a chore.',
+    b3_p2: 'Every company can customise its own challenges, track results, and celebrate its champions.',
+    sm_eyebrow: 'Custom solutions & support',
+    sm_title: "We adapt to your needs — even down to using your name.",
+    sm_p1: "The screen can also be used to display information or in-house ads when it's not being used for games. And for companies that want it, the app — and even the character — can be customised to match the brand.",
+    sm_p2: 'Above all, our PandaFit coaches help plan health campaigns: setting the right goals, choosing the right pace, and stepping in on-site to launch or reboot momentum.',
+    sm_li1: 'Dual-purpose screen: games or info/ad display depending on the moment',
+    sm_li2: "White-label available: styling, colours, even a mascot in the company's colours",
+    sm_li3: 'Personal support from our coaches, with occasional on-site visits',
+    dossier_eyebrow: 'The full picture',
+    dossier_title: 'Absolutely everything that can be configured — click to expand',
+    dossier_sub: 'These are the concrete options behind each argument above — useful for a procurement team, a CHRO, or anyone who wants to check nothing was left out.',
+    d1_title: 'Tracking & data', d1_sub: 'What HR sees and can compare',
+    d1_i1_h: 'Satisfaction surveys', d1_i1_p: 'A quick question (3 buttons, red / orange / green) shown after use, to take the daily wellbeing pulse without any hassle.',
+    d1_i2_h: 'Custom questionnaires', d1_i2_p: 'Your own questions, asked before or after a specific game, to cross-check how people feel with actual practice — configurable per game and per site.',
+    d1_i3_h: 'Multi-site comparison', d1_i3_p: 'The average balance level (PandaFit Index) can be compared across sites, to spot where support should focus.',
+    d1_i4_h: 'Individual & team stats', d1_i4_p: 'Progress history per person (via an anonymous personal code) and per team, without ever exposing data to other colleagues.',
+    d2_title: 'Campaigns & motivation', d2_sub: 'How we get the whole company playing',
+    d2_i1_h: 'Reward-driven campaigns', d2_i1_p: 'Health goals turned into challenges with a reward at stake, over whatever timeframe you choose.',
+    d2_i2_h: 'Individual mode', d2_i2_p: 'A personal score to improve, at your own pace — ideal for a progression dynamic with no competitive pressure.',
+    d2_i3_h: 'Team mode', d2_i3_p: 'A group of colleagues pools points together — encourages mutual support and good mood.',
+    d2_i4_h: 'Tablet vs. tablet', d2_i4_p: 'Two access points face off directly — perfect for two departments or two floors of the same site.',
+    d2_i5_h: 'Whole company', d2_i5_p: 'All employees contribute to one shared goal — useful for a general awareness campaign.',
+    d2_i6_h: 'Company vs. company', d2_i6_p: 'For groups with several sites or subsidiaries: a cross-site competition, managed from the same console.',
+    d3_title: 'Screen & communication', d3_sub: "The tablet isn't just for playing",
+    d3_i1_h: 'Information screen', d3_i1_p: 'Display internal news, upcoming events or prevention messages directly on the home screen.',
+    d3_i2_h: 'Advertising space', d3_i2_p: 'The screen can also show ad visuals (internal or from a partner), alternating with the rest of the content.',
+    d4_title: 'Customisation & branding', d4_sub: 'How far we can look like you',
+    d4_i1_h: 'White label', d4_i1_p: "We can style the app and even adapt the mascot character to your company's colours and identity.",
+    d4_i2_h: 'Visuals per site', d4_i2_p: 'Each site can have its own background photos, its own game thumbnails and its own welcome name.',
+    d5_title: 'Human support', d5_sub: "It isn't just software",
+    d5_i1_h: 'Campaign planning', d5_i1_p: 'Our coaches help you define the year\'s health calendar: when to launch what, for which goal.',
+    d5_i2_h: 'On-site visits', d5_i2_p: 'A PandaFit coach can come on-site to launch a campaign, give a demonstration, or reboot momentum.',
+    sources_eyebrow: 'Sources', sources_title: 'What we claim is backed up',
+    sources_sub: 'The safety and stress arguments rely on public data and research work. Here are the sources, so you can check for yourself.',
+    src1: 'falls and slips as the leading cause of accidents in Switzerland, ~200,000 injuries a year.',
+    src2: '28.2% of the Swiss workforce in critical stress; stress costs the economy ~6.5 billion francs/year (presenteeism + absenteeism).',
+    src3: 'the neural circuits of balance and anxiety are partly shared.',
+    src4: 'A study on young adults showing a positive correlation between anxiety level and postural sway amplitude (sway index).',
+    src5: 'real-time visual feedback improves postural control.',
+    src6: 'A study on trunk postural control showing a marked reduction in sway with direct visual feedback.',
+    pricing_eyebrow: 'Our plans', pricing_title: 'Three ways to get started',
+    pricing_sub: 'From a discovery day to full year-round support, with coaching and customisation at every level.',
+    trust_eyebrow: 'References & partners',
+    contact_eyebrow: "Let's talk", contact_title: 'A demonstration at your premises?',
+    contact_p: "Leave us your details and we'll get back to you within 48h to arrange a presentation tailored to your company.",
+    form_name: 'Name', form_company: 'Company', form_email: 'Email', form_phone: 'Phone', form_message: 'Message',
+    form_submit: 'Send request',
+    form_ok: "Thank you! We'll be in touch very soon.",
+    form_err: 'Something went wrong, please try again or email us directly.',
+    footer_note: 'A Swiss solution for workplace prevention and wellbeing.',
+    price_cta: 'Contact us',
+    price_badge: 'Popular', price_from: 'From', price_per_day: '/day', price_per_month: '/month', price_per_year: '/year',
+  },
+  de: {
+    nav_benefits: 'Vorteile', nav_pricing: 'Angebote', nav_contact: 'Kontakt', nav_cta: 'Demo anfragen',
+    hero_eyebrow: 'Gleichgewicht am Arbeitsplatz',
+    hero_title: 'Ihre Teams gewinnen spielerisch an <em>Gleichgewicht</em>.',
+    hero_lead: 'PandaFit macht Unfallprävention und Stressbewältigung zu wenigen Minuten Spiel, direkt am Arbeitsplatz.',
+    hero_cta1: 'Demonstration anfragen', hero_cta2: 'Angebote ansehen',
+    hero_stat1: 'häufigste Unfallursache in der Schweiz: Stürze und Stolpern (Suva)',
+    hero_stat2: 'Personen verletzen sich jedes Jahr durch Stolpern oder Stürzen',
+    hero_stat3: 'Minuten pro Einheit genügen für nachhaltigen Fortschritt',
+    b1_eyebrow: 'Gesundheit & Sicherheit',
+    b1_title: 'Die häufigste Unfallursache der Schweiz lässt sich trainieren.',
+    b1_p1: 'In der Schweiz sind Stürze und Stolpern die häufigste Unfallursache überhaupt — bei der Arbeit wie im Alltag. Ski, Fussball und andere Freizeitsportarten verursachen jedes Jahr tausende vermeidbare Verstauchungen.',
+    b1_p2: 'Gleichgewichtstraining stärkt Reflexe und stabilisierende Muskeln, die im Alltag wie auf dem Sportplatz schützen. Und diese Fähigkeit lässt sich in jedem Alter weiter verbessern, sobald sie regelmässig trainiert wird.',
+    b2_eyebrow: 'Mentales Wohlbefinden',
+    b2_title: 'Stress zeigt sich im Gleichgewicht. Und Ruhe findet man wieder, wenn man es betrachtet.',
+    b2_p1: 'Stress kostet die Schweizer Wirtschaft jährlich 6,5 Milliarden Franken – durch Präsentismus und Absentismus (Gesundheitsförderung Schweiz, 2022). Mehr als ein Viertel der erwerbstätigen Schweizer gibt an, unter akutem Stress zu leiden.',
+    b2_p2: 'Was die Forschung zeigt: Angst äussert sich körperlich in einer stärkeren Schwankung der Körperhaltung – ein Zusammenhang, der seit den wegweisenden Arbeiten von Balaban (2002) über die gemeinsamen neuronalen Schaltkreise von Gleichgewicht und Angst belegt ist. Dieses Ungleichgewicht verläuft grösstenteils unbewusst. Hier kommt die visuelle Rückmeldung ins Spiel: Mehrere Biofeedback-Studien zeigen, dass eine visuelle Echtzeit-Rückmeldung über die eigene Schwankung dabei hilft, diese aktiv zu reduzieren.',
+    b2_li1: 'Spiele, die gezielt das Tempo verlangsamen',
+    b2_li2: 'Ein paar aktive Minuten, ohne Material oder eigene Sitzung',
+    b2_li3: 'Ein physiologisches Stresssignal, das auf einem Bildschirm sichtbar und verwertbar gemacht wird',
+    oscillo_tag1: 'Schwingung unter Belastung',
+    oscillo_tag2: 'wiedergewonnene Stabilität, im Spiel',
+    b3_eyebrow: 'Teamgeist',
+    b3_title: 'Challenges und Ranglisten, die alle zum Lächeln bringen.',
+    b3_p1: 'PandaFit ist auch verspielt: Challenges unter Kolleginnen und Kollegen, Team-Ranglisten, einmalige Events. Eine einfache Art, Verbindung und gute Laune rund um ein gemeinsames Ziel zu schaffen — ohne dass Prävention zur Pflicht wird.',
+    b3_p2: 'Jedes Unternehmen kann eigene Challenges gestalten, Ergebnisse verfolgen und seine Champions feiern.',
+    sm_eyebrow: 'Massgeschneiderte Lösungen & Betreuung',
+    sm_title: 'Wir passen uns Ihnen an — bis hin zu Ihrem eigenen Namen.',
+    sm_p1: 'Der Bildschirm kann auch als Informationsanzeige oder für interne Werbung genutzt werden, wenn er nicht zum Spielen verwendet wird. Und für Unternehmen, die dies wünschen, können die App und sogar die Spielfigur im Stil der Marke individuell angepasst werden.',
+    sm_p2: 'Vor allem aber unterstützen unsere PandaFit-Coaches bei der Planung von Gesundheitskampagnen: die richtigen Ziele definieren, den richtigen Rhythmus wählen, bei Bedarf vor Ort eingreifen, um eine Dynamik zu starten oder neu anzukurbeln.',
+    sm_li1: 'Bildschirm mit doppeltem Nutzen: je nach Moment Spiele oder Info-/Werbeanzeigen',
+    sm_li2: 'White-Label möglich: Design, Farben, sogar ein Maskottchen in den Unternehmensfarben',
+    sm_li3: 'Persönliche Betreuung durch unsere Coaches, mit punktuellen Einsätzen vor Ort',
+    dossier_eyebrow: 'Die vollständige Übersicht',
+    dossier_title: 'Absolut alles, was einstellbar ist – zum Aufklappen anklicken',
+    dossier_sub: 'Das sind die konkreten Optionen hinter jedem der obigen Argumente – nützlich für den Einkauf, einen CHRO oder alle, die sicherstellen möchten, dass nichts vergessen wurde.',
+    d1_title: 'Nachverfolgung & Daten', d1_sub: 'Was die Personalabteilung sieht und vergleichen kann',
+    d1_i1_h: 'Zufriedenheitsumfragen', d1_i1_p: 'Eine kurze Frage (3 Schaltflächen, rot / orange / grün) nach der Nutzung, um ganz unkompliziert einen Eindruck vom täglichen Wohlbefinden zu gewinnen.',
+    d1_i2_h: 'Individuell angepasste Fragebögen', d1_i2_p: 'Ihre eigenen Fragen, gestellt vor oder nach einem bestimmten Spiel, um Eindruck und Praxis zu verknüpfen — konfigurierbar pro Spiel und pro Standort.',
+    d1_i3_h: 'Standortübergreifender Vergleich', d1_i3_p: 'Der durchschnittliche Gleichgewichtswert (PandaFit-Index) ist standortübergreifend vergleichbar, um zu erkennen, worauf sich die Betreuung konzentrieren sollte.',
+    d1_i4_h: 'Einzel- & Teamstatistiken', d1_i4_p: 'Fortschrittsverlauf pro Person (über einen anonymen persönlichen Code) und pro Team, ohne die Daten je anderen Mitarbeitenden offenzulegen.',
+    d2_title: 'Kampagnen & Motivation', d2_sub: 'Wie das ganze Unternehmen mitspielt',
+    d2_i1_h: 'Preisorientierte Kampagnen', d2_i1_p: 'Gesundheitsziele werden zu Challenges mit Belohnung, über den Zeitraum Ihrer Wahl.',
+    d2_i2_h: 'Einzelmodus', d2_i2_p: 'Eine persönliche Bestleistung, die man im eigenen Tempo verbessert — ideal für Fortschritt ohne Wettbewerbsdruck.',
+    d2_i3_h: 'Team-Modus', d2_i3_p: 'Eine Gruppe von Mitarbeitenden sammelt ihre Punkte gemeinsam — fördert gegenseitige Unterstützung und gute Stimmung.',
+    d2_i4_h: 'Tablet gegen Tablet', d2_i4_p: 'Zwei Durchgänge treten direkt gegeneinander an — ideal für zwei Abteilungen oder zwei Stockwerke desselben Standorts.',
+    d2_i5_h: 'Ganzes Unternehmen', d2_i5_p: 'Alle Mitarbeitenden arbeiten auf ein gemeinsames Ziel hin — nützlich für eine allgemeine Sensibilisierungskampagne.',
+    d2_i6_h: 'Unternehmen gegen Unternehmen', d2_i6_p: 'Für Gruppen mit mehreren Standorten oder Filialen: ein standortübergreifender Wettbewerb, verwaltet über dieselbe Konsole.',
+    d3_title: 'Bildschirm & Kommunikation', d3_sub: 'Das Tablet dient nicht nur zum Spielen',
+    d3_i1_h: 'Infobildschirm', d3_i1_p: 'Zeigen Sie interne News, bevorstehende Events oder Präventionsbotschaften direkt auf dem Startbildschirm.',
+    d3_i2_h: 'Werbefläche', d3_i2_p: 'Der Bildschirm kann auch Werbevisuals (intern oder von einem Partner) im Wechsel mit dem restlichen Inhalt anzeigen.',
+    d4_title: 'Individuelle Gestaltung & Branding', d4_sub: 'Inwieweit wir Ihnen ähneln können',
+    d4_i1_h: 'White Label', d4_i1_p: 'Wir gestalten die App und passen sogar die Maskottchenfigur an die Farben und Identität Ihres Unternehmens an.',
+    d4_i2_h: 'Visuals pro Standort', d4_i2_p: 'Jeder Standort kann eigene Hintergrundbilder, eigene Spiel-Miniaturansichten und einen eigenen Startseitennamen haben.',
+    d5_title: 'Menschliche Begleitung', d5_sub: 'Es ist nicht nur eine Software',
+    d5_i1_h: 'Kampagnenplanung', d5_i1_p: 'Unsere Coaches helfen Ihnen, den Gesundheitskalender des Jahres festzulegen: wann was mit welchem Ziel gestartet wird.',
+    d5_i2_h: 'Einmalige Einsätze', d5_i2_p: 'Ein PandaFit-Coach kann vor Ort kommen, um eine Kampagne zu starten, eine Vorführung zu geben oder neue Impulse zu setzen.',
+    sources_eyebrow: 'Quellen', sources_title: 'Was wir vorbringen, ist belegt',
+    sources_sub: 'Die Argumente zu Sicherheit und Stress stützen sich auf öffentlich zugängliche Daten und Forschungsarbeiten. Hier sind die Quellen, damit Sie sich selbst ein Bild machen können.',
+    src1: "Stürze und Stolperunfälle als häufigste Unfallursache in der Schweiz, ~200'000 Verletzte pro Jahr.",
+    src2: '28,2% der erwerbstätigen Schweizer in kritischem Stress; Stress kostet die Wirtschaft ~6,5 Milliarden Franken/Jahr (Präsentismus + Absentismus).',
+    src3: 'die neuronalen Schaltkreise von Gleichgewicht und Angst sind teilweise identisch.',
+    src4: 'Studie an jungen Erwachsenen, die einen positiven Zusammenhang zwischen Angstniveau und Ausmass der Körperschwankung (Sway-Index) zeigt.',
+    src5: 'eine visuelle Echtzeit-Rückmeldung verbessert die Haltungskontrolle.',
+    src6: 'Studie zur Rumpfhaltungskontrolle, die eine deutliche Verringerung der Schwankung bei direkter visueller Rückmeldung zeigt.',
+    pricing_eyebrow: 'Unsere Angebote', pricing_title: 'Drei Wege zum Einstieg',
+    pricing_sub: 'Vom Schnuppertag bis zur ganzjährigen Begleitung, mit Coaching und Personalisierung auf jeder Stufe.',
+    trust_eyebrow: 'Referenzen & Partner',
+    contact_eyebrow: 'Sprechen wir darüber', contact_title: 'Eine Demonstration bei Ihnen vor Ort?',
+    contact_p: 'Hinterlassen Sie uns Ihre Kontaktdaten, wir melden uns innerhalb von 48h für eine massgeschneiderte Präsentation.',
+    form_name: 'Name', form_company: 'Unternehmen', form_email: 'E-Mail', form_phone: 'Telefon', form_message: 'Nachricht',
+    form_submit: 'Anfrage senden',
+    form_ok: 'Danke! Wir melden uns sehr bald.',
+    form_err: 'Ein Fehler ist aufgetreten, bitte versuchen Sie es erneut oder schreiben Sie uns direkt.',
+    footer_note: 'Eine Schweizer Lösung für Prävention und Wohlbefinden am Arbeitsplatz.',
+    price_cta: 'Kontaktieren Sie uns',
+    price_badge: 'Beliebt', price_from: 'Ab', price_per_day: '/Tag', price_per_month: '/Monat', price_per_year: '/Jahr',
+  },
+  it: {
+    nav_benefits: 'Benefici', nav_pricing: 'Offerte', nav_contact: 'Contatto', nav_cta: 'Richiedi una demo',
+    hero_eyebrow: 'Equilibrio sul lavoro',
+    hero_title: 'I vostri team guadagnano <em>equilibrio</em>, giocando.',
+    hero_lead: 'PandaFit trasforma la prevenzione degli infortuni e la gestione dello stress in pochi minuti di gioco, direttamente sul posto di lavoro.',
+    hero_cta1: 'Richiedi una dimostrazione', hero_cta2: 'Vedi le offerte',
+    hero_stat1: 'causa di infortunio n.1 in Svizzera: cadute e passi falsi (Suva)',
+    hero_stat2: 'persone si feriscono ogni anno inciampando o cadendo',
+    hero_stat3: 'minuti a sessione bastano per progredire duraturamente',
+    b1_eyebrow: 'Salute & sicurezza',
+    b1_title: 'La prima causa di infortunio in Svizzera si previene allenandosi.',
+    b1_p1: 'In Svizzera, cadute e passi falsi sono la prima causa di infortunio in assoluto — al lavoro come nella vita quotidiana. Sci, calcio e altri sport amatoriali causano ogni anno migliaia di distorsioni evitabili.',
+    b1_p2: "L'allenamento dell'equilibrio rafforza i riflessi e i muscoli stabilizzatori che proteggono ogni giorno e sul campo sportivo. E questa capacità continua a migliorare a qualsiasi età, se allenata regolarmente.",
+    b2_eyebrow: 'Benessere mentale',
+    b2_title: "Lo stress si riflette nell'equilibrio. E la calma si può ritrovare osservandolo.",
+    b2_p1: "Lo stress costa all'economia svizzera 6,5 miliardi di franchi all'anno, tra presentismo e assenteismo (Promozione Salute Svizzera, 2022). Più di un quarto della popolazione attiva svizzera dichiara di soffrire di stress grave.",
+    b2_p2: "Cosa emerge dalla ricerca: l'ansia si manifesta fisicamente con un'oscillazione posturale più marcata — un nesso documentato fin dai lavori di riferimento di Balaban (2002) sui circuiti neurali condivisi tra equilibrio e ansia. Questo squilibrio è in gran parte inconscio. È qui che la componente visiva cambia tutto: diversi studi sul biofeedback dimostrano che un feedback visivo in tempo reale sulla propria oscillazione aiuta a ridurla attivamente.",
+    b2_li1: 'Giochi pensati appositamente per rallentare il ritmo',
+    b2_li2: 'Pochi minuti attivi, senza materiale né sessione dedicata',
+    b2_li3: 'Un segnale fisiologico dello stress reso visibile e utilizzabile, su uno schermo',
+    oscillo_tag1: 'oscillazione sotto stress',
+    oscillo_tag2: 'stabilità ritrovata, in gioco',
+    b3_eyebrow: 'Spirito di squadra',
+    b3_title: 'Sfide e classifiche che fanno sorridere tutti.',
+    b3_p1: "PandaFit è anche gioco: sfide tra colleghi, classifiche di squadra, eventi occasionali. Un modo semplice per creare connessione e buonumore attorno a un obiettivo comune — senza trasformare la prevenzione in un obbligo.",
+    b3_p2: 'Ogni azienda può personalizzare le proprie sfide, seguire i risultati e celebrare i propri campioni.',
+    sm_eyebrow: 'Soluzioni su misura e assistenza',
+    sm_title: 'Ci adattiamo a voi — fino a portare il vostro nome.',
+    sm_p1: "Lo schermo può anche fungere da display per informazioni o pubblicità interna quando non viene utilizzato per giocare. E per le aziende che lo desiderano, l'app e persino il personaggio possono essere personalizzati in linea con l'immagine del marchio.",
+    sm_p2: 'Soprattutto, i nostri coach PandaFit affiancano le aziende nella pianificazione delle campagne di salute: definire gli obiettivi giusti, scegliere il ritmo adeguato, intervenire puntualmente in loco per avviare o rilanciare una dinamica.',
+    sm_li1: 'Schermo a doppia funzione: giochi o visualizzazione di informazioni/pubblicità a seconda del momento',
+    sm_li2: 'Possibilità di marchio bianco: grafica, colori, persino una mascotte con i colori dell\'azienda',
+    sm_li3: 'Supporto umano dai nostri coach, con interventi puntuali in sede',
+    dossier_eyebrow: 'Il quadro completo',
+    dossier_title: 'Assolutamente tutto ciò che è regolabile, clicca per espandere',
+    dossier_sub: 'Queste sono le opzioni concrete dietro ciascuna delle argomentazioni sopra — utili per un responsabile acquisti, un CHRO o chiunque voglia verificare che non sia stato tralasciato nulla.',
+    d1_title: 'Monitoraggio e dati', d1_sub: 'Ciò che le Risorse Umane vedono e possono confrontare',
+    d1_i1_h: 'Sondaggi sulla soddisfazione', d1_i1_p: "Una domanda veloce (3 pulsanti, rosso / arancione / verde) proposta dopo l'uso, per valutare il benessere quotidiano in modo semplice.",
+    d1_i2_h: 'Questionari personalizzati', d1_i2_p: "Le vostre domande, poste prima o dopo una partita specifica, per confrontare sensazioni ed esperienza pratica — configurabili per gioco e per sito.",
+    d1_i3_h: 'Confronto multi-sito', d1_i3_p: "Il livello medio di equilibrio (PandaFit Index) è confrontabile da un sito all'altro, per individuare dove concentrare l'assistenza.",
+    d1_i4_h: 'Statistiche individuali e di squadra', d1_i4_p: 'Cronologia dei progressi per persona (tramite un codice personale anonimo) e per team, senza mai esporre i dati ad altri collaboratori.',
+    d2_title: 'Campagne e motivazione', d2_sub: "Come coinvolgere l'intera azienda",
+    d2_i1_h: 'Campagne motivate da premi', d2_i1_p: 'Obiettivi di salute trasformati in sfide con una ricompensa in palio, per la durata che scegliete.',
+    d2_i2_h: 'Modalità individuale', d2_i2_p: 'Un punteggio personale da migliorare, al proprio ritmo — ideale per una progressione senza spirito di competizione.',
+    d2_i3_h: 'Modalità squadra', d2_i3_p: "Un gruppo di collaboratori accumula i punti insieme — favorisce l'aiuto reciproco e il buonumore.",
+    d2_i4_h: 'Tablet contro tablet', d2_i4_p: "Due punti di passaggio si sfidano direttamente — perfetto per due reparti o due piani dello stesso sito.",
+    d2_i5_h: 'Intera azienda', d2_i5_p: 'Tutti i collaboratori contribuiscono a un obiettivo comune — utile per una campagna di sensibilizzazione generale.',
+    d2_i6_h: 'Azienda contro azienda', d2_i6_p: 'Per i gruppi con più sedi o filiali: una competizione tra sedi, gestita dalla stessa console.',
+    d3_title: 'Schermo e comunicazione', d3_sub: 'Il tablet non serve solo per giocare',
+    d3_i1_h: 'Schermo informativo', d3_i1_p: "Visualizzate le notizie interne, gli eventi in programma o i messaggi di prevenzione direttamente sulla schermata iniziale.",
+    d3_i2_h: 'Spazio pubblicitario', d3_i2_p: "Lo schermo può anche trasmettere immagini pubblicitarie (interne o di un partner), in alternanza con il resto dei contenuti.",
+    d4_title: 'Personalizzazione e marchio', d4_sub: 'Fino a che punto possiamo assomigliarvi',
+    d4_i1_h: 'Marchio bianco', d4_i1_p: "Possiamo personalizzare l'app e persino adattare il personaggio mascotte ai colori e all'identità della vostra azienda.",
+    d4_i2_h: 'Immagini per sito', d4_i2_p: 'Ogni sito può avere le proprie immagini di sfondo, le proprie miniature dei giochi e il proprio nome della pagina iniziale.',
+    d5_title: 'Supporto umano', d5_sub: 'Non è solo un software',
+    d5_i1_h: 'Pianificazione delle campagne', d5_i1_p: "I nostri coach vi aiutano a definire il calendario di salute dell'anno: quando lanciare cosa, per quale obiettivo.",
+    d5_i2_h: 'Interventi puntuali', d5_i2_p: "Un coach PandaFit può recarsi in loco per lanciare una campagna, effettuare una dimostrazione o rilanciare l'iniziativa.",
+    sources_eyebrow: 'Fonti', sources_title: 'Quanto affermato è documentato',
+    sources_sub: 'Le argomentazioni su sicurezza e stress si basano su dati pubblici e studi di ricerca. Ecco le fonti, per verificare da soli.',
+    src1: "le cadute e gli inciampi come prima causa di infortunio in Svizzera, ~200'000 feriti all'anno.",
+    src2: "il 28,2% della popolazione attiva svizzera soffre di stress grave; lo stress costa ~6,5 miliardi di franchi/anno all'economia (presentismo + assenteismo).",
+    src3: "i circuiti neurali dell'equilibrio e dell'ansia sono in parte condivisi.",
+    src4: "Studio su giovani adulti che mostra una correlazione positiva tra livello di ansia e ampiezza dell'oscillazione posturale (sway index).",
+    src5: 'un feedback visivo in tempo reale migliora il controllo posturale.',
+    src6: "Studio sul controllo posturale del tronco che mostra una marcata riduzione dell'oscillazione con feedback visivo diretto.",
+    pricing_eyebrow: 'Le nostre offerte', pricing_title: 'Tre modi per iniziare',
+    pricing_sub: "Dalla giornata di scoperta all'accompagnamento annuale completo, con coaching e personalizzazione a ogni livello.",
+    trust_eyebrow: 'Referenze & partner',
+    contact_eyebrow: 'Parliamone', contact_title: 'Una dimostrazione nella vostra sede?',
+    contact_p: 'Lasciateci i vostri contatti, vi risponderemo entro 48h per organizzare una presentazione su misura per la vostra azienda.',
+    form_name: 'Nome', form_company: 'Azienda', form_email: 'Email', form_phone: 'Telefono', form_message: 'Messaggio',
+    form_submit: 'Invia richiesta',
+    form_ok: 'Grazie! Vi risponderemo molto presto.',
+    form_err: 'Si è verificato un errore, riprova o scrivici direttamente.',
+    footer_note: 'Una soluzione svizzera per la prevenzione e il benessere sul lavoro.',
+    price_cta: 'Contattaci',
+    price_badge: 'Popolare', price_from: 'Da', price_per_day: '/giorno', price_per_month: '/mese', price_per_year: '/anno',
+  },
+};
+
+/* Textes ajoutés le 13.09.2026 (appareil, sport & performance, références). Fusionnés dans TRANSLATIONS. */
+const EXTRA = {
+  fr: {
+    nav_sport: 'Sport', nav_refs: 'Références', nav_dossier: 'Toutes les options',
+    prod_eyebrow: "L'appareil",
+    prod_title: "Une plateforme d'équilibre, une tablette, et c'est parti.",
+    prod_p1: "PandaFit, c'est une plateforme d'équilibre suisse reliée en Bluetooth à une tablette. On monte dessus, on joue une minute trente, et l'algorithme transforme la signature de l'équilibre en un score de 0 à 100 : le PandaFit Index.",
+    prod_p2: "Il s'installe partout en quelques minutes, se déplace facilement et ne demande aucune séance dédiée : on y passe entre deux réunions.",
+    prod_stat1: "tests d'équilibre en 10 ans dans notre base de calcul",
+    prod_stat2: 'par passage, tout compris, sans quitter son poste',
+    prod_stat3: "d'index d'équilibre après un mois de test aux CFF (2021)",
+    prod_stat4: "Swiss made, conçu à l'EPFL Innovation Park",
+    sport_eyebrow: 'Sport & performance',
+    sport_title: 'Du bureau au haut niveau : le même équilibre.',
+    sport_p1: "PandaFit est né dans le sport. Les mêmes jeux servent aux athlètes, jusqu'à l'élite, pour travailler ce qu'aucune séance de musculation ne donne : le recentrage, la qualité des appuis et la capacité à retrouver vite son équilibre après un effort.",
+    sport_p2: "Certains jeux ajoutent une double tâche : répondre à des questions tout en restant en équilibre. Exactement ce que vit un joueur qui doit décider vite, sur un appui instable, le souffle court.",
+    sport_li1: "Recentrage et concentration, avant ou après l'effort",
+    sport_li2: "Appuis, stabilité et retour rapide à l'équilibre après une charge",
+    sport_li3: 'Double tâche : réfléchir et répondre en restant en équilibre',
+    sport_li4: "Utilisé avec des fédérations et des clubs : tennis, hockey, tir à l'arc, football, universiades",
+    sport_film: 'Le film PandaFit, 35 secondes.',
+    refs_eyebrow: "Ils l'ont testé",
+    refs_title: 'Des Jeux Olympiques de la Jeunesse aux CFF.',
+    refs_sub: "Développé à l'EPFL Innovation Park, PandaFit a été l'attraction des JOJ Lausanne 2020, puis validé scientifiquement et déployé en entreprise.",
+    refs_somm_role: 'Présidente de la Confédération en 2020, en équilibre sur PandaFit aux JOJ de Lausanne.',
+    refs_leader: "Leader d'opinion",
+    refs_streit_txt: 'Légende du hockey suisse et ancien joueur de NHL, sur la plateforme PandaFit aux JOJ de Lausanne 2020.',
+    refs_science: 'Validation scientifique',
+    refs_science_txt: "d'amélioration en un mois au test POMA / Tinetti, référence clinique de l'évaluation de l'équilibre (2022).",
+    tl_2019: "Développement à l'EPFL Innovation Park, Lausanne.",
+    tl_2020: 'Attraction des Jeux Olympiques de la Jeunesse Lausanne 2020.',
+    tl_2021: "Mois de test aux CFF : +23 % d'index d'équilibre.",
+    tl_2022: 'Validation scientifique avec le test POMA / Tinetti : +16 % en un mois.',
+    tl_2026: "Plus de 90'000 tests dans la base qui calcule le PandaFit Index.",
+    refs_sports: "Fédérations & clubs : tennis · hockey · tir à l'arc · football",
+  },
+  en: {
+    nav_sport: 'Sport', nav_refs: 'References', nav_dossier: 'All options',
+    prod_eyebrow: 'The device',
+    prod_title: 'A balance platform, a tablet, and you are on.',
+    prod_p1: 'PandaFit is a Swiss balance platform connected by Bluetooth to a tablet. You step on, play for ninety seconds, and the algorithm turns your balance signature into a score from 0 to 100: the PandaFit Index.',
+    prod_p2: 'It sets up anywhere in minutes, moves easily and needs no dedicated session: people step on between two meetings.',
+    prod_stat1: 'balance tests over 10 years in our reference database',
+    prod_stat2: 'per session, all included, without leaving your workplace',
+    prod_stat3: 'balance index after a one-month trial at SBB (2021)',
+    prod_stat4: 'Swiss made, designed at EPFL Innovation Park',
+    sport_eyebrow: 'Sport & performance',
+    sport_title: 'From the office to elite sport: the same balance.',
+    sport_p1: 'PandaFit was born in sport. The same games serve athletes, up to elite level, to train what no gym session gives: refocusing, quality of footing, and the ability to regain balance quickly after effort.',
+    sport_p2: 'Some games add a dual task: answering questions while staying balanced. Exactly what a player goes through when deciding fast, on unstable footing, out of breath.',
+    sport_li1: 'Refocusing and concentration, before or after effort',
+    sport_li2: 'Footing, stability and fast return to balance after a load',
+    sport_li3: 'Dual task: think and answer while staying balanced',
+    sport_li4: 'Used with federations and clubs: tennis, ice hockey, archery, football, Universiades',
+    sport_film: 'The PandaFit film, 35 seconds.',
+    refs_eyebrow: 'They tried it',
+    refs_title: 'From the Youth Olympic Games to Swiss Federal Railways.',
+    refs_sub: 'Developed at EPFL Innovation Park, PandaFit was the attraction of the Lausanne 2020 Youth Olympic Games, then scientifically validated and rolled out in companies.',
+    refs_somm_role: 'President of the Swiss Confederation in 2020, balancing on PandaFit at the Lausanne Youth Olympic Games.',
+    refs_leader: 'Opinion leader',
+    refs_streit_txt: 'Swiss ice hockey legend and former NHL player, on the PandaFit platform at the Lausanne 2020 Youth Olympic Games.',
+    refs_science: 'Scientific validation',
+    refs_science_txt: 'improvement in one month on the POMA / Tinetti test, the clinical reference for balance assessment (2022).',
+    tl_2019: 'Development at EPFL Innovation Park, Lausanne.',
+    tl_2020: 'Attraction of the Lausanne 2020 Youth Olympic Games.',
+    tl_2021: 'One-month trial at SBB: +23% balance index.',
+    tl_2022: 'Scientific validation with the POMA / Tinetti test: +16% in one month.',
+    tl_2026: "Over 90,000 tests in the database behind the PandaFit Index.",
+    refs_sports: 'Federations & clubs: tennis · ice hockey · archery · football',
+  },
+  de: {
+    nav_sport: 'Sport', nav_refs: 'Referenzen', nav_dossier: 'Alle Optionen',
+    prod_eyebrow: 'Das Gerät',
+    prod_title: 'Eine Gleichgewichtsplattform, ein Tablet, los geht’s.',
+    prod_p1: 'PandaFit ist eine Schweizer Gleichgewichtsplattform, per Bluetooth mit einem Tablet verbunden. Man steigt auf, spielt eineinhalb Minuten, und der Algorithmus verwandelt die Gleichgewichtssignatur in einen Wert von 0 bis 100: den PandaFit Index.',
+    prod_p2: 'In wenigen Minuten überall aufgestellt, leicht zu verschieben, keine eigene Trainingseinheit nötig: man steigt zwischen zwei Sitzungen kurz auf.',
+    prod_stat1: 'Gleichgewichtstests in 10 Jahren in unserer Referenzdatenbank',
+    prod_stat2: 'pro Durchgang, alles inklusive, ohne den Arbeitsplatz zu verlassen',
+    prod_stat3: 'Gleichgewichtsindex nach einem Testmonat bei der SBB (2021)',
+    prod_stat4: 'Swiss made, entwickelt im EPFL Innovation Park',
+    sport_eyebrow: 'Sport & Leistung',
+    sport_title: 'Vom Büro bis zum Spitzensport: dasselbe Gleichgewicht.',
+    sport_p1: 'PandaFit kommt aus dem Sport. Dieselben Spiele nutzen Athletinnen und Athleten bis zur Elite, um das zu trainieren, was kein Krafttraining gibt: Refokussierung, Qualität der Stützpunkte und die Fähigkeit, nach einer Belastung schnell wieder ins Gleichgewicht zu kommen.',
+    sport_p2: 'Einige Spiele fügen eine Doppelaufgabe hinzu: Fragen beantworten und dabei im Gleichgewicht bleiben. Genau das erlebt ein Spieler, der schnell entscheiden muss, auf instabilem Stand, ausser Atem.',
+    sport_li1: 'Refokussierung und Konzentration, vor oder nach der Belastung',
+    sport_li2: 'Stützpunkte, Stabilität und schnelle Rückkehr ins Gleichgewicht nach einer Belastung',
+    sport_li3: 'Doppelaufgabe: denken und antworten, ohne das Gleichgewicht zu verlieren',
+    sport_li4: 'Im Einsatz bei Verbänden und Clubs: Tennis, Eishockey, Bogenschiessen, Fussball, Universiaden',
+    sport_film: 'Der PandaFit-Film, 35 Sekunden.',
+    refs_eyebrow: 'Sie haben es getestet',
+    refs_title: 'Von den Olympischen Jugendspielen bis zur SBB.',
+    refs_sub: 'Im EPFL Innovation Park entwickelt, war PandaFit die Attraktion der Olympischen Jugendspiele Lausanne 2020, danach wissenschaftlich validiert und in Unternehmen eingeführt.',
+    refs_somm_role: 'Bundespräsidentin 2020, im Gleichgewicht auf PandaFit an den Olympischen Jugendspielen in Lausanne.',
+    refs_leader: 'Meinungsführer',
+    refs_streit_txt: 'Schweizer Eishockey-Legende und ehemaliger NHL-Spieler, auf der PandaFit-Plattform an den Olympischen Jugendspielen Lausanne 2020.',
+    refs_science: 'Wissenschaftliche Validierung',
+    refs_science_txt: 'Verbesserung in einem Monat beim POMA-/Tinetti-Test, der klinischen Referenz zur Beurteilung des Gleichgewichts (2022).',
+    tl_2019: 'Entwicklung im EPFL Innovation Park, Lausanne.',
+    tl_2020: 'Attraktion der Olympischen Jugendspiele Lausanne 2020.',
+    tl_2021: 'Testmonat bei der SBB: +23 % Gleichgewichtsindex.',
+    tl_2022: 'Wissenschaftliche Validierung mit dem POMA-/Tinetti-Test: +16 % in einem Monat.',
+    tl_2026: 'Über 90’000 Tests in der Datenbank hinter dem PandaFit Index.',
+    refs_sports: 'Verbände & Clubs: Tennis · Eishockey · Bogenschiessen · Fussball',
+  },
+  it: {
+    nav_sport: 'Sport', nav_refs: 'Referenze', nav_dossier: 'Tutte le opzioni',
+    prod_eyebrow: 'Il dispositivo',
+    prod_title: 'Una pedana di equilibrio, un tablet, e si parte.',
+    prod_p1: 'PandaFit è una pedana di equilibrio svizzera collegata via Bluetooth a un tablet. Si sale, si gioca un minuto e mezzo, e l’algoritmo trasforma la firma dell’equilibrio in un punteggio da 0 a 100: il PandaFit Index.',
+    prod_p2: 'Si installa ovunque in pochi minuti, si sposta facilmente e non richiede alcuna sessione dedicata: ci si passa tra due riunioni.',
+    prod_stat1: 'test di equilibrio in 10 anni nella nostra base di calcolo',
+    prod_stat2: 'per passaggio, tutto compreso, senza lasciare la postazione',
+    prod_stat3: 'di indice di equilibrio dopo un mese di test alle FFS (2021)',
+    prod_stat4: 'Swiss made, progettato all’EPFL Innovation Park',
+    sport_eyebrow: 'Sport & performance',
+    sport_title: 'Dall’ufficio all’alto livello: lo stesso equilibrio.',
+    sport_p1: 'PandaFit è nato nello sport. Gli stessi giochi servono agli atleti, fino all’élite, per allenare ciò che nessuna seduta di palestra dà: la ricentratura, la qualità degli appoggi e la capacità di ritrovare in fretta l’equilibrio dopo uno sforzo.',
+    sport_p2: 'Alcuni giochi aggiungono un doppio compito: rispondere a domande restando in equilibrio. Esattamente ciò che vive un giocatore che deve decidere in fretta, su un appoggio instabile, con il fiato corto.',
+    sport_li1: 'Ricentratura e concentrazione, prima o dopo lo sforzo',
+    sport_li2: 'Appoggi, stabilità e ritorno rapido all’equilibrio dopo un carico',
+    sport_li3: 'Doppio compito: riflettere e rispondere restando in equilibrio',
+    sport_li4: 'Usato con federazioni e club: tennis, hockey, tiro con l’arco, calcio, universiadi',
+    sport_film: 'Il film PandaFit, 35 secondi.',
+    refs_eyebrow: 'L’hanno provato',
+    refs_title: 'Dai Giochi Olimpici Giovanili alle FFS.',
+    refs_sub: 'Sviluppato all’EPFL Innovation Park, PandaFit è stato l’attrazione dei Giochi Olimpici Giovanili Losanna 2020, poi validato scientificamente e adottato nelle aziende.',
+    refs_somm_role: 'Presidente della Confederazione nel 2020, in equilibrio su PandaFit ai Giochi Olimpici Giovanili di Losanna.',
+    refs_leader: 'Opinion leader',
+    refs_streit_txt: 'Leggenda dell’hockey svizzero ed ex giocatore NHL, sulla pedana PandaFit ai Giochi Olimpici Giovanili Losanna 2020.',
+    refs_science: 'Validazione scientifica',
+    refs_science_txt: 'di miglioramento in un mese al test POMA / Tinetti, riferimento clinico per la valutazione dell’equilibrio (2022).',
+    tl_2019: 'Sviluppo all’EPFL Innovation Park, Losanna.',
+    tl_2020: 'Attrazione dei Giochi Olimpici Giovanili Losanna 2020.',
+    tl_2021: 'Mese di test alle FFS: +23 % di indice di equilibrio.',
+    tl_2022: 'Validazione scientifica con il test POMA / Tinetti: +16 % in un mese.',
+    tl_2026: 'Oltre 90’000 test nella base che calcola il PandaFit Index.',
+    refs_sports: 'Federazioni & club: tennis · hockey · tiro con l’arco · calcio',
+  },
+};
+Object.keys(EXTRA).forEach(l => Object.assign(TRANSLATIONS[l], EXTRA[l]));
+
+let currentLang = 'fr';
+function t(key) { return TRANSLATIONS[currentLang]?.[key] ?? TRANSLATIONS.fr[key] ?? key; }
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
+  document.documentElement.lang = currentLang;
+}
+function setLang(lang) {
+  currentLang = lang;
+  document.querySelectorAll('.lang-switch button').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+  applyI18n();
+  renderPricing();
+}
+document.querySelectorAll('.lang-switch button').forEach(btn => btn.addEventListener('click', () => setLang(btn.dataset.lang)));
+
+document.getElementById('year').textContent = new Date().getFullYear();
+
+/* ---------- Images (photos par défaut, remplaçables depuis l'admin) ---------- */
+async function loadImages() {
+  const map = { ...DEFAULT_IMAGES };
+  try {
+    const res = await fetch(`${REST}/website_images?select=*`, { headers: sbHeaders() });
+    const rows = res.ok ? await res.json() : [];
+    rows.forEach(r => { if (r.image_url) map[r.id] = r.image_url; });
+  } catch (e) { /* on garde les photos par défaut */ }
+  document.getElementById('heroVisual').style.backgroundImage = `url('${map.hero}')`;
+  document.getElementById('visualBalance').style.backgroundImage = `url('${map.balance}')`;
+  document.getElementById('visualMental').style.backgroundImage = `url('${map.mental}')`;
+  document.getElementById('visualSocial').style.backgroundImage = `url('${map.social}')`;
+  document.getElementById('visualSurMesure').style.backgroundImage = `url('${map.surmesure}')`;
+}
+loadImages();
+
+/* Signature : anime le tracé de l'oscilloscope stress -> calme */
+(function animateOscillo() {
+  const path = document.getElementById('oscilloPath');
+  if (!path) return;
+  const w = 480, h = 200, mid = 100, steps = 60;
+  let t = 0;
+  function frame() {
+    t += 0.02;
+    let d = `M0,${mid}`;
+    for (let i = 1; i <= steps; i++) {
+      const x = (i / steps) * w;
+      const progress = i / steps;
+      const noiseAmp = 34 * (1 - progress) + 3 * progress;
+      const freq = 0.35 + 0.1 * (1 - progress);
+      const y = mid + Math.sin(i * freq + t * 3) * noiseAmp + Math.sin(i * freq * 2.3 + t * 5) * noiseAmp * 0.4 * (1 - progress);
+      d += ` L${x.toFixed(1)},${y.toFixed(1)}`;
+    }
+    path.setAttribute('d', d);
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+/* ---------- Pricing (éditable depuis l'admin) ---------- */
+let pricingRows = [];
+async function loadPricing() {
+  try {
+    const res = await fetch(`${REST}/website_pricing?select=*`, { headers: sbHeaders() });
+    pricingRows = res.ok ? await res.json() : [];
+  } catch (e) { pricingRows = []; }
+  renderPricing();
+}
+function pickLang(obj, field) {
+  if (!obj) return '';
+  if (currentLang === 'fr') return obj[field] || '';
+  return obj[field + '_' + currentLang] || obj[field] || '';
+}
+function translatePriceLabel(str) {
+  if (!str) return '';
+  let out = str;
+  if (currentLang !== 'fr') {
+    out = out.replace(/^Dès\s*/i, t('price_from') + ' ');
+    out = out.replace(/\/jour\b/i, t('price_per_day'));
+    out = out.replace(/\/mois\b/i, t('price_per_month'));
+    out = out.replace(/\/an\b/i, t('price_per_year'));
+  }
+  return out;
+}
+function renderPricing() {
+  const order = ['discovery', 'monthly', 'annual'];
+  const grid = document.getElementById('pricingGrid');
+  if (!grid) return;
+  grid.innerHTML = order.map(id => {
+    const row = pricingRows.find(r => r.id === id) || {};
+    const featured = id === 'monthly';
+    return `
+      <div class="price-card ${featured ? 'featured' : ''}">
+        ${featured ? `<span class="badge">${t('price_badge')}</span>` : ''}
+        <div class="eyebrow">${id === 'discovery' ? '01' : id === 'monthly' ? '02' : '03'}</div>
+        <h3>${pickLang(row, 'title')}</h3>
+        <div class="amount">${translatePriceLabel(row.price_chf)}</div>
+        <p class="price-desc">${pickLang(row, 'description')}</p>
+        <a href="#contact" class="${featured ? 'btn-primary' : 'btn-secondary'}">${t('price_cta')}</a>
+      </div>
+    `;
+  }).join('');
+}
+loadPricing();
+
+/* ---------- Formulaire de contact ---------- */
+document.getElementById('contactForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('formMsg');
+  const fd = new FormData(e.target);
+  const payload = {
+    name: fd.get('name'), company: fd.get('company'), email: fd.get('email'),
+    phone: fd.get('phone'), message: fd.get('message'),
+  };
+  msg.textContent = '…';
+  msg.className = 'form-msg';
+  try {
+    const res = await fetch(`${REST}/website_leads`, {
+      method: 'POST',
+      headers: sbHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('request failed');
+    msg.textContent = t('form_ok');
+    msg.className = 'form-msg ok';
+    e.target.reset();
+  } catch (err) {
+    msg.textContent = t('form_err');
+    msg.className = 'form-msg err';
+  }
+});
+
+applyI18n();
+</script>
+</body>
+</html>
