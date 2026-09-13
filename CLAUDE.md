@@ -10,7 +10,7 @@ PandaFit = application web pour **tablette**, autour d'un **capteur d'équilibre
 ## Fichiers clés
 - `index.html` — l'app tablette (capteur Bluetooth, jeux, PandaFit Index, accueil, Réglages). Gros fichier (images inline en base64).
 - `pandafit-admin.html` — console superadmin (clients, tablettes, jeux, pubs, réglages).
-- `rh/index.html`, `entreprises.html`, `mon-index.html` — pages marketing (pas l'app).
+- `rh/index.html`, `mon-index.html` — pages marketing (pas l'app). La vitrine publique est dans `site/` (pandafit.ch).
 - `sw.js`, `manifest.webmanifest`, `icon-192.png`, `icon-512.png` — PWA.
 
 ## Déploiement
@@ -61,4 +61,4 @@ PandaFit = application web pour **tablette**, autour d'un **capteur d'équilibre
 - Une copie propre hors Drive existe aussi dans `C:\Users\danha\dev\pandafit` (non utilisée par défaut ; Dan garde le dossier Drive + son raccourci).
 
 ## Site vitrine pandafit.ch (dossier `site/`)
-Page publique 4 langues (`site/index.html`, `site/assets/`), issue de `entreprises.html` et enrichie le 13.09.2026 (appareil, sport & performance, références Sommaruga/Streit, chronologie). **Servi par le site Netlify existant `pandafit2026`** grâce au `netlify.toml` racine (pandafit.ch/* → /site/*) ; domaine `pandafit.ch` (Hostpoint : A 75.2.60.5, CNAME www → pandafit2026.netlify.app). Tarifs/images/leads = même Supabase que la page d'origine. Toute nouvelle phrase = clé `data-i18n` + 4 traductions dans `EXTRA`. `entreprises.html` à la racine reste l'ancienne version (à retirer quand pandafit.ch est en ligne).
+Page publique 4 langues (`site/index.html`, `site/assets/`), issue de `entreprises.html` et enrichie le 13.09.2026 (appareil, sport & performance, références Sommaruga/Streit, chronologie). **Servi par le site Netlify existant `pandafit2026`** grâce au `netlify.toml` racine (pandafit.ch/* → /site/*) ; domaine `pandafit.ch` (Hostpoint : A 75.2.60.5, CNAME www → pandafit2026.netlify.app). Tarifs/images/leads = même Supabase que la page d'origine. Toute nouvelle phrase = clé `data-i18n` + 4 traductions dans `EXTRA`. `entreprises.html` a été retiré le 13.09.2026. **URLs** : pandafit.ch = vitrine, app.pandafit.ch = app tablette (alias de pandafit2026.netlify.app ; origine différente → clé tablette et Bluetooth à ressaisir si on migre une tablette), console.pandafit.ch = pandafit-admin.html.
