@@ -1,0 +1,17 @@
+# Un seul site Netlify (pandafit2026) sert tout :
+#  - pandafit2026.netlify.app  → racine du dépôt (app tablette, admin, pages historiques)
+#  - pandafit.ch                → dossier site/ (vitrine publique 4 langues)
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "https://pandafit.ch/*"
+  to = "/site/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "https://www.pandafit.ch/*"
+  to = "https://pandafit.ch/:splat"
+  status = 301
+  force = true
