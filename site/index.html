@@ -294,7 +294,7 @@
   .ref-card { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px 26px 22px; }
   .ref-card h3 { font-size: 26px; margin: 12px 0 8px; }
   .ref-card p { font-size: 14px; color: var(--ink-dim); margin: 0; }
-  .timeline { list-style: none; margin: 56px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  .timeline { list-style: none; margin: 56px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px 14px; }
   @media (max-width: 900px) { .timeline { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 560px) { .timeline { grid-template-columns: 1fr; } }
   .timeline li { position: relative; padding: 18px 0 0; border-top: 2px solid var(--line); font-size: 13.5px; color: var(--ink-dim); }
@@ -650,11 +650,14 @@
     </div>
 
     <ol class="timeline">
-      <li><span class="tl-year">2019</span><span data-i18n="tl_2019">Développement à l'EPFL Innovation Park, Lausanne.</span></li>
+      <li><span class="tl-year">2016</span><span data-i18n="tl_2016">Développement à l'EPFL Innovation Park, Lausanne.</span></li>
+      <li><span class="tl-year">2018</span><span data-i18n="tl_2018">Jeux Olympiques de la Jeunesse de Buenos Aires.</span></li>
+      <li><span class="tl-year">2019</span><span data-i18n="tl_2019">Universiade de Naples. Démonstration au Congrès romand de la sécurité de la Suva.</span></li>
+      <li><span class="tl-year">2019–2021</span><span data-i18n="tl_2019_21">Tests avec les CFF : +23 % d'index d'équilibre en un mois.</span></li>
       <li><span class="tl-year">2020</span><span data-i18n="tl_2020">Attraction des Jeux Olympiques de la Jeunesse Lausanne 2020.</span></li>
-      <li><span class="tl-year">2021</span><span data-i18n="tl_2021">Mois de test aux CFF : +23 % d'index d'équilibre.</span></li>
+      <li><span class="tl-year">2021</span><span data-i18n="tl_2021">Démonstration dans le cadre du meeting Athletissima.</span></li>
       <li><span class="tl-year">2022</span><span data-i18n="tl_2022">Validation scientifique avec le test POMA / Tinetti : +16 % en un mois.</span></li>
-      <li><span class="tl-year">2026</span><span data-i18n="tl_2026">Plus de 90'000 tests dans la base qui calcule le PandaFit Index.</span></li>
+      <li><span class="tl-year">2026</span><span data-i18n="tl_2026">Présence via le Centre Sport-Santé EPFL-UNIL aux JO de Milan-Cortina et aux Mondiaux de hockey en Suisse.</span></li>
     </ol>
 
     <div class="trust">
@@ -1061,11 +1064,14 @@ const EXTRA = {
     refs_streit_txt: 'Légende du hockey suisse et ancien joueur de NHL, sur la plateforme PandaFit aux JOJ de Lausanne 2020.',
     refs_science: 'Validation scientifique',
     refs_science_txt: "d'amélioration en un mois au test POMA / Tinetti, référence clinique de l'évaluation de l'équilibre (2022).",
-    tl_2019: "Développement à l'EPFL Innovation Park, Lausanne.",
+    tl_2016: "Développement à l'EPFL Innovation Park, Lausanne.",
+    tl_2018: 'Jeux Olympiques de la Jeunesse de Buenos Aires.',
+    tl_2019: 'Universiade de Naples. Démonstration au Congrès romand de la sécurité de la Suva.',
+    tl_2019_21: "Tests avec les CFF : +23 % d'index d'équilibre en un mois.",
     tl_2020: 'Attraction des Jeux Olympiques de la Jeunesse Lausanne 2020.',
-    tl_2021: "Mois de test aux CFF : +23 % d'index d'équilibre.",
+    tl_2021: 'Démonstration dans le cadre du meeting Athletissima.',
     tl_2022: 'Validation scientifique avec le test POMA / Tinetti : +16 % en un mois.',
-    tl_2026: "Plus de 90'000 tests dans la base qui calcule le PandaFit Index.",
+    tl_2026: 'Présence via le Centre Sport-Santé EPFL-UNIL aux JO de Milan-Cortina et aux Mondiaux de hockey en Suisse.',
     refs_sports: "Fédérations & clubs : tennis · hockey · tir à l'arc · football",
     logos_note: '* dans le cadre du projet Nestmove',
     prod_p3: "Les jeux sont volontairement simples, dans un esprit arcade rétro : on comprend en trois secondes, on sourit, on rejoue. Pas de 3D, juste de l'équilibre.",
@@ -1100,11 +1106,14 @@ const EXTRA = {
     refs_streit_txt: 'Swiss ice hockey legend and former NHL player, on the PandaFit platform at the Lausanne 2020 Youth Olympic Games.',
     refs_science: 'Scientific validation',
     refs_science_txt: 'improvement in one month on the POMA / Tinetti test, the clinical reference for balance assessment (2022).',
-    tl_2019: 'Development at EPFL Innovation Park, Lausanne.',
+    tl_2016: 'Development at EPFL Innovation Park, Lausanne.',
+    tl_2018: 'Buenos Aires Youth Olympic Games.',
+    tl_2019: 'Naples Universiade. Demonstration at the Suva safety congress for French-speaking Switzerland.',
+    tl_2019_21: 'Trials with Swiss Federal Railways (SBB): +23% balance index in one month.',
     tl_2020: 'Attraction of the Lausanne 2020 Youth Olympic Games.',
-    tl_2021: 'One-month trial at SBB: +23% balance index.',
+    tl_2021: 'Demonstration at the Athletissima meeting.',
     tl_2022: 'Scientific validation with the POMA / Tinetti test: +16% in one month.',
-    tl_2026: "Over 90,000 tests in the database behind the PandaFit Index.",
+    tl_2026: 'Present through the EPFL-UNIL Sport and Health Centre at the Milano Cortina Olympic Games and the Ice Hockey World Championship in Switzerland.',
     refs_sports: 'Federations & clubs: tennis · ice hockey · archery · football',
     logos_note: '* as part of the Nestmove project',
     prod_p3: 'The games are deliberately simple, in a retro arcade spirit: you get it in three seconds, you smile, you play again. No 3D, just balance.',
@@ -1139,11 +1148,14 @@ const EXTRA = {
     refs_streit_txt: 'Schweizer Eishockey-Legende und ehemaliger NHL-Spieler, auf der PandaFit-Plattform an den Olympischen Jugendspielen Lausanne 2020.',
     refs_science: 'Wissenschaftliche Validierung',
     refs_science_txt: 'Verbesserung in einem Monat beim POMA-/Tinetti-Test, der klinischen Referenz zur Beurteilung des Gleichgewichts (2022).',
-    tl_2019: 'Entwicklung im EPFL Innovation Park, Lausanne.',
+    tl_2016: 'Entwicklung im EPFL Innovation Park, Lausanne.',
+    tl_2018: 'Olympische Jugendspiele Buenos Aires.',
+    tl_2019: 'Universiade Neapel. Vorführung am Westschweizer Sicherheitskongress der Suva.',
+    tl_2019_21: 'Tests mit der SBB: +23 % Gleichgewichtsindex in einem Monat.',
     tl_2020: 'Attraktion der Olympischen Jugendspiele Lausanne 2020.',
-    tl_2021: 'Testmonat bei der SBB: +23 % Gleichgewichtsindex.',
+    tl_2021: 'Vorführung im Rahmen des Athletissima-Meetings.',
     tl_2022: 'Wissenschaftliche Validierung mit dem POMA-/Tinetti-Test: +16 % in einem Monat.',
-    tl_2026: 'Über 90’000 Tests in der Datenbank hinter dem PandaFit Index.',
+    tl_2026: 'Präsenz über das Zentrum Sport und Gesundheit EPFL-UNIL an den Olympischen Spielen Mailand-Cortina und an der Eishockey-WM in der Schweiz.',
     refs_sports: 'Verbände & Clubs: Tennis · Eishockey · Bogenschiessen · Fussball',
     logos_note: '* im Rahmen des Projekts Nestmove',
     prod_p3: 'Die Spiele sind bewusst einfach, im Retro-Arcade-Stil: in drei Sekunden verstanden, ein Lächeln, noch einmal. Kein 3D, nur Gleichgewicht.',
@@ -1178,11 +1190,14 @@ const EXTRA = {
     refs_streit_txt: 'Leggenda dell’hockey svizzero ed ex giocatore NHL, sulla pedana PandaFit ai Giochi Olimpici Giovanili Losanna 2020.',
     refs_science: 'Validazione scientifica',
     refs_science_txt: 'di miglioramento in un mese al test POMA / Tinetti, riferimento clinico per la valutazione dell’equilibrio (2022).',
-    tl_2019: 'Sviluppo all’EPFL Innovation Park, Losanna.',
+    tl_2016: 'Sviluppo all’EPFL Innovation Park, Losanna.',
+    tl_2018: 'Giochi Olimpici Giovanili di Buenos Aires.',
+    tl_2019: 'Universiade di Napoli. Dimostrazione al Congresso romando della sicurezza della Suva.',
+    tl_2019_21: 'Test con le FFS: +23 % di indice di equilibrio in un mese.',
     tl_2020: 'Attrazione dei Giochi Olimpici Giovanili Losanna 2020.',
-    tl_2021: 'Mese di test alle FFS: +23 % di indice di equilibrio.',
+    tl_2021: 'Dimostrazione nell’ambito del meeting Athletissima.',
     tl_2022: 'Validazione scientifica con il test POMA / Tinetti: +16 % in un mese.',
-    tl_2026: 'Oltre 90’000 test nella base che calcola il PandaFit Index.',
+    tl_2026: 'Presenza tramite il Centro Sport e Salute EPFL-UNIL ai Giochi Olimpici di Milano-Cortina e ai Mondiali di hockey in Svizzera.',
     refs_sports: 'Federazioni & club: tennis · hockey · tiro con l’arco · calcio',
     logos_note: '* nell’ambito del progetto Nestmove',
     prod_p3: 'I giochi sono volutamente semplici, in spirito arcade rétro: si capiscono in tre secondi, si sorride, si rigioca. Niente 3D, solo equilibrio.',
