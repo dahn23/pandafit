@@ -237,6 +237,25 @@
   .source-item a:hover { text-decoration-color: var(--brand); }
   .source-item strong { color: var(--ink); }
 
+  /* ---------- Bande de logos ---------- */
+  .logos { padding: 44px 0 30px; }
+  .logo-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 28px 56px; }
+  .logo { position: relative; display: inline-flex; align-items: center; gap: 10px; }
+  .logo img { height: 40px; width: auto; filter: brightness(0) invert(1); opacity: 0.72; transition: opacity 0.2s; }
+  .logo:hover img { opacity: 1; }
+  .logo.ofsp img { height: 34px; }
+  .logo.ofsp b { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 500; color: var(--ink); opacity: 0.85; letter-spacing: 0.04em; }
+  .logo i { position: absolute; top: -8px; right: -10px; font-style: normal; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--brand); }
+  .logo-note { text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-dim); margin: 22px 0 0; opacity: 0.8; }
+  @media (max-width: 640px) { .logo-row { gap: 22px 32px; } .logo img { height: 30px; } }
+
+  /* ---------- Événements / team building ---------- */
+  .prod-note { font-size: 13.5px !important; opacity: 0.85; font-style: italic; }
+  .events { margin-top: 22px; }
+  .events-label { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 10px; }
+  .event-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .event-chips span { font-size: 13px; font-weight: 600; padding: 7px 13px; border-radius: 100px; background: rgba(47,224,124,0.1); color: var(--brand); border: 1px solid rgba(47,224,124,0.28); }
+
   /* ---------- L'appareil ---------- */
   .product-grid { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 60px; align-items: center; }
   @media (max-width: 900px) { .product-grid { grid-template-columns: 1fr; } }
@@ -328,6 +347,20 @@
 
 <div class="beam section-divider"><div class="bubble"></div></div>
 
+<!-- ---------- Bande de logos ---------- -->
+<section class="logos" aria-label="Références">
+  <div class="wrap">
+    <div class="logo-row">
+      <span class="logo"><img src="assets/logos/epfl.png" alt="EPFL"></span>
+      <span class="logo"><img src="assets/logos/suva.png" alt="Suva"><i>*</i></span>
+      <span class="logo"><img src="assets/logos/pss.png" alt="Promotion Santé Suisse"><i>*</i></span>
+      <span class="logo ofsp"><img src="assets/logos/confederation.svg" alt="Confédération suisse"><b>OFSP</b><i>*</i></span>
+      <span class="logo"><img src="assets/logos/lausanne2020.png" alt="Lausanne 2020 — Jeux Olympiques de la Jeunesse"></span>
+    </div>
+    <p class="logo-note"><span data-i18n="logos_note">* dans le cadre du projet Nestmove</span></p>
+  </div>
+</section>
+
 <!-- ---------- L'appareil ---------- -->
 <section class="benefit product" id="appareil">
   <div class="wrap product-grid">
@@ -339,6 +372,7 @@
       <h2 data-i18n="prod_title">Une plateforme d'équilibre, une tablette, et c'est parti.</h2>
       <p data-i18n="prod_p1">PandaFit, c'est une plateforme d'équilibre suisse reliée en Bluetooth à une tablette. On monte dessus, on joue une minute trente, et l'algorithme transforme la signature de l'équilibre en un score de 0 à 100 : le PandaFit Index.</p>
       <p data-i18n="prod_p2">Il s'installe partout en quelques minutes, se déplace facilement et ne demande aucune séance dédiée : on y passe entre deux réunions.</p>
+      <p class="prod-note" data-i18n="prod_p3">Les jeux sont volontairement simples, dans un esprit arcade rétro : on comprend en trois secondes, on sourit, on rejoue. Pas de 3D, juste de l'équilibre.</p>
       <div class="stat-grid">
         <div class="stat"><div class="num">90'000+</div><div class="lbl" data-i18n="prod_stat1">tests d'équilibre en 10 ans dans notre base de calcul</div></div>
         <div class="stat"><div class="num">1'30</div><div class="lbl" data-i18n="prod_stat2">par passage, tout compris, sans quitter son poste</div></div>
@@ -409,6 +443,16 @@
       <h2 data-i18n="b3_title">Des défis et des classements qui font sourire tout le monde.</h2>
       <p data-i18n="b3_p1">PandaFit, c'est aussi du jeu : défis entre collègues, classements par équipe, événements ponctuels. Une manière simple de créer du lien et de la bonne humeur autour d'un objectif commun — sans transformer la prévention en corvée.</p>
       <p data-i18n="b3_p2">Chaque entreprise peut personnaliser ses propres défis, suivre les résultats et célébrer ses champions du jour.</p>
+      <p data-i18n="b3_p3">C'est aussi un outil de team building qui marche à tous les coups : on rit, on se compare, on s'encourage. Et l'événementiel, on connaît : PandaFit a animé des événements petits et grands, en Suisse et à l'étranger.</p>
+      <div class="events">
+        <div class="events-label" data-i18n="b3_events">Quelques événements animés par PandaFit</div>
+        <div class="event-chips">
+          <span data-i18n="ev_joj">JOJ Lausanne 2020 · Health for Performance</span>
+          <span>Athletissima</span>
+          <span data-i18n="ev_epfl">Journée portes ouvertes EPFL</span>
+          <span data-i18n="ev_corp">Événements d'entreprise & team buildings</span>
+        </div>
+      </div>
     </div>
     <div class="benefit-visual" id="visualSocial"></div>
   </div>
@@ -435,7 +479,6 @@
       <video controls playsinline preload="none" poster="assets/video/pandafit-film-poster.jpg">
         <source src="assets/video/pandafit-film.mp4" type="video/mp4">
       </video>
-      <figcaption data-i18n="sport_film">Le film PandaFit, 35 secondes.</figcaption>
     </figure>
   </div>
 </section>
@@ -1023,6 +1066,11 @@ const EXTRA = {
     tl_2022: 'Validation scientifique avec le test POMA / Tinetti : +16 % en un mois.',
     tl_2026: "Plus de 90'000 tests dans la base qui calcule le PandaFit Index.",
     refs_sports: "Fédérations & clubs : tennis · hockey · tir à l'arc · football",
+    logos_note: '* dans le cadre du projet Nestmove',
+    prod_p3: "Les jeux sont volontairement simples, dans un esprit arcade rétro : on comprend en trois secondes, on sourit, on rejoue. Pas de 3D, juste de l'équilibre.",
+    b3_p3: "C'est aussi un outil de team building qui marche à tous les coups : on rit, on se compare, on s'encourage. Et l'événementiel, on connaît : PandaFit a animé des événements petits et grands, en Suisse et à l'étranger.",
+    b3_events: 'Quelques événements animés par PandaFit',
+    ev_joj: 'JOJ Lausanne 2020 · Health for Performance', ev_epfl: 'Journée portes ouvertes EPFL', ev_corp: "Événements d'entreprise & team buildings",
   },
   en: {
     nav_sport: 'Sport', nav_refs: 'References', nav_dossier: 'All options',
@@ -1057,6 +1105,11 @@ const EXTRA = {
     tl_2022: 'Scientific validation with the POMA / Tinetti test: +16% in one month.',
     tl_2026: "Over 90,000 tests in the database behind the PandaFit Index.",
     refs_sports: 'Federations & clubs: tennis · ice hockey · archery · football',
+    logos_note: '* as part of the Nestmove project',
+    prod_p3: 'The games are deliberately simple, in a retro arcade spirit: you get it in three seconds, you smile, you play again. No 3D, just balance.',
+    b3_p3: 'It is also a team-building tool that works every time: people laugh, compare, cheer each other on. And we know events: PandaFit has run events large and small, in Switzerland and abroad.',
+    b3_events: 'A few events powered by PandaFit',
+    ev_joj: 'Lausanne 2020 YOG · Health for Performance', ev_epfl: 'EPFL open day', ev_corp: 'Corporate events & team buildings',
   },
   de: {
     nav_sport: 'Sport', nav_refs: 'Referenzen', nav_dossier: 'Alle Optionen',
@@ -1091,6 +1144,11 @@ const EXTRA = {
     tl_2022: 'Wissenschaftliche Validierung mit dem POMA-/Tinetti-Test: +16 % in einem Monat.',
     tl_2026: 'Über 90’000 Tests in der Datenbank hinter dem PandaFit Index.',
     refs_sports: 'Verbände & Clubs: Tennis · Eishockey · Bogenschiessen · Fussball',
+    logos_note: '* im Rahmen des Projekts Nestmove',
+    prod_p3: 'Die Spiele sind bewusst einfach, im Retro-Arcade-Stil: in drei Sekunden verstanden, ein Lächeln, noch einmal. Kein 3D, nur Gleichgewicht.',
+    b3_p3: 'Es ist auch ein Teambuilding-Werkzeug, das immer funktioniert: man lacht, vergleicht sich, feuert sich an. Und Events kennen wir: PandaFit hat kleine und grosse Anlässe belebt, in der Schweiz und im Ausland.',
+    b3_events: 'Einige Events mit PandaFit',
+    ev_joj: 'YOG Lausanne 2020 · Health for Performance', ev_epfl: 'Tag der offenen Tür EPFL', ev_corp: 'Firmenanlässe & Teambuildings',
   },
   it: {
     nav_sport: 'Sport', nav_refs: 'Referenze', nav_dossier: 'Tutte le opzioni',
@@ -1125,6 +1183,11 @@ const EXTRA = {
     tl_2022: 'Validazione scientifica con il test POMA / Tinetti: +16 % in un mese.',
     tl_2026: 'Oltre 90’000 test nella base che calcola il PandaFit Index.',
     refs_sports: 'Federazioni & club: tennis · hockey · tiro con l’arco · calcio',
+    logos_note: '* nell’ambito del progetto Nestmove',
+    prod_p3: 'I giochi sono volutamente semplici, in spirito arcade rétro: si capiscono in tre secondi, si sorride, si rigioca. Niente 3D, solo equilibrio.',
+    b3_p3: 'È anche uno strumento di team building che funziona sempre: si ride, ci si confronta, ci si incoraggia. E gli eventi li conosciamo: PandaFit ha animato eventi piccoli e grandi, in Svizzera e all’estero.',
+    b3_events: 'Alcuni eventi animati da PandaFit',
+    ev_joj: 'GOG Losanna 2020 · Health for Performance', ev_epfl: 'Porte aperte EPFL', ev_corp: 'Eventi aziendali & team building',
   },
 };
 Object.keys(EXTRA).forEach(l => Object.assign(TRANSLATIONS[l], EXTRA[l]));
