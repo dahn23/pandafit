@@ -241,11 +241,23 @@ function genDeviceKey() {
 }
 
 /* ---------------- Auth ---------------- */
+
+/* Changer son mot de passe : proposé automatiquement à l'arrivée par un lien « mot de passe oublié »
+   (événement PASSWORD_RECOVERY), et disponible à tout moment via le bouton « Mot de passe » en haut. */
+async function changePassword() {
+  const p1 = prompt('Nouveau mot de passe (8 caractères minimum) :');
+  if (p1 === null) return;
+  if (p1.length < 8) { alert('8 caractères minimum.'); return changePassword(); }
+  const p2 = prompt('Confirme le nouveau mot de passe :');
+  if (p2 !== p1) { alert('Les deux saisies ne correspondent pas.'); return changePassword(); }
+  const { error } = await sb.auth.updateUser({ password: p1 });
+  alert(error ? 'Erreur : ' + error.message : 'Mot de passe enregistré. Tu peux l\'utiliser dès maintenant pour te connecter.');
+}
 async function init() {
   const { data } = await sb.auth.getSession();
   session = data.session;
   if (session) await loadCurrentAdmin();
-  sb.auth.onAuthStateChange((_event, s) => { session = s; render(); });
+  sb.auth.onAuthStateChange((event, s) => { session = s; render(); if (event === 'PASSWORD_RECOVERY') setTimeout(changePassword, 400); });
   render();
 }
 
@@ -376,6 +388,7 @@ async function render() {
   app.innerHTML = `
     <div class="topbar">
       <div class="brand"><div class="mark">PF</div>PandaFit — Superadmin</div>
+      <button class="btn-ghost" id="btnChangePass" title="Changer mon mot de passe">Mot de passe</button>
       <button class="btn-ghost" id="btnLogout">Se déconnecter</button>
     </div>
     <div class="top-nav">
@@ -387,6 +400,7 @@ async function render() {
     </div>
     <div id="topViewContainer"></div>
   `;
+  document.getElementById('btnChangePass').addEventListener('click', changePassword);
   document.getElementById('btnLogout').addEventListener('click', async () => {
     await sb.auth.signOut();
     clients = []; selectedClientId = null; session = null; currentAdmin = null; topView = 'clients';
