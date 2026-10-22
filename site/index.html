@@ -1408,7 +1408,7 @@ document.getElementById('contactForm').addEventListener('submit', async (e) => {
     try {
       await fetch('/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
         body: new URLSearchParams({
           'form-name': 'lead',
           name: payload.name || '', company: payload.company || '', email: payload.email || '',
