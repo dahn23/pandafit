@@ -437,6 +437,50 @@
 
 <div class="beam section-divider"><div class="bubble"></div></div>
 
+<section class="benefit" id="cerveau">
+  <div class="wrap benefit-grid">
+    <div>
+      <div class="eyebrow" data-i18n="brain_eyebrow">Cerveau & concentration</div>
+      <h2 data-i18n="brain_title">Bouger, c'est bien. S'équilibrer, ça fait travailler le cerveau.</h2>
+      <p data-i18n="brain_p1">On entend partout qu'il faut bouger. L'équilibre va plus loin : tenir sa posture mobilise en continu le cortex préfrontal — le siège de l'attention et de la concentration. Chaque passage sur la plateforme est donc aussi un petit entraînement cérébral.</p>
+      <p data-i18n="brain_p2">Ce que la recherche montre : s'entraîner à l'équilibre améliore la mémoire et la cognition spatiale, indépendamment de la condition cardio (Rogge et al., Scientific Reports, 2017). Et le cerveau réagit vite — des changements mesurables apparaissent dès une heure de pratique (Taubert et al., NeuroImage, 2016).</p>
+      <ul>
+        <li data-i18n="brain_li1">Le jeu de calcul mental en équilibre : exactement la « double-tâche » que les neurosciences associent à la plus forte activation du cerveau — le corps et la concentration en même temps.</li>
+        <li data-i18n="brain_li2">Quelques minutes suffisent : une pause active qui réveille l'attention autant que le corps.</li>
+        <li data-i18n="brain_li3">Un atout concret pour la vigilance, la gestion du stress et la performance au quotidien.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="oscillo-card">
+        <svg viewBox="0 0 480 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Activation du cerveau par l'équilibre">
+          <defs>
+            <radialGradient id="brainGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#2FE07C" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="#2FE07C" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <circle cx="226" cy="100" r="66" fill="none" stroke="rgba(243,247,241,0.16)" stroke-width="2"/>
+          <circle cx="262" cy="86" r="44" fill="url(#brainGlow)"/>
+          <path d="M194,86 q16,-16 36,-10 M196,104 q20,-10 40,-2 M202,122 q16,-6 32,2" fill="none" stroke="rgba(243,247,241,0.28)" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M250,80 q18,2 20,20 q2,16 -14,22" fill="none" stroke="#2FE07C" stroke-width="2.4" stroke-linecap="round"/>
+          <circle cx="316" cy="70" r="3" fill="#2FE07C"/>
+          <circle cx="330" cy="100" r="2.4" fill="#7DC8FF"/>
+          <circle cx="314" cy="130" r="2.6" fill="#2FE07C"/>
+          <line x1="300" y1="76" x2="310" y2="72" stroke="#2FE07C" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="302" y1="100" x2="324" y2="100" stroke="#7DC8FF" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="300" y1="124" x2="309" y2="129" stroke="#2FE07C" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <div class="oscillo-legend">
+          <span class="oscillo-tag"><span class="sw" style="background:#2FE07C;"></span> <span data-i18n="brain_tag1">Mémoire & cognition (Rogge, 2017)</span></span>
+          <span class="oscillo-tag"><span class="sw" style="background:#7DC8FF;"></span> <span data-i18n="brain_tag2">Le cerveau change dès 1h (Taubert, 2016)</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="beam section-divider"><div class="bubble"></div></div>
+
 <section class="benefit" id="social">
   <div class="wrap benefit-grid">
     <div>
@@ -1078,6 +1122,15 @@ const EXTRA = {
     b3_p3: "C'est aussi un outil de team building qui marche à tous les coups : on rit, on se compare, on s'encourage. Et l'événementiel, on connaît : PandaFit a animé des événements petits et grands, en Suisse et à l'étranger.",
     b3_events: 'Quelques événements animés par PandaFit',
     ev_joj: 'JOJ Lausanne 2020 · Health for Performance', ev_epfl: 'Journée portes ouvertes EPFL', ev_corp: "Événements d'entreprise & team buildings",
+    brain_eyebrow: 'Cerveau & concentration',
+    brain_title: "Bouger, c'est bien. S'équilibrer, ça fait travailler le cerveau.",
+    brain_p1: "On entend partout qu'il faut bouger. L'équilibre va plus loin : tenir sa posture mobilise en continu le cortex préfrontal — le siège de l'attention et de la concentration. Chaque passage sur la plateforme est donc aussi un petit entraînement cérébral.",
+    brain_p2: "Ce que la recherche montre : s'entraîner à l'équilibre améliore la mémoire et la cognition spatiale, indépendamment de la condition cardio (Rogge et al., Scientific Reports, 2017). Et le cerveau réagit vite — des changements mesurables apparaissent dès une heure de pratique (Taubert et al., NeuroImage, 2016).",
+    brain_li1: "Le jeu de calcul mental en équilibre : exactement la « double-tâche » que les neurosciences associent à la plus forte activation du cerveau — le corps et la concentration en même temps.",
+    brain_li2: "Quelques minutes suffisent : une pause active qui réveille l'attention autant que le corps.",
+    brain_li3: "Un atout concret pour la vigilance, la gestion du stress et la performance au quotidien.",
+    brain_tag1: 'Mémoire & cognition (Rogge, 2017)',
+    brain_tag2: "Le cerveau change dès 1h (Taubert, 2016)",
   },
   en: {
     nav_sport: 'Sport', nav_refs: 'References', nav_dossier: 'All options',
@@ -1120,6 +1173,15 @@ const EXTRA = {
     b3_p3: 'It is also a team-building tool that works every time: people laugh, compare, cheer each other on. And we know events: PandaFit has run events large and small, in Switzerland and abroad.',
     b3_events: 'A few events powered by PandaFit',
     ev_joj: 'Lausanne 2020 YOG · Health for Performance', ev_epfl: 'EPFL open day', ev_corp: 'Corporate events & team buildings',
+    brain_eyebrow: 'Brain & focus',
+    brain_title: 'Moving is good. Balancing puts your brain to work.',
+    brain_p1: 'Everyone says we should move more. Balance goes further: holding your posture continuously engages the prefrontal cortex — the seat of attention and focus. So every session on the platform is also a small workout for the brain.',
+    brain_p2: 'What research shows: balance training improves memory and spatial cognition, independently of cardio fitness (Rogge et al., Scientific Reports, 2017). And the brain reacts fast — measurable changes appear after just one hour of practice (Taubert et al., NeuroImage, 2016).',
+    brain_li1: 'The mental-arithmetic game played while balancing: exactly the "dual task" that neuroscience links to the strongest brain activation — body and focus at once.',
+    brain_li2: 'A few minutes are enough: an active break that wakes up attention as much as the body.',
+    brain_li3: 'A concrete asset for alertness, stress management and everyday performance.',
+    brain_tag1: 'Memory & cognition (Rogge, 2017)',
+    brain_tag2: 'The brain changes within 1h (Taubert, 2016)',
   },
   de: {
     nav_sport: 'Sport', nav_refs: 'Referenzen', nav_dossier: 'Alle Optionen',
@@ -1162,6 +1224,15 @@ const EXTRA = {
     b3_p3: 'Es ist auch ein Teambuilding-Werkzeug, das immer funktioniert: man lacht, vergleicht sich, feuert sich an. Und Events kennen wir: PandaFit hat kleine und grosse Anlässe belebt, in der Schweiz und im Ausland.',
     b3_events: 'Einige Events mit PandaFit',
     ev_joj: 'YOG Lausanne 2020 · Health for Performance', ev_epfl: 'Tag der offenen Tür EPFL', ev_corp: 'Firmenanlässe & Teambuildings',
+    brain_eyebrow: 'Gehirn & Konzentration',
+    brain_title: 'Bewegung ist gut. Gleichgewicht fordert das Gehirn.',
+    brain_p1: 'Überall heisst es, man solle sich bewegen. Gleichgewicht geht weiter: Die Haltung zu halten beansprucht fortlaufend den präfrontalen Kortex — den Sitz von Aufmerksamkeit und Konzentration. Jeder Durchgang auf der Plattform ist damit auch ein kleines Training fürs Gehirn.',
+    brain_p2: 'Was die Forschung zeigt: Gleichgewichtstraining verbessert Gedächtnis und räumliche Kognition, unabhängig von der Ausdauerfitness (Rogge et al., Scientific Reports, 2017). Und das Gehirn reagiert schnell — messbare Veränderungen zeigen sich schon nach einer Stunde Übung (Taubert et al., NeuroImage, 2016).',
+    brain_li1: 'Das Kopfrechen-Spiel im Gleichgewicht: genau jene „Doppelaufgabe“, die die Neurowissenschaft mit der stärksten Hirnaktivierung verbindet — Körper und Konzentration zugleich.',
+    brain_li2: 'Wenige Minuten genügen: eine aktive Pause, die Aufmerksamkeit und Körper zugleich weckt.',
+    brain_li3: 'Ein konkreter Vorteil für Wachheit, Stressbewältigung und tägliche Leistung.',
+    brain_tag1: 'Gedächtnis & Kognition (Rogge, 2017)',
+    brain_tag2: 'Das Gehirn verändert sich ab 1 Std. (Taubert, 2016)',
   },
   it: {
     nav_sport: 'Sport', nav_refs: 'Referenze', nav_dossier: 'Tutte le opzioni',
@@ -1204,6 +1275,15 @@ const EXTRA = {
     b3_p3: 'È anche uno strumento di team building che funziona sempre: si ride, ci si confronta, ci si incoraggia. E gli eventi li conosciamo: PandaFit ha animato eventi piccoli e grandi, in Svizzera e all’estero.',
     b3_events: 'Alcuni eventi animati da PandaFit',
     ev_joj: 'GOG Losanna 2020 · Health for Performance', ev_epfl: 'Porte aperte EPFL', ev_corp: 'Eventi aziendali & team building',
+    brain_eyebrow: 'Cervello & concentrazione',
+    brain_title: 'Muoversi fa bene. Stare in equilibrio fa lavorare il cervello.',
+    brain_p1: "Si sente dire ovunque che bisogna muoversi. L'equilibrio va oltre: mantenere la postura sollecita di continuo la corteccia prefrontale — la sede dell'attenzione e della concentrazione. Ogni passaggio sulla piattaforma è quindi anche un piccolo allenamento per il cervello.",
+    brain_p2: "Cosa emerge dalla ricerca: l'allenamento dell'equilibrio migliora la memoria e la cognizione spaziale, indipendentemente dalla forma cardio (Rogge et al., Scientific Reports, 2017). E il cervello reagisce in fretta — cambiamenti misurabili compaiono già dopo un'ora di pratica (Taubert et al., NeuroImage, 2016).",
+    brain_li1: "Il gioco di calcolo mentale in equilibrio: esattamente il «doppio compito» che le neuroscienze associano alla più forte attivazione del cervello — corpo e concentrazione insieme.",
+    brain_li2: "Bastano pochi minuti: una pausa attiva che risveglia l'attenzione quanto il corpo.",
+    brain_li3: 'Un vantaggio concreto per la vigilanza, la gestione dello stress e la performance quotidiana.',
+    brain_tag1: 'Memoria & cognizione (Rogge, 2017)',
+    brain_tag2: 'Il cervello cambia già in 1 ora (Taubert, 2016)',
   },
 };
 Object.keys(EXTRA).forEach(l => Object.assign(TRANSLATIONS[l], EXTRA[l]));
