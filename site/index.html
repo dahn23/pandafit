@@ -718,7 +718,9 @@
       <h2 data-i18n="contact_title">Une démonstration dans vos locaux ?</h2>
       <p data-i18n="contact_p">Laissez-nous vos coordonnées, nous revenons vers vous sous 48h pour organiser une présentation adaptée à votre entreprise.</p>
     </div>
-    <form class="contact-form" id="contactForm">
+    <form class="contact-form" id="contactForm" name="lead" method="POST" data-netlify="true" netlify-honeypot="bot-field">
+      <input type="hidden" name="form-name" value="lead">
+      <p hidden aria-hidden="true"><label>Ne pas remplir : <input name="bot-field" tabindex="-1" autocomplete="off"></label></p>
       <div class="form-row">
         <div><label data-i18n="form_name">Nom</label><input name="name" required></div>
         <div><label data-i18n="form_company">Entreprise</label><input name="company"></div>
@@ -1402,6 +1404,18 @@ document.getElementById('contactForm').addEventListener('submit', async (e) => {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error('request failed');
+    // Notification e-mail via Netlify Forms (natif). N'empêche pas le succès si ça échoue : la demande est déjà en base.
+    try {
+      await fetch('/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          'form-name': 'lead',
+          name: payload.name || '', company: payload.company || '', email: payload.email || '',
+          phone: payload.phone || '', message: payload.message || '',
+        }).toString(),
+      });
+    } catch (e2) { /* demande déjà enregistrée ; la notif n'a pas bloqué l'utilisateur */ }
     msg.textContent = t('form_ok');
     msg.className = 'form-msg ok';
     e.target.reset();
