@@ -450,32 +450,7 @@
         <li data-i18n="brain_li3">Un atout concret pour la vigilance, la gestion du stress et la performance au quotidien.</li>
       </ul>
     </div>
-    <div>
-      <div class="oscillo-card">
-        <svg viewBox="0 0 480 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Activation du cerveau par l'équilibre">
-          <defs>
-            <radialGradient id="brainGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stop-color="#2FE07C" stop-opacity="0.5"/>
-              <stop offset="100%" stop-color="#2FE07C" stop-opacity="0"/>
-            </radialGradient>
-          </defs>
-          <circle cx="226" cy="100" r="66" fill="none" stroke="rgba(243,247,241,0.16)" stroke-width="2"/>
-          <circle cx="262" cy="86" r="44" fill="url(#brainGlow)"/>
-          <path d="M194,86 q16,-16 36,-10 M196,104 q20,-10 40,-2 M202,122 q16,-6 32,2" fill="none" stroke="rgba(243,247,241,0.28)" stroke-width="1.6" stroke-linecap="round"/>
-          <path d="M250,80 q18,2 20,20 q2,16 -14,22" fill="none" stroke="#2FE07C" stroke-width="2.4" stroke-linecap="round"/>
-          <circle cx="316" cy="70" r="3" fill="#2FE07C"/>
-          <circle cx="330" cy="100" r="2.4" fill="#7DC8FF"/>
-          <circle cx="314" cy="130" r="2.6" fill="#2FE07C"/>
-          <line x1="300" y1="76" x2="310" y2="72" stroke="#2FE07C" stroke-width="1.6" stroke-linecap="round"/>
-          <line x1="302" y1="100" x2="324" y2="100" stroke="#7DC8FF" stroke-width="1.6" stroke-linecap="round"/>
-          <line x1="300" y1="124" x2="309" y2="129" stroke="#2FE07C" stroke-width="1.6" stroke-linecap="round"/>
-        </svg>
-        <div class="oscillo-legend">
-          <span class="oscillo-tag"><span class="sw" style="background:#2FE07C;"></span> <span data-i18n="brain_tag1">Mémoire & cognition (Rogge, 2017)</span></span>
-          <span class="oscillo-tag"><span class="sw" style="background:#7DC8FF;"></span> <span data-i18n="brain_tag2">Le cerveau change dès 1h (Taubert, 2016)</span></span>
-        </div>
-      </div>
-    </div>
+    <div class="benefit-visual" id="visualBrain"></div>
   </div>
 </section>
 
@@ -757,6 +732,7 @@ const DEFAULT_IMAGES = {
   hero: 'assets/site-hero-meeting.jpg',
   balance: 'assets/site-ski.jpg',
   mental: 'assets/site-science.jpg',
+  brain: 'assets/site-boardroom.jpg',
   social: 'assets/site-football.jpg',
   surmesure: 'assets/site-meditation.jpg',
 };
@@ -1312,6 +1288,7 @@ async function loadImages() {
   document.getElementById('heroVisual').style.backgroundImage = `url('${map.hero}')`;
   document.getElementById('visualBalance').style.backgroundImage = `url('${map.balance}')`;
   document.getElementById('visualMental').style.backgroundImage = `url('${map.mental}')`;
+  document.getElementById('visualBrain').style.backgroundImage = `url('${map.brain}')`;
   document.getElementById('visualSocial').style.backgroundImage = `url('${map.social}')`;
   document.getElementById('visualSurMesure').style.backgroundImage = `url('${map.surmesure}')`;
 }
