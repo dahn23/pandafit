@@ -603,6 +603,24 @@ const PandaFitBackend = (() => {
     }, extra || {});
   }
 
+  /** Appelle une fonction sécurisée Supabase (RPC). Les données sensibles (scores, codes
+   *  personnels, clés de tablette, réglages client) ne sont plus lisibles directement :
+   *  la tablette passe par ces fonctions, qui vérifient sa device_key côté serveur. */
+  async function rpc(name, args) {
+    const res = await fetch(`${REST}/rpc/${name}`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify(args || {}),
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`RPC ${name} refusée: ${res.status} ${errText}`);
+    }
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  }
+
   function getDeviceKey() {
     try { return localStorage.getItem(STORAGE_KEY); } catch (e) { return null; }
   }
@@ -615,14 +633,14 @@ const PandaFitBackend = (() => {
 
   /** Récupère le client + les jeux activés pour une device_key donnée. */
   async function fetchClientConfig(deviceKey) {
-    const devRes = await fetch(
-      `${REST}/devices?device_key=eq.${encodeURIComponent(deviceKey)}&select=id,name,client_id,clients(id,name,show_ready_to_play,show_index_banner,rh_pin,lock_games,index_sort_order,index_questionnaire_id,index_image_url,ads_enabled,show_benefits_page,show_initiation_page,satisfaction_enabled,home_display_mode,refresh_token,reload_token,nightly_reload_enabled,nightly_reload_hour)`,
-      { headers: headers(), cache: 'no-store' }
-    );
-    if (!devRes.ok) throw new Error('Impossible de contacter le serveur (devices).');
-    const devices = await devRes.json();
-    if (!devices.length) throw new Error("Clé de tablette inconnue. Vérifie auprès du superadmin PandaFit.");
-    const device = devices[0];
+    let boot;
+    try {
+      boot = await rpc('tablet_bootstrap', { p_device_key: deviceKey });
+    } catch (e) {
+      throw new Error('Impossible de contacter le serveur (tablette).');
+    }
+    if (!boot || !boot.device) throw new Error("Clé de tablette inconnue. Vérifie auprès du superadmin PandaFit.");
+    const device = { id: boot.device.id, name: boot.device.name, client_id: boot.device.client_id, clients: boot.client };
     const clientId = device.client_id;
     const clientName = device.clients ? device.clients.name : '—';
     const showReadyToPlay = device.clients ? device.clients.show_ready_to_play : true;
@@ -642,12 +660,9 @@ const PandaFitBackend = (() => {
     const nightlyReloadEnabled = device.clients ? (device.clients.nightly_reload_enabled !== false) : true;
     const nightlyReloadHour = device.clients ? (device.clients.nightly_reload_hour ?? 2) : 2;
 
-    const cgRes = await fetch(
-      `${REST}/client_games?client_id=eq.${clientId}&enabled=eq.true&select=game_id,sort_order,image_url,questionnaire_id,show_on_home&order=sort_order`,
-      { headers: headers(), cache: 'no-store' }
-    );
-    if (!cgRes.ok) throw new Error('Impossible de contacter le serveur (client_games).');
-    const rows = (await cgRes.json()).filter(r => r.game_id !== 'indextest');
+    const rows = (boot.client_games || []).filter(r => r.game_id !== 'indextest');
+    const deviceNames = {};
+    (boot.devices || []).forEach(d => { deviceNames[d.id] = d.name; });
     const enabledGameIds = rows.map(r => r.game_id);
     const gameSortOrders = {};
     const gameImages = {};
@@ -655,27 +670,20 @@ const PandaFitBackend = (() => {
     const gameShowOnHome = {};
     rows.forEach(r => { gameSortOrders[r.game_id] = r.sort_order || 0; gameImages[r.game_id] = r.image_url || null; gameQuestionnaires[r.game_id] = r.questionnaire_id || null; gameShowOnHome[r.game_id] = r.show_on_home !== false; });
 
-    return { deviceId: device.id, deviceName: device.name, clientId, clientName, enabledGameIds, gameSortOrders, gameImages, gameQuestionnaires, gameShowOnHome, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder, indexQuestionnaireId, indexImageUrl, adsEnabled, showBenefitsPage, showInitiationPage, satisfactionEnabled, homeDisplayMode, refreshToken, reloadToken, nightlyReloadEnabled, nightlyReloadHour };
+    return { deviceId: device.id, deviceName: device.name, deviceNames, clientId, clientName, enabledGameIds, gameSortOrders, gameImages, gameQuestionnaires, gameShowOnHome, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder, indexQuestionnaireId, indexImageUrl, adsEnabled, showBenefitsPage, showInitiationPage, satisfactionEnabled, homeDisplayMode, refreshToken, reloadToken, nightlyReloadEnabled, nightlyReloadHour };
   }
 
   /** Enregistre le score d'une partie terminée. */
   async function recordSession(config, gameId, score, meta, employeeId) {
     if (!config) return null;
     try {
-      const res = await fetch(`${REST}/sessions`, {
-        method: 'POST',
-        headers: headers({ Prefer: 'return=representation' }),
-        body: JSON.stringify({
-          device_id: config.deviceId,
-          client_id: config.clientId,
-          game_id: gameId,
-          score: Math.round(score || 0),
-          meta: meta || null,
-          employee_id: employeeId || null,
-        }),
+      return await rpc('tablet_record_play', {
+        p_device_key: getDeviceKey(),
+        p_game_id: gameId,
+        p_score: Math.round(score || 0),
+        p_meta: meta || null,
+        p_employee_id: employeeId || null,
       });
-      const rows = res.ok ? await res.json() : [];
-      return rows[0]?.id || null;
     } catch (e) { return null; /* pas grave si ça échoue ponctuellement, on ne bloque pas le jeu */ }
   }
 
@@ -697,10 +705,10 @@ const PandaFitBackend = (() => {
   async function recordQuestionResponses(sessionId, answers) {
     if (!sessionId || !answers || !answers.length) return;
     try {
-      await fetch(`${REST}/question_responses`, {
-        method: 'POST',
-        headers: headers({ Prefer: 'return=minimal' }),
-        body: JSON.stringify(answers.map(a => ({ session_id: sessionId, question_id: a.questionId, option_id: a.optionId }))),
+      await rpc('tablet_record_answers', {
+        p_device_key: getDeviceKey(),
+        p_session_id: sessionId,
+        p_answers: answers.map(a => ({ question_id: a.questionId, option_id: a.optionId })),
       });
     } catch (e) { /* pas grave si ça échoue ponctuellement */ }
   }
@@ -708,23 +716,14 @@ const PandaFitBackend = (() => {
   /** Retrouve un employé à partir de son code personnel. */
   async function findEmployeeByCode(config, code) {
     try {
-      const res = await fetch(`${REST}/employees?claim_token=eq.${encodeURIComponent(code.trim().toUpperCase())}&select=*`, { headers: headers(), cache: 'no-store' });
-      const rows = res.ok ? await res.json() : [];
-      return rows[0] || null;
+      return await rpc('tablet_find_employee', { p_device_key: getDeviceKey(), p_code: code });
     } catch (e) { return null; }
   }
 
-  /** Crée un nouvel employé (anonyme au départ) avec un code personnel unique. */
+  /** Crée un nouvel employé (anonyme au départ) ; le code personnel unique est généré côté serveur. */
   async function createEmployee(config) {
-    const code = Array.from({ length: 6 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
     try {
-      const res = await fetch(`${REST}/employees`, {
-        method: 'POST',
-        headers: headers({ Prefer: 'return=representation' }),
-        body: JSON.stringify({ client_id: config.clientId, claim_token: code }),
-      });
-      const rows = res.ok ? await res.json() : [];
-      return rows[0] || null;
+      return await rpc('tablet_new_employee', { p_device_key: getDeviceKey() });
     } catch (e) { return null; }
   }
 
@@ -738,14 +737,10 @@ const PandaFitBackend = (() => {
         const fullRanking = rows.map(r => ({ name: r.name, total: r.score }));
         return { mode: 'arcade', yours: fullRanking[0]?.total || 0, yoursLabel: 'Meilleur score actuel', fullRanking };
       }
-      const res = await fetch(
-        `${REST}/sessions?client_id=eq.${config.clientId}&game_id=eq.${defi.game_id}&played_at=gte.${defi.start_date}&played_at=lte.${defi.end_date}T23:59:59&select=score,device_id`,
-        { headers: headers(), cache: 'no-store' }
-      );
-      const rows = res.ok ? await res.json() : [];
+      const rows = (await rpc('tablet_defi_totals', { p_device_key: getDeviceKey(), p_defi_id: defi.id })) || [];
       if (defi.mode === 'tablet_vs_tablet') {
         const byDevice = {};
-        rows.forEach(r => { byDevice[r.device_id] = (byDevice[r.device_id] || 0) + (r.score || 0); });
+        rows.forEach(r => { byDevice[r.device_id] = Number(r.total) || 0; });
         const yours = byDevice[config.deviceId] || 0;
         const fullRanking = Object.entries(byDevice)
           .map(([devId, total]) => ({ name: devicesCache[devId] || 'Tablette', total }))
@@ -753,26 +748,19 @@ const PandaFitBackend = (() => {
         const leader = fullRanking[0];
         return { mode: 'tablet_vs_tablet', yours, yoursLabel: 'Ta tablette', leaderName: leader?.name, leaderPoints: leader?.total || 0, fullRanking };
       }
-      const total = rows.reduce((a, r) => a + (r.score || 0), 0);
+      const total = rows.reduce((a, r) => a + (Number(r.total) || 0), 0);
       return { mode: 'company_total', yours: total, yoursLabel: 'Total entreprise', fullRanking: [{ name: 'Total entreprise', total }] };
     } catch (e) { return null; }
   }
 
   async function computeChallengeStandings(challenge, config) {
     try {
-      const participants = challenge.challenge_participants || [];
-      const participantIds = participants.map(p => p.client_id);
-      if (!participantIds.length) return null;
-      const idsFilter = participantIds.join(',');
-      const res = await fetch(
-        `${REST}/sessions?client_id=in.(${idsFilter})&game_id=eq.${challenge.game_id}&played_at=gte.${challenge.start_date}&played_at=lte.${challenge.end_date}T23:59:59&select=score,client_id`,
-        { headers: headers(), cache: 'no-store' }
-      );
-      const rows = res.ok ? await res.json() : [];
-      const totals = {};
-      rows.forEach(r => { totals[r.client_id] = (totals[r.client_id] || 0) + (r.score || 0); });
-      const standings = participantIds
-        .map(cid => ({ clientId: cid, name: participants.find(p => p.client_id === cid)?.clients?.name || '—', total: totals[cid] || 0 }))
+      const rows = (await rpc('tablet_challenge_totals', { p_device_key: getDeviceKey(), p_challenge_id: challenge.id })) || [];
+      if (!rows.length) return null;
+      // Les noms des entreprises participantes viennent de la fonction sécurisée (affichage « A vs B »).
+      challenge.challenge_participants = rows.map(r => ({ client_id: r.client_id, clients: { name: r.name } }));
+      const standings = rows
+        .map(r => ({ clientId: r.client_id, name: r.name || '—', total: Number(r.total) || 0 }))
         .sort((a, b) => b.total - a.total);
       const yours = standings.find(s => s.clientId === config.clientId)?.total || 0;
       const leader = standings[0];
@@ -784,25 +772,22 @@ const PandaFitBackend = (() => {
     if (!config) return { mainHighlights: [] };
     const today = new Date().toISOString().slice(0, 10);
     try {
-      const [defisRes, participRes, eventsRes, devicesRes] = await Promise.all([
+      const [defisRes, participRes, eventsRes] = await Promise.all([
         fetch(`${REST}/defis?client_id=eq.${config.clientId}&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*,games(name)`, { headers: headers(), cache: 'no-store' }),
         fetch(`${REST}/challenge_participants?client_id=eq.${config.clientId}&select=challenge_id`, { headers: headers(), cache: 'no-store' }),
         fetch(`${REST}/events?client_id=eq.${config.clientId}&end_date=gte.${today}&is_active=eq.true&select=*,event_devices(device_id)`, { headers: headers(), cache: 'no-store' }),
-        fetch(`${REST}/devices?client_id=eq.${config.clientId}&select=id,name`, { headers: headers(), cache: 'no-store' }),
       ]);
       const defisActive = defisRes.ok ? await defisRes.json() : [];
       const participations = participRes.ok ? await participRes.json() : [];
       const eventsAll = eventsRes.ok ? await eventsRes.json() : [];
-      const devicesList = devicesRes.ok ? await devicesRes.json() : [];
-      const devicesCache = {};
-      devicesList.forEach(d => { devicesCache[d.id] = d.name; });
+      const devicesCache = config.deviceNames || {};
 
       let challengesActive = [];
       const challengeIds = participations.map(p => p.challenge_id);
       if (challengeIds.length) {
         const idsFilter = challengeIds.join(',');
         const chRes = await fetch(
-          `${REST}/challenges?id=in.(${idsFilter})&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*,games(name),challenge_participants(client_id,clients(name))`,
+          `${REST}/challenges?id=in.(${idsFilter})&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*,games(name)`,
           { headers: headers(), cache: 'no-store' }
         );
         challengesActive = chRes.ok ? await chRes.json() : [];
@@ -898,10 +883,7 @@ const PandaFitBackend = (() => {
    *  requête légère, pour le polling. Renvoie { refresh_token, reload_token } ou null. */
   async function fetchTabletSignals(clientId) {
     try {
-      const res = await fetch(`${REST}/clients?id=eq.${clientId}&select=refresh_token,reload_token`, { headers: headers(), cache: 'no-store' });
-      if (!res.ok) return null;
-      const rows = await res.json();
-      return rows[0] || null;
+      return await rpc('tablet_signals', { p_device_key: getDeviceKey() });
     } catch (e) { return null; }
   }
   async function setHomeDisplayMode(mode) {
@@ -920,12 +902,7 @@ const PandaFitBackend = (() => {
   }
   async function submitSatisfactionResponse(clientId, deviceId, rating) {
     try {
-      const res = await fetch(`${REST}/satisfaction_responses`, {
-        method: 'POST',
-        headers: headers({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
-        body: JSON.stringify({ client_id: clientId, device_id: deviceId, rating }),
-      });
-      return res.ok;
+      return !!(await rpc('tablet_submit_satisfaction', { p_device_key: getDeviceKey(), p_rating: rating }));
     } catch (e) { return false; }
   }
 
@@ -950,17 +927,8 @@ const PandaFitBackend = (() => {
   }
   async function submitArcadeScore(defiId, name, score) {
     try {
-      const res = await fetch(`${REST}/defi_arcade_scores`, {
-        method: 'POST',
-        headers: headers({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
-        body: JSON.stringify({ defi_id: defiId, name: (name || '').slice(0, 10), score }),
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        console.error('submitArcadeScore a échoué:', res.status, errText);
-      }
-      return res.ok;
-    } catch (e) { console.error('submitArcadeScore exception:', e); return false; }
+      return !!(await rpc('tablet_submit_arcade', { p_device_key: getDeviceKey(), p_defi_id: defiId, p_name: (name || '').slice(0, 10), p_score: score }));
+    } catch (e) { console.error('submitArcadeScore a échoué:', e); return false; }
   }
 
   return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore, fetchSatisfactionSettings, submitSatisfactionResponse, setHomeDisplayMode, fetchTabletSignals };

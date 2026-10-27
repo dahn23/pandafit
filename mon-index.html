@@ -66,6 +66,13 @@ const REST = SUPABASE_URL + '/rest/v1';
 function headers(extra) {
   return Object.assign({ apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' }, extra || {});
 }
+/** Fonction sécurisée Supabase : ne renvoie que les données du code personnel fourni. */
+async function rpc(name, args) {
+  const res = await fetch(`${REST}/rpc/${name}`, { method: 'POST', headers: headers(), body: JSON.stringify(args || {}) });
+  if (!res.ok) throw new Error(`RPC ${name} refusée: ${res.status}`);
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
 
 const app = document.getElementById('app');
 const params = new URLSearchParams(location.search);
@@ -75,13 +82,11 @@ let sessions = [];
 
 async function init() {
   if (!token) { renderError("Lien invalide : aucun code fourni."); return; }
-  const res = await fetch(`${REST}/employees?claim_token=eq.${encodeURIComponent(token)}&select=*`, { headers: headers() });
-  const rows = res.ok ? await res.json() : [];
-  if (!rows.length) { renderError("Ce code ne correspond à aucun profil. Vérifie le lien ou scanne à nouveau ton QR code."); return; }
-  employee = rows[0];
-
-  const sRes = await fetch(`${REST}/sessions?employee_id=eq.${employee.id}&game_id=eq.indextest&select=score,played_at,clients(name)&order=played_at.asc`, { headers: headers() });
-  sessions = sRes.ok ? await sRes.json() : [];
+  let history = null;
+  try { history = await rpc('my_history', { p_token: token }); } catch (e) { history = null; }
+  if (!history) { renderError("Ce code ne correspond à aucun profil. Vérifie le lien ou scanne à nouveau ton QR code."); return; }
+  employee = { first_name: history.first_name, claim_token: history.claim_token };
+  sessions = history.sessions || [];
 
   if (!employee.first_name) renderClaimForm();
   else renderProfile();
@@ -109,10 +114,7 @@ function renderClaimForm() {
     const first_name = document.getElementById('firstName').value.trim();
     const email = document.getElementById('email').value.trim() || null;
     if (!first_name) return;
-    await fetch(`${REST}/employees?id=eq.${employee.id}`, {
-      method: 'PATCH', headers: headers({ Prefer: 'return=minimal' }),
-      body: JSON.stringify({ first_name, email }),
-    });
+    try { await rpc('my_profile_update', { p_token: token, p_first_name: first_name, p_email: email }); } catch (e) { /* on affiche quand même le profil */ }
     employee.first_name = first_name;
     renderProfile();
   });
