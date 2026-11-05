@@ -25,10 +25,22 @@ PandaFit = application web pour **tablette**, autour d'un **capteur d'équilibre
 - Dan préfère des réponses **concises et décisives**. Éviter les longues boucles de débogage : proposer une **voie de secours AVANT** de s'enfoncer, pas après. Ne pas zigzaguer sur les recommandations.
 
 ## Architecture Supabase (important)
-- Table `clients` : **lisible par tous** (anon), **modifiable seulement** par `authenticated`.
+- Tables `clients` / `projects` : lecture et écriture réservées aux comptes `authenticated` autorisés (RLS `pf_can_client` / `pf_can_project`). La tablette passe uniquement par des RPC `tablet_*`.
 - La **tablette** utilise la clé anon et s'identifie par une `device_key` (pas de login) → elle ne peut PAS écrire dans `clients` directement.
 - Pour laisser le RH écrire un réglage depuis la tablette → **fonction RPC `SECURITY DEFINER`** qui vérifie la `device_key` et ne modifie qu'un champ précis (ex. `set_home_display_mode`). Grant à `anon`.
 - La console admin écrit via un compte `authenticated` (superadmin).
+
+## Modèle PROJETS (depuis le 05.11.2026) — à lire avant de toucher tablette / console / coach
+**Client → Projets → Séances (événements).** Le client n'est plus qu'une fiche (détail, historique, stats, questionnaires, espace RH). **Tout se règle par projet.**
+- Table `projects` : un projet = ce qui est vendu (`offer` : decouverte, team_building, mois_equilibre, campagne_annuelle, abonnement, demo_vip), avec **UN code** `PANDA-XXXX` (que les tablettes rejoignent) et un **`pin`** (Réglages de la tablette). Il porte aussi tous les réglages tablette d'avant (jeux via `project_games`, accueil, pubs `client_ads.project_id`, satisfaction, défis `defis.project_id`, annonces `events.project_id`, refresh/reload/nocturne).
+- `event_sessions.project_id` : les séances du projet. **Dates indicatives : c'est le coach qui démarre (`coach_start`, statut `en_cours`) et termine (`coach_end` / `coach_close`) chaque séance**, depuis son espace ou les Réglages de la tablette (`tablet_project_action`, PIN revérifié côté serveur). Une seule séance en cours à la fois par projet.
+- Projet terminé tout seul (trigger) quand sa dernière séance est terminée — sauf `abonnement` / `campagne_annuelle` : fin à `ends_on`. Libre-service (`pf_offer_libre`) = mois, campagne, abonnement.
+- **Tablettes** : appartiennent à PandaFit. `devices.project_id` + `poste` (`index` / `jeux` / id d'un jeu = station Triathlon) + `last_seen_at`. Hors projet = **au parc** (client technique `PandaFit (parc)`, id `…0000aa`, `pf_parc_client()`), écran « Entre le code du projet ». `devices.client_id` suit le projet (parc sinon). Retour au parc automatique quand le projet se termine (`pf_tablet_device`).
+- Tablette (`index.html`) : `tabletMode()` = parc / seance / libre / attente ; `tablet_bootstrap` renvoie projet + séance en cours (`live`) + poste ; `refreshEventState()` relit `tablet_state` toutes les 8 s. Code renvoyé à la tablette = **code du projet** (`pf_active_event(code)` accepte code projet ou ancien code de séance).
+- Console : onglet **Projets** (liste, fiche projet à onglets, « Parc de tablettes » pour le superadmin). Les anciens onglets client (jeux, pubs, défis…) sont réutilisés dans la fiche projet (`currentProject`, `selectedProjectId`, `loadProjectDetail()`).
+- Coach : fiche mission = code projet + PIN + carte « Séance et tablettes » (`coach_project`, `coach_set_poste`, `coach_remove_device`).
+- Espace RH : réglages de l'écran de la borne = ceux du projet libre-service en cours (`pf_hr_project()`), sinon masqués.
+- Projets de test : PANDA-3MA8 (Mois, Ipad Dan jusqu'au 19.11), PANDA-MIGR (Découverte), PANDA-TEAM (Team building), PANDA-PAST (terminé), SUVA « Abonnement (démo) » (tablette Yann). Tablette Test = au parc.
 
 ## Fonctionnalités construites (2026-08)
 
@@ -38,22 +50,22 @@ PandaFit = application web pour **tablette**, autour d'un **capteur d'équilibre
 - Préfixes de nom du capteur : `ASI_BLE` / `AdMOS_BLE` / `PandaFit`.
 
 ### Affichage de l'accueil : « disponible » vs « affiché »
-- **Disponible** (admin seulement) : `clients.ads_enabled` + `clients.satisfaction_enabled`, **indépendants** (peut être les deux).
-- **Affiché** (admin OU RH) : `clients.home_display_mode` ∈ `auto` / `satisfaction` / `ads` / `none`.
+- **Disponible** (admin seulement) : `projects.ads_enabled` + `projects.satisfaction_enabled` (avant : sur le client), **indépendants** (peut être les deux).
+- **Affiché** (admin OU RH) : `projects.home_display_mode` ∈ `auto` / `satisfaction` / `ads` / `none`.
 - Le RH change l'affichage depuis **Réglages** (protégé par code PIN) via la RPC `set_home_display_mode`. `resolveHomeMode()` gère le rendu, avec garde anti-incohérence (repli sur `auto` si le contenu choisi n'est plus dispo).
 
 ### Mise à jour à distance des tablettes
-- **Refresh doux** : `clients.refresh_token` (bumpé par l'admin). La tablette poll toutes les ~20 s (`fetchTabletSignals`) → `softRefresh()` = re-fetch données + re-render **SANS reload** (garde le Bluetooth, n'interrompt pas une partie).
-- **Rechargement complet** : `clients.reload_token` → `hardReloadApp()` (vide caches + `location.reload`). Puis reconnexion Bluetooth auto.
-- **Nocturne** : par client, `clients.nightly_reload_enabled` + `clients.nightly_reload_hour` (0-23). `startNightlyReload()` relit la config en direct.
-- Console admin → onglet **Tablettes** : carte « Mettre à jour les tablettes » (refresh doux / rechargement / nocturne).
+- **Refresh doux** : `projects.refresh_token` (parc : `clients.refresh_token` du client parc) (bumpé par l'admin). La tablette poll toutes les ~20 s (`fetchTabletSignals`) → `softRefresh()` = re-fetch données + re-render **SANS reload** (garde le Bluetooth, n'interrompt pas une partie).
+- **Rechargement complet** : `projects.reload_token` → `hardReloadApp()` (vide caches + `location.reload`). Puis reconnexion Bluetooth auto.
+- **Nocturne** : par projet, `projects.nightly_reload_enabled` + `projects.nightly_reload_hour` (0-23). `startNightlyReload()` relit la config en direct.
+- Console → fiche projet → onglet **Tablettes** : carte « Mettre à jour les tablettes du projet » (refresh doux / rechargement / nocturne).
 
 ### Langues (FR / DE / EN / IT)
 - Tablette : les écrans sont écrits en français et traduits à l'affichage par `UI_DICT_ROWS` (lignes `[fr, de, en, it]`, clé = texte français exact) + `UI_RULES` (textes avec nombres). **Toute nouvelle phrase affichée sur la tablette = ajouter sa ligne dans `UI_DICT_ROWS`.** Éviter de couper une phrase par des `<b>` / dates : mettre les valeurs dans leur propre élément.
 - Projection, inscription, rapport : dictionnaires propres à chaque page, langue = `event_sessions.language`.
 
-### Mode séance (code PANDA-XXXX saisi)
-- Plus de menus : accueil = « Passer mon PandaFit Index » (ou écran Triathlon), routes limitées à home / indextest / settings / calibrate / initiation. Coach : roue discrète en bas à droite → Réglages (PIN redemandé à chaque retour).
+### Mode séance (séance en cours dans le projet)
+- Au parc, en attente et en séance : plus de menus (`isKiosk()`). Séance : accueil selon le poste (Index, grille des jeux, station Triathlon). Pas de bannière pub / satisfaction hors libre-service. Coach : roue discrète en bas à droite → Réglages (PIN redemandé à chaque retour).
 
 ### PWA
 - App installable en plein écran. Manifest **externe** `manifest.webmanifest` (⚠️ un manifest data-URI ne permet PAS l'install WebAPK Android). `sw.js` en **network-first** (jamais de code périmé). Icônes 192 + 512.
