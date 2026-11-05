@@ -294,26 +294,20 @@ function renderLogin(errorMsg) {
   });
 }
 
-/* ---------------- Compte admin courant (bootstrap + permissions) ---------------- */
+/* ---------------- Compte admin courant (rôle + permissions) ---------------- */
 let currentAdmin = null;
+let loginNotice = null;
 
 async function loadCurrentAdmin() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) { currentAdmin = null; return; }
-  let { data: rows } = await sb.from('admin_users').select('*').eq('user_id', user.id);
-  if (!rows || !rows.length) {
-    // Premier compte à se connecter jamais = superadmin par défaut (bootstrap)
-    const { data: existingAny } = await sb.from('admin_users').select('id').limit(1);
-    const isFirstEver = !existingAny || !existingAny.length;
-    const { data: created } = await sb.from('admin_users')
-      .insert({ user_id: user.id, email: user.email, is_superadmin: isFirstEver })
-      .select();
-    rows = created;
-  }
+  const { data: rows } = await sb.from('admin_users').select('*').eq('user_id', user.id);
   currentAdmin = rows?.[0] || null;
-  if (currentAdmin && !currentAdmin.is_superadmin) {
-    const { data: access } = await sb.from('admin_client_access').select('client_id').eq('admin_user_id', currentAdmin.id);
-    currentAdmin.allowedClientIds = (access || []).map(a => a.client_id);
+  // Comptes sur invitation uniquement : sans fiche admin_users, pas d'accès à la console
+  if (!currentAdmin) {
+    await sb.auth.signOut();
+    session = null;
+    loginNotice = "Ce compte n'a pas d'accès à la console. Demande une invitation à un superadmin.";
   }
 }
 function adminCan(permKey) {
@@ -324,12 +318,9 @@ function adminCan(permKey) {
 
 /* ---------------- Data loading ---------------- */
 async function loadClients() {
+  // Les règles d'accès de la base ne renvoient que les clients du périmètre de l'admin connecté
   const { data } = await sb.from('clients').select('*, devices(count)').order('name');
-  let all = data || [];
-  if (currentAdmin && !currentAdmin.is_superadmin) {
-    all = all.filter(c => (currentAdmin.allowedClientIds || []).includes(c.id));
-  }
-  clients = all;
+  clients = data || [];
   if (!selectedClientId && clients.length) selectedClientId = clients[0].id;
 }
 async function loadClientDetail(clientId) {
@@ -368,7 +359,7 @@ async function uploadBanner(file) {
 
 /* ---------------- Render shell ---------------- */
 async function render() {
-  if (!session) { renderLogin(); return; }
+  if (!session) { renderLogin(loginNotice); loginNotice = null; return; }
   if (!clients.length) await loadClients();
   if (topView === 'clients') {
     if (viewMode === 'client' && selectedClientId) await loadClientDetail(selectedClientId);
@@ -387,7 +378,7 @@ async function render() {
 
   app.innerHTML = `
     <div class="topbar">
-      <div class="brand"><div class="mark">PF</div>PandaFit — Superadmin</div>
+      <div class="brand"><div class="mark">PF</div>PandaFit — ${ROLE_LABELS[currentAdmin?.role] || 'Admin'}</div>
       <button class="btn-ghost" id="btnChangePass" title="Changer mon mot de passe">Mot de passe</button>
       <button class="btn-ghost" id="btnLogout">Se déconnecter</button>
     </div>
@@ -3069,12 +3060,19 @@ const PERMISSION_DEFS = [
   { key: 'menu_globalstats', label: 'Accès aux Statistiques globales' },
   { key: 'menu_calendar', label: 'Accès au Calendrier' },
   { key: 'create_challenges', label: 'Créer des Challenges (inter-clients)' },
-  { key: 'manage_content', label: 'Gérer le Contenu global (jeux + Index)' },
+  { key: 'can_open_clients', label: 'Ouvrir des comptes clients dans ses territoires (sinon : demande au superadmin)' },
 ];
+// Le contenu global (jeux, Index, site) reste réservé au superadmin : c'est appliqué par la base.
+const ROLE_LABELS = { superadmin: 'Superadmin', territory_admin: 'Admin de territoire', coach: 'Coach', client_hr: 'Client RH' };
+let territoriesList = [];
 
 async function loadAdminUsers() {
-  const { data } = await sb.from('admin_users').select('*, admin_client_access(client_id)').order('created_at');
+  const [{ data }, { data: terr }] = await Promise.all([
+    sb.from('admin_users').select('*, admin_client_access(client_id), user_territories(territory_id)').order('created_at'),
+    sb.from('territories').select('*').order('name'),
+  ]);
   adminUsersList = data || [];
+  territoriesList = terr || [];
 }
 
 async function renderAccessView() {
@@ -3103,13 +3101,16 @@ async function renderAccessView() {
     <div class="card">
       <h3>Comptes existants</h3>
       <table>
-        <tr><th>Email</th><th>Nom</th><th>Rôle</th><th>Clients</th><th></th></tr>
+        <tr><th>Email</th><th>Nom</th><th>Rôle</th><th>Périmètre</th><th></th></tr>
         ${adminUsersList.map(a => `
           <tr>
             <td>${a.email}</td>
             <td>${a.display_name || '—'}</td>
-            <td>${a.is_superadmin ? '<span class="badge">Superadmin</span>' : 'Admin'}</td>
-            <td>${a.is_superadmin ? 'Tous' : (a.admin_client_access?.length || 0)}</td>
+            <td>${a.is_superadmin ? '<span class="badge">Superadmin</span>' : (ROLE_LABELS[a.role] || 'Admin')}</td>
+            <td>${a.is_superadmin ? 'Tout' : [
+              ...(a.user_territories || []).map(ut => territoriesList.find(t => t.id === ut.territory_id)?.name).filter(Boolean),
+              (a.admin_client_access?.length ? `${a.admin_client_access.length} client(s)` : ''),
+            ].filter(Boolean).join(' · ') || 'Aucun'}</td>
             <td>
               ${!a.is_superadmin ? `<button class="btn-ghost" data-edit-admin="${a.id}">Modifier</button>
               <button class="btn-destructive" data-del-admin="${a.id}">Supprimer</button>` : ''}
@@ -3154,13 +3155,29 @@ function renderAdminEditor() {
   const admin = adminUsersList.find(a => a.id === editingAdminId);
   if (!admin) { editingAdminId = null; renderAccessView(); return; }
   const assignedClientIds = (admin.admin_client_access || []).map(a => a.client_id);
+  const assignedTerritoryIds = (admin.user_territories || []).map(t => t.territory_id);
 
   main.innerHTML = `
     <button class="btn-ghost" id="btnBackAccess" style="margin-bottom:14px;">← Retour aux accès</button>
     <div class="card">
       <h3>${admin.email}</h3>
       <input id="editAdminName" placeholder="Nom" value="${admin.display_name || ''}" style="margin-bottom:10px;">
+      <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Rôle</div>
+      <select id="editAdminRole" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);margin-bottom:10px;">
+        <option value="territory_admin" ${admin.role === 'territory_admin' ? 'selected' : ''}>Admin de territoire (équipe commerciale ou franchisé)</option>
+        <option value="superadmin" ${admin.role === 'superadmin' ? 'selected' : ''}>Superadmin (tous les droits)</option>
+      </select>
       <button class="btn-ghost" id="btnSendReset" style="width:auto;">Envoyer un email de réinitialisation du mot de passe</button>
+    </div>
+    <div class="card">
+      <h3>Territoires</h3>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">L'admin voit et gère tous les clients et prospects de ces territoires.</p>
+      ${territoriesList.map((t, i) => `
+        <span class="client-check-row">
+          <input type="checkbox" class="territory-check" id="territory-check-${i}" value="${t.id}" ${assignedTerritoryIds.includes(t.id) ? 'checked' : ''}>
+          <label for="territory-check-${i}">${t.name}${t.kind === 'franchise' ? ' (franchise)' : ''}</label>
+        </span>
+      `).join('')}
     </div>
     <div class="card">
       <h3>Permissions</h3>
@@ -3174,8 +3191,8 @@ function renderAdminEditor() {
       </table>
     </div>
     <div class="card">
-      <h3>Clients assignés</h3>
-      <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">L'admin aura toutes les options (comme toi) sur les clients cochés ici.</p>
+      <h3>Clients supplémentaires</h3>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">En plus de ses territoires, l'admin gère aussi les clients cochés ici.</p>
       ${clients.map((c, i) => `
         <span class="client-check-row">
           <input type="checkbox" class="client-check" id="client-check-${i}" value="${c.id}" ${assignedClientIds.includes(c.id) ? 'checked' : ''}>
@@ -3196,11 +3213,19 @@ function renderAdminEditor() {
     const permissions = {};
     main.querySelectorAll('.perm-check').forEach(cb => { permissions[cb.dataset.perm] = cb.checked; });
     const selectedClientIds = [...main.querySelectorAll('.client-check:checked')].map(cb => cb.value);
+    const selectedTerritoryIds = [...main.querySelectorAll('.territory-check:checked')].map(cb => cb.value);
+    const role = document.getElementById('editAdminRole').value;
+    if (role === 'superadmin' && !confirm(`Donner TOUS les droits à ${admin.email} (superadmin) ?`)) return;
 
-    await sb.from('admin_users').update({ display_name, permissions }).eq('id', admin.id);
+    const { error } = await sb.from('admin_users').update({ display_name, permissions, role }).eq('id', admin.id);
+    if (error) { alert('Erreur : ' + error.message); return; }
     await sb.from('admin_client_access').delete().eq('admin_user_id', admin.id);
     if (selectedClientIds.length) {
       await sb.from('admin_client_access').insert(selectedClientIds.map(cid => ({ admin_user_id: admin.id, client_id: cid })));
+    }
+    await sb.from('user_territories').delete().eq('admin_user_id', admin.id);
+    if (selectedTerritoryIds.length) {
+      await sb.from('user_territories').insert(selectedTerritoryIds.map(tid => ({ admin_user_id: admin.id, territory_id: tid })));
     }
     editingAdminId = null;
     renderAccessView();
