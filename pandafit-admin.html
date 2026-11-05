@@ -149,6 +149,30 @@
   .tc-action-btn:hover { background: rgba(0,0,0,0.65); }
   .thumb-card.dragging { opacity: 0.4; }
   .menu-section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin: 4px 0 10px; }
+
+  /* --- Contenu en mode clair (moins fatigant) ; la barre du haut, les onglets et la liste des clients restent en mode nuit --- */
+  #topViewContainer {
+    --panel: #ffffff; --panel-hi: #eef1f5; --text: #1d2130; --text-dim: #5f6677; --border: #dfe3ea;
+    background: #f3f5f8; color: var(--text); min-height: calc(100vh - 108px);
+  }
+  #topViewContainer .sidebar {
+    --panel: #241d38; --panel-hi: #2c2444; --text: #f4f2fa; --text-dim: #9992ad; --border: #35294f;
+    background: var(--bg); color: var(--text); border-right: none;
+  }
+  #topViewContainer .card, #topViewContainer .stat-box { border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(20,25,40,.05); }
+  #topViewContainer .main input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+  #topViewContainer .main select, #topViewContainer .main textarea {
+    background: #fff !important; color: var(--text) !important; border: 1px solid #cfd5df !important;
+  }
+  #topViewContainer .main input:focus, #topViewContainer .main select:focus, #topViewContainer .main textarea:focus { border-color: var(--primary) !important; outline: none; }
+  #topViewContainer .btn-destructive { background: rgba(230,55,78,.1); color: #c42a3c; }
+  #topViewContainer .error-msg { color: #c42a3c; }
+  #topViewContainer .badge-brouillon { background: rgba(24,90,157,.12); color: #1d5fa8; }
+  #topViewContainer .badge-envoyee { background: rgba(224,168,62,.18); color: #8a5d00; }
+  #topViewContainer .badge-payee { background: rgba(67,206,162,.16); color: #0f8a63; }
+  /* Onglets d'un client : ils passent à la ligne au lieu de déborder */
+  .tabs { flex-wrap: wrap; }
+  .tab { white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -1234,20 +1258,20 @@ async function renderStatsTab() {
   charts.byDay = new Chart(document.getElementById('chartByDay'), {
     type: 'bar',
     data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: countsByDay, backgroundColor: '#43cea2', borderRadius: 4 }] },
-    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#9992ad' } }, x: { ticks: { color: '#9992ad', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#5f6677' } }, x: { ticks: { color: '#5f6677', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
   });
 
   charts.indexAvg = new Chart(document.getElementById('chartIndexAvg'), {
     type: 'line',
     data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: avgIndexByDay, spanGaps: true, borderColor: '#c86dd7', backgroundColor: 'rgba(200,109,215,0.15)', fill: true, tension: 0.3 }] },
-    options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100, ticks: { color: '#9992ad' } }, x: { ticks: { color: '#9992ad', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
+    options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100, ticks: { color: '#5f6677' } }, x: { ticks: { color: '#5f6677', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
   });
 
   const gameLabels = Object.keys(countByGame).map(id => games.find(g => g.id === id)?.name || id);
   charts.byGame = new Chart(document.getElementById('chartByGame'), {
     type: 'doughnut',
     data: { labels: gameLabels, datasets: [{ data: Object.values(countByGame), backgroundColor: ['#43cea2', '#185a9d', '#c86dd7', '#e6374e', '#e0a83e', '#3023ae'] }] },
-    options: { plugins: { legend: { position: 'right', labels: { color: '#f4f2fa' } } } }
+    options: { plugins: { legend: { position: 'right', labels: { color: '#5f6677' } } } }
   });
 }
 
@@ -3059,17 +3083,17 @@ async function renderGlobalStatsView() {
   charts.gsByDay = new Chart(document.getElementById('gsChartByDay'), {
     type: 'bar',
     data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: stats.countsByDay, backgroundColor: '#43cea2', borderRadius: 4 }] },
-    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#9992ad' } }, x: { ticks: { color: '#9992ad', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#5f6677' } }, x: { ticks: { color: '#5f6677', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
   });
   charts.gsIndex = new Chart(document.getElementById('gsChartIndex'), {
     type: 'line',
     data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: stats.avgIndexByDay, spanGaps: true, borderColor: '#c86dd7', backgroundColor: 'rgba(200,109,215,0.15)', fill: true, tension: 0.3 }] },
-    options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100, ticks: { color: '#9992ad' } }, x: { ticks: { color: '#9992ad', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
+    options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100, ticks: { color: '#5f6677' } }, x: { ticks: { color: '#5f6677', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
   });
   charts.gsByGame = new Chart(document.getElementById('gsChartByGame'), {
     type: 'doughnut',
     data: { labels: gameLabels, datasets: [{ data: Object.values(stats.countByGame), backgroundColor: ['#43cea2', '#185a9d', '#c86dd7', '#e6374e', '#e0a83e', '#3023ae'] }] },
-    options: { plugins: { legend: { position: 'right', labels: { color: '#f4f2fa' } } } }
+    options: { plugins: { legend: { position: 'right', labels: { color: '#5f6677' } } } }
   });
 }
 
