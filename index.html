@@ -2416,6 +2416,9 @@ let clientConfig = null; // { deviceId, deviceName, clientId, clientName, enable
 const EVENT_STORAGE_KEY = 'pandafit_event';
 let activeEvent = null; // { id, code, client, title, offer, games, ambiance, language, starts_at, ends_at }
 let lastIndexSessionId = null;
+// Code personnel + QR d'historique : masqués pour l'instant (décision Dan 05.11.2026, ça surcharge l'écran).
+// Le code reste créé en arrière-plan (comptage des participants) ; à réactiver pour le Mois de l'équilibre (progression avant / après).
+const SHOW_PERSONAL_CODE = false;
 function saveActiveEvent() {
   try { activeEvent ? localStorage.setItem(EVENT_STORAGE_KEY, JSON.stringify(activeEvent)) : localStorage.removeItem(EVENT_STORAGE_KEY); } catch (e) {}
 }
@@ -5235,7 +5238,7 @@ function screenIndexResult(overall, staticResult, movementResult) {
       <div class="result-stat"><span>Régularité du mouvement</span><span>${movementResult.regularityScore}/100</span></div>
       <div class="result-stat"><span>Amplitude du mouvement</span><span>${movementResult.amplitudeCm} cm</span></div>
     </div>
-    ${currentEmployee ? `
+    ${SHOW_PERSONAL_CODE && currentEmployee ? `
       <div class="card" style="margin-top:16px;text-align:center;">
         <h2>Garde ton PandaFit Index</h2>
         <p class="page-sub">Scanne ce code avec l'appareil photo de <b>ton téléphone</b> pour voir ton historique et le retrouver la prochaine fois.</p>
