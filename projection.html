@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>PandaFit — Classement de la séance</title>
-<link rel="icon" href="/icon-192.png">
+<link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -103,7 +103,7 @@ function key(r) { return r.pseudo + '|' + r.score; }
 function askCode(msg) {
   screen.innerHTML = `
     <div class="ask">
-      <div class="brand" style="justify-content:center;"><img src="/icon-192.png" alt=""><div class="t">PandaFit</div></div>
+      <div class="brand" style="justify-content:center;"><img src="icon-192.png" alt=""><div class="t">PandaFit</div></div>
       <p class="meta" style="margin-top:18px;text-transform:none;">${msg || 'Entre le code de la séance pour afficher le classement.'}</p>
       <input id="code" placeholder="PANDA-XXXX" value="${esc(code)}">
       <button id="go">Afficher le classement</button>
@@ -146,7 +146,7 @@ function draw(b) {
         <div class="small">Montez sur le PandaFit, passez votre Index en 90 secondes et choisissez un pseudo : les meilleurs scores s'affichent ici en direct.</div></div>`;
   screen.innerHTML = `
     <header>
-      <div class="brand"><img src="/icon-192.png" alt=""><div><div class="t">PandaFit</div><div class="s">L'équilibre est dans le mouvement</div></div></div>
+      <div class="brand"><img src="icon-192.png" alt=""><div><div class="t">PandaFit</div><div class="s">L'équilibre est dans le mouvement</div></div></div>
       ${b.logo_url ? `<div class="client-logo"><img src="${esc(b.logo_url)}" alt="${esc(b.client || '')}"></div>` : ''}
     </header>
     <div class="titlebar">
