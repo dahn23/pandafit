@@ -67,6 +67,7 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;
 function day(iso) { const s = new Date(iso).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); return s.charAt(0).toUpperCase() + s.slice(1); }
 function hm(iso) { return new Date(iso).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' }); }
 const pct = (n, t) => t ? Math.round(100 * n / t) : 0;
+const frn = n => Number(n).toLocaleString("fr-CH");
 
 // Recommandations générées à partir des résultats agrégés (le conseiller ajoute son propre mot)
 function recommendations(d) {
@@ -76,8 +77,55 @@ function recommendations(d) {
   else if (goodPct >= 50) r.push(`Plus de la moitié des participants ont un bon équilibre : un défi interne permettrait d'entretenir cette dynamique.`);
   else r.push(`La majorité des participants est en zone « à entretenir » : quelques minutes de jeu par semaine suffisent à progresser.`);
   if (d.avg_static != null && d.avg_movement != null && d.avg_static - d.avg_movement >= 20) r.push(`L'équilibre en mouvement (${d.avg_movement}) est nettement plus faible que l'équilibre statique (${d.avg_static}) : c'est lui qui protège des chutes lors des déplacements, il est à travailler en priorité.`);
-  r.push(`Refaire une mesure dans 4 à 6 semaines permet de montrer la progression de l'équipe, chiffres à l'appui.`);
-  return r;
+  const p = d.campaign?.pairs;
+  if (d.campaign?.step === 't1') {
+    if (p?.n >= 5 && p.delta > 0) r.unshift(`En un mois d'entraînement, l'Index des personnes mesurées deux fois a progressé de ${frn(p.delta)} points en moyenne (${p.improved_pct} % d'entre elles progressent).`);
+    r.push(`Pour ancrer ces progrès dans la durée : le Programme annuel (panda toute l'année, 4 saisons de défis, 5 mesures avec le coach).`);
+  } else {
+    r.push(`Refaire une mesure dans 4 à 6 semaines permet de montrer la progression de l'équipe, chiffres à l'appui.`);
+  }
+  // pendant / après un Mois de l'équilibre, inutile de le recommander
+  return d.campaign ? r.map(x => x.replace(` : un entraînement régulier sur un mois (Mois de l'équilibre) permet de faire progresser ce groupe en priorité.`, ` : c'est ce groupe que le mois d'entraînement doit faire progresser en priorité.`)) : r;
+}
+
+const GAME_NAMES = { base: 'Electro', skiprev: 'Slalom', tempo: 'MindFit', thezone: 'The Zone', distance: 'Tir au but', migros: 'Le Panier Malin', cross: 'Zen' };
+// Bloc « Mois de l'équilibre » : engagement des 4 semaines + progression appariée (clôture)
+function campaignHTML(d) {
+  const c = d.campaign;
+  if (!c) return '';
+  const short = iso => new Date(iso + 'T12:00').toLocaleDateString('fr-CH', { day: 'numeric', month: 'long' });
+  const maxW = Math.max(1, ...c.weeks.map(w => w.plays));
+  const total = c.weeks.reduce((s, w) => s + w.plays, 0);
+  const p = c.pairs;
+  let prog = '';
+  if (c.step === 't1') {
+    prog = p?.n >= 5 ? `
+      <h2>Progression : lancement → clôture</h2>
+      <div class="kpis">
+        <div class="kpi"><div class="l">Mesurés 2 fois</div><div class="v">${p.n}</div><div class="s">même personne, code anonyme</div></div>
+        <div class="kpi"><div class="l">Index moyen</div><div class="v">${p.avg_t0} → ${p.avg_t1}</div><div class="s">${p.delta > 0 ? '+' : ''}${frn(p.delta)} points en moyenne</div></div>
+        <div class="kpi"><div class="l">Progressent</div><div class="v">${p.improved_pct} %</div><div class="s">des personnes mesurées 2 fois</div></div>
+        <div class="kpi"><div class="l">Zone à risque</div><div class="v">${p.risk_t0} → ${p.risk_t1}</div><div class="s">personnes, lancement → clôture</div></div>
+      </div>`
+      : `<h2>Progression : lancement → clôture</h2><p style="font-size:10pt;color:var(--dim);margin:0;">La progression s'affiche dès 5 personnes mesurées au lancement et à la clôture avec leur code personnel (${p?.n || 0} pour l'instant).</p>`;
+  }
+  return `
+    ${prog}
+    <div class="two">
+      <div>
+        <h2>Entraînement pendant le mois</h2>
+        <div class="hist" style="height:24mm;">${c.weeks.map(w => `<div style="height:${Math.round(100 * w.plays / maxW)}%;background:var(--green);" title="${w.plays}"></div>`).join('')}</div>
+        <div class="hist-x">${c.weeks.map(w => `<span>Sem. ${w.week} · ${w.plays}</span>`).join('')}</div>
+        <p style="font-size:8.5pt;color:var(--dim);margin:2mm 0 0;">${total} parties jouées en libre-service sur le panda, du ${short(c.starts_on)} au ${short(c.ends_on)}.</p>
+      </div>
+      <div>
+        <h2>Les défis de la semaine</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:9pt;">
+          ${c.defis.map(x => `<tr style="border-bottom:1px solid var(--border);"><td style="padding:1.6mm 0;">${esc(x.title.replace(/^Semaine (\d) · /, 'S$1 · '))}</td><td style="color:var(--dim);">${esc(GAME_NAMES[x.game_id] || x.game_id)}</td><td style="text-align:right;font-weight:800;">${x.entries} score${x.entries > 1 ? 's' : ''}</td></tr>`).join('')}
+        </table>
+        ${c.step === 't0' && c.t0?.participants ? `<p style="font-size:8.5pt;color:var(--dim);margin:2mm 0 0;">Mesure finale prévue le ${short(c.ends_on)} : chacun saisit son code personnel pour voir sa progression.</p>` : ''}
+      </div>
+    </div>`;
 }
 
 function render(d) {
@@ -95,7 +143,7 @@ function render(d) {
     <div class="bar-top"><button onclick="window.print()">Imprimer / enregistrer en PDF</button></div>
     <div class="page">
       <div class="top"><img src="logo-pandafit.png" alt="PandaFit">${d.client?.logo_url ? `<img src="${esc(d.client.logo_url)}" alt="${esc(d.client.name)}">` : ''}</div>
-      <div class="k">Rapport de séance</div>
+      <div class="k">${d.campaign?.step === 't1' ? 'Rapport de fin de mois · clôture' : d.campaign?.step === 't0' ? 'Rapport de lancement' : 'Rapport de séance'}</div>
       <h1>${esc(OFFER_LABELS[ev.offer] || 'Séance PandaFit')}</h1>
       <div class="meta">${esc(d.client?.name || '')} · ${esc(day(ev.starts_at))} · ${hm(ev.starts_at)} – ${hm(ev.ends_at)}${d.coaches?.length ? ' · animé par ' + esc(d.coaches.join(' et ')) : ''}</div>
       <div class="kpis">
@@ -124,6 +172,7 @@ function render(d) {
           <p style="font-size:8.5pt;color:var(--dim);margin:2mm 0 0;">Moyennes du groupe sur 100. Le mouvement est l'équilibre de la marche et des déplacements.</p>
         </div>
       </div>
+      ${campaignHTML(d)}
       <h2>Nos recommandations</h2>
       <ul>${recommendations(d).map(r => `<li>${esc(r)}</li>`).join('')}</ul>
       ${ev.note ? `<h2>Le mot de votre conseiller PandaFit</h2><div class="note">${esc(ev.note)}</div>` : ''}

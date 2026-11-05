@@ -406,7 +406,7 @@ function drawTriathlon() {
       <tbody>${teams.map(t => `<tr><td><span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${esc(t.color)};margin-right:6px;"></span>${esc(t.name)}</td>
         ${games.map(g => { const x = t.games?.[g]; return `<td>${x ? `${x.points}<div class="hint" style="margin:0;font-size:10.5px;">${x.n} j.</div>` : '–'}</td>`; }).join('')}
         <td>${t.finale ? t.finale.points : '–'}</td><td class="tot">${t.total}</td></tr>`).join('')}</tbody></table>
-      <p class="hint">Points par jeu : 1ʳᵉ équipe = ${teams.length} pts, 2ᵉ = ${teams.length - 1}… (moyenne des joueurs de l'équipe sur ce jeu). La finale compte comme un 4ᵉ jeu.</p>
+      <p class="hint">Points par jeu : 1ʳᵉ équipe = ${teams.length} pts, 2ᵉ = ${teams.length - 1}… (moyenne des joueurs de l'équipe sur ce jeu). La finale compte double.</p>
     ` : ''}`;
   box.querySelectorAll('[data-phase]').forEach(b => b.addEventListener('click', async () => {
     const p = b.dataset.phase;

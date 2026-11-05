@@ -184,7 +184,7 @@ function triBody(b) {
     eyebrow: tr.phase === 'finale' ? `Finale · ${GAME_NAMES[tr.finale_game] || ''}` : "Triathlon de l'équilibre",
     counter: [played, 'parties jouées'],
     body: `<div class="tri-wrap">${head}${rows}
-      <div class="meta" style="text-align:center;margin-top:.6vh;">Sur chaque jeu, la 1ʳᵉ équipe marque ${teams.length} points, la 2ᵉ ${teams.length - 1}… · jamais de comparaison de scores entre jeux</div></div>` };
+      <div class="meta" style="text-align:center;margin-top:.6vh;">Sur chaque jeu, la 1ʳᵉ équipe marque ${teams.length} points, la 2ᵉ ${teams.length - 1}… · la finale compte double · jamais de comparaison de scores entre jeux</div></div>` };
 }
 
 function draw(b) {

@@ -3548,6 +3548,16 @@ function renderInterventionEditor() {
         <button class="btn-primary" id="btnPublishReport" style="width:auto;">${e.report_published_at ? 'Retirer de l\'espace RH' : 'Publier dans l\'espace RH'}</button>
       </div>
     </div>` : ''}
+    ${e?.offer === 'mois_equilibre' ? `<div class="card" id="campaignCard">
+      <h3>Mois de l'équilibre ${e.campaign_step ? `· <span class="badge">${e.campaign_step === 't0' ? 'lancement (T0)' : 'clôture (T1)'}</span>` : ''}</h3>
+      ${e.campaign_id ? '<p class="empty">Chargement…</p>' : `
+        <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Cette intervention est le <b>lancement</b>. On crée la clôture (même horaire, mêmes coachs) et les 4 défis hebdomadaires sur le panda à demeure : précision, mouvement, cerveau, grand défi final.</p>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:10px;">
+          ${field('Clôture (mesure finale) le', `<input id="cpT1" type="date" value="${localDate(new Date(new Date(e.starts_at).getTime() + 28 * 86400000).toISOString())}">`)}
+          ${field('Jeu du grand défi final (semaine 4)', `<select id="cpFinal" style="${selStyle}">${[['base', 'Electro'], ['skiprev', 'Slalom'], ['tempo', 'MindFit'], ['thezone', 'The Zone']].map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>`)}
+        </div>
+        <button class="btn-primary" id="btnSetupCampaign" style="width:auto;margin-top:10px;">Créer la clôture et les 4 défis</button>`}
+    </div>` : ''}
     <div class="card">
       <h3>${e ? 'Modifier l\'intervention' : 'Nouvelle intervention'}</h3>
       <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:10px;">
@@ -3610,6 +3620,35 @@ function renderInterventionEditor() {
   `;
 
   document.getElementById('btnBackEvents').addEventListener('click', () => { editingInterventionId = null; renderInterventionsView(); });
+  // Mois de l'équilibre : création de la clôture + 4 défis, ou résumé du mois
+  document.getElementById('btnSetupCampaign')?.addEventListener('click', async () => {
+    const t1 = document.getElementById('cpT1').value;
+    if (!t1) { alert('Choisis la date de clôture.'); return; }
+    if (!confirm(`Créer la clôture du ${new Date(t1 + 'T12:00').toLocaleDateString('fr-CH')} (mêmes horaires, mêmes coachs) et les 4 défis hebdomadaires ?`)) return;
+    const { error } = await sb.rpc('staff_setup_campaign', { p_event: e.id, p_t1_date: t1, p_final_game: document.getElementById('cpFinal').value });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    renderInterventionsView();
+  });
+  if (e?.campaign_id) (async () => {
+    const [{ data: cp }, { data: dfs }] = await Promise.all([
+      sb.from('campaigns').select('*').eq('id', e.campaign_id).maybeSingle(),
+      sb.from('defis').select('title, game_id, start_date, end_date, is_active').eq('campaign_id', e.campaign_id).order('sort_order'),
+    ]);
+    const box = document.getElementById('campaignCard');
+    if (!box || !cp) return;
+    const other = interventions.find(x => x.campaign_id === e.campaign_id && x.id !== e.id);
+    const gName = id => (gamesForEvents.find(g => g.id === id) || {}).name || id;
+    const d = iso => new Date(iso + 'T12:00').toLocaleDateString('fr-CH', { weekday: 'short', day: 'numeric', month: 'short' });
+    box.innerHTML = `
+      <h3>Mois de l'équilibre · <span class="badge">${e.campaign_step === 't0' ? 'lancement (T0)' : 'clôture (T1)'}</span></h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Du ${d(cp.starts_on)} au ${d(cp.ends_on)}. Pendant le mois, le panda à demeure sert à s'entraîner (pas d'Index en libre-service, consignes de sécurité avant chaque partie). À la clôture, chacun saisit son code personnel : le rapport compare lancement et clôture.</p>
+      ${other ? `<button class="btn-ghost" id="btnOpenOther" style="margin-bottom:10px;">→ Ouvrir ${other.campaign_step === 't1' ? 'la clôture' : 'le lancement'} (${new Date(other.starts_at).toLocaleDateString('fr-CH')} · ${other.code})</button>` : ''}
+      <table><tr><th>Défi</th><th>Jeu</th><th>Dates</th></tr>
+        ${(dfs || []).map(x => `<tr><td>${x.title}${x.is_active ? '' : ' <span style="color:var(--text-dim);">(désactivé)</span>'}</td><td>${gName(x.game_id)}</td><td>${d(x.start_date)} → ${d(x.end_date)}</td></tr>`).join('')}
+      </table>
+      <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Les défis se modifient dans la fiche du client → onglet Défis. ${e.campaign_step === 't1' ? 'Le rapport de cette clôture inclut la progression (dès 5 personnes mesurées aux deux dates).' : ''}</p>`;
+    document.getElementById('btnOpenOther')?.addEventListener('click', () => { editingInterventionId = other.id; renderInterventionsView(); });
+  })();
   document.getElementById('btnViewReport')?.addEventListener('click', async () => {
     await sb.from('event_sessions').update({ report_note: document.getElementById('evReportNote').value.trim() || null }).eq('id', e.id);
     window.open(`/rapport.html?e=${e.id}`, '_blank');
@@ -3666,6 +3705,7 @@ function renderInterventionEditor() {
       const { data, error } = await sb.from('event_sessions').insert({ ...payload, created_by: currentAdmin?.id }).select('id').single();
       if (error) { alert('Erreur : ' + error.message); return; }
       eventId = data.id;
+      if (payload.offer === 'mois_equilibre') alert("Lancement du Mois de l'équilibre créé. Étape suivante : la carte « Mois de l'équilibre » en haut de la fiche crée la clôture et les 4 défis (après avoir attribué les coachs).");
     }
     const checked = [...main.querySelectorAll('.ev-coach:checked')].map(c => c.value);
     await sb.from('event_session_coaches').delete().eq('event_session_id', eventId);

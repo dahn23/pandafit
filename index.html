@@ -713,6 +713,15 @@ const PandaFitBackend = (() => {
   async function setPseudo(sessionId, pseudo) {
     return await rpc('tablet_set_pseudo', { p_device_key: getDeviceKey(), p_session_id: sessionId, p_pseudo: pseudo });
   }
+  /* ---------- Mois de l'équilibre (panda à demeure chez le client pendant 4 semaines) ---------- */
+  async function fetchCampaign() {
+    try { return await rpc('tablet_campaign', { p_device_key: getDeviceKey() }); } catch (e) { return null; }
+  }
+  async function campaignProgress(employeeId) {
+    if (!activeEvent || !employeeId) return null;
+    try { return await rpc('tablet_campaign_progress', { p_device_key: getDeviceKey(), p_event_code: activeEvent.code, p_employee: employeeId }); }
+    catch (e) { return null; }
+  }
 
   /** Récupère les questions + réponses possibles d'un questionnaire. */
   async function fetchQuestionnaire(questionnaireId) {
@@ -958,7 +967,7 @@ const PandaFitBackend = (() => {
     } catch (e) { console.error('submitArcadeScore a échoué:', e); return false; }
   }
 
-  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore, fetchSatisfactionSettings, submitSatisfactionResponse, setHomeDisplayMode, fetchTabletSignals, joinEvent, eventRank, setPseudo };
+  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore, fetchSatisfactionSettings, submitSatisfactionResponse, setHomeDisplayMode, fetchTabletSignals, joinEvent, eventRank, setPseudo, fetchCampaign, campaignProgress };
 })();
 
 /* =====================================================================================
@@ -2432,6 +2441,63 @@ let lastIndexSessionId = null;
 // Code personnel + QR d'historique : masqués pour l'instant (décision Dan 05.11.2026, ça surcharge l'écran).
 // Le code reste créé en arrière-plan (comptage des participants) ; à réactiver pour le Mois de l'équilibre (progression avant / après).
 const SHOW_PERSONAL_CODE = false;
+// … sauf pendant un Mois de l'équilibre / une Campagne annuelle : le code relie la mesure de lancement à celle de clôture.
+function showPersonalCode() { return SHOW_PERSONAL_CODE || ['mois_equilibre', 'campagne_annuelle'].includes(activeEvent?.offer); }
+
+// Mois de l'équilibre en cours chez le client de cette tablette (null sinon). En libre-service (hors séance avec coach) :
+// pas d'Index (il se mesure uniquement avec le coach), consignes de sécurité avant chaque partie, bandeau « défi de la semaine ».
+let activeCampaign = null;
+let campaignSafetyOk = false;
+function campaignSelfService() { return !!activeCampaign && !activeEvent; }
+async function refreshCampaign() {
+  if (!clientConfig) return;
+  const before = JSON.stringify(activeCampaign);
+  activeCampaign = await PandaFitBackend.fetchCampaign();
+  if (JSON.stringify(activeCampaign) !== before && currentRoute === 'home' && !activeGameModule) render();
+}
+function frDay(iso) { const s = new Date(iso.length === 10 ? iso + 'T12:00:00' : iso).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' }); return s; }
+function campaignBannerHTML() {
+  const c = activeCampaign, d = c.defi;
+  return `
+    <div class="hero-play" style="border:2px solid var(--primary);">
+      <p style="margin:0 0 4px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#0c2018;font-weight:800;">Mois de l'équilibre · semaine ${c.week} sur 4</p>
+      <h3>${d ? escT(d.title) : "Entraîne ton équilibre en jouant"}</h3>
+      <p>${d ? `Jeu de la semaine : <b>${escT(eventGameName(d.game_id))}</b>. Le meilleur score gagne. Fin du défi : ${frDay(d.end_date)}.` : 'Joue quand tu veux, 2 minutes suffisent.'}
+        ${c.t1_at ? `<br>Mesure finale de ton Index avec le coach : <b>${frDay(c.t1_at)}</b>.` : ''}</p>
+      ${d ? `<button id="btnCampaignDefi">Jouer au défi de la semaine</button>` : ''}
+    </div>`;
+}
+const CAMPAIGN_SAFETY = [
+  ['footprints', 'Monte et descends lentement, en posant un pied après l\'autre.'],
+  ['hand', 'Reste à portée du mur ou de la barre d\'appui : tiens-toi si tu perds l\'équilibre.'],
+  ['shirt', 'Chaussures plates, ou en chaussettes. Pas de talons.'],
+  ['heart-pulse', 'Douleur, vertige ou malaise : arrête-toi tout de suite.'],
+];
+function showCampaignSafety(onOk) {
+  content.innerHTML = `
+    <div class="centered-page">
+      <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="shield-check"></i> Avant de jouer</h1>
+      <p class="page-sub">Quelques secondes pour ta sécurité, à chaque partie.</p>
+      <div class="card">${CAMPAIGN_SAFETY.map(([ic, txt]) => `<div class="ski-tip"><div class="ic"><i data-lucide="${ic}"></i></div><div class="txt">${txt}</div></div>`).join('')}</div>
+      <button class="btn-primary" id="btnSafetyOk" style="width:100%;">J'ai compris, je joue</button>
+      <button class="btn-ghost" id="btnSafetyBack" style="width:100%;margin-top:8px;">← Retour</button>
+    </div>`;
+  if (window.lucide) lucide.createIcons();
+  document.getElementById('btnSafetyOk').addEventListener('click', onOk);
+  document.getElementById('btnSafetyBack').addEventListener('click', () => navigate('home'));
+}
+function screenCampaignNoIndex() {
+  return `
+    <div class="centered-page" style="text-align:center;">
+      <h1 class="page-title" style="justify-content:center;display:flex;align-items:center;gap:10px;"><i data-lucide="activity"></i> PandaFit Index</h1>
+      <div class="card">
+        <h2>Pendant le Mois de l'équilibre, l'Index se mesure avec le coach</h2>
+        <p class="page-sub" style="margin:0;">${activeCampaign.t1_at ? `Rendez-vous le <b>${frDay(activeCampaign.t1_at)}</b> pour ta mesure finale et ta progression.` : 'Rendez-vous à la mesure finale avec le coach.'}
+          D'ici là, entraîne-toi avec les jeux : c'est comme ça qu'on progresse.</p>
+      </div>
+      <button class="btn-primary" id="btnNoIndexGames" style="width:100%;">Voir les jeux</button>
+    </div>`;
+}
 function saveActiveEvent() {
   try { activeEvent ? localStorage.setItem(EVENT_STORAGE_KEY, JSON.stringify(activeEvent)) : localStorage.removeItem(EVENT_STORAGE_KEY); } catch (e) {}
 }
@@ -2470,7 +2536,7 @@ function screenTriathlon(st) {
   }).join('');
   return `<div id="triathlonPanel">${head}
     <h1 class="page-title">${st.round === 'finale' ? 'Finale · ' : 'Station '}${escT(eventGameName(st.game))}${st.round !== 'finale' && TRI_KIND[st.game] ? ` <span style="font-weight:600;color:var(--text-dim);">· ${TRI_KIND[st.game]}</span>` : ''}</h1>
-    <p class="page-sub">${st.round === 'finale' ? "Le champion de chaque équipe joue. Seul le meilleur score de l'équipe compte." : "Choisis ton équipe, puis lance la partie. Répartition par équipe : 2 joueurs, 2 joueurs, 1 joueur sur les 3 jeux."}</p>
+    <p class="page-sub">${st.round === 'finale' ? "Le champion de chaque équipe joue. Seul le meilleur score de l'équipe compte, et la finale rapporte des points doubles !" : "Choisis ton équipe, puis lance la partie. Répartition par équipe : 2 joueurs, 2 joueurs, 1 joueur sur les 3 jeux."}</p>
     <div class="tri-teams">${teams}</div></div>`;
 }
 function wireTriathlon(st) {
@@ -2888,6 +2954,7 @@ function screenHome() {
         <button id="btnEventIndex">Passer mon PandaFit Index</button>
       </div>
     ` : ''}
+    ${campaignSelfService() ? campaignBannerHTML() : ''}
     ${clientConfig?.showReadyToPlay !== false && !clientConfig?.lockGames ? `
       <div class="hero-play">
         <h3>${t('ready_title')}</h3>
@@ -2919,6 +2986,7 @@ function wireHomeScreen() {
   if (tri) { eventPlayCtx = null; return wireTriathlon(tri); }
   document.getElementById('btnGoGames')?.addEventListener('click', () => navigate('games'));
   document.getElementById('btnEventIndex')?.addEventListener('click', () => navigate('indextest'));
+  document.getElementById('btnCampaignDefi')?.addEventListener('click', () => launchGame(activeCampaign.defi.game_id));
   document.getElementById('btnGoBenefits')?.addEventListener('click', () => navigate('benefits'));
   document.getElementById('btnGoInitiation')?.addEventListener('click', () => navigate('initiation'));
   document.querySelectorAll('.lang-flag-btn').forEach(btn => btn.addEventListener('click', () => setLang(btn.dataset.lang)));
@@ -3140,6 +3208,13 @@ function launchGame(gameId) {
 function launchGameWithQuestionnaire(gameId, fromChallenge) {
   // Station de Triathlon : chaque partie doit passer par le choix de l'équipe (sinon elle ne compterait pas)
   if (triathlonStation() && !eventPlayCtx) { navigate('home'); return; }
+  // Mois de l'équilibre en libre-service : consignes de sécurité avant chaque partie
+  if (campaignSelfService() && !campaignSafetyOk) {
+    currentRoute = 'games';
+    showCampaignSafety(() => { campaignSafetyOk = true; launchGameWithQuestionnaire(gameId, fromChallenge); });
+    return;
+  }
+  campaignSafetyOk = false;
   launchedFromChallenge = !!fromChallenge;
   currentRoute = 'games';
   updateAdsBanner();
@@ -3156,6 +3231,12 @@ function submitPendingAnswersIfAny(sessionId) {
   pendingQuestionnaireAnswers = null;
 }
 function launchIndexWithQuestionnaire() {
+  if (campaignSelfService()) {
+    content.innerHTML = screenCampaignNoIndex();
+    if (window.lucide) lucide.createIcons();
+    document.getElementById('btnNoIndexGames')?.addEventListener('click', () => navigate('games'));
+    return;
+  }
   showQuestionnaireThenLaunch(clientConfig?.indexQuestionnaireId, () => {
     content.innerHTML = screenIndexIntro();
     wireIndexIntro();
@@ -5116,6 +5197,10 @@ function screenIndexIntro() {
     <div class="centered-page" style="text-align:center;">
     <h1 class="page-title" style="display:flex;align-items:center;justify-content:center;gap:10px;"><i data-lucide="activity"></i> ${t('index_title')}</h1>
     <p class="page-sub">${t('index_intro_sub')}</p>
+    ${activeEvent?.campaign_step === 't1' ? `<div class="card" style="border:2px solid var(--primary);">
+      <h2>Mesure finale du Mois de l'équilibre</h2>
+      <p class="page-sub" style="margin:0;">Tu as passé l'Index au lancement ? Entre ton code personnel plus bas pour voir ta progression.</p>
+    </div>` : ''}
     <div class="card">
       <h2>${t('index_step1_title')}</h2>
       <p class="page-sub" style="margin-bottom:0;">${t('index_step1_desc')}</p>
@@ -5303,12 +5388,23 @@ async function finishIndexTest(overall, staticResult, movementResult) {
         : `Ta position dans le groupe s'affichera dès 5 participants.`;
     });
   }
+  if (activeEvent?.campaign_step === 't1' && currentEmployee?.id) {
+    // Clôture du Mois de l'équilibre : progression personnelle depuis la mesure de lancement
+    recorded.then(() => PandaFitBackend.campaignProgress(currentEmployee?.id)).then(p => {
+      const el = document.getElementById('eventProgressText');
+      if (!el || p?.t0_score == null) return;
+      const d = overall - p.t0_score;
+      el.innerHTML = `Au lancement : <b>${p.t0_score}</b> · aujourd'hui : <b>${overall}</b> → <b style="color:var(--primary);">${d > 0 ? '+' + d + ' points, bravo !' : d === 0 ? 'stable' : d + ' points'}</b>`;
+      el.style.display = 'block';
+    });
+  }
 }
 function eventResultCardHTML() {
   if (!activeEvent) return '';
   return `
     <div class="card" style="margin-top:16px;text-align:center;border:2px solid var(--primary);">
       <h2>Index officiel · ${activeEvent.client}</h2>
+      <p class="page-sub" id="eventProgressText" style="display:none;font-size:17px;color:var(--text);margin:4px 0 10px;"></p>
       <p class="page-sub" id="eventRankText">Calcul de ta position…</p>
       <p class="page-sub" style="margin-top:12px;">Apparaître au classement de la séance ? (facultatif, un pseudo suffit)</p>
       <div class="row" style="gap:8px;">
@@ -5334,10 +5430,12 @@ function screenIndexResult(overall, staticResult, movementResult) {
       <div class="result-stat"><span>Régularité du mouvement</span><span>${movementResult.regularityScore}/100</span></div>
       <div class="result-stat"><span>Amplitude du mouvement</span><span>${movementResult.amplitudeCm} cm</span></div>
     </div>
-    ${SHOW_PERSONAL_CODE && currentEmployee ? `
-      <div class="card" style="margin-top:16px;text-align:center;">
-        <h2>Garde ton PandaFit Index</h2>
-        <p class="page-sub">Scanne ce code avec l'appareil photo de <b>ton téléphone</b> pour voir ton historique et le retrouver la prochaine fois.</p>
+    ${showPersonalCode() && currentEmployee ? `
+      <div class="card" style="margin-top:16px;text-align:center;${activeEvent?.campaign_step === 't0' ? 'border:2px solid var(--primary);' : ''}">
+        <h2>${activeEvent?.campaign_step === 't0' ? 'Garde ton code pour la mesure finale' : 'Garde ton PandaFit Index'}</h2>
+        <p class="page-sub">${activeEvent?.campaign_step === 't0'
+          ? `Prends cet écran en photo ou scanne le code avec <b>ton téléphone</b>.${activeEvent.t1_at ? ` À la mesure finale du <b>${frDay(activeEvent.t1_at)}</b>` : ' À la mesure finale'}, tu saisiras ton code pour voir ta progression.`
+          : `Scanne ce code avec l'appareil photo de <b>ton téléphone</b> pour voir ton historique et le retrouver la prochaine fois.`}</p>
         <canvas id="employeeQrCanvas" style="margin:0 auto;display:block;"></canvas>
         <p id="employeeQrFallback" class="page-sub" style="display:none;word-break:break-all;"></p>
         <p class="page-sub" style="margin-top:10px;">Ton code personnel : <b>${currentEmployee.claim_token}</b></p>
@@ -5412,6 +5510,7 @@ function wireDeviceSetup() {
       gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
       activeAds = clientConfig.adsEnabled ? await PandaFitBackend.fetchActiveAds(clientConfig.clientId) : [];
       infoPagesCatalog = await PandaFitBackend.fetchInfoPages(); initiationSteps = await PandaFitBackend.fetchInitiationSteps(); satisfactionSettings = await PandaFitBackend.fetchSatisfactionSettings();
+      activeCampaign = await PandaFitBackend.fetchCampaign();
       startRefreshPolling();
       startNightlyReload();
       render();
@@ -5441,6 +5540,7 @@ async function softRefresh(reason) {
     gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
     activeAds = clientConfig.adsEnabled ? await PandaFitBackend.fetchActiveAds(clientConfig.clientId) : [];
     infoPagesCatalog = await PandaFitBackend.fetchInfoPages(); initiationSteps = await PandaFitBackend.fetchInitiationSteps(); satisfactionSettings = await PandaFitBackend.fetchSatisfactionSettings();
+    activeCampaign = await PandaFitBackend.fetchCampaign();
     log('Rafraîchissement à distance appliqué' + (reason ? ' (' + reason + ')' : '') + '.');
     if (!activeGameModule) render(); // ne pas interrompre une partie en cours ; les données seront prises au prochain écran
   } catch (e) {
@@ -5551,6 +5651,8 @@ document.getElementById('btnFullscreen')?.addEventListener('click', () => {
     gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
     activeAds = clientConfig.adsEnabled ? await PandaFitBackend.fetchActiveAds(clientConfig.clientId) : [];
     infoPagesCatalog = await PandaFitBackend.fetchInfoPages(); initiationSteps = await PandaFitBackend.fetchInitiationSteps(); satisfactionSettings = await PandaFitBackend.fetchSatisfactionSettings();
+    activeCampaign = await PandaFitBackend.fetchCampaign(); // Mois de l'équilibre en cours chez ce client ?
+    setInterval(refreshCampaign, 30 * 60 * 1000);
     startEventPolling();   // Triathlon : relit la phase et les équipes de la séance (sans effet hors Team building)
     startRefreshPolling(); // interroge les signaux (refresh doux + rechargement) poussés depuis la console admin
     startNightlyReload();  // rechargement nocturne pour les mises à jour de code
