@@ -3448,7 +3448,7 @@ function localTime(iso) { const d = new Date(iso); return `${pad2(d.getHours())}
 
 async function loadInterventions() {
   const [{ data: ev }, { data: coaches }, { data: games }] = await Promise.all([
-    sb.from('event_sessions').select('*, clients(name), event_session_coaches(admin_user_id, fee, is_lead), event_reports(*)').order('starts_at', { ascending: false }),
+    sb.from('event_sessions').select('*, clients(name), event_session_coaches(admin_user_id, fee, is_lead), event_reports(*), event_slots!event_slots_event_session_id_fkey(id, starts_at, capacity), event_registrations!event_registrations_event_session_id_fkey(id)').order('starts_at', { ascending: false }),
     sb.from('admin_users').select('id, email, display_name, coach_profiles(default_fee, certification, phone), coach_availability(day)').eq('role', 'coach').order('display_name'),
     sb.from('games').select('id, name').order('name'),
   ]);
@@ -3544,6 +3544,22 @@ function renderInterventionEditor() {
       <textarea id="evNotes" rows="3" style="${taStyle}">${e?.notes_for_coach || ''}</textarea>
     </div>
     <div class="card">
+      <h3>Créneaux d'inscription (réglés par le commercial)</h3>
+      <p style="font-size:12px;color:var(--text-dim);margin:0 0 10px;">Le RH partage le lien d'inscription et remplit ces créneaux ; il ne peut pas en changer la taille. Repère du cadre des offres : 1 coach + 2 pandas ≈ 20 personnes par 30 minutes.</p>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:10px;">
+        ${field('Durée d\'un créneau', `<select id="evSlotMinutes" style="${selStyle}">
+          <option value="">Par défaut (${offer === 'team_building' ? 'un seul créneau' : '30 min'})</option>
+          ${[[15, '15 min'], [20, '20 min'], [30, '30 min'], [45, '45 min'], [60, '1 heure'], [0, 'Un seul créneau pour toute la séance']].map(([v, l]) => `<option value="${v}" ${e?.slot_minutes === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`)}
+        ${field('Places par créneau', `<input id="evSlotCapacity" type="number" min="1" max="500" value="${e?.slot_capacity ?? ''}" placeholder="Par défaut (${offer === 'team_building' ? 'participants attendus' : '20'})">`)}
+      </div>
+      ${e ? (() => {
+        const sl = (e.event_slots || []).slice().sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+        const regs = (e.event_registrations || []).length;
+        return `<p style="font-size:12.5px;margin:4px 0 0;">${sl.length ? `Actuellement : <b>${sl.length} créneau(x)</b> de ${localTime(sl[0].starts_at)} à ${localTime(e.ends_at)}, ${sl[0].capacity} places chacun · <b>${regs} inscrit(s)</b>.` : 'Les créneaux seront créés à la première ouverture par le RH ou le lien d\'inscription.'}
+          ${regs ? ' Les créneaux ne peuvent plus être recalculés (il y a déjà des inscrits).' : ' Ils sont recalculés automatiquement à l\'enregistrement.'}</p>`;
+      })() : ''}
+    </div>
+    <div class="card">
       <h3>Coach(s) attribué(s)</h3>
       <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">Le 1ᵉʳ coché est le coach principal. « dispo » = le coach a indiqué ce jour comme disponible.</p>
       <div id="evCoaches">${coachList.length ? coachList.map(c => {
@@ -3596,6 +3612,8 @@ function renderInterventionEditor() {
       games: [...main.querySelectorAll('.ev-game:checked')].map(c => c.value),
       materials: document.getElementById('evMaterials').value.trim() || null,
       notes_for_coach: document.getElementById('evNotes').value.trim() || null,
+      slot_minutes: document.getElementById('evSlotMinutes').value === '' ? null : Number(document.getElementById('evSlotMinutes').value),
+      slot_capacity: Number(document.getElementById('evSlotCapacity').value) || null,
     };
     let eventId = e?.id;
     if (e) {
@@ -3615,6 +3633,15 @@ function renderInterventionEditor() {
       }));
       const { error } = await sb.from('event_session_coaches').insert(rows);
       if (error) { alert('Intervention enregistrée, mais erreur sur les coachs : ' + error.message); }
+    }
+    // Créneaux d'inscription : recalculés si l'horaire ou le réglage a changé, tant que personne n'est inscrit
+    const sameTime = (a, b) => new Date(a).getTime() === new Date(b).getTime();
+    const slotsChanged = !e || !sameTime(e.starts_at, payload.starts_at) || !sameTime(e.ends_at, payload.ends_at) || e.offer !== payload.offer
+      || (e.slot_minutes ?? null) !== payload.slot_minutes || (e.slot_capacity ?? null) !== payload.slot_capacity
+      || (!payload.slot_capacity && (e.expected_participants ?? null) !== payload.expected_participants);
+    if (slotsChanged && e && (e.event_slots || []).length) {
+      const { data: r } = await sb.rpc('staff_regenerate_slots', { p_event: eventId });
+      if (r && !r.ok) alert(`Intervention enregistrée. Les créneaux n'ont pas été recalculés : il y a déjà ${r.registrations} inscrit(s).`);
     }
     editingInterventionId = eventId;
     renderInterventionsView();
