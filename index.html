@@ -215,7 +215,7 @@
   .tri-team span { display: block; font-size: 13.5px; color: var(--text-dim); margin-left: 8px; }
   .tri-team.full span { color: #ffb44d; }
   /* Mode séance (code de session saisi) : plus de menus, seulement le déroulé de la séance */
-  body.event-kiosk .bottomnav, body.event-kiosk #adsBanner,
+  body.event-kiosk .bottomnav, body.event-kiosk #adsBanner, body.event-kiosk #adsLabel,
   body.event-kiosk #btnZoneBackHome, body.event-kiosk #btnMigrosBack, body.event-kiosk #btnSkiBack, body.event-kiosk #btnElectroBackHome,
   body.event-kiosk #btnFootballBack, body.event-kiosk #btnRelaxBack, body.event-kiosk #btnTempoBack { display: none !important; }
   .kiosk-gear { position: fixed; right: 12px; bottom: 12px; width: 40px; height: 40px; border-radius: 50%; border: none; background: rgba(255,255,255,.05); color: var(--text-dim); opacity: .45; display: none; align-items: center; justify-content: center; z-index: 60; cursor: pointer; padding: 0; }
@@ -2554,6 +2554,8 @@ const UI_DICT_ROWS = [
   ["La modification n'a pas pu être enregistrée. Vérifie la connexion et réessaie.", "Die Änderung konnte nicht gespeichert werden. Prüfe die Verbindung und versuch es nochmals.", "The change could not be saved. Check the connection and try again.", "La modifica non è stata salvata. Controlla la connessione e riprova."],
   ["Tablette", "Tablet", "Tablet", "Tablet"],
   ["Client", "Kunde", "Client", "Cliente"],
+  ["Client habituel", "Üblicher Kunde", "Usual client", "Cliente abituale"],
+  ["C'est le client habituel de la tablette. Pendant la séance, les Index sont enregistrés pour le client de la séance.", "Das ist der übliche Kunde des Tablets. Während der Session werden die Index-Ergebnisse für den Kunden der Session gespeichert.", "This is the tablet's usual client. During the session, Index results are saved for the session's client.", "È il cliente abituale del tablet. Durante la sessione, gli Index vengono registrati per il cliente della sessione."],
   ["Non configurée", "Nicht eingerichtet", "Not set up", "Non configurato"],
   ["Nom de la tablette", "Name des Tablets", "Tablet name", "Nome del tablet"],
   ["Reconfigurer la tablette", "Tablet neu einrichten", "Reconfigure the tablet", "Riconfigura il tablet"],
@@ -3131,7 +3133,7 @@ function updateAdsBanner() {
   const label = document.getElementById('adsLabel');
   if (!banner || !label) return;
   const connected = PandaFitSensor.isConnected();
-  const onHome = currentRoute === 'home' && connected;
+  const onHome = currentRoute === 'home' && connected && !activeEvent; // jamais de bannière pendant une séance
   const eff = onHome ? resolveHomeMode() : 'none';
   const wantsSatisfaction = eff === 'satisfaction';
   const wantsAds = eff === 'ads';
@@ -4197,7 +4199,7 @@ function screenSettings() {
       ${activeEvent ? `
         <div class="setting-row"><span class="lbl">Séance</span><span class="val">${activeEvent.client}${activeEvent.title ? ' · ' + activeEvent.title : ''}</span></div>
         <div class="setting-row"><span class="lbl">Code</span><span class="val">${activeEvent.code}</span></div>
-        <div class="setting-row"><span class="lbl">Projection</span><span class="val" style="word-break:break-all;">${location.origin}/projection.html?code=${activeEvent.code}</span></div>
+        <div class="setting-row"><span class="lbl">Projection</span><span class="val" style="word-break:break-all;">app.pandafit.ch/projection.html?code=${activeEvent.code}</span></div>
         ${activeEvent.offer === 'team_building' || activeEvent.teams?.length ? `
           <div class="setting-row"><span class="lbl">Phase (pilotée par le coach)</span><span class="val">${TRI_PHASE_LABEL[activeEvent.phase] || '—'}${activeEvent.teams?.length ? ` · ${activeEvent.teams.length} équipes` : ' · équipes pas encore créées'}</span></div>
           <p class="page-sub" style="margin:12px 0 8px;">Station de cette tablette pendant le Triathlon :</p>
@@ -4213,10 +4215,11 @@ function screenSettings() {
         <button class="btn-primary" id="btnJoinEvent" style="width:100%;">Rejoindre la séance</button>
       `}
     </div>
-    ${homeDisplayCard()}
+    ${activeEvent ? '' : homeDisplayCard()}
     <div class="card">
       <h2>Tablette</h2>
-      <div class="setting-row"><span class="lbl">Client</span><span class="val">${clientConfig ? clientConfig.clientName : 'Non configurée'}</span></div>
+      ${activeEvent ? `<p class="page-sub" style="margin:-2px 0 10px;">C'est le client habituel de la tablette. Pendant la séance, les Index sont enregistrés pour le client de la séance.</p>` : ''}
+      <div class="setting-row"><span class="lbl">Client habituel</span><span class="val">${clientConfig ? clientConfig.clientName : 'Non configurée'}</span></div>
       <div class="setting-row"><span class="lbl">Nom de la tablette</span><span class="val">${clientConfig ? clientConfig.deviceName : '—'}</span></div>
       <button class="btn-ghost" id="btnReconfigure" style="width:100%;margin-top:10px;">Reconfigurer la tablette</button>
     </div>
