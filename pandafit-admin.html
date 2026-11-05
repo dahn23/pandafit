@@ -3556,7 +3556,7 @@ function renderInterventionEditor() {
         const sl = (e.event_slots || []).slice().sort((a, b) => a.starts_at.localeCompare(b.starts_at));
         const regs = (e.event_registrations || []).length;
         return `<p style="font-size:12.5px;margin:4px 0 0;">${sl.length ? `Actuellement : <b>${sl.length} créneau(x)</b> de ${localTime(sl[0].starts_at)} à ${localTime(e.ends_at)}, ${sl[0].capacity} places chacun · <b>${regs} inscrit(s)</b>.` : 'Les créneaux seront créés à la première ouverture par le RH ou le lien d\'inscription.'}
-          ${regs ? ' Les créneaux ne peuvent plus être recalculés (il y a déjà des inscrits).' : ' Ils sont recalculés automatiquement à l\'enregistrement.'}</p>`;
+          ${regs ? ' Avec des inscrits, seul le nombre de places peut encore changer (la durée et les horaires des créneaux sont figés).' : ' Ils sont recalculés automatiquement à l\'enregistrement.'}</p>`;
       })() : ''}
     </div>
     <div class="card">
@@ -3641,7 +3641,8 @@ function renderInterventionEditor() {
       || (!payload.slot_capacity && (e.expected_participants ?? null) !== payload.expected_participants);
     if (slotsChanged && e && (e.event_slots || []).length) {
       const { data: r } = await sb.rpc('staff_regenerate_slots', { p_event: eventId });
-      if (r && !r.ok) alert(`Intervention enregistrée. Les créneaux n'ont pas été recalculés : il y a déjà ${r.registrations} inscrit(s).`);
+      if (r && !r.ok && r.reason === 'places') alert(`Intervention enregistrée, mais le nombre de places n'a pas changé : un créneau compte déjà ${r.max_in_slot} inscrits. Choisis au moins ${r.max_in_slot} places.`);
+      else if (r && !r.ok) alert(`Intervention enregistrée. Les horaires des créneaux n'ont pas changé : il y a déjà ${r.registrations} inscrit(s), qu'on ne déplace pas. Le nombre de places, lui, peut toujours être modifié.`);
     }
     editingInterventionId = eventId;
     renderInterventionsView();
