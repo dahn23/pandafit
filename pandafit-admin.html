@@ -359,7 +359,7 @@ function adminCan(permKey) {
 async function loadClients() {
   // Les règles d'accès de la base ne renvoient que les clients du périmètre de l'admin connecté
   const { data } = await sb.from('clients').select('*, devices(count)').order('name');
-  clients = data || [];
+  clients = (data || []).filter(c => c.id !== '00000000-0000-0000-0000-0000000000aa'); // le client technique « parc » n'apparaît pas dans la liste
   if (!selectedClientId && clients.length) selectedClientId = clients[0].id;
 }
 async function loadClientDetail(clientId) {
@@ -407,7 +407,7 @@ async function render() {
 
   const allTopTabs = [
     { key: 'clients', label: 'Clients', icon: 'users', always: true },
-    { key: 'interventions', label: 'Interventions', icon: 'clipboard-list', always: true },
+    { key: 'interventions', label: 'Projets', icon: 'folder-kanban', always: true },
     { key: 'fees', label: 'Honoraires', icon: 'wallet', always: true },
     { key: 'crm', label: 'CRM', icon: 'briefcase', perm: 'menu_crm' },
     { key: 'globalstats', label: 'Statistiques', icon: 'bar-chart-3', perm: 'menu_globalstats' },
@@ -549,34 +549,54 @@ function renderMain() {
     <div class="section-sub">Client depuis le ${new Date(client.created_at).toLocaleDateString('fr-CH')}</div>
     <div class="tabs">
       <div class="tab ${activeTab === 'details' ? 'active' : ''}" data-tab="details">Détail</div>
-      <div class="tab ${activeTab === 'devices' ? 'active' : ''}" data-tab="devices">Tablettes</div>
-      <div class="tab ${activeTab === 'games' ? 'active' : ''}" data-tab="games">Jeux activés</div>
+      <div class="tab ${activeTab === 'projects' ? 'active' : ''}" data-tab="projects">Projets</div>
       <div class="tab ${activeTab === 'data' ? 'active' : ''}" data-tab="data">Données</div>
       <div class="tab ${activeTab === 'stats' ? 'active' : ''}" data-tab="stats">Statistiques</div>
-      <div class="tab ${activeTab === 'events' ? 'active' : ''}" data-tab="events">Événements</div>
-      <div class="tab ${activeTab === 'defis' ? 'active' : ''}" data-tab="defis">Défis</div>
-      <div class="tab ${activeTab === 'clientsettings' ? 'active' : ''}" data-tab="clientsettings">Réglages</div>
       <div class="tab ${activeTab === 'questionnaires' ? 'active' : ''}" data-tab="questionnaires">Questionnaires</div>
-      <div class="tab ${activeTab === 'tabletmenu' ? 'active' : ''}" data-tab="tabletmenu">Menu tablette</div>
-      <div class="tab ${activeTab === 'ads' ? 'active' : ''}" data-tab="ads">Publicité</div>
       <div class="tab ${activeTab === 'hr' ? 'active' : ''}" data-tab="hr">Espace RH</div>
     </div>
     <div id="tabContent"></div>
   `;
   main.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { activeTab = t.dataset.tab; renderMain(); }));
+  // Jeux, tablettes, accueil, pubs, défis et annonces se règlent désormais dans chaque projet
+  if (!['details', 'projects', 'data', 'stats', 'questionnaires', 'hr'].includes(activeTab)) activeTab = 'details';
 
   if (activeTab === 'details') renderDetailsTab();
-  else if (activeTab === 'devices') renderDevicesTab();
-  else if (activeTab === 'games') renderGamesTab();
+  else if (activeTab === 'projects') renderClientProjectsTab();
   else if (activeTab === 'stats') renderStatsTab();
-  else if (activeTab === 'events') renderEventsTab();
-  else if (activeTab === 'defis') renderDefisTab();
-  else if (activeTab === 'clientsettings') renderClientSettingsTab();
   else if (activeTab === 'questionnaires') renderQuestionnairesTab();
-  else if (activeTab === 'tabletmenu') renderTabletMenuTab();
-  else if (activeTab === 'ads') renderAdsTab();
   else if (activeTab === 'hr') renderHrTab();
   else renderDataTab();
+}
+
+/* ---------- Projets du client (tout l'historique : séances, rapports, tablettes, réglages) ---------- */
+async function renderClientProjectsTab() {
+  const el = document.getElementById('tabContent');
+  el.innerHTML = '<p class="empty">Chargement…</p>';
+  const { data: list } = await sb.from('projects').select('*, devices(count), event_sessions(id, starts_at, status)').eq('client_id', selectedClientId).order('created_at', { ascending: false });
+  const ps = list || [];
+  el.innerHTML = `
+    <div class="card">
+      <h3>Projets de ce client</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Tout ce qui est vendu au client est un projet : jeux, tablettes, accueil, pubs, défis et annonces s'y règlent.</p>
+      ${ps.length ? `<table><tr><th>Projet</th><th>Code</th><th>Séances</th><th>Tablettes</th><th>Statut</th></tr>${ps.map(p => {
+        const evs = (p.event_sessions || []).filter(e => e.status !== 'annulee');
+        const dates = evs.map(e => e.starts_at).sort();
+        return `<tr data-goto-project="${p.id}" style="cursor:pointer;">
+          <td><b>${escA(p.title || OFFER_LABELS[p.offer] || p.offer)}</b><br><span style="font-size:12px;color:var(--text-dim);">${OFFER_LABELS[p.offer] || p.offer}</span></td>
+          <td><span class="badge">${p.code}</span></td>
+          <td>${evs.length}${dates.length ? ` · ${new Date(dates[0]).toLocaleDateString('fr-CH')}${dates.length > 1 ? ' → ' + new Date(dates[dates.length - 1]).toLocaleDateString('fr-CH') : ''}` : ''}</td>
+          <td>${p.devices?.[0]?.count ?? 0}</td>
+          <td>${PROJECT_STATUS_LABELS[p.status] || p.status}</td></tr>`;
+      }).join('')}</table>` : '<p class="empty">Aucun projet pour ce client.</p>'}
+      <button class="btn-primary" id="btnNewClientProject" style="width:auto;margin-top:12px;">+ Nouveau projet pour ce client</button>
+    </div>`;
+  el.querySelectorAll('[data-goto-project]').forEach(tr => tr.addEventListener('click', () => {
+    topView = 'interventions'; editingProjectId = tr.dataset.gotoProject; projectTab = 'general'; editingInterventionId = null; render();
+  }));
+  document.getElementById('btnNewClientProject').addEventListener('click', () => {
+    topView = 'interventions'; editingProjectId = 'new'; newProjectClientId = selectedClientId; render();
+  });
 }
 
 /* ---------- Espace RH du client : accès RH + rapports déposés par PandaFit ---------- */
@@ -803,7 +823,7 @@ function renderDevicesTab() {
 
 async function renderGamesTab() {
   await loadQuestionnaires(selectedClientId);
-  const client = clients.find(c => c.id === selectedClientId);
+  const client = currentProject;
   const el = document.getElementById('tabContent');
   const qnOptions = (selectedId) => `
     <option value="">Aucun</option>
@@ -817,7 +837,7 @@ async function renderGamesTab() {
 
   el.innerHTML = `
     <div class="card">
-      <h3>Jeux visibles pour ce client</h3>
+      <h3>Jeux de ce projet</h3>
       <div class="section-sub" style="margin-bottom:12px;">Glisse une ligne pour changer son ordre — c'est le même ordre qui sera repris dans l'onglet "Jeux" de la tablette.</div>
       <div id="gamesDragList">
         ${orderedGames.map(({ game: g, cg }) => {
@@ -862,24 +882,24 @@ async function renderGamesTab() {
     input.addEventListener('change', async () => {
       const gameId = input.dataset.game;
       const enabled = input.checked;
-      const { error } = await sb.from('client_games')
-        .upsert({ client_id: selectedClientId, game_id: gameId, enabled }, { onConflict: 'client_id,game_id' });
+      const { error } = await sb.from('project_games')
+        .upsert({ project_id: selectedProjectId, game_id: gameId, enabled }, { onConflict: 'project_id,game_id' });
       if (error) alert('Erreur : ' + error.message);
-      await loadClientDetail(selectedClientId);
+      await loadProjectDetail();
     });
   });
   el.querySelectorAll('select[data-game-qn]').forEach(select => {
     select.addEventListener('change', async () => {
       const gameId = select.dataset.gameQn;
       const questionnaire_id = select.value || null;
-      const { error } = await sb.from('client_games')
-        .upsert({ client_id: selectedClientId, game_id: gameId, questionnaire_id }, { onConflict: 'client_id,game_id' });
+      const { error } = await sb.from('project_games')
+        .upsert({ project_id: selectedProjectId, game_id: gameId, questionnaire_id }, { onConflict: 'project_id,game_id' });
       if (error) alert('Erreur : ' + error.message);
-      await loadClientDetail(selectedClientId);
+      await loadProjectDetail();
     });
   });
   document.getElementById('indexQnSelect').addEventListener('change', async (e) => {
-    const { error } = await sb.from('clients').update({ index_questionnaire_id: e.target.value || null }).eq('id', selectedClientId);
+    const { error } = await sb.from('projects').update({ index_questionnaire_id: e.target.value || null }).eq('id', selectedProjectId);
     if (error) alert('Erreur : ' + error.message);
     await loadClients();
   });
@@ -898,9 +918,9 @@ async function renderGamesTab() {
       const moved = rowGameIds.splice(dragSrcIndex, 1)[0];
       rowGameIds.splice(idx, 0, moved);
       await Promise.all(rowGameIds.map((gameId, i) =>
-        sb.from('client_games').upsert({ client_id: selectedClientId, game_id: gameId, sort_order: i }, { onConflict: 'client_id,game_id' })
+        sb.from('project_games').upsert({ project_id: selectedProjectId, game_id: gameId, sort_order: i }, { onConflict: 'project_id,game_id' })
       ));
-      await loadClientDetail(selectedClientId);
+      await loadProjectDetail();
       renderGamesTab();
     });
   });
@@ -1369,7 +1389,7 @@ function renderEventsTab() {
   const editing = events.find(e => e.id === editingEventId);
   el.innerHTML = `
     <div class="card">
-      <h3>${editing ? 'Modifier l\'événement' : 'Nouvel événement'}</h3>
+      <h3>${editing ? 'Modifier l\'événement' : 'Nouvelle annonce'}</h3>
       <div class="form-grid">
         <input id="evtStart" type="date" value="${editing ? editing.start_date : today}">
         <input id="evtEnd" type="date" value="${editing ? editing.end_date : today}">
@@ -1385,12 +1405,12 @@ function renderEventsTab() {
       ${i18nFieldGroup('description', 'description', 'Description (optionnel)', editing, true)}
       <input id="evtImage" type="file" accept="image/*" style="margin-bottom:10px;">
       <div class="row" style="gap:8px;">
-        <button class="btn-primary" id="btnAddEvent" style="width:auto;">${editing ? 'Enregistrer les modifications' : "Créer l'événement"}</button>
+        <button class="btn-primary" id="btnAddEvent" style="width:auto;">${editing ? 'Enregistrer les modifications' : "Créer l'annonce"}</button>
         ${editing ? `<button class="btn-ghost" id="btnCancelEditEvent" style="width:auto;">Annuler</button>` : ''}
       </div>
     </div>
     <div class="card">
-      <h3>Événements de ce client</h3>
+      <h3>Annonces du projet (affichées sur la tablette)</h3>
       ${events.length ? events.map(e => `
         <div class="event-item" style="${e.is_active ? '' : 'opacity:0.5;'}">
           <div class="title-row">
@@ -1426,10 +1446,10 @@ function renderEventsTab() {
     } catch (e) { alert("Erreur d'upload de l'image : " + e.message); return; }
     const { error } = editingEventId
       ? await sb.from('events').update(payload).eq('id', editingEventId)
-      : await sb.from('events').insert({ ...payload, client_id: selectedClientId });
+      : await sb.from('events').insert({ ...payload, client_id: selectedClientId, project_id: selectedProjectId });
     if (error) { alert('Erreur : ' + error.message); return; }
     editingEventId = null;
-    await loadClientDetail(selectedClientId);
+    await loadProjectDetail();
     renderEventsTab();
   });
   el.querySelectorAll('[data-edit-event]').forEach(btn => {
@@ -1439,7 +1459,7 @@ function renderEventsTab() {
     btn.addEventListener('click', async () => {
       const e = events.find(x => x.id === btn.dataset.toggleEvent);
       await sb.from('events').update({ is_active: !e.is_active }).eq('id', e.id);
-      await loadClientDetail(selectedClientId);
+      await loadProjectDetail();
       renderEventsTab();
     });
   });
@@ -1447,7 +1467,7 @@ function renderEventsTab() {
     btn.addEventListener('click', async () => {
       if (!confirm('Supprimer cet événement ?')) return;
       await sb.from('events').delete().eq('id', btn.dataset.delEvent);
-      await loadClientDetail(selectedClientId);
+      await loadProjectDetail();
       renderEventsTab();
     });
   });
@@ -1612,10 +1632,10 @@ function renderDefisTab() {
     } catch (e) { alert("Erreur d'upload de l'image : " + e.message); return; }
     const { error } = editingDefiId
       ? await sb.from('defis').update(payload).eq('id', editingDefiId)
-      : await sb.from('defis').insert({ ...payload, client_id: selectedClientId });
+      : await sb.from('defis').insert({ ...payload, client_id: selectedClientId, project_id: selectedProjectId });
     if (error) { alert('Erreur : ' + error.message); return; }
     editingDefiId = null;
-    await loadClientDetail(selectedClientId);
+    await loadProjectDetail();
     renderDefisTab();
   });
   el.querySelectorAll('[data-edit-defi]').forEach(btn => {
@@ -1625,7 +1645,7 @@ function renderDefisTab() {
     btn.addEventListener('click', async () => {
       const d = defis.find(x => x.id === btn.dataset.toggleDefi);
       await sb.from('defis').update({ is_active: !d.is_active }).eq('id', d.id);
-      await loadClientDetail(selectedClientId);
+      await loadProjectDetail();
       renderDefisTab();
     });
   });
@@ -1633,7 +1653,7 @@ function renderDefisTab() {
     btn.addEventListener('click', async () => {
       if (!confirm('Supprimer ce défi ?')) return;
       await sb.from('defis').delete().eq('id', btn.dataset.delDefi);
-      await loadClientDetail(selectedClientId);
+      await loadProjectDetail();
       renderDefisTab();
     });
   });
@@ -1776,7 +1796,7 @@ async function renderChallengesView() {
 /* ---------------- Réglages du client ---------------- */
 function renderClientSettingsTab() {
   const el = document.getElementById('tabContent');
-  const client = clients.find(c => c.id === selectedClientId);
+  const client = currentProject;
   el.innerHTML = `
     <div class="card">
       <h3>Écran d'accueil de la tablette</h3>
@@ -1800,7 +1820,7 @@ function renderClientSettingsTab() {
     <div class="card">
       <h3>Accès RH (Calibrer / Réglages sur la tablette)</h3>
       <p style="font-size:12.5px;color:var(--text-dim);margin-bottom:10px;">Ce code est demandé sur la tablette pour accéder à la calibration et aux réglages capteur — réservé au RH/responsable.</p>
-      <input id="cfgRhPin" value="${client.rh_pin || ''}" placeholder="Code RH (4 chiffres, ex: 1234)" maxlength="4" inputmode="numeric" style="max-width:220px;margin-bottom:14px;">
+      <input id="cfgRhPin" value="${client.pin || ''}" placeholder="Code RH (4 chiffres, ex: 1234)" maxlength="4" inputmode="numeric" style="max-width:220px;margin-bottom:14px;">
       <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;">
         <input type="checkbox" id="cfgLockGames" ${client.lock_games ? 'checked' : ''}>
         Réserver aussi l'onglet "Jeux" au RH (même code)
@@ -1813,11 +1833,11 @@ function renderClientSettingsTab() {
     const show_index_banner = document.getElementById('cfgIndexBanner').checked;
     const show_benefits_page = document.getElementById('cfgBenefitsPage').checked;
     const show_initiation_page = document.getElementById('cfgInitiationPage').checked;
-    const rh_pin = document.getElementById('cfgRhPin').value.trim() || '0000';
+    const pin = document.getElementById('cfgRhPin').value.trim() || '0000';
     const lock_games = document.getElementById('cfgLockGames').checked;
-    const { error } = await sb.from('clients').update({ show_ready_to_play, show_index_banner, show_benefits_page, show_initiation_page, rh_pin, lock_games }).eq('id', selectedClientId);
+    const { error } = await sb.from('projects').update({ show_ready_to_play, show_index_banner, show_benefits_page, show_initiation_page, pin, lock_games }).eq('id', selectedProjectId);
     if (error) { alert('Erreur : ' + error.message); return; }
-    await loadClients();
+    await loadProjectDetail();
     renderClientSettingsTab();
   });
 }
@@ -1839,9 +1859,9 @@ const GAME_ICON_ADMIN = {
 async function loadActiveTabletMenuItems(clientId) {
   const today = new Date().toISOString().slice(0, 10);
   const [defisRes, chPartRes, eventsRes] = await Promise.all([
-    sb.from('defis').select('*').eq('client_id', clientId).lte('start_date', today).gte('end_date', today).order('sort_order'),
+    sb.from('defis').select('*').eq('project_id', selectedProjectId).lte('start_date', today).gte('end_date', today).order('sort_order'),
     sb.from('challenge_participants').select('challenge_id').eq('client_id', clientId),
-    sb.from('events').select('*').eq('client_id', clientId).lte('start_date', today).gte('end_date', today).order('sort_order'),
+    sb.from('events').select('*').eq('project_id', selectedProjectId).lte('start_date', today).gte('end_date', today).order('sort_order'),
   ]);
   const activeDefis = defisRes.data || [];
   const challengeIds = (chPartRes.data || []).map(p => p.challenge_id);
@@ -1907,7 +1927,7 @@ function thumbCardHTML(item) {
 async function renderTabletMenuTab() {
   const el = document.getElementById('tabContent');
   el.innerHTML = '<p class="empty">Chargement...</p>';
-  const client = clients.find(c => c.id === selectedClientId);
+  const client = currentProject;
   const { activeDefis, activeChallenges, activeEvents } = await loadActiveTabletMenuItems(selectedClientId);
   const allGames = clientGames.filter(cg => cg.game_id !== 'indextest' && cg.enabled).map(cg => {
     const catalogRow = games.find(g => g.id === cg.game_id) || { id: cg.game_id, name: cg.game_id };
@@ -1930,7 +1950,7 @@ async function renderTabletMenuTab() {
 
   function render() {
     el.innerHTML = `
-      <p class="section-sub">Tout ce qui est actif pour ce client s'affiche ici automatiquement (y compris les événements, désormais mélangés au reste). Glisse une vignette pour changer son ordre. L'œil masque/réaffiche uniquement sur l'écran d'accueil — pour un jeu, ça ne l'enlève pas de l'onglet "Jeux" (ça se gère dans l'onglet Jeux). Change sa photo avec l'icône image.</p>
+      <p class="section-sub">Tout ce qui est actif dans ce projet s'affiche ici automatiquement (y compris les annonces, mélangés au reste). Glisse une vignette pour changer son ordre. L'œil masque/réaffiche uniquement sur l'écran d'accueil — pour un jeu, ça ne l'enlève pas de l'onglet "Jeux" (ça se gère dans l'onglet Jeux). Change sa photo avec l'icône image.</p>
       <div class="menu-section-title">Contenu principal (empilé)</div>
       <div class="menu-stack" id="mainStack">
         ${stack.length ? stack.map(thumbCardHTML).join('') : '<p class="empty">Rien pour l\'instant.</p>'}
@@ -1948,12 +1968,12 @@ async function renderTabletMenuTab() {
     const item = findItem(type, id);
     if (!item) return;
     const newVisible = !item.visible;
-    if (type === 'index') await sb.from('clients').update({ show_index_banner: newVisible }).eq('id', selectedClientId);
-    else if (type === 'game') await sb.from('client_games').update({ show_on_home: newVisible }).eq('client_id', selectedClientId).eq('game_id', id);
+    if (type === 'index') await sb.from('projects').update({ show_index_banner: newVisible }).eq('id', selectedProjectId);
+    else if (type === 'game') await sb.from('project_games').update({ show_on_home: newVisible }).eq('project_id', selectedProjectId).eq('game_id', id);
     else if (type === 'defi') await sb.from('defis').update({ is_active: newVisible }).eq('id', id);
     else if (type === 'challenge') await sb.from('challenges').update({ is_active: newVisible }).eq('id', id);
     else if (type === 'event') await sb.from('events').update({ is_active: newVisible }).eq('id', id);
-    await loadClientDetail(selectedClientId);
+    await loadProjectDetail();
     await loadClients();
     renderTabletMenuTab();
   }
@@ -1962,13 +1982,13 @@ async function renderTabletMenuTab() {
     let image_url;
     try { image_url = await uploadBanner(file); } catch (e) { alert("Erreur d'upload : " + e.message); return; }
     let result;
-    if (type === 'game') result = await sb.from('client_games').update({ image_url }).eq('client_id', selectedClientId).eq('game_id', id);
+    if (type === 'game') result = await sb.from('project_games').update({ image_url }).eq('project_id', selectedProjectId).eq('game_id', id);
     else if (type === 'defi') result = await sb.from('defis').update({ image_url }).eq('id', id);
     else if (type === 'challenge') result = await sb.from('challenges').update({ image_url }).eq('id', id);
     else if (type === 'event') result = await sb.from('events').update({ image_url }).eq('id', id);
-    else if (type === 'index') result = await sb.from('clients').update({ index_image_url: image_url }).eq('id', selectedClientId);
+    else if (type === 'index') result = await sb.from('projects').update({ index_image_url: image_url }).eq('id', selectedProjectId);
     if (result?.error) { alert("Erreur en enregistrant l'image : " + result.error.message); return; }
-    await loadClientDetail(selectedClientId);
+    await loadProjectDetail();
     await loadClients();
     renderTabletMenuTab();
   }
@@ -2012,13 +2032,13 @@ async function renderTabletMenuTab() {
 
   async function persistStack(items) {
     await Promise.all(items.map((item, i) => {
-      if (item.type === 'index') return sb.from('clients').update({ index_sort_order: i }).eq('id', selectedClientId);
-      if (item.type === 'game') return sb.from('client_games').update({ sort_order: i }).eq('client_id', selectedClientId).eq('game_id', item.id);
+      if (item.type === 'index') return sb.from('projects').update({ index_sort_order: i }).eq('id', selectedProjectId);
+      if (item.type === 'game') return sb.from('project_games').update({ sort_order: i }).eq('project_id', selectedProjectId).eq('game_id', item.id);
       if (item.type === 'defi') return sb.from('defis').update({ sort_order: i }).eq('id', item.id);
       if (item.type === 'challenge') return sb.from('challenges').update({ sort_order: i }).eq('id', item.id);
       if (item.type === 'event') return sb.from('events').update({ sort_order: i }).eq('id', item.id);
     }));
-    await loadClientDetail(selectedClientId);
+    await loadProjectDetail();
     await loadClients();
   }
 
@@ -2028,7 +2048,7 @@ async function renderTabletMenuTab() {
 /* ---------------- Publicité (par client) ---------------- */
 function renderAdsTab() {
   const el = document.getElementById('tabContent');
-  const client = clients.find(c => c.id === selectedClientId);
+  const client = currentProject;
   const sortedAds = [...clientAds].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   const satAvail = !!client.satisfaction_enabled;
   const adsAvail = !!client.ads_enabled;
@@ -2043,7 +2063,7 @@ function renderAdsTab() {
     <div class="card">
       <h3>Contenu d'accueil</h3>
       <p style="font-size:12.5px;color:var(--text-dim);margin-bottom:14px;">
-        <b>Disponible</b> = ce que vous mettez à disposition de ce client (l'un, l'autre, ou les deux).
+        <b>Disponible</b> = ce que vous mettez à disposition dans ce projet (l'un, l'autre, ou les deux).
         <b>Affiché</b> = ce qui apparaît sur l'accueil. Le RH peut aussi changer l'affichage depuis la tablette (sans toucher à la disponibilité).
         Les deux partagent le même espace (25% de l'écran) — un seul est affiché à la fois.
       </p>
@@ -2112,23 +2132,23 @@ function renderAdsTab() {
 
   // Disponibilité (indépendante) : contrôlée uniquement par l'admin
   document.getElementById('adsEnabledToggle').addEventListener('change', async (e) => {
-    await sb.from('clients').update({ ads_enabled: e.target.checked }).eq('id', selectedClientId);
+    await sb.from('projects').update({ ads_enabled: e.target.checked }).eq('id', selectedProjectId);
     await loadClients();
-    await loadClientDetail(selectedClientId);
+    await loadProjectDetail();
     renderAdsTab();
   });
   document.getElementById('satisfactionEnabledToggle').addEventListener('change', async (e) => {
-    await sb.from('clients').update({ satisfaction_enabled: e.target.checked }).eq('id', selectedClientId);
+    await sb.from('projects').update({ satisfaction_enabled: e.target.checked }).eq('id', selectedProjectId);
     await loadClients();
-    await loadClientDetail(selectedClientId);
+    await loadProjectDetail();
     renderAdsTab();
   });
   // Affichage actuel : réglable par l'admin (le RH peut aussi le changer depuis la tablette)
   document.querySelectorAll('#activeModeButtons [data-active-mode]').forEach(b => {
     b.addEventListener('click', async () => {
-      await sb.from('clients').update({ home_display_mode: b.dataset.activeMode }).eq('id', selectedClientId);
+      await sb.from('projects').update({ home_display_mode: b.dataset.activeMode }).eq('id', selectedProjectId);
       await loadClients();
-      await loadClientDetail(selectedClientId);
+      await loadProjectDetail();
       renderAdsTab();
     });
   });
@@ -2141,20 +2161,20 @@ function renderAdsTab() {
     let image_url;
     try { image_url = await uploadBanner(file); } catch (e) { alert("Erreur d'upload : " + e.message); return; }
     const payload = {
-      client_id: selectedClientId, image_url, is_active: true,
+      client_id: selectedClientId, project_id: selectedProjectId, image_url, is_active: true,
       start_at: startVal ? new Date(startVal).toISOString() : null,
       end_at: endVal ? new Date(endVal).toISOString() : null,
     };
     const { error } = await sb.from('client_ads').insert(payload);
     if (error) { alert('Erreur : ' + error.message); return; }
-    await loadClientDetail(selectedClientId);
+    await loadProjectDetail();
     renderAdsTab();
   });
 
   el.querySelectorAll('[data-toggle-ad]').forEach(cb => {
     cb.addEventListener('change', async () => {
       await sb.from('client_ads').update({ is_active: cb.checked }).eq('id', cb.dataset.toggleAd);
-      await loadClientDetail(selectedClientId);
+      await loadProjectDetail();
       renderAdsTab();
     });
   });
@@ -2162,7 +2182,7 @@ function renderAdsTab() {
     btn.addEventListener('click', async () => {
       if (!confirm('Supprimer cette publicité ?')) return;
       await sb.from('client_ads').delete().eq('id', btn.dataset.delAd);
-      await loadClientDetail(selectedClientId);
+      await loadProjectDetail();
       renderAdsTab();
     });
   });
@@ -3418,6 +3438,7 @@ const OFFER_LABELS = {
   team_building: "Journée de l'équilibre – Team building",
   mois_equilibre: "Mois de l'équilibre",
   campagne_annuelle: 'Campagne annuelle',
+  abonnement: 'Abonnement (borne en libre-service)',
   demo_vip: 'Démo VIP (offerte)',
 };
 const EVENT_STATUS_LABELS = { preparee: 'Préparée', en_cours: 'En cours', cloturee: 'Clôturée', annulee: 'Annulée' };
@@ -3462,29 +3483,79 @@ let indexZones = null;
 
 function coachName(id) { const c = coachList.find(x => x.id === id); return c ? (c.display_name || c.email) : '—'; }
 
-async function renderInterventionsView() {
-  await loadInterventions();
-  if (editingInterventionId) { renderInterventionEditor(); return; }
+/* ---------------- Projets : client → projets → événements ----------------
+   Un projet = ce qui est vendu (Découverte, Team building, Mois, campagne annuelle, abonnement…), avec UN code PANDA-XXXX
+   que les tablettes rejoignent et un code PIN pour les Réglages. Jeux, accueil, pubs, défis et annonces sont réglés par projet.
+   Un projet contient une ou plusieurs séances : c'est le coach qui démarre / termine chaque séance, les dates sont indicatives. */
+const PARC_CLIENT_ID = '00000000-0000-0000-0000-0000000000aa';
+const PROJECT_STATUS_LABELS = { actif: 'Actif', termine: 'Terminé', annule: 'Annulé' };
+const PROJECT_TABS = [
+  ['general', 'Projet'], ['events', 'Séances'], ['devices', 'Tablettes'], ['games', 'Jeux'], ['tabletmenu', 'Menu tablette'],
+  ['clientsettings', 'Accueil & PIN'], ['ads', 'Pubs & satisfaction'], ['defis', 'Défis'], ['annonces', 'Annonces'],
+];
+const DEFAULT_PROJECT_GAMES = ['distance', 'base', 'thezone', 'cross', 'skiprev', 'tempo'];
+let projectsList = [];
+let editingProjectId = null;   // null = liste, 'new' = création, 'parc' = parc de tablettes, sinon id
+let selectedProjectId = null;
+let currentProject = null;
+let projectTab = 'general';
+let newProjectClientId = null; // « + Nouveau projet » depuis la fiche d'un client
+
+async function loadProjectsList() {
+  const { data } = await sb.from('projects').select('*, clients(name), devices(count)').order('created_at', { ascending: false });
+  projectsList = data || [];
+}
+// Données du projet ouvert, rangées dans les mêmes variables que les anciens onglets « client » (réutilisés tels quels)
+async function loadProjectDetail() {
+  if (!selectedProjectId) return;
+  const [pRes, devRes, gamesRes, pgRes, evRes, dfRes, adsRes] = await Promise.all([
+    sb.from('projects').select('*, clients(name)').eq('id', selectedProjectId).maybeSingle(),
+    sb.from('devices').select('*').eq('project_id', selectedProjectId).order('joined_at'),
+    sb.from('games').select('*').order('name'),
+    sb.from('project_games').select('*').eq('project_id', selectedProjectId),
+    sb.from('events').select('*').eq('project_id', selectedProjectId).order('start_date', { ascending: false }),
+    sb.from('defis').select('*').eq('project_id', selectedProjectId).order('start_date', { ascending: false }),
+    sb.from('client_ads').select('*').eq('project_id', selectedProjectId).order('created_at', { ascending: false }),
+  ]);
+  currentProject = pRes.data;
+  if (currentProject) selectedClientId = currentProject.client_id;
+  devices = devRes.data || []; games = gamesRes.data || []; clientGames = pgRes.data || [];
+  events = evRes.data || []; defis = dfRes.data || []; clientAds = adsRes.data || [];
+}
+function escA(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function projectNextStep(p) {
+  const evs = interventions.filter(e => e.project_id === p.id && e.status !== 'annulee');
+  const live = evs.find(e => e.status === 'en_cours');
+  if (live) return `<span class="badge badge-payee">en cours</span> ${escA(live.title || '')}`;
+  const nx = evs.filter(e => e.status === 'preparee').sort((a, b) => a.starts_at.localeCompare(b.starts_at))[0];
+  return nx ? `${new Date(nx.starts_at).toLocaleDateString('fr-CH')} ${localTime(nx.starts_at)}` : '<span style="color:var(--text-dim);">—</span>';
+}
+
+async function renderInterventionsView() { await renderProjectsView(); } // ancien nom, gardé pour les rappels internes
+
+async function renderProjectsView() {
+  await Promise.all([loadInterventions(), loadProjectsList()]);
+  if (editingProjectId) { await renderProjectEditor(); return; }
   const main = document.getElementById('main');
-  const now = Date.now();
-  const upcoming = interventions.filter(e => new Date(e.ends_at).getTime() >= now - 12 * 3600 * 1000 && e.status !== 'annulee').reverse();
-  const past = interventions.filter(e => !upcoming.includes(e));
-  const rowHTML = e => {
-    const coaches = (e.event_session_coaches || []).map(c => coachName(c.admin_user_id)).join(', ') || '<span style="color:var(--destructive);">aucun coach</span>';
-    const rep = e.event_reports;
-    return `
-      <tr data-open-event="${e.id}" style="cursor:pointer;">
-        <td>${new Date(e.starts_at).toLocaleDateString('fr-CH')} ${localTime(e.starts_at)}</td>
-        <td><b>${e.clients?.name || '—'}</b><br><span style="font-size:12px;color:var(--text-dim);">${OFFER_LABELS[e.offer] || e.offer}</span></td>
-        <td>${coaches}</td>
-        <td><span class="badge">${e.code || '—'}</span></td>
-        <td>${EVENT_STATUS_LABELS[e.status] || e.status}${rep ? ` · CR ✓${rep.hot_lead ? ' 🔥' : ''}` : ''}</td>
-      </tr>`;
-  };
+  const rowHTML = p => `
+    <tr data-open-project="${p.id}" style="cursor:pointer;">
+      <td><b>${escA(p.clients?.name || '—')}</b><br><span style="font-size:12px;color:var(--text-dim);">${OFFER_LABELS[p.offer] || p.offer}</span></td>
+      <td>${escA(p.title || '—')}</td>
+      <td><span class="badge">${p.code}</span></td>
+      <td>${projectNextStep(p)}</td>
+      <td>${p.devices?.[0]?.count ?? 0}</td>
+      <td>${PROJECT_STATUS_LABELS[p.status] || p.status}</td>
+    </tr>`;
+  const open = projectsList.filter(p => p.status === 'actif');
+  const closed = projectsList.filter(p => p.status !== 'actif');
+  const head = '<tr><th>Client · offre</th><th>Projet</th><th>Code</th><th>Prochaine séance</th><th>Tablettes</th><th>Statut</th></tr>';
   main.innerHTML = `
-    <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="clipboard-list"></i> Interventions</div>
-    <div class="section-sub">Le commercial prépare la séance et attribue les coachs ; le coach retrouve tout sur console.pandafit.ch/coach (fiche, code, matériel, compte-rendu).</div>
-    <button class="btn-primary" id="btnNewEvent" style="width:auto;margin-bottom:14px;">+ Nouvelle intervention</button>
+    <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="folder-kanban"></i> Projets</div>
+    <div class="section-sub">Un projet = ce qui est vendu au client, avec un code que les tablettes rejoignent. Il contient une ou plusieurs séances : le commercial les prépare, le coach les démarre et les termine (console.pandafit.ch/coach).</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+      <button class="btn-primary" id="btnNewProject" style="width:auto;">+ Nouveau projet</button>
+      ${currentAdmin?.is_superadmin ? '<button class="btn-ghost" id="btnParc">Parc de tablettes</button>' : ''}
+    </div>
     ${currentAdmin?.is_superadmin ? `<div class="card">
       <h3>Seuils des zones de l'Index (valeurs provisoires)</h3>
       <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
@@ -3494,22 +3565,300 @@ async function renderInterventionsView() {
       </div>
       <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Entre les deux : « à entretenir ». S'applique à tous les rapports, y compris ceux déjà publiés.</p>
     </div>` : ''}
-    <div class="card">
-      <h3>À venir</h3>
-      ${upcoming.length ? `<table><tr><th>Date</th><th>Client · offre</th><th>Coach(s)</th><th>Code</th><th>Statut</th></tr>${upcoming.map(rowHTML).join('')}</table>` : '<p class="empty">Aucune intervention prévue.</p>'}
-    </div>
-    ${past.length ? `<div class="card"><h3>Passées et annulées</h3><table><tr><th>Date</th><th>Client · offre</th><th>Coach(s)</th><th>Code</th><th>Statut</th></tr>${past.map(rowHTML).join('')}</table></div>` : ''}
+    <div class="card"><h3>En cours</h3>
+      ${open.length ? `<table>${head}${open.map(rowHTML).join('')}</table>` : '<p class="empty">Aucun projet en cours.</p>'}</div>
+    ${closed.length ? `<div class="card"><h3>Terminés et annulés</h3><table>${head}${closed.map(rowHTML).join('')}</table></div>` : ''}
   `;
-  document.getElementById('btnNewEvent').addEventListener('click', () => { editingInterventionId = 'new'; renderInterventionsView(); });
+  document.getElementById('btnNewProject').addEventListener('click', () => { editingProjectId = 'new'; renderProjectsView(); });
+  document.getElementById('btnParc')?.addEventListener('click', () => { editingProjectId = 'parc'; renderProjectsView(); });
   document.getElementById('btnSaveZones')?.addEventListener('click', async () => {
     const good = Number(document.getElementById('zoneGood').value), risk = Number(document.getElementById('zoneRisk').value);
     if (!(risk < good)) { alert('Le seuil de la zone à risque doit être plus bas que celui du bon équilibre.'); return; }
     const { error } = await sb.from('index_zones').update({ good_min: good, risk_below: risk, updated_at: new Date().toISOString() }).eq('id', true);
     alert(error ? 'Erreur : ' + error.message : 'Seuils enregistrés.');
-    renderInterventionsView();
+    renderProjectsView();
   });
-  main.querySelectorAll('[data-open-event]').forEach(tr => tr.addEventListener('click', () => { editingInterventionId = tr.dataset.openEvent; renderInterventionsView(); }));
+  main.querySelectorAll('[data-open-project]').forEach(tr => tr.addEventListener('click', () => {
+    editingProjectId = tr.dataset.openProject; projectTab = 'general'; editingInterventionId = null; renderProjectsView();
+  }));
   if (window.lucide) lucide.createIcons();
+}
+
+async function renderProjectEditor() {
+  const main = document.getElementById('main');
+  if (editingProjectId === 'parc') { await renderParcView(); return; }
+  if (editingProjectId === 'new') { renderNewProjectForm(); return; }
+  selectedProjectId = editingProjectId;
+  await loadProjectDetail();
+  const p = currentProject;
+  if (!p) { editingProjectId = null; renderProjectsView(); return; }
+  // Une séance ouverte : on garde l'éditeur d'intervention existant
+  if (projectTab === 'events' && editingInterventionId) { renderInterventionEditor(); return; }
+  main.innerHTML = `
+    <button class="btn-ghost" id="btnBackProjects" style="margin-bottom:14px;">← Tous les projets</button>
+    <div class="section-title">${escA(p.clients?.name || '')} · ${escA(p.title || OFFER_LABELS[p.offer] || '')}</div>
+    <div class="section-sub">${OFFER_LABELS[p.offer] || p.offer} · code <span class="badge" style="font-size:13px;">${p.code}</span> · PIN des Réglages <b>${escA(p.pin)}</b> · ${PROJECT_STATUS_LABELS[p.status] || p.status}</div>
+    <div class="tabs">${PROJECT_TABS.map(([k, l]) => `<div class="tab ${projectTab === k ? 'active' : ''}" data-ptab="${k}">${l}</div>`).join('')}</div>
+    <div id="tabContent"></div>`;
+  document.getElementById('btnBackProjects').addEventListener('click', () => { editingProjectId = null; selectedProjectId = null; currentProject = null; renderProjectsView(); });
+  main.querySelectorAll('[data-ptab]').forEach(t => t.addEventListener('click', () => { projectTab = t.dataset.ptab; editingInterventionId = null; renderProjectEditor(); }));
+  if (projectTab === 'general') renderProjectGeneralTab();
+  else if (projectTab === 'events') renderProjectEventsTab();
+  else if (projectTab === 'devices') await renderProjectDevicesTab();
+  else if (projectTab === 'games') await renderGamesTab();
+  else if (projectTab === 'tabletmenu') await renderTabletMenuTab();
+  else if (projectTab === 'clientsettings') renderClientSettingsTab();
+  else if (projectTab === 'ads') renderAdsTab();
+  else if (projectTab === 'defis') renderDefisTab();
+  else if (projectTab === 'annonces') renderEventsTab();
+  if (window.lucide) lucide.createIcons();
+}
+
+const fieldP = (label, html) => `<div><div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">${label}</div>${html}</div>`;
+const selStyleP = 'width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);';
+const LANG_OPTIONS = [['fr', 'Français'], ['de', 'Deutsch'], ['it', 'Italiano'], ['en', 'English']];
+
+function renderNewProjectForm() {
+  const main = document.getElementById('main');
+  const cid = newProjectClientId || selectedClientId || clients.find(c => c.id !== PARC_CLIENT_ID)?.id;
+  main.innerHTML = `
+    <button class="btn-ghost" id="btnBackProjects" style="margin-bottom:14px;">← Tous les projets</button>
+    <div class="card">
+      <h3>Nouveau projet</h3>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:10px;">
+        ${fieldP('Client', `<select id="npClient" style="${selStyleP}">${clients.filter(c => c.id !== PARC_CLIENT_ID).map(c => `<option value="${c.id}" ${c.id === cid ? 'selected' : ''}>${escA(c.name)}</option>`).join('')}</select>`)}
+        ${fieldP('Offre', `<select id="npOffer" style="${selStyleP}">${Object.entries(OFFER_LABELS).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>`)}
+        ${fieldP('Titre (facultatif)', `<input id="npTitle" placeholder="ex. Défi Équilibre Atelier">`)}
+        ${fieldP('Langue', `<select id="npLanguage" style="${selStyleP}">${LANG_OPTIONS.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>`)}
+        ${fieldP('Date de la première séance (indicative)', `<input id="npDate" type="date">`)}
+        ${fieldP('Fin (abonnement / campagne annuelle seulement)', `<input id="npEnd" type="date">`)}
+      </div>
+      <p style="font-size:12px;color:var(--text-dim);margin:10px 0 0;">Le code du projet et le code PIN des Réglages sont créés automatiquement. Avec une date, la première séance est créée (08:30–11:30, à ajuster ensuite).</p>
+      <button class="btn-primary" id="btnCreateProject" style="width:auto;margin-top:12px;">Créer le projet</button>
+    </div>`;
+  document.getElementById('btnBackProjects').addEventListener('click', () => { editingProjectId = null; newProjectClientId = null; renderProjectsView(); });
+  document.getElementById('btnCreateProject').addEventListener('click', async () => {
+    const offer = document.getElementById('npOffer').value;
+    const date = document.getElementById('npDate').value;
+    const payload = {
+      client_id: document.getElementById('npClient').value, offer,
+      title: document.getElementById('npTitle').value.trim() || null,
+      language: document.getElementById('npLanguage').value,
+      starts_on: date || null, ends_on: document.getElementById('npEnd').value || null,
+      show_ready_to_play: ['mois_equilibre', 'campagne_annuelle', 'abonnement'].includes(offer),
+      created_by: currentAdmin?.id,
+    };
+    const { data: p, error } = await sb.from('projects').insert(payload).select().single();
+    if (error) { alert('Erreur : ' + error.message); return; }
+    await sb.from('project_games').insert(DEFAULT_PROJECT_GAMES.map((g, i) => ({ project_id: p.id, game_id: g, enabled: true, sort_order: i + 1 })));
+    if (date && offer !== 'abonnement') {
+      const startsAt = new Date(`${date}T08:30`), endsAt = new Date(`${date}T11:30`);
+      const { error: e2 } = await sb.from('event_sessions').insert({
+        project_id: p.id, client_id: p.client_id, offer, title: p.title, language: p.language,
+        starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(),
+        arrival_at: new Date(startsAt.getTime() - defaultArrivalMinutes(offer) * 60000).toISOString(),
+        materials: defaultMaterials(offer, null), games: DEFAULT_PROJECT_GAMES, created_by: currentAdmin?.id,
+      });
+      if (e2) alert('Projet créé, mais la première séance n\'a pas pu être créée : ' + e2.message);
+    }
+    newProjectClientId = null;
+    editingProjectId = p.id; projectTab = date ? 'events' : 'general'; editingInterventionId = null;
+    renderProjectsView();
+  });
+}
+
+function renderProjectGeneralTab() {
+  const el = document.getElementById('tabContent');
+  const p = currentProject;
+  el.innerHTML = `
+    <div class="card">
+      <h3>Codes pour les tablettes</h3>
+      <table>
+        <tr><td style="width:40%;">Code du projet (à entrer sur la tablette)</td><td><span class="badge" style="font-size:15px;">${p.code}</span></td></tr>
+        <tr><td>Code PIN des Réglages (coach, responsable sur place)</td><td><b style="font-size:15px;">${escA(p.pin)}</b> <span style="font-size:12px;color:var(--text-dim);">(modifiable dans « Accueil & PIN »)</span></td></tr>
+        <tr><td>Classement à projeter</td><td><a href="https://app.pandafit.ch/projection.html?code=${encodeURIComponent(p.code)}" target="_blank" rel="noopener" style="color:var(--primary);">app.pandafit.ch/projection.html?code=${p.code}</a></td></tr>
+      </table>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:10px 0 0;">Le coach retrouve ces codes dans sa fiche de mission. Une tablette du parc qui entre le code rejoint le projet ; elle revient seule au parc quand le projet est terminé.</p>
+    </div>
+    <div class="card">
+      <h3>Projet</h3>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:10px;">
+        ${fieldP('Titre', `<input id="pgTitle" value="${escA(p.title || '')}">`)}
+        ${fieldP('Offre', `<select id="pgOffer" style="${selStyleP}">${Object.entries(OFFER_LABELS).map(([k, l]) => `<option value="${k}" ${p.offer === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`)}
+        ${fieldP('Langue (tablettes, projection, inscription, rapport)', `<select id="pgLanguage" style="${selStyleP}">${LANG_OPTIONS.map(([k, l]) => `<option value="${k}" ${p.language === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`)}
+        ${fieldP('Ambiance', `<select id="pgAmbiance" style="${selStyleP}"><option value="securite" ${p.ambiance !== 'festive' ? 'selected' : ''}>Sécurité / sobre</option><option value="festive" ${p.ambiance === 'festive' ? 'selected' : ''}>Fun / festive</option></select>`)}
+        ${fieldP('Début (indicatif)', `<input id="pgStart" type="date" value="${p.starts_on || ''}">`)}
+        ${fieldP('Fin (abonnement / campagne annuelle : retour au parc après cette date)', `<input id="pgEnd" type="date" value="${p.ends_on || ''}">`)}
+      </div>
+      <div style="font-size:11.5px;color:var(--text-dim);margin:12px 0 4px;">Notes internes</div>
+      <textarea id="pgNotes" rows="3" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);font-family:inherit;">${escA(p.notes || '')}</textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+        <button class="btn-primary" id="btnSaveProject" style="width:auto;">Enregistrer</button>
+        ${p.status === 'actif' ? '<button class="btn-ghost" id="btnEndProject">Terminer le projet</button>' : '<button class="btn-ghost" id="btnReopenProject">Rouvrir le projet</button>'}
+        <button class="btn-destructive" id="btnDeleteProject">Supprimer</button>
+      </div>
+      <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Le projet se termine aussi tout seul quand le coach termine sa dernière séance (sauf abonnement / campagne annuelle : à la date de fin).</p>
+    </div>`;
+  document.getElementById('btnSaveProject').addEventListener('click', async () => {
+    const upd = {
+      title: document.getElementById('pgTitle').value.trim() || null, offer: document.getElementById('pgOffer').value,
+      language: document.getElementById('pgLanguage').value, ambiance: document.getElementById('pgAmbiance').value,
+      starts_on: document.getElementById('pgStart').value || null, ends_on: document.getElementById('pgEnd').value || null,
+      notes: document.getElementById('pgNotes').value.trim() || null,
+    };
+    const { error } = await sb.from('projects').update(upd).eq('id', p.id);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    // La langue et l'ambiance suivent le projet sur toutes ses séances
+    await sb.from('event_sessions').update({ language: upd.language, ambiance: upd.ambiance }).eq('project_id', p.id);
+    renderProjectEditor();
+  });
+  document.getElementById('btnEndProject')?.addEventListener('click', async () => {
+    if (!confirm('Terminer ce projet ? Ses tablettes retournent au parc PandaFit.')) return;
+    await sb.from('projects').update({ status: 'termine' }).eq('id', p.id);
+    renderProjectEditor();
+  });
+  document.getElementById('btnReopenProject')?.addEventListener('click', async () => {
+    await sb.from('projects').update({ status: 'actif' }).eq('id', p.id);
+    renderProjectEditor();
+  });
+  document.getElementById('btnDeleteProject').addEventListener('click', async () => {
+    if (!confirm('Supprimer définitivement ce projet, ses séances, comptes-rendus, défis et annonces ? (les parties jouées restent dans les statistiques du client)')) return;
+    const { error } = await sb.from('projects').delete().eq('id', p.id);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    editingProjectId = null; selectedProjectId = null; currentProject = null;
+    renderProjectsView();
+  });
+}
+
+function renderProjectEventsTab() {
+  const el = document.getElementById('tabContent');
+  const p = currentProject;
+  const evs = interventions.filter(e => e.project_id === p.id).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+  el.innerHTML = `
+    <div class="card">
+      <h3>Séances du projet</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Dates indicatives : c'est le coach qui démarre et termine chaque séance (espace coach ou Réglages de la tablette). Pendant une séance, les tablettes du projet passent en mode séance ; entre deux séances, elles sont en libre-service (Mois, campagne, abonnement) ou en attente.</p>
+      ${evs.length ? `<table><tr><th>Date</th><th>Séance</th><th>Coach(s)</th><th>Statut</th></tr>${evs.map(e => `
+        <tr data-open-event="${e.id}" style="cursor:pointer;">
+          <td>${new Date(e.starts_at).toLocaleDateString('fr-CH')} ${localTime(e.starts_at)}</td>
+          <td><b>${escA(e.title || OFFER_LABELS[e.offer] || '')}</b>${e.campaign_step ? ` <span class="badge">${e.campaign_step === 't0' ? 'lancement' : 'clôture'}</span>` : ''}</td>
+          <td>${(e.event_session_coaches || []).map(c => coachName(c.admin_user_id)).join(', ') || '<span style="color:var(--destructive);">aucun coach</span>'}</td>
+          <td>${EVENT_STATUS_LABELS[e.status] || e.status}${e.event_reports ? ` · CR ✓${e.event_reports.hot_lead ? ' 🔥' : ''}` : ''}</td>
+        </tr>`).join('')}</table>` : '<p class="empty">Aucune séance pour l\'instant.</p>'}
+      <button class="btn-primary" id="btnNewEvent" style="width:auto;margin-top:12px;">+ Ajouter une séance</button>
+    </div>`;
+  document.getElementById('btnNewEvent').addEventListener('click', () => { editingInterventionId = 'new'; renderProjectEditor(); });
+  el.querySelectorAll('[data-open-event]').forEach(tr => tr.addEventListener('click', () => { editingInterventionId = tr.dataset.openEvent; renderProjectEditor(); }));
+}
+
+const POSTE_LABELS = { index: 'PandaFit Index', jeux: 'Jeux libres' };
+function posteName(p) { return POSTE_LABELS[p] || (p ? 'Station ' + ((gamesForEvents.find(g => g.id === p) || {}).name || p) : '—'); }
+function seenLabel(d) {
+  if (!d.last_seen_at) return '<span style="color:var(--text-dim);">jamais vue</span>';
+  const min = Math.round((Date.now() - new Date(d.last_seen_at).getTime()) / 60000);
+  return min <= 1 ? '<span style="color:#2ec27e;">● en ligne</span>' : `<span style="color:var(--text-dim);">vue il y a ${min < 60 ? min + ' min' : min < 2880 ? Math.round(min / 60) + ' h' : Math.round(min / 1440) + ' j'}</span>`;
+}
+async function renderProjectDevicesTab() {
+  const el = document.getElementById('tabContent');
+  const p = currentProject;
+  const { data: parc } = currentAdmin?.is_superadmin ? await sb.from('devices').select('id, name').is('project_id', null).order('name') : { data: [] };
+  const postes = ['index', 'jeux', ...(p.offer === 'team_building' ? ['base', 'skiprev', 'tempo'] : [])];
+  el.innerHTML = `
+    <div class="card">
+      <h3>Tablettes du projet</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Une tablette rejoint le projet en entrant le code <b>${p.code}</b> (ou en l'ajoutant ici). Le poste est proposé automatiquement ; le coach peut le changer depuis son téléphone.</p>
+      ${devices.length ? `<table><tr><th>Tablette</th><th>Poste</th><th>Connexion</th><th></th></tr>${devices.map(d => `
+        <tr><td><b>${escA(d.name)}</b></td>
+          <td><select data-poste-dev="${d.id}" style="${selStyleP}padding:8px 10px;">${postes.map(x => `<option value="${x}" ${d.poste === x ? 'selected' : ''}>${posteName(x)}</option>`).join('')}</select></td>
+          <td>${seenLabel(d)}</td>
+          <td><button class="btn-ghost" data-unassign="${d.id}">Retour au parc</button></td></tr>`).join('')}</table>` : '<p class="empty">Aucune tablette dans ce projet.</p>'}
+      ${(parc || []).length ? `<div class="inline-form" style="margin-top:12px;"><select id="assignDev" style="${selStyleP}">${parc.map(d => `<option value="${d.id}">${escA(d.name)}</option>`).join('')}</select><button class="btn-primary" id="btnAssignDev" style="width:auto;">Ajouter au projet</button></div>` : ''}
+    </div>
+    <div class="card">
+      <h3>Mettre à jour les tablettes du projet</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-ghost" id="btnSoftRefresh">Rafraîchir le contenu (sans recharger)</button>
+        <button class="btn-ghost" id="btnHardReload">Recharger l'app (nouvelle version)</button>
+      </div>
+      <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Rafraîchir : les tablettes reprennent jeux, pubs et réglages en ~20 s, sans couper le Bluetooth ni une partie. Recharger : l'app redémarre puis reconnecte le capteur.</p>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-top:12px;">
+        <input type="checkbox" id="nightlyEnabledToggle" ${p.nightly_reload_enabled ? 'checked' : ''}> Rechargement automatique chaque nuit à
+        <select id="nightlyHourSelect" style="${selStyleP}width:auto;padding:6px 10px;">${Array.from({ length: 24 }, (_, h) => `<option value="${h}" ${Number(p.nightly_reload_hour) === h ? 'selected' : ''}>${String(h).padStart(2, '0')}h00</option>`).join('')}</select>
+      </label>
+    </div>`;
+  el.querySelectorAll('[data-poste-dev]').forEach(s => s.addEventListener('change', async () => {
+    const { error } = await sb.rpc('coach_set_poste', { p_device: s.dataset.posteDev, p_poste: s.value });
+    if (error) alert('Erreur : ' + error.message);
+  }));
+  el.querySelectorAll('[data-unassign]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Renvoyer cette tablette au parc PandaFit ?')) return;
+    const { error } = await sb.rpc('staff_assign_device', { p_device: b.dataset.unassign, p_project: null });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    renderProjectEditor();
+  }));
+  document.getElementById('btnAssignDev')?.addEventListener('click', async () => {
+    const { error } = await sb.rpc('staff_assign_device', { p_device: document.getElementById('assignDev').value, p_project: p.id });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    renderProjectEditor();
+  });
+  document.getElementById('btnSoftRefresh').addEventListener('click', async () => {
+    const { error } = await sb.from('projects').update({ refresh_token: crypto.randomUUID() }).eq('id', p.id);
+    alert(error ? 'Erreur : ' + error.message : 'Demandé : les tablettes du projet se mettent à jour d\'ici ~20 s.');
+  });
+  document.getElementById('btnHardReload').addEventListener('click', async () => {
+    if (!confirm("Recharger l'app sur toutes les tablettes du projet ? (une partie en cours serait interrompue)")) return;
+    const { error } = await sb.from('projects').update({ reload_token: crypto.randomUUID() }).eq('id', p.id);
+    alert(error ? 'Erreur : ' + error.message : 'Demandé : les tablettes rechargent d\'ici ~20 s.');
+  });
+  const saveNightly = async () => {
+    await sb.from('projects').update({ nightly_reload_enabled: document.getElementById('nightlyEnabledToggle').checked, nightly_reload_hour: Number(document.getElementById('nightlyHourSelect').value) }).eq('id', p.id);
+  };
+  document.getElementById('nightlyEnabledToggle').addEventListener('change', saveNightly);
+  document.getElementById('nightlyHourSelect').addEventListener('change', saveNightly);
+}
+
+// Parc de tablettes (superadmin) : toutes les tablettes, où elles sont, création d'une nouvelle tablette
+async function renderParcView() {
+  const main = document.getElementById('main');
+  const { data: all } = await sb.from('devices').select('*, projects(code, title, clients(name))').order('name');
+  main.innerHTML = `
+    <button class="btn-ghost" id="btnBackProjects" style="margin-bottom:14px;">← Tous les projets</button>
+    <div class="section-title">Parc de tablettes</div>
+    <div class="section-sub">Toutes les tablettes PandaFit. Hors projet, une tablette est « au parc » : elle affiche seulement l'écran « Entre le code du projet ».</div>
+    <div class="card">
+      <table><tr><th>Tablette</th><th>Où</th><th>Poste</th><th>Connexion</th><th></th></tr>
+        ${(all || []).map(d => `<tr><td><b>${escA(d.name)}</b></td>
+          <td>${d.projects ? `${escA(d.projects.clients?.name || '')} · <span class="badge">${d.projects.code}</span>` : '<span style="color:var(--text-dim);">au parc</span>'}</td>
+          <td>${d.project_id ? posteName(d.poste) : '—'}</td><td>${seenLabel(d)}</td>
+          <td>${d.project_id ? `<button class="btn-ghost" data-unassign="${d.id}">Retour au parc</button>` : `<button class="btn-ghost" data-del-dev="${d.id}">Supprimer</button>`}</td></tr>`).join('')}
+      </table>
+    </div>
+    <div class="card">
+      <h3>Nouvelle tablette</h3>
+      <div class="inline-form"><input id="newDeviceName" placeholder="Nom (ex. Tablette 04)"><button class="btn-primary" id="btnAddDevice" style="width:auto;">Créer</button></div>
+      <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Une clé est générée : à entrer une seule fois sur la tablette (écran « Configuration de la tablette »).</p>
+      <div id="newDeviceKey"></div>
+    </div>`;
+  document.getElementById('btnBackProjects').addEventListener('click', () => { editingProjectId = null; renderProjectsView(); });
+  main.querySelectorAll('[data-unassign]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Renvoyer cette tablette au parc PandaFit ?')) return;
+    const { error } = await sb.rpc('staff_assign_device', { p_device: b.dataset.unassign, p_project: null });
+    if (error) alert('Erreur : ' + error.message); else renderParcView();
+  }));
+  main.querySelectorAll('[data-del-dev]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Supprimer cette tablette ? Elle devra être reconfigurée avec une nouvelle clé.')) return;
+    const { error } = await sb.from('devices').delete().eq('id', b.dataset.delDev);
+    if (error) alert('Erreur : ' + error.message); else renderParcView();
+  }));
+  document.getElementById('btnAddDevice').addEventListener('click', async () => {
+    const name = document.getElementById('newDeviceName').value.trim();
+    if (!name) return;
+    const device_key = 'PF-' + Array.from(crypto.getRandomValues(new Uint8Array(9)), b => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[b % 31]).join('').replace(/(.{3})(?=.)/g, '$1-');
+    const { error } = await sb.from('devices').insert({ client_id: PARC_CLIENT_ID, name, device_key });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    await renderParcView();
+    document.getElementById('newDeviceKey').innerHTML = `<p style="margin-top:10px;">Clé de <b>${escA(name)}</b> : <span class="badge" style="font-size:15px;">${device_key}</span> — à noter, elle ne sera plus affichée.</p>`;
+  });
 }
 
 function renderInterventionEditor() {
@@ -3517,7 +3866,8 @@ function renderInterventionEditor() {
   const e = editingInterventionId === 'new' ? null : interventions.find(x => x.id === editingInterventionId);
   if (editingInterventionId !== 'new' && !e) { editingInterventionId = null; renderInterventionsView(); return; }
   const assigned = new Map((e?.event_session_coaches || []).map(c => [c.admin_user_id, c]));
-  const offer = e?.offer || 'decouverte';
+  const proj = currentProject; // la séance appartient toujours au projet ouvert
+  const offer = e?.offer || proj?.offer || 'decouverte';
   const dateVal = e ? localDate(e.starts_at) : '';
   const rep = e?.event_reports;
   const field = (label, html) => `<div><div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">${label}</div>${html}</div>`;
@@ -3525,10 +3875,12 @@ function renderInterventionEditor() {
   const taStyle = 'width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);font-family:inherit;';
 
   main.innerHTML = `
-    <button class="btn-ghost" id="btnBackEvents" style="margin-bottom:14px;">← Retour aux interventions</button>
-    ${e ? `<div class="card"><h3>Code de session : <span class="badge" style="font-size:15px;">${e.code}</span> · ${EVENT_STATUS_LABELS[e.status]}</h3>
-      <p style="font-size:12.5px;color:var(--text-dim);margin:0;">Le coach le voit dans sa fiche dès maintenant, pour préparer et tester la tablette avant le jour J (la séance s'ouvre sur la tablette dès la veille).
-      Classement à projeter : <a href="https://app.pandafit.ch/projection.html?code=${encodeURIComponent(e.code)}" target="_blank" rel="noopener" style="color:var(--primary);">app.pandafit.ch/projection.html?code=${e.code}</a></p></div>` : ''}
+    <button class="btn-ghost" id="btnBackEvents" style="margin-bottom:14px;">← Retour au projet</button>
+    <div class="section-title" style="font-size:18px;">${escA(proj?.clients?.name || '')} · ${escA(proj?.title || OFFER_LABELS[proj?.offer] || '')}</div>
+    ${e ? `<div class="card"><h3>Séance : ${EVENT_STATUS_LABELS[e.status]} · code du projet <span class="badge" style="font-size:15px;">${proj?.code}</span> · PIN ${escA(proj?.pin)}</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0;">Le coach voit ces codes dans sa fiche de mission et démarre la séance le jour J (espace coach ou Réglages de la tablette).
+      Classement à projeter : <a href="https://app.pandafit.ch/projection.html?code=${encodeURIComponent(proj?.code || '')}" target="_blank" rel="noopener" style="color:var(--primary);">app.pandafit.ch/projection.html?code=${proj?.code}</a></p>
+      ${e.status === 'en_cours' ? '<button class="btn-ghost" id="btnStaffEndEvent" style="margin-top:10px;">■ Terminer la séance</button>' : e.status === 'preparee' ? '<button class="btn-ghost" id="btnStaffStartEvent" style="margin-top:10px;">▶ Démarrer la séance</button>' : ''}</div>` : ''}
     ${rep ? `<div class="card"><h3>Compte-rendu du coach ${rep.hot_lead ? '🔥 piste chaude' : ''}</h3>
       <table>
         <tr><td style="width:40%;">Participants</td><td>${rep.participants ?? '—'}</td></tr>
@@ -3550,8 +3902,8 @@ function renderInterventionEditor() {
     </div>` : ''}
     ${e?.offer === 'mois_equilibre' ? `<div class="card" id="campaignCard">
       <h3>Mois de l'équilibre ${e.campaign_step ? `· <span class="badge">${e.campaign_step === 't0' ? 'lancement (T0)' : 'clôture (T1)'}</span>` : ''}</h3>
-      ${e.campaign_id ? '<p class="empty">Chargement…</p>' : `
-        <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Cette intervention est le <b>lancement</b>. On crée la clôture (même horaire, mêmes coachs) et les 4 défis hebdomadaires sur le panda à demeure : précision, mouvement, cerveau, grand défi final.</p>
+      ${(e.campaign_step || interventions.some(x => x.project_id === e.project_id && x.campaign_step === 't1')) ? '<p class="empty">Chargement…</p>' : `
+        <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Cette séance est le <b>lancement</b>. On crée la clôture (même horaire, mêmes coachs) et les 4 défis hebdomadaires sur le panda à demeure : précision, mouvement, cerveau, grand défi final.</p>
         <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:10px;">
           ${field('Clôture (mesure finale) le', `<input id="cpT1" type="date" value="${localDate(new Date(new Date(e.starts_at).getTime() + 28 * 86400000).toISOString())}">`)}
           ${field('Jeu du grand défi final (semaine 4)', `<select id="cpFinal" style="${selStyle}">${[['base', 'Electro'], ['skiprev', 'Slalom'], ['tempo', 'MindFit'], ['thezone', 'The Zone']].map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>`)}
@@ -3559,10 +3911,9 @@ function renderInterventionEditor() {
         <button class="btn-primary" id="btnSetupCampaign" style="width:auto;margin-top:10px;">Créer la clôture et les 4 défis</button>`}
     </div>` : ''}
     <div class="card">
-      <h3>${e ? 'Modifier l\'intervention' : 'Nouvelle intervention'}</h3>
+      <h3>${e ? 'Modifier la séance' : 'Nouvelle séance'}</h3>
       <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:10px;">
-        ${field('Client', `<select id="evClient" style="${selStyle}">${clients.map(c => `<option value="${c.id}" ${e?.client_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}</select>`)}
-        ${field('Offre', `<select id="evOffer" style="${selStyle}">${Object.entries(OFFER_LABELS).map(([k, l]) => `<option value="${k}" ${offer === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`)}
+        ${field('Format de la séance', `<select id="evOffer" style="${selStyle}">${Object.entries(OFFER_LABELS).map(([k, l]) => `<option value="${k}" ${offer === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`)}
         ${field('Date', `<input id="evDate" type="date" value="${dateVal}">`)}
         ${field('Titre (facultatif)', `<input id="evTitle" value="${e?.title || ''}" placeholder="ex. Défi Équilibre Atelier">`)}
         ${field('Début', `<input id="evStart" type="time" value="${e ? localTime(e.starts_at) : '08:30'}">`)}
@@ -3572,11 +3923,7 @@ function renderInterventionEditor() {
         ${field('Adresse', `<input id="evAddress" value="${e?.address || ''}" placeholder="Rue, NPA Ville">`)}
         ${field('Contact sur place', `<input id="evContactName" value="${e?.contact_name || ''}" placeholder="Prénom Nom">`)}
         ${field('Téléphone du contact', `<input id="evContactPhone" value="${e?.contact_phone || ''}" placeholder="+41 79 …">`)}
-        ${field('Ambiance', `<select id="evAmbiance" style="${selStyle}"><option value="securite" ${e?.ambiance !== 'festive' ? 'selected' : ''}>Sécurité / sobre</option><option value="festive" ${e?.ambiance === 'festive' ? 'selected' : ''}>Fun / festive</option></select>`)}
-        ${field('Langue', `<select id="evLanguage" style="${selStyle}">${[['fr', 'Français'], ['de', 'Deutsch'], ['it', 'Italiano'], ['en', 'English']].map(([k, l]) => `<option value="${k}" ${(e?.language || 'fr') === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`)}
       </div>
-      <div style="font-size:11.5px;color:var(--text-dim);margin:12px 0 6px;">Jeux de la séance</div>
-      <div>${gamesForEvents.map(g => `<span class="client-check-row"><input type="checkbox" class="ev-game" id="evg-${g.id}" value="${g.id}" ${(e?.games || []).includes(g.id) ? 'checked' : ''}><label for="evg-${g.id}">${g.name}</label></span>`).join('')}</div>
       <div style="font-size:11.5px;color:var(--text-dim);margin:12px 0 4px;">Matériel à prendre <a href="#" id="evMaterialsReset" style="color:var(--primary);">recalculer selon l'offre</a></div>
       <textarea id="evMaterials" rows="4" style="${taStyle}">${e?.materials ?? defaultMaterials(offer, e?.expected_participants)}</textarea>
       <div style="font-size:11.5px;color:var(--text-dim);margin:10px 0 4px;">Infos pour le coach (accès, parking, particularités…)</div>
@@ -3613,13 +3960,26 @@ function renderInterventionEditor() {
       }).join('') : '<p class="empty">Aucun coach inscrit. Crée-les dans l\'onglet Accès.</p>'}</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn-primary" id="btnSaveEvent" style="width:auto;">${e ? 'Enregistrer' : 'Créer l\'intervention'}</button>
-      ${e && e.status !== 'annulee' ? '<button class="btn-ghost" id="btnCancelEvent">Annuler l\'intervention</button>' : ''}
+      <button class="btn-primary" id="btnSaveEvent" style="width:auto;">${e ? 'Enregistrer' : 'Créer la séance'}</button>
+      ${e && e.status !== 'annulee' ? '<button class="btn-ghost" id="btnCancelEvent">Annuler la séance</button>' : ''}
       ${e ? '<button class="btn-destructive" id="btnDeleteEvent">Supprimer</button>' : ''}
     </div>
   `;
 
-  document.getElementById('btnBackEvents').addEventListener('click', () => { editingInterventionId = null; renderInterventionsView(); });
+  document.getElementById('btnBackEvents').addEventListener('click', () => { editingInterventionId = null; renderProjectEditor(); });
+  // Démarrer / terminer la séance depuis la console (normalement fait par le coach)
+  document.getElementById('btnStaffStartEvent')?.addEventListener('click', async () => {
+    if (!confirm('Démarrer cette séance ? Les tablettes du projet passent en mode séance.')) return;
+    const { error } = await sb.rpc('coach_start', { p_event: e.id });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    renderInterventionsView();
+  });
+  document.getElementById('btnStaffEndEvent')?.addEventListener('click', async () => {
+    if (!confirm('Terminer cette séance ?')) return;
+    const { error } = await sb.rpc('coach_end', { p_event: e.id });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    renderInterventionsView();
+  });
   // Mois de l'équilibre : création de la clôture + 4 défis, ou résumé du mois
   document.getElementById('btnSetupCampaign')?.addEventListener('click', async () => {
     const t1 = document.getElementById('cpT1').value;
@@ -3629,26 +3989,22 @@ function renderInterventionEditor() {
     if (error) { alert('Erreur : ' + error.message); return; }
     renderInterventionsView();
   });
-  if (e?.campaign_id) (async () => {
-    const [{ data: cp }, { data: dfs }] = await Promise.all([
-      sb.from('campaigns').select('*').eq('id', e.campaign_id).maybeSingle(),
-      sb.from('defis').select('title, game_id, start_date, end_date, is_active').eq('campaign_id', e.campaign_id).order('sort_order'),
-    ]);
+  if (e?.offer === 'mois_equilibre' && document.getElementById('campaignCard')?.querySelector('.empty')) {
     const box = document.getElementById('campaignCard');
-    if (!box || !cp) return;
-    const other = interventions.find(x => x.campaign_id === e.campaign_id && x.id !== e.id);
+    const other = interventions.find(x => x.project_id === e.project_id && x.campaign_step && x.campaign_step !== e.campaign_step && x.id !== e.id);
+    const dfs = defis.filter(x => proj?.starts_on && x.start_date >= proj.starts_on).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
     const gName = id => (gamesForEvents.find(g => g.id === id) || {}).name || id;
-    const d = iso => new Date(iso + 'T12:00').toLocaleDateString('fr-CH', { weekday: 'short', day: 'numeric', month: 'short' });
+    const d = iso => iso ? new Date(iso.slice(0, 10) + 'T12:00').toLocaleDateString('fr-CH', { weekday: 'short', day: 'numeric', month: 'short' }) : '—';
     box.innerHTML = `
-      <h3>Mois de l'équilibre · <span class="badge">${e.campaign_step === 't0' ? 'lancement (T0)' : 'clôture (T1)'}</span></h3>
-      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Du ${d(cp.starts_on)} au ${d(cp.ends_on)}. Pendant le mois, le panda à demeure sert à s'entraîner (pas d'Index en libre-service, consignes de sécurité avant chaque partie). À la clôture, chacun saisit son code personnel : le rapport compare lancement et clôture.</p>
-      ${other ? `<button class="btn-ghost" id="btnOpenOther" style="margin-bottom:10px;">→ Ouvrir ${other.campaign_step === 't1' ? 'la clôture' : 'le lancement'} (${new Date(other.starts_at).toLocaleDateString('fr-CH')} · ${other.code})</button>` : ''}
+      <h3>Mois de l'équilibre${e.campaign_step ? ` · <span class="badge">${e.campaign_step === 't0' ? 'lancement (T0)' : 'clôture (T1)'}</span>` : ''}</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Du ${d(proj?.starts_on)} au ${d(proj?.ends_on)} (indicatif). Entre le lancement et la clôture, le panda à demeure sert à s'entraîner (pas d'Index en libre-service, consignes de sécurité avant chaque partie). À la clôture, chacun saisit son code personnel : le rapport compare lancement et clôture.</p>
+      ${other ? `<button class="btn-ghost" id="btnOpenOther" style="margin-bottom:10px;">→ Ouvrir ${other.campaign_step === 't1' ? 'la clôture' : 'le lancement'} (${new Date(other.starts_at).toLocaleDateString('fr-CH')})</button>` : ''}
       <table><tr><th>Défi</th><th>Jeu</th><th>Dates</th></tr>
-        ${(dfs || []).map(x => `<tr><td>${x.title}${x.is_active ? '' : ' <span style="color:var(--text-dim);">(désactivé)</span>'}</td><td>${gName(x.game_id)}</td><td>${d(x.start_date)} → ${d(x.end_date)}</td></tr>`).join('')}
+        ${dfs.map(x => `<tr><td>${escA(x.title)}${x.is_active ? '' : ' <span style="color:var(--text-dim);">(désactivé)</span>'}</td><td>${gName(x.game_id)}</td><td>${d(x.start_date)} → ${d(x.end_date)}</td></tr>`).join('')}
       </table>
-      <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Les défis se modifient dans la fiche du client → onglet Défis. ${e.campaign_step === 't1' ? 'Le rapport de cette clôture inclut la progression (dès 5 personnes mesurées aux deux dates).' : ''}</p>`;
+      <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Les défis se modifient dans l'onglet Défis du projet. ${e.campaign_step === 't1' ? 'Le rapport de cette clôture inclut la progression (dès 5 personnes mesurées aux deux dates).' : ''}</p>`;
     document.getElementById('btnOpenOther')?.addEventListener('click', () => { editingInterventionId = other.id; renderInterventionsView(); });
-  })();
+  }
   document.getElementById('btnViewReport')?.addEventListener('click', async () => {
     await sb.from('event_sessions').update({ report_note: document.getElementById('evReportNote').value.trim() || null }).eq('id', e.id);
     window.open(`/rapport.html?e=${e.id}`, '_blank');
@@ -3679,7 +4035,7 @@ function renderInterventionEditor() {
     const arrivalVal = document.getElementById('evArrival').value;
     const arrivalAt = arrivalVal ? new Date(`${date}T${arrivalVal}`) : new Date(startsAt.getTime() - defaultArrivalMinutes(offerVal) * 60000);
     const payload = {
-      client_id: document.getElementById('evClient').value,
+      client_id: proj.client_id, project_id: proj.id,
       offer: offerVal,
       title: document.getElementById('evTitle').value.trim() || null,
       starts_at: startsAt.toISOString(),
@@ -3689,9 +4045,9 @@ function renderInterventionEditor() {
       contact_name: document.getElementById('evContactName').value.trim() || null,
       contact_phone: document.getElementById('evContactPhone').value.trim() || null,
       expected_participants: Number(document.getElementById('evParticipants').value) || null,
-      ambiance: document.getElementById('evAmbiance').value,
-      language: document.getElementById('evLanguage').value,
-      games: [...main.querySelectorAll('.ev-game:checked')].map(c => c.value),
+      ambiance: proj.ambiance || 'securite',
+      language: proj.language || 'fr',
+      games: clientGames.filter(g => g.enabled && g.game_id !== 'indextest').map(g => g.game_id),
       materials: document.getElementById('evMaterials').value.trim() || null,
       notes_for_coach: document.getElementById('evNotes').value.trim() || null,
       slot_minutes: document.getElementById('evSlotMinutes').value === '' ? null : Number(document.getElementById('evSlotMinutes').value),
@@ -3705,7 +4061,7 @@ function renderInterventionEditor() {
       const { data, error } = await sb.from('event_sessions').insert({ ...payload, created_by: currentAdmin?.id }).select('id').single();
       if (error) { alert('Erreur : ' + error.message); return; }
       eventId = data.id;
-      if (payload.offer === 'mois_equilibre') alert("Lancement du Mois de l'équilibre créé. Étape suivante : la carte « Mois de l'équilibre » en haut de la fiche crée la clôture et les 4 défis (après avoir attribué les coachs).");
+      if (payload.offer === 'mois_equilibre' && !interventions.some(x => x.project_id === proj.id && x.campaign_step)) alert("Lancement du Mois de l'équilibre créé. Étape suivante : la carte « Mois de l'équilibre » en haut de la séance crée la clôture et les 4 défis (après avoir attribué les coachs).");
     }
     const checked = [...main.querySelectorAll('.ev-coach:checked')].map(c => c.value);
     await sb.from('event_session_coaches').delete().eq('event_session_id', eventId);
@@ -3715,7 +4071,7 @@ function renderInterventionEditor() {
         fee: Number(main.querySelector(`.ev-fee[data-coach="${cid}"]`)?.value) || 550,
       }));
       const { error } = await sb.from('event_session_coaches').insert(rows);
-      if (error) { alert('Intervention enregistrée, mais erreur sur les coachs : ' + error.message); }
+      if (error) { alert('Séance enregistrée, mais erreur sur les coachs : ' + error.message); }
     }
     // Créneaux d'inscription : recalculés si l'horaire ou le réglage a changé, tant que personne n'est inscrit
     const sameTime = (a, b) => new Date(a).getTime() === new Date(b).getTime();
@@ -3724,19 +4080,19 @@ function renderInterventionEditor() {
       || (!payload.slot_capacity && (e.expected_participants ?? null) !== payload.expected_participants);
     if (slotsChanged && e && (e.event_slots || []).length) {
       const { data: r } = await sb.rpc('staff_regenerate_slots', { p_event: eventId });
-      if (r && !r.ok && r.reason === 'places') alert(`Intervention enregistrée, mais le nombre de places n'a pas changé : un créneau compte déjà ${r.max_in_slot} inscrits. Choisis au moins ${r.max_in_slot} places.`);
-      else if (r && !r.ok) alert(`Intervention enregistrée. Les horaires des créneaux n'ont pas changé : il y a déjà ${r.registrations} inscrit(s), qu'on ne déplace pas. Le nombre de places, lui, peut toujours être modifié.`);
+      if (r && !r.ok && r.reason === 'places') alert(`Séance enregistrée, mais le nombre de places n'a pas changé : un créneau compte déjà ${r.max_in_slot} inscrits. Choisis au moins ${r.max_in_slot} places.`);
+      else if (r && !r.ok) alert(`Séance enregistrée. Les horaires des créneaux n'ont pas changé : il y a déjà ${r.registrations} inscrit(s), qu'on ne déplace pas. Le nombre de places, lui, peut toujours être modifié.`);
     }
     editingInterventionId = eventId;
     renderInterventionsView();
   });
   document.getElementById('btnCancelEvent')?.addEventListener('click', async () => {
-    if (!confirm('Annuler cette intervention ? Elle disparaîtra de l\'espace du coach.')) return;
+    if (!confirm('Annuler cette séance ? Elle disparaîtra de l\'espace du coach.')) return;
     await sb.from('event_sessions').update({ status: 'annulee' }).eq('id', e.id);
     renderInterventionsView();
   });
   document.getElementById('btnDeleteEvent')?.addEventListener('click', async () => {
-    if (!confirm('Supprimer définitivement cette intervention et son compte-rendu ?')) return;
+    if (!confirm('Supprimer définitivement cette séance et son compte-rendu ?')) return;
     await sb.from('event_sessions').delete().eq('id', e.id);
     editingInterventionId = null;
     renderInterventionsView();
