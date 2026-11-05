@@ -306,6 +306,12 @@ async function printPoster(e, link) {
 /* ---------------- Écran de la tablette ---------------- */
 async function viewScreen(view, f) {
   const c = me.client;
+  // Pas de borne en libre-service en ce moment (pas de Mois, campagne ou abonnement en cours) : rien à régler
+  if (!c.has_borne) {
+    view.innerHTML = f + `<h1>Écran de la tablette</h1>
+      <div class="card"><p class="sub" style="margin:0;">Aucune tablette PandaFit en libre-service chez vous en ce moment. Cet écran se règle pendant un Mois de l'équilibre, une campagne annuelle ou un abonnement.</p></div>`;
+    return;
+  }
   const [{ data: sat }, { data: ads }] = await Promise.all([sb.rpc('rh_satisfaction', { p_days: satDays }), sb.rpc('rh_ads')]);
   const modes = ['auto', ...(c.satisfaction_enabled ? ['satisfaction'] : []), ...(c.ads_enabled ? ['ads'] : []), 'none'];
   const cur = c.home_display_mode || 'auto';
