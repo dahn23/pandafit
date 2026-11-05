@@ -227,7 +227,8 @@ function missionDetailHTML() {
     <div class="card">
       <h3>Code de session</h3>
       <div class="code">${esc(m.code || '—')}</div>
-      <p class="hint">À saisir sur la tablette (Réglages → mode événement). Teste-le la veille.</p>
+      <p class="hint">À saisir sur la tablette : Réglages → Mode événement. Teste-le la veille (la séance s'ouvre dès la veille).</p>
+      ${m.code ? `<p class="hint">Classement à projeter sur l'écran : <a style="color:var(--primary);" href="https://app.pandafit.ch/projection.html?code=${encodeURIComponent(m.code)}" target="_blank" rel="noopener">app.pandafit.ch/projection.html?code=${esc(m.code)}</a></p>` : ''}
     </div>
     <div class="card">
       <div class="row"><span class="k">Arrivée</span><span class="v">${fmtTime(m.arrival_at)}</span></div>

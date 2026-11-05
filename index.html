@@ -683,8 +683,22 @@ const PandaFitBackend = (() => {
         p_score: Math.round(score || 0),
         p_meta: meta || null,
         p_employee_id: employeeId || null,
+        p_event_code: activeEvent?.code || null, // mode événement : partie rattachée à la séance (Index « officiel »)
       });
     } catch (e) { return null; /* pas grave si ça échoue ponctuellement, on ne bloque pas le jeu */ }
+  }
+
+  /* ---------- Mode événement (séance animée par un coach, code PANDA-XXXX) ---------- */
+  async function joinEvent(code) {
+    return await rpc('tablet_join_event', { p_device_key: getDeviceKey(), p_code: code });
+  }
+  async function eventRank(score) {
+    if (!activeEvent) return null;
+    try { return await rpc('tablet_event_rank', { p_device_key: getDeviceKey(), p_event_code: activeEvent.code, p_score: Math.round(score || 0) }); }
+    catch (e) { return null; }
+  }
+  async function setPseudo(sessionId, pseudo) {
+    return await rpc('tablet_set_pseudo', { p_device_key: getDeviceKey(), p_session_id: sessionId, p_pseudo: pseudo });
   }
 
   /** Récupère les questions + réponses possibles d'un questionnaire. */
@@ -723,7 +737,7 @@ const PandaFitBackend = (() => {
   /** Crée un nouvel employé (anonyme au départ) ; le code personnel unique est généré côté serveur. */
   async function createEmployee(config) {
     try {
-      return await rpc('tablet_new_employee', { p_device_key: getDeviceKey() });
+      return await rpc('tablet_new_employee', { p_device_key: getDeviceKey(), p_event_code: activeEvent?.code || null });
     } catch (e) { return null; }
   }
 
@@ -931,7 +945,7 @@ const PandaFitBackend = (() => {
     } catch (e) { console.error('submitArcadeScore a échoué:', e); return false; }
   }
 
-  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore, fetchSatisfactionSettings, submitSatisfactionResponse, setHomeDisplayMode, fetchTabletSignals };
+  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore, fetchSatisfactionSettings, submitSatisfactionResponse, setHomeDisplayMode, fetchTabletSignals, joinEvent, eventRank, setPseudo };
 })();
 
 /* =====================================================================================
@@ -2398,6 +2412,16 @@ function pickLang(obj, field) {
 
 let logLines = [];
 let clientConfig = null; // { deviceId, deviceName, clientId, clientName, enabledGameIds }
+// Mode événement : séance rejointe avec un code PANDA-XXXX (gardée en mémoire si la tablette redémarre)
+const EVENT_STORAGE_KEY = 'pandafit_event';
+let activeEvent = null; // { id, code, client, title, offer, games, ambiance, language, starts_at, ends_at }
+let lastIndexSessionId = null;
+function saveActiveEvent() {
+  try { activeEvent ? localStorage.setItem(EVENT_STORAGE_KEY, JSON.stringify(activeEvent)) : localStorage.removeItem(EVENT_STORAGE_KEY); } catch (e) {}
+}
+function loadSavedEvent() {
+  try { return JSON.parse(localStorage.getItem(EVENT_STORAGE_KEY) || 'null'); } catch (e) { return null; }
+}
 let activeAds = [];
 let adsRotationTimer = null;
 let adsCurrentIndex = 0;
@@ -2775,6 +2799,14 @@ function screenHome() {
       </div>
     </div>
 
+    ${activeEvent ? `
+      <div class="hero-play" style="border:2px solid var(--primary);">
+        <p style="margin:0 0 4px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--primary);font-weight:800;">Séance PandaFit · ${activeEvent.client}</p>
+        <h3>${activeEvent.title || 'Passe ton PandaFit Index'}</h3>
+        <p>90 secondes pour mesurer ton équilibre, avec ton coach PandaFit.</p>
+        <button id="btnEventIndex">Passer mon PandaFit Index</button>
+      </div>
+    ` : ''}
     ${clientConfig?.showReadyToPlay !== false && !clientConfig?.lockGames ? `
       <div class="hero-play">
         <h3>${t('ready_title')}</h3>
@@ -2803,6 +2835,7 @@ function wireInfoCardsSparkle() {
 }
 function wireHomeScreen() {
   document.getElementById('btnGoGames')?.addEventListener('click', () => navigate('games'));
+  document.getElementById('btnEventIndex')?.addEventListener('click', () => navigate('indextest'));
   document.getElementById('btnGoBenefits')?.addEventListener('click', () => navigate('benefits'));
   document.getElementById('btnGoInitiation')?.addEventListener('click', () => navigate('initiation'));
   document.querySelectorAll('.lang-flag-btn').forEach(btn => btn.addEventListener('click', () => setLang(btn.dataset.lang)));
@@ -3606,6 +3639,20 @@ function screenSettings() {
       <h2>Application</h2>
       <button class="btn-primary" id="btnRefreshApp" style="width:100%;">🔄 Actualiser l'app (récupérer la dernière version)</button>
     </div>
+    <div class="card">
+      <h2>Mode événement</h2>
+      ${activeEvent ? `
+        <div class="setting-row"><span class="lbl">Séance</span><span class="val">${activeEvent.client}${activeEvent.title ? ' · ' + activeEvent.title : ''}</span></div>
+        <div class="setting-row"><span class="lbl">Code</span><span class="val">${activeEvent.code}</span></div>
+        <div class="setting-row"><span class="lbl">Projection</span><span class="val" style="word-break:break-all;">${location.origin}/projection.html?code=${activeEvent.code}</span></div>
+        <button class="btn-ghost" id="btnLeaveEvent" style="width:100%;margin-top:10px;">Quitter l'événement (retour en mode borne)</button>
+      ` : `
+        <p class="page-sub" style="margin:0 0 10px;">Pour une séance animée par un coach : entre le code de session (ex. PANDA-7K3Q). Les Index passés pendant la séance seront « officiels » et rattachés au client de la séance.</p>
+        <input id="eventCodeInput" placeholder="PANDA-XXXX" autocapitalize="characters" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--panel-hi);color:var(--text);font-size:16px;margin-bottom:10px;box-sizing:border-box;text-transform:uppercase;">
+        <p id="eventCodeError" style="color:#ff8a97;font-size:13px;margin:0 0 10px;display:none;"></p>
+        <button class="btn-primary" id="btnJoinEvent" style="width:100%;">Rejoindre la séance</button>
+      `}
+    </div>
     ${homeDisplayCard()}
     <div class="card">
       <h2>Tablette</h2>
@@ -3657,6 +3704,32 @@ function wireSettingsScreen() {
       caches.keys().then(names => names.forEach(n => caches.delete(n)));
     }
     location.reload(true);
+  });
+  document.getElementById('btnJoinEvent')?.addEventListener('click', async () => {
+    const input = document.getElementById('eventCodeInput');
+    const err = document.getElementById('eventCodeError');
+    let code = (input.value || '').trim().toUpperCase().replace(/\s+/g, '');
+    if (code && !code.startsWith('PANDA-')) code = 'PANDA-' + code.replace(/^PANDA/, '');
+    if (!code) return;
+    try {
+      const ev = await PandaFitBackend.joinEvent(code);
+      if (!ev) { err.textContent = "Code inconnu, ou séance pas encore ouverte (dès la veille) ou déjà clôturée."; err.style.display = 'block'; return; }
+      activeEvent = ev;
+      saveActiveEvent();
+      if (ev.language && ev.language !== currentLang) setLang(ev.language);
+      log(`Mode événement : ${ev.client} (${ev.code}).`);
+      navigate('home');
+    } catch (e) {
+      err.textContent = 'Impossible de vérifier le code. Vérifie la connexion internet.'; err.style.display = 'block';
+    }
+  });
+  document.getElementById('btnLeaveEvent')?.addEventListener('click', () => {
+    if (!confirm("Quitter l'événement et revenir en mode borne ?")) return;
+    log(`Mode événement terminé (${activeEvent?.code}).`);
+    activeEvent = null;
+    saveActiveEvent();
+    content.innerHTML = screenSettings();
+    wireSettingsScreen();
   });
   document.getElementById('btnRecalibrate')?.addEventListener('click', () => navigate('calibrate'));
   document.getElementById('btnDisconnect')?.addEventListener('click', () => { PandaFitSensor.disconnect(); navigate('home'); });
@@ -5113,13 +5186,38 @@ async function finishIndexTest(overall, staticResult, movementResult) {
   if (!currentEmployee) {
     currentEmployee = await PandaFitBackend.createEmployee(clientConfig);
   }
-  PandaFitBackend.recordSession(clientConfig, 'indextest', overall, {
+  lastIndexSessionId = null;
+  const recorded = PandaFitBackend.recordSession(clientConfig, 'indextest', overall, {
     staticScore: staticResult.score, movementScore: movementResult.score,
     rmsCm: staticResult.rmsCm, amplitudeCm: movementResult.amplitudeCm,
     regularityScore: movementResult.regularityScore, cycles: movementResult.cycles,
-  }, currentEmployee?.id).then(submitPendingAnswersIfAny);
+  }, currentEmployee?.id).then(id => { lastIndexSessionId = id; submitPendingAnswersIfAny(id); return id; });
   content.innerHTML = screenIndexResult(overall, staticResult, movementResult);
-  wireIndexResult();
+  wireIndexResult(recorded);
+  if (activeEvent) {
+    // Position dans le groupe, calculée après l'enregistrement (affichée dès 5 participants)
+    recorded.then(() => PandaFitBackend.eventRank(overall)).then(r => {
+      const el = document.getElementById('eventRankText');
+      if (!el) return;
+      el.textContent = r?.better_than_pct != null
+        ? `Tu fais mieux que ${r.better_than_pct} % du groupe (${r.participants} participants).`
+        : `Ta position dans le groupe s'affichera dès 5 participants.`;
+    });
+  }
+}
+function eventResultCardHTML() {
+  if (!activeEvent) return '';
+  return `
+    <div class="card" style="margin-top:16px;text-align:center;border:2px solid var(--primary);">
+      <h2>Index officiel · ${activeEvent.client}</h2>
+      <p class="page-sub" id="eventRankText">Calcul de ta position…</p>
+      <p class="page-sub" style="margin-top:12px;">Apparaître au classement de la séance ? (facultatif, un pseudo suffit)</p>
+      <div class="row" style="gap:8px;">
+        <input id="pseudoInput" maxlength="16" placeholder="Ton pseudo" style="flex:1;padding:14px;border-radius:12px;border:none;background:var(--panel-hi);color:var(--text);font-size:16px;">
+        <button class="btn-primary" id="btnSavePseudo" style="width:auto;">Valider</button>
+      </div>
+      <p class="page-sub" id="pseudoSaved" style="display:none;color:var(--primary);margin-top:8px;"></p>
+    </div>`;
 }
 function screenIndexResult(overall, staticResult, movementResult) {
   return `
@@ -5130,6 +5228,7 @@ function screenIndexResult(overall, staticResult, movementResult) {
       <div><div class="n">${staticResult.score}</div><div class="l">Équilibre statique</div></div>
       <div><div class="n">${movementResult.score}</div><div class="l">Mouvement</div></div>
     </div>
+    ${eventResultCardHTML()}
     <div class="card" style="margin-top:16px;">
       <h2>Détails</h2>
       <div class="result-stat"><span>Oscillation moyenne (statique)</span><span>${staticResult.rmsCm} cm</span></div>
@@ -5146,14 +5245,30 @@ function screenIndexResult(overall, staticResult, movementResult) {
       </div>
     ` : ''}
     <div class="row" style="margin-top:14px;">
-      <button class="btn-primary" id="btnIndexReplay">${t('index_replay')}</button>
+      <button class="btn-primary" id="btnIndexReplay">${activeEvent ? 'Participant suivant' : t('index_replay')}</button>
       <button class="btn-ghost" id="btnIndexHome">${t('back_home')}</button>
     </div>
   </div>
   `;
 }
-function wireIndexResult() {
-  document.getElementById('btnIndexReplay')?.addEventListener('click', () => launchIndexWithQuestionnaire());
+function wireIndexResult(recorded) {
+  document.getElementById('btnSavePseudo')?.addEventListener('click', async () => {
+    const pseudo = (document.getElementById('pseudoInput')?.value || '').trim();
+    const saved = document.getElementById('pseudoSaved');
+    if (!pseudo) return;
+    const id = lastIndexSessionId || await recorded;
+    try {
+      await PandaFitBackend.setPseudo(id, pseudo);
+      saved.textContent = `C'est noté : « ${pseudo} » apparaît au classement.`;
+    } catch (e) {
+      saved.textContent = "Le pseudo n'a pas pu être enregistré (connexion ?).";
+    }
+    saved.style.display = 'block';
+  });
+  document.getElementById('btnIndexReplay')?.addEventListener('click', () => {
+    if (activeEvent) currentEmployee = null; // en séance, le suivant est une autre personne : nouveau code personnel
+    launchIndexWithQuestionnaire();
+  });
   document.getElementById('btnIndexHome')?.addEventListener('click', () => { currentEmployee = null; navigate('home'); });
   const canvas = document.getElementById('employeeQrCanvas');
   if (canvas && currentEmployee) {
@@ -5326,6 +5441,13 @@ document.getElementById('btnFullscreen')?.addEventListener('click', () => {
   try {
     clientConfig = await PandaFitBackend.fetchClientConfig(savedKey);
     log(`Tablette reliée au client "${clientConfig.clientName}".`);
+    // Séance en cours avant un redémarrage : on la reprend si son code est toujours valide
+    const savedEvent = loadSavedEvent();
+    if (savedEvent?.code) {
+      try { activeEvent = await PandaFitBackend.joinEvent(savedEvent.code); } catch (e) { activeEvent = savedEvent; }
+      saveActiveEvent();
+      if (activeEvent) log(`Mode événement repris : ${activeEvent.client} (${activeEvent.code}).`);
+    }
     gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
     activeAds = clientConfig.adsEnabled ? await PandaFitBackend.fetchActiveAds(clientConfig.clientId) : [];
     infoPagesCatalog = await PandaFitBackend.fetchInfoPages(); initiationSteps = await PandaFitBackend.fetchInitiationSteps(); satisfactionSettings = await PandaFitBackend.fetchSatisfactionSettings();

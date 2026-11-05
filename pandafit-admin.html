@@ -3382,7 +3382,8 @@ function renderInterventionEditor() {
   main.innerHTML = `
     <button class="btn-ghost" id="btnBackEvents" style="margin-bottom:14px;">← Retour aux interventions</button>
     ${e ? `<div class="card"><h3>Code de session : <span class="badge" style="font-size:15px;">${e.code}</span> · ${EVENT_STATUS_LABELS[e.status]}</h3>
-      <p style="font-size:12.5px;color:var(--text-dim);margin:0;">Le coach le voit dans sa fiche dès maintenant, pour préparer et tester la tablette avant le jour J.</p></div>` : ''}
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0;">Le coach le voit dans sa fiche dès maintenant, pour préparer et tester la tablette avant le jour J (la séance s'ouvre sur la tablette dès la veille).
+      Classement à projeter : <a href="https://app.pandafit.ch/projection.html?code=${encodeURIComponent(e.code)}" target="_blank" rel="noopener" style="color:var(--primary);">app.pandafit.ch/projection.html?code=${e.code}</a></p></div>` : ''}
     ${rep ? `<div class="card"><h3>Compte-rendu du coach ${rep.hot_lead ? '🔥 piste chaude' : ''}</h3>
       <table>
         <tr><td style="width:40%;">Participants</td><td>${rep.participants ?? '—'}</td></tr>
