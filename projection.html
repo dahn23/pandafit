@@ -173,6 +173,20 @@ async function tick() {
 }
 
 if (!code) askCode(); else tick();
+
+// Écran TV : un clic passe en plein écran, la souris disparaît quand elle ne bouge plus
+if (code) {
+  document.addEventListener('click', () => {
+    const el = document.documentElement;
+    if (!document.fullscreenElement) (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+  });
+  let mouseTimer = null;
+  document.addEventListener('mousemove', () => {
+    document.body.style.cursor = '';
+    clearTimeout(mouseTimer);
+    mouseTimer = setTimeout(() => { document.body.style.cursor = 'none'; }, 3000);
+  });
+}
 </script>
 </body>
 </html>
