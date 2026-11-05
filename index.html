@@ -2425,6 +2425,330 @@ function setLang(lang) {
   render();
 }
 
+/* ---------- Traduction de tous les textes affichés (jeux, résultats, séances, Triathlon, Mois de l'équilibre) ----------
+   Les écrans sont écrits en français ; cette couche traduit à l'affichage chaque texte connu (dictionnaire ci-dessous,
+   clé = texte français exact) + quelques textes avec des nombres (règles). Un texte absent du dictionnaire reste en français.
+   Pour ajouter une phrase : une ligne [fr, de, en, it]. */
+const UI_DICT_ROWS = [
+  // Navigation / commun
+  ["← Retour", "← Zurück", "← Back", "← Indietro"],
+  ["Rejouer", "Nochmals spielen", "Play again", "Gioca ancora"],
+  ["Retour aux jeux", "Zurück zu den Spielen", "Back to games", "Torna ai giochi"],
+  ["Retour à l'accueil", "Zurück zum Start", "Back to home", "Torna alla home"],
+  ["Voir les jeux", "Spiele ansehen", "See games", "Vedi i giochi"],
+  ["Valider", "Bestätigen", "Confirm", "Conferma"],
+  ["Annuler", "Abbrechen", "Cancel", "Annulla"],
+  ["Score", "Score", "Score", "Punteggio"],
+  ["points", "Punkte", "points", "punti"],
+  ["Temps", "Zeit", "Time", "Tempo"],
+  ["Distance", "Distanz", "Distance", "Distanza"],
+  ["Durée", "Dauer", "Duration", "Durata"],
+  ["Difficulté", "Schwierigkeit", "Difficulty", "Difficoltà"],
+  ["Vies", "Leben", "Lives", "Vite"],
+  ["Vies perdues", "Verlorene Leben", "Lives lost", "Vite perse"],
+  ["Facile", "Leicht", "Easy", "Facile"],
+  ["Moyen", "Mittel", "Medium", "Medio"],
+  ["Difficile", "Schwer", "Hard", "Difficile"],
+  ["Facile (4 cm)", "Leicht (4 cm)", "Easy (4 cm)", "Facile (4 cm)"],
+  ["Moyen (2 cm)", "Mittel (2 cm)", "Medium (2 cm)", "Medio (2 cm)"],
+  ["Difficile (1 cm)", "Schwer (1 cm)", "Hard (1 cm)", "Difficile (1 cm)"],
+  ["Illimité", "Unbegrenzt", "Unlimited", "Illimitate"],
+  ["Sensibilité", "Empfindlichkeit", "Sensitivity", "Sensibilità"],
+  ["Détails", "Details", "Details", "Dettagli"],
+  ["Prépare-toi", "Mach dich bereit", "Get ready", "Preparati"],
+  ["Bien joué", "Gut gemacht", "Well done", "Ben fatto"],
+  ["Ce jeu sera bientôt disponible.", "Dieses Spiel ist bald verfügbar.", "This game will be available soon.", "Questo gioco sarà presto disponibile."],
+  ["Ce jeu sera construit lors d'une prochaine étape.", "Dieses Spiel folgt in einem nächsten Schritt.", "This game will be built in a later step.", "Questo gioco arriverà in una fase successiva."],
+  // Noms de jeux
+  ["Slalom Réflexe", "Reflex-Slalom", "Reflex Slalom", "Slalom Riflessi"],
+  ["Tir au but", "Penaltyschiessen", "Penalty shootout", "Calci di rigore"],
+  ["Le Panier Malin", "Der clevere Einkaufskorb", "The Smart Basket", "Il Carrello Furbo"],
+  ["Prévention ski — inspiré Swiss-Ski", "Ski-Prävention — inspiriert von Swiss-Ski", "Ski prevention — inspired by Swiss-Ski", "Prevenzione sci — ispirato a Swiss-Ski"],
+  ["Jeu Migros Vaud — attrape les bons produits", "Migros-Waadt-Spiel — fang die guten Produkte", "Migros Vaud game — catch the good products", "Gioco Migros Vaud — prendi i prodotti buoni"],
+  ["Cours, puis marque un maximum de buts", "Lauf, dann schiess möglichst viele Tore", "Run, then score as many goals as you can", "Corri, poi segna più gol possibile"],
+  ["Suis le fil sans le lâcher", "Folge dem Draht, ohne loszulassen", "Follow the wire without letting go", "Segui il filo senza lasciarlo"],
+  ["Reste dans la zone, ne perds pas de vies", "Bleib in der Zone, verliere keine Leben", "Stay in the zone, don't lose lives", "Resta nella zona, non perdere vite"],
+  ["Respiration guidée pour se détendre", "Geführte Atmung zur Entspannung", "Guided breathing to relax", "Respirazione guidata per rilassarsi"],
+  ["Effort physique et calcul mental, en alternance", "Körperliche Anstrengung und Kopfrechnen im Wechsel", "Physical effort and mental arithmetic, alternating", "Sforzo fisico e calcolo mentale, alternati"],
+  // Accueil / connexion
+  ["Connecte ton capteur PandaFit", "Verbinde deinen PandaFit-Sensor", "Connect your PandaFit sensor", "Collega il tuo sensore PandaFit"],
+  ["Allume le capteur et rapproche-le de la tablette, puis touche le bouton ci-dessous.", "Schalte den Sensor ein, halte ihn nah ans Tablet und tippe dann auf die Schaltfläche unten.", "Switch on the sensor, bring it close to the tablet, then tap the button below.", "Accendi il sensore, avvicinalo al tablet e tocca il pulsante qui sotto."],
+  ["Connecter le capteur", "Sensor verbinden", "Connect the sensor", "Collega il sensore"],
+  ["Teste ton équilibre en 2 minutes.", "Teste dein Gleichgewicht in 2 Minuten.", "Test your balance in 2 minutes.", "Metti alla prova il tuo equilibrio in 2 minuti."],
+  ["90 secondes pour mesurer ton équilibre, avec ton coach PandaFit.", "90 Sekunden, um dein Gleichgewicht zu messen, mit deinem PandaFit-Coach.", "90 seconds to measure your balance, with your PandaFit coach.", "90 secondi per misurare il tuo equilibrio, con il tuo coach PandaFit."],
+  ["Passer mon PandaFit Index", "Meinen PandaFit Index machen", "Take my PandaFit Index", "Fai il mio PandaFit Index"],
+  ["Passe ton PandaFit Index", "Mach deinen PandaFit Index", "Take your PandaFit Index", "Fai il tuo PandaFit Index"],
+  ["Accès réservé", "Zugang beschränkt", "Restricted access", "Accesso riservato"],
+  ["Cette section est réservée au RH / responsable. Entre le code d'accès.", "Dieser Bereich ist der Personalabteilung / verantwortlichen Person vorbehalten. Gib den Zugangscode ein.", "This section is reserved for HR / the person in charge. Enter the access code.", "Questa sezione è riservata alle risorse umane / al responsabile. Inserisci il codice d'accesso."],
+  ["Code incorrect.", "Falscher Code.", "Wrong code.", "Codice errato."],
+  // Défis / challenges (fiches)
+  ["Période", "Zeitraum", "Period", "Periodo"],
+  ["Se termine dans", "Endet in", "Ends in", "Termina tra"],
+  ["Objectif", "Ziel", "Goal", "Obiettivo"],
+  ["Récompense", "Belohnung", "Reward", "Ricompensa"],
+  ["Participants", "Teilnehmende", "Participants", "Partecipanti"],
+  ["Date", "Datum", "Date", "Data"],
+  ["Horaire", "Zeit", "Time", "Orario"],
+  ["Description", "Beschreibung", "Description", "Descrizione"],
+  ["Toute la journée", "Ganzer Tag", "All day", "Tutto il giorno"],
+  ["Jouer maintenant", "Jetzt spielen", "Play now", "Gioca ora"],
+  ["Meilleur score actuel", "Aktueller Bestscore", "Current best score", "Miglior punteggio attuale"],
+  ["Ta tablette", "Dein Tablet", "Your tablet", "Il tuo tablet"],
+  ["Total entreprise", "Total Unternehmen", "Company total", "Totale azienda"],
+  ["Tes points", "Deine Punkte", "Your points", "I tuoi punti"],
+  ["Erreur : le score n'a pas pu être enregistré. Réessaie.", "Fehler: Der Score konnte nicht gespeichert werden. Versuch es nochmals.", "Error: the score could not be saved. Try again.", "Errore: il punteggio non è stato salvato. Riprova."],
+  // The Zone
+  ["Reste dans le cercle sans en sortir. Chaque sortie de zone te coûte une vie.", "Bleib im Kreis, ohne ihn zu verlassen. Jedes Verlassen der Zone kostet dich ein Leben.", "Stay inside the circle. Every time you leave the zone, you lose a life.", "Resta nel cerchio senza uscirne. Ogni uscita dalla zona ti costa una vita."],
+  ["Type de zone", "Zonentyp", "Zone type", "Tipo di zona"],
+  ["Zone fixe", "Feste Zone", "Fixed zone", "Zona fissa"],
+  ["Zone diminue", "Zone schrumpft", "Shrinking zone", "Zona che si restringe"],
+  ["Fixe", "Fest", "Fixed", "Fissa"],
+  ["Diminue", "Schrumpft", "Shrinking", "Si restringe"],
+  ["\"Zone diminue\" : la zone rétrécit de moitié progressivement sur les 30 derniers % du temps.", "„Zone schrumpft“: Die Zone wird in den letzten 30 % der Zeit schrittweise um die Hälfte kleiner.", "\"Shrinking zone\": the zone gradually shrinks by half during the last 30% of the time.", "\"Zona che si restringe\": la zona si dimezza progressivamente nell'ultimo 30% del tempo."],
+  ["Place ton pied bien centré, ça démarre dans...", "Stell deinen Fuss schön in die Mitte, es geht los in...", "Place your foot right in the centre, starting in...", "Metti il piede ben centrato, si parte tra..."],
+  ["Reste dans le cercle vert.", "Bleib im grünen Kreis.", "Stay in the green circle.", "Resta nel cerchio verde."],
+  ["Temps joué", "Gespielte Zeit", "Time played", "Tempo giocato"],
+  ["Terminé — temps écoulé", "Fertig — Zeit abgelaufen", "Finished — time's up", "Finito — tempo scaduto"],
+  ["Terminé — plus de vies", "Fertig — keine Leben mehr", "Finished — no lives left", "Finito — niente più vite"],
+  // Calibration / réglages
+  ["Calibration", "Kalibrierung", "Calibration", "Calibrazione"],
+  ["Place ton pied bien centré sur le capteur et reste immobile pendant le décompte. On recalcule le point central.", "Stell deinen Fuss mittig auf den Sensor und bleib während des Countdowns ruhig. Der Mittelpunkt wird neu berechnet.", "Place your foot in the centre of the sensor and stay still during the countdown. The centre point is recalculated.", "Metti il piede al centro del sensore e resta immobile durante il conto alla rovescia. Il punto centrale viene ricalcolato."],
+  ["Commencer (15 s)", "Starten (15 s)", "Start (15 s)", "Inizia (15 s)"],
+  ["Calibration en cours…", "Kalibrierung läuft…", "Calibrating…", "Calibrazione in corso…"],
+  ["Ne bouge pas.", "Nicht bewegen.", "Don't move.", "Non muoverti."],
+  ["Calibration terminée", "Kalibrierung abgeschlossen", "Calibration complete", "Calibrazione completata"],
+  ["Réglages", "Einstellungen", "Settings", "Impostazioni"],
+  ["Application", "App", "App", "App"],
+  ["🔄 Actualiser l'app (récupérer la dernière version)", "🔄 App aktualisieren (neueste Version laden)", "🔄 Refresh the app (get the latest version)", "🔄 Aggiorna l'app (scarica l'ultima versione)"],
+  ["Mode événement", "Event-Modus", "Event mode", "Modalità evento"],
+  ["Séance", "Session", "Session", "Sessione"],
+  ["Code", "Code", "Code", "Codice"],
+  ["Projection", "Projektion", "Projection", "Proiezione"],
+  ["Phase (pilotée par le coach)", "Phase (vom Coach gesteuert)", "Phase (run by the coach)", "Fase (gestita dal coach)"],
+  ["Station de cette tablette pendant le Triathlon :", "Station dieses Tablets während des Triathlons:", "This tablet's station during the Triathlon:", "Postazione di questo tablet durante il Triathlon:"],
+  ["Index seulement", "Nur Index", "Index only", "Solo Index"],
+  ["Quitter l'événement (retour en mode borne)", "Event verlassen (zurück in den Kioskmodus)", "Leave the event (back to kiosk mode)", "Esci dall'evento (torna alla modalità totem)"],
+  ["Pour une séance animée par un coach : entre le code de session (ex. PANDA-7K3Q). Les Index passés pendant la séance seront « officiels » et rattachés au client de la séance.", "Für eine von einem Coach geleitete Session: Gib den Session-Code ein (z. B. PANDA-7K3Q). Die während der Session gemachten Index-Tests sind „offiziell“ und dem Kunden der Session zugeordnet.", "For a coach-led session: enter the session code (e.g. PANDA-7K3Q). Index tests taken during the session are \"official\" and linked to the session's client.", "Per una sessione guidata da un coach: inserisci il codice della sessione (es. PANDA-7K3Q). Gli Index fatti durante la sessione saranno \"ufficiali\" e collegati al cliente della sessione."],
+  ["Rejoindre la séance", "Session beitreten", "Join the session", "Partecipa alla sessione"],
+  ["Code inconnu, ou séance pas encore ouverte (dès la veille) ou déjà clôturée.", "Unbekannter Code, oder Session noch nicht geöffnet (ab dem Vortag) oder bereits abgeschlossen.", "Unknown code, or the session is not open yet (from the day before) or already closed.", "Codice sconosciuto, oppure sessione non ancora aperta (dal giorno prima) o già chiusa."],
+  ["Impossible de vérifier le code. Vérifie la connexion internet.", "Der Code kann nicht geprüft werden. Prüfe die Internetverbindung.", "The code can't be checked. Check the internet connection.", "Impossibile verificare il codice. Controlla la connessione internet."],
+  ["Quitter l'événement et revenir en mode borne ?", "Event verlassen und in den Kioskmodus zurückkehren?", "Leave the event and go back to kiosk mode?", "Uscire dall'evento e tornare alla modalità totem?"],
+  ["Affichage de l'accueil", "Anzeige der Startseite", "Home screen display", "Visualizzazione della home"],
+  ["Ce qui apparaît sur l'écran d'accueil. Le contenu est préparé par PandaFit ; vous pouvez l'afficher ou le suspendre à tout moment.", "Was auf der Startseite erscheint. Der Inhalt wird von PandaFit vorbereitet; Sie können ihn jederzeit anzeigen oder pausieren.", "What appears on the home screen. The content is prepared by PandaFit; you can show or pause it at any time.", "Ciò che appare nella schermata iniziale. Il contenuto è preparato da PandaFit; potete mostrarlo o sospenderlo in qualsiasi momento."],
+  ["Aucun contenu d'accueil n'est configuré pour votre entreprise. Contactez PandaFit pour activer l'indice de satisfaction ou une campagne publicitaire.", "Für Ihr Unternehmen ist kein Startseiteninhalt eingerichtet. Kontaktieren Sie PandaFit, um den Zufriedenheitsindex oder eine Werbekampagne zu aktivieren.", "No home content is set up for your company. Contact PandaFit to activate the satisfaction index or an ad campaign.", "Nessun contenuto della home è configurato per la vostra azienda. Contattate PandaFit per attivare l'indice di soddisfazione o una campagna pubblicitaria."],
+  ["La modification n'a pas pu être enregistrée. Vérifie la connexion et réessaie.", "Die Änderung konnte nicht gespeichert werden. Prüfe die Verbindung und versuch es nochmals.", "The change could not be saved. Check the connection and try again.", "La modifica non è stata salvata. Controlla la connessione e riprova."],
+  ["Tablette", "Tablet", "Tablet", "Tablet"],
+  ["Client", "Kunde", "Client", "Cliente"],
+  ["Non configurée", "Nicht eingerichtet", "Not set up", "Non configurato"],
+  ["Nom de la tablette", "Name des Tablets", "Tablet name", "Nome del tablet"],
+  ["Reconfigurer la tablette", "Tablet neu einrichten", "Reconfigure the tablet", "Riconfigura il tablet"],
+  ["Détacher cette tablette du client actuel et redemander la clé de configuration ?", "Dieses Tablet vom aktuellen Kunden trennen und den Konfigurationsschlüssel neu abfragen?", "Detach this tablet from the current client and ask for the setup key again?", "Scollegare questo tablet dal cliente attuale e richiedere di nuovo la chiave di configurazione?"],
+  ["Capteur", "Sensor", "Sensor", "Sensore"],
+  ["Appareil", "Gerät", "Device", "Dispositivo"],
+  ["État", "Status", "Status", "Stato"],
+  ["Connecté", "Verbunden", "Connected", "Connesso"],
+  ["Déconnecté", "Getrennt", "Disconnected", "Disconnesso"],
+  ["Centre calibré", "Kalibrierter Mittelpunkt", "Calibrated centre", "Centro calibrato"],
+  ["Recalibrer", "Neu kalibrieren", "Recalibrate", "Ricalibra"],
+  ["Déconnecter", "Trennen", "Disconnect", "Disconnetti"],
+  ["Journal", "Protokoll", "Log", "Registro"],
+  ["Configuration de la tablette", "Einrichtung des Tablets", "Tablet setup", "Configurazione del tablet"],
+  ["Cette tablette n'est pas encore reliée à un client PandaFit. Entre la clé fournie par le superadmin (une seule fois).", "Dieses Tablet ist noch keinem PandaFit-Kunden zugeordnet. Gib den Schlüssel des Superadmins ein (nur einmal).", "This tablet is not linked to a PandaFit client yet. Enter the key provided by the superadmin (only once).", "Questo tablet non è ancora collegato a un cliente PandaFit. Inserisci la chiave fornita dal superadmin (una sola volta)."],
+  // Le Panier Malin
+  ["Reste dans la zone en bas sans en sortir, et tape sur les bons aliments qui tombent — évite les sucreries.", "Bleib unten in der Zone und tippe auf die guten Lebensmittel, die herunterfallen — meide Süssigkeiten.", "Stay in the zone at the bottom and tap the healthy foods that fall — avoid the sweets.", "Resta nella zona in basso e tocca i cibi buoni che cadono — evita i dolciumi."],
+  ["Reste dans le cercle, tape les bons aliments.", "Bleib im Kreis, tippe die guten Lebensmittel an.", "Stay in the circle, tap the healthy foods.", "Resta nel cerchio, tocca i cibi buoni."],
+  ["Nombre de bons aliments", "Gute Lebensmittel", "Healthy foods", "Cibi buoni"],
+  ["Nombre de sucreries", "Süssigkeiten", "Sweets", "Dolciumi"],
+  ["Prépare-toi, ça démarre dans...", "Mach dich bereit, es geht los in...", "Get ready, starting in...", "Preparati, si parte tra..."],
+  // Slalom
+  ["400m de piste. Balance-toi gauche/droite de façon régulière et ample pour prendre de la vitesse — jusqu'à 70 km/h si c'est parfait. Franchis la ligne le plus vite possible.", "400 m Piste. Schwing regelmässig und weit nach links und rechts, um Tempo aufzunehmen — bis zu 70 km/h, wenn alles perfekt ist. Überquere die Ziellinie so schnell wie möglich.", "400 m of slope. Sway left and right, steadily and widely, to pick up speed — up to 70 km/h if it's perfect. Cross the line as fast as you can.", "400 m di pista. Oscilla a destra e sinistra in modo regolare e ampio per prendere velocità — fino a 70 km/h se è perfetto. Taglia il traguardo il più velocemente possibile."],
+  ["Prépare-toi, la descente démarre dans...", "Mach dich bereit, die Abfahrt startet in...", "Get ready, the run starts in...", "Preparati, la discesa parte tra..."],
+  ["zone d'arrivée", "Zielbereich", "finish area", "zona d'arrivo"],
+  ["Ligne franchie !", "Ziel erreicht!", "Finish line crossed!", "Traguardo tagliato!"],
+  ["Conseils de prévention", "Präventionstipps", "Prevention tips", "Consigli di prevenzione"],
+  ["Échauffe-toi 10 minutes avant de skier : mobilité des chevilles, genoux et hanches.", "Wärm dich vor dem Skifahren 10 Minuten auf: Mobilität von Knöcheln, Knien und Hüften.", "Warm up for 10 minutes before skiing: ankle, knee and hip mobility.", "Riscaldati 10 minuti prima di sciare: mobilità di caviglie, ginocchia e anche."],
+  ["Fais vérifier le réglage de tes fixations chaque saison par un professionnel.", "Lass die Einstellung deiner Bindung jede Saison von einer Fachperson prüfen.", "Have your bindings checked by a professional every season.", "Fai controllare la regolazione degli attacchi ogni stagione da un professionista."],
+  ["Renforce les quadriceps et ischio-jambiers en pré-saison pour mieux protéger les genoux.", "Stärke vor der Saison Oberschenkelvorder- und -rückseite, um die Knie besser zu schützen.", "Strengthen your quads and hamstrings before the season to better protect your knees.", "Rinforza quadricipiti e femorali prima della stagione per proteggere meglio le ginocchia."],
+  ["Arrête-toi quand tu es fatigué : la plupart des blessures arrivent en fin de journée.", "Hör auf, wenn du müde bist: Die meisten Verletzungen passieren am Ende des Tages.", "Stop when you're tired: most injuries happen at the end of the day.", "Fermati quando sei stanco: la maggior parte degli infortuni avviene a fine giornata."],
+  // Electro
+  ["Suis le fil du doigt du haut vers le bas, sans le lâcher. Ton équilibre le fait trembler — reste stable. Le plus rapide gagne.", "Folge dem Draht mit dem Finger von oben nach unten, ohne loszulassen. Dein Gleichgewicht lässt ihn zittern — bleib stabil. Wer am schnellsten ist, gewinnt.", "Follow the wire with your finger from top to bottom without letting go. Your balance makes it shake — stay steady. The fastest wins.", "Segui il filo con il dito dall'alto in basso, senza staccarlo. Il tuo equilibrio lo fa tremare — resta stabile. Vince il più veloce."],
+  ["Pose le doigt en haut du fil, ça démarre dans...", "Leg den Finger oben auf den Draht, es geht los in...", "Put your finger at the top of the wire, starting in...", "Metti il dito in cima al filo, si parte tra..."],
+  ["Fais glisser le doigt le long du fil, du vert au orange.", "Fahr mit dem Finger dem Draht entlang, von Grün zu Orange.", "Slide your finger along the wire, from green to orange.", "Fai scorrere il dito lungo il filo, dal verde all'arancione."],
+  ["Figé ! Une vie perdue — reprends dès que ça repart.", "Eingefroren! Ein Leben verloren — mach weiter, sobald es wieder läuft.", "Frozen! One life lost — carry on as soon as it restarts.", "Bloccato! Una vita persa — riprendi appena riparte."],
+  // Tir au but
+  ["Cours 20 secondes (balance-toi d'avant en arrière), reviens au calme, puis marque un maximum de buts — le but bouge selon ta stabilité !", "Lauf 20 Sekunden (schwing vor und zurück), komm zur Ruhe und schiess dann möglichst viele Tore — das Tor bewegt sich je nach deiner Stabilität!", "Run for 20 seconds (sway back and forth), calm down, then score as many goals as you can — the goal moves with your stability!", "Corri 20 secondi (oscilla avanti e indietro), torna calmo, poi segna più gol possibile — la porta si muove in base alla tua stabilità!"],
+  ["Prépare-toi à courir, ça démarre dans...", "Mach dich bereit zum Laufen, es geht los in...", "Get ready to run, starting in...", "Preparati a correre, si parte tra..."],
+  ["Cours ! Balance-toi d'avant en arrière, régulièrement.", "Lauf! Schwing regelmässig vor und zurück.", "Run! Sway back and forth, steadily.", "Corri! Oscilla avanti e indietro, con regolarità."],
+  ["Reviens au calme", "Komm zur Ruhe", "Calm down", "Torna calmo"],
+  ["Prépare ton tir — tu pourras shooter pendant", "Bereite deinen Schuss vor — du kannst schiessen während", "Get your shot ready — you can shoot for", "Prepara il tiro — potrai tirare per"],
+  ["Touche le rond pour marquer — reste stable, le but bouge avec toi !", "Tippe auf den Kreis, um zu treffen — bleib stabil, das Tor bewegt sich mit dir!", "Tap the circle to score — stay steady, the goal moves with you!", "Tocca il cerchio per segnare — resta stabile, la porta si muove con te!"],
+  ["Match terminé !", "Spiel vorbei!", "Match over!", "Partita finita!"],
+  ["Buts marqués", "Erzielte Tore", "Goals scored", "Gol segnati"],
+  ["But marqué", "Erzieltes Tor", "Goal scored", "Gol segnato"],
+  ["Tentatives ratées", "Verfehlte Versuche", "Missed attempts", "Tentativi falliti"],
+  ["Temps de tir gagné", "Gewonnene Schusszeit", "Shooting time earned", "Tempo di tiro guadagnato"],
+  // Zen
+  ["Une respiration guidée pour te détendre avant un moment important — inspire, retiens, expire, en gardant ton équilibre.", "Eine geführte Atmung, um dich vor einem wichtigen Moment zu entspannen — einatmen, halten, ausatmen, und dabei im Gleichgewicht bleiben.", "Guided breathing to relax before an important moment — breathe in, hold, breathe out, while keeping your balance.", "Una respirazione guidata per rilassarti prima di un momento importante — inspira, trattieni, espira, mantenendo l'equilibrio."],
+  ["Mode sport (30s)", "Sportmodus (30 s)", "Sport mode (30 s)", "Modalità sport (30 s)"],
+  ["Installe-toi confortablement, ça démarre dans...", "Mach es dir bequem, es geht los in...", "Get comfortable, starting in...", "Mettiti comodo, si parte tra..."],
+  ["Installe-toi...", "Mach es dir bequem...", "Get settled...", "Mettiti comodo..."],
+  ["Installe-toi, trouve ton équilibre...", "Mach es dir bequem, finde dein Gleichgewicht...", "Get settled, find your balance...", "Mettiti comodo, trova il tuo equilibrio..."],
+  ["Inspire...", "Einatmen...", "Breathe in...", "Inspira..."],
+  ["Retiens...", "Halten...", "Hold...", "Trattieni..."],
+  ["Expire...", "Ausatmen...", "Breathe out...", "Espira..."],
+  ["du temps en équilibre", "der Zeit im Gleichgewicht", "of the time in balance", "del tempo in equilibrio"],
+  ["Prends un instant de plus si tu en as besoin, ou repars l'esprit un peu plus léger.", "Nimm dir noch einen Moment, wenn du ihn brauchst, oder geh mit etwas leichterem Kopf weiter.", "Take a moment longer if you need it, or head off with a lighter mind.", "Prenditi ancora un istante se ne hai bisogno, o riparti con la mente più leggera."],
+  ["Refaire une session", "Nochmals eine Session", "Do another session", "Rifai una sessione"],
+  // MindFit
+  ["Passe la barre 10 fois en te balançant d'avant en arrière, puis reviens bien au calme pour répondre à 10 calculs — impossible de répondre en bougeant ! Enchaîne les manches pendant 1 minute.", "Überquere die Linie 10-mal, indem du vor und zurück schwingst, und komm dann zur Ruhe, um 10 Rechnungen zu lösen — in Bewegung kannst du nicht antworten! Spiel 1 Minute lang Runde um Runde.", "Cross the bar 10 times by swaying back and forth, then calm down to answer 10 sums — you can't answer while moving! Play round after round for 1 minute.", "Supera la barra 10 volte oscillando avanti e indietro, poi torna calmo per rispondere a 10 calcoli — impossibile rispondere muovendoti! Concatena i turni per 1 minuto."],
+  ["Passe la barre", "Überquere die Linie", "Cross the bar", "Supera la barra"],
+  ["Balance-toi d'avant en arrière pour passer au-dessus de la ligne.", "Schwing vor und zurück, um über die Linie zu kommen.", "Sway back and forth to get over the line.", "Oscilla avanti e indietro per superare la linea."],
+  ["Calcul", "Rechnung", "Sum", "Calcolo"],
+  ["Reste immobile pour pouvoir répondre.", "Bleib ruhig, um antworten zu können.", "Stay still to be able to answer.", "Resta immobile per poter rispondere."],
+  ["Tu peux répondre !", "Du kannst antworten!", "You can answer!", "Puoi rispondere!"],
+  ["Bonnes réponses", "Richtige Antworten", "Correct answers", "Risposte giuste"],
+  ["Mauvaises réponses", "Falsche Antworten", "Wrong answers", "Risposte sbagliate"],
+  // PandaFit Index
+  ["Test 1 : reste centré, ça démarre dans...", "Test 1: Bleib zentriert, es geht los in...", "Test 1: stay centred, starting in...", "Test 1: resta centrato, si parte tra..."],
+  ["Test 1/2 — Équilibre statique", "Test 1/2 — Statisches Gleichgewicht", "Test 1/2 — Static balance", "Test 1/2 — Equilibrio statico"],
+  ["Reste bien centré, sans forcer.", "Bleib gut zentriert, ohne zu verkrampfen.", "Stay well centred, without forcing.", "Resta ben centrato, senza forzare."],
+  ["Test 1 terminé", "Test 1 abgeschlossen", "Test 1 complete", "Test 1 completato"],
+  ["Passons au test 2 : mouvement haut/bas, ça démarre dans...", "Weiter zu Test 2: Auf- und Abbewegung, es geht los in...", "On to test 2: up/down movement, starting in...", "Passiamo al test 2: movimento su/giù, si parte tra..."],
+  ["Test 2/2 — Équilibre en mouvement", "Test 2/2 — Gleichgewicht in Bewegung", "Test 2/2 — Balance in motion", "Test 2/2 — Equilibrio in movimento"],
+  ["Franchis les deux lignes en haut/bas, garde un rythme régulier.", "Überquere die beiden Linien oben/unten, halte einen regelmässigen Rhythmus.", "Cross both lines up/down, keep a steady rhythm.", "Supera le due linee in alto/in basso, mantieni un ritmo regolare."],
+  ["Équilibre statique", "Statisches Gleichgewicht", "Static balance", "Equilibrio statico"],
+  ["Mouvement", "Bewegung", "Movement", "Movimento"],
+  ["Oscillation moyenne (statique)", "Mittlere Schwankung (statisch)", "Average sway (static)", "Oscillazione media (statica)"],
+  ["Régularité du mouvement", "Regelmässigkeit der Bewegung", "Movement regularity", "Regolarità del movimento"],
+  ["Amplitude du mouvement", "Bewegungsamplitude", "Movement amplitude", "Ampiezza del movimento"],
+  ["Recherche...", "Suche...", "Searching...", "Ricerca..."],
+  ["Code introuvable — vérifie l'orthographe, ou continue sans.", "Code nicht gefunden — prüfe die Schreibweise oder mach ohne weiter.", "Code not found — check the spelling, or continue without it.", "Codice non trovato — controlla l'ortografia, o continua senza."],
+  ["Garde ton PandaFit Index", "Behalte deinen PandaFit Index", "Keep your PandaFit Index", "Conserva il tuo PandaFit Index"],
+  ["Scanne ce code avec l'appareil photo de ton téléphone pour voir ton historique et le retrouver la prochaine fois.", "Scanne diesen Code mit der Kamera deines Handys, um deinen Verlauf zu sehen und ihn nächstes Mal wiederzufinden.", "Scan this code with your phone's camera to see your history and find it again next time.", "Scansiona questo codice con la fotocamera del telefono per vedere la tua cronologia e ritrovarla la prossima volta."],
+  ["Ton code personnel :", "Dein persönlicher Code:", "Your personal code:", "Il tuo codice personale:"],
+  ["Participant suivant", "Nächste Person", "Next participant", "Prossimo partecipante"],
+  ["Calcul de ta position…", "Deine Position wird berechnet…", "Calculating your position…", "Calcolo della tua posizione…"],
+  ["Ta position dans le groupe s'affichera dès 5 participants.", "Deine Position in der Gruppe erscheint ab 5 Teilnehmenden.", "Your position in the group will show from 5 participants.", "La tua posizione nel gruppo apparirà da 5 partecipanti."],
+  ["Apparaître au classement de la séance ? (facultatif, un pseudo suffit)", "Im Ranking der Session erscheinen? (freiwillig, ein Pseudonym genügt)", "Appear in the session ranking? (optional, a nickname is enough)", "Comparire nella classifica della sessione? (facoltativo, basta uno pseudonimo)"],
+  ["Le pseudo n'a pas pu être enregistré (connexion ?).", "Das Pseudonym konnte nicht gespeichert werden (Verbindung?).", "The nickname could not be saved (connection?).", "Lo pseudonimo non è stato salvato (connessione?)."],
+  // Mois de l'équilibre
+  ["Jeu de la semaine :", "Spiel der Woche:", "Game of the week:", "Gioco della settimana:"],
+  ["Le meilleur score gagne.", "Der beste Score gewinnt.", "The best score wins.", "Vince il punteggio migliore."],
+  ["Fin du défi :", "Ende der Challenge:", "Challenge ends:", "Fine della sfida:"],
+  ["Mesure finale de ton Index avec le coach :", "Finale Messung deines Index mit dem Coach:", "Final measurement of your Index with the coach:", "Misurazione finale del tuo Index con il coach:"],
+  ["Jouer au défi de la semaine", "Challenge der Woche spielen", "Play this week's challenge", "Gioca alla sfida della settimana"],
+  ["Joue quand tu veux, 2 minutes suffisent.", "Spiel, wann du willst, 2 Minuten genügen.", "Play whenever you like, 2 minutes is enough.", "Gioca quando vuoi, bastano 2 minuti."],
+  ["Entraîne ton équilibre en jouant", "Trainiere dein Gleichgewicht spielerisch", "Train your balance by playing", "Allena il tuo equilibrio giocando"],
+  ["Avant de jouer", "Vor dem Spielen", "Before you play", "Prima di giocare"],
+  ["Quelques secondes pour ta sécurité, à chaque partie.", "Ein paar Sekunden für deine Sicherheit, bei jedem Spiel.", "A few seconds for your safety, before every game.", "Qualche secondo per la tua sicurezza, a ogni partita."],
+  ["Monte et descends lentement, en posant un pied après l'autre.", "Steig langsam auf und ab, einen Fuss nach dem anderen.", "Step on and off slowly, one foot after the other.", "Sali e scendi lentamente, un piede dopo l'altro."],
+  ["Reste à portée du mur ou de la barre d'appui : tiens-toi si tu perds l'équilibre.", "Bleib in Reichweite der Wand oder der Haltestange: Halte dich fest, wenn du das Gleichgewicht verlierst.", "Stay within reach of the wall or the grab bar: hold on if you lose your balance.", "Resta a portata del muro o della barra d'appoggio: tieniti se perdi l'equilibrio."],
+  ["Chaussures plates, ou en chaussettes. Pas de talons.", "Flache Schuhe oder Socken. Keine Absätze.", "Flat shoes, or socks. No heels.", "Scarpe basse, o in calze. Niente tacchi."],
+  ["Douleur, vertige ou malaise : arrête-toi tout de suite.", "Schmerzen, Schwindel oder Unwohlsein: sofort aufhören.", "Pain, dizziness or feeling unwell: stop straight away.", "Dolore, vertigini o malessere: fermati subito."],
+  ["J'ai compris, je joue", "Verstanden, ich spiele", "Got it, let's play", "Ho capito, gioco"],
+  ["Pendant le Mois de l'équilibre, l'Index se mesure avec le coach", "Während des Monats des Gleichgewichts wird der Index mit dem Coach gemessen", "During the Balance Month, the Index is measured with the coach", "Durante il Mese dell'equilibrio, l'Index si misura con il coach"],
+  ["Ta mesure finale avec le coach :", "Deine finale Messung mit dem Coach:", "Your final measurement with the coach:", "La tua misurazione finale con il coach:"],
+  ["Rendez-vous à la mesure finale avec le coach.", "Wir sehen uns bei der finalen Messung mit dem Coach.", "See you at the final measurement with the coach.", "Appuntamento alla misurazione finale con il coach."],
+  ["D'ici là, entraîne-toi avec les jeux : c'est comme ça qu'on progresse.", "Trainiere bis dahin mit den Spielen: So macht man Fortschritte.", "Until then, train with the games: that's how you improve.", "Fino ad allora, allenati con i giochi: è così che si migliora."],
+  ["Mesure finale du Mois de l'équilibre", "Finale Messung des Monats des Gleichgewichts", "Final measurement of the Balance Month", "Misurazione finale del Mese dell'equilibrio"],
+  ["Tu as passé l'Index au lancement ? Entre ton code personnel plus bas pour voir ta progression.", "Hast du den Index beim Start gemacht? Gib unten deinen persönlichen Code ein, um deinen Fortschritt zu sehen.", "Did you take the Index at the launch? Enter your personal code below to see your progress.", "Hai fatto l'Index al lancio? Inserisci qui sotto il tuo codice personale per vedere i tuoi progressi."],
+  ["Garde ton code pour la mesure finale", "Behalte deinen Code für die finale Messung", "Keep your code for the final measurement", "Conserva il codice per la misurazione finale"],
+  ["Prends cet écran en photo ou scanne le code avec ton téléphone.", "Fotografiere diesen Bildschirm oder scanne den Code mit deinem Handy.", "Take a photo of this screen or scan the code with your phone.", "Fotografa questo schermo o scansiona il codice con il telefono."],
+  ["Mesure finale :", "Finale Messung:", "Final measurement:", "Misurazione finale:"],
+  ["Tu saisiras alors ton code pour voir ta progression.", "Dann gibst du deinen Code ein, um deinen Fortschritt zu sehen.", "You'll then enter your code to see your progress.", "Inserirai allora il tuo codice per vedere i tuoi progressi."],
+  ["Au lancement :", "Beim Start:", "At the launch:", "Al lancio:"],
+  ["aujourd'hui :", "heute:", "today:", "oggi:"],
+  ["stable", "stabil", "stable", "stabile"],
+  // Triathlon
+  ["Choisis ton équipe, puis lance la partie. Répartition par équipe : 2 joueurs, 2 joueurs, 1 joueur sur les 3 jeux.", "Wähle dein Team und starte das Spiel. Aufteilung pro Team: 2, 2 und 1 Person auf die 3 Spiele.", "Choose your team, then start the game. Split per team: 2 players, 2 players, 1 player across the 3 games.", "Scegli la tua squadra, poi avvia la partita. Ripartizione per squadra: 2, 2 e 1 giocatore sui 3 giochi."],
+  ["Le champion de chaque équipe joue. Seul le meilleur score de l'équipe compte, et la finale rapporte des points doubles !", "Die beste Person jedes Teams spielt. Nur der beste Score des Teams zählt, und das Finale bringt doppelte Punkte!", "Each team's champion plays. Only the team's best score counts, and the final is worth double points!", "Gioca il campione di ogni squadra. Conta solo il miglior punteggio della squadra, e la finale vale punti doppi!"],
+  ["Place au podium !", "Bühne frei fürs Podest!", "Time for the podium!", "Spazio al podio!"],
+  ["Finale en cours", "Finale läuft", "Final in progress", "Finale in corso"],
+  ["Rendez-vous devant le grand écran pour découvrir les gagnants.", "Kommt zum grossen Bildschirm, um die Gewinner zu sehen.", "Head to the big screen to see the winners.", "Appuntamento davanti al grande schermo per scoprire i vincitori."],
+  ["a joué la finale ✓", "hat das Finale gespielt ✓", "has played the final ✓", "ha giocato la finale ✓"],
+  ["à jouer", "noch zu spielen", "to play", "da giocare"],
+  ["· précision", "· Präzision", "· precision", "· precisione"],
+  ["· mouvement", "· Bewegung", "· movement", "· movimento"],
+  ["· cerveau", "· Kopf", "· brain", "· cervello"],
+];
+// Textes avec des nombres ou des noms : [motif français, de, en, it] (fonctions qui reçoivent les groupes capturés)
+const TEAM_COLOR_NAMES = { Rouge: ['Rot', 'Red', 'Rossa'], Bleue: ['Blau', 'Blue', 'Blu'], Verte: ['Grün', 'Green', 'Verde'], Jaune: ['Gelb', 'Yellow', 'Gialla'], Orange: ['Orange', 'Orange', 'Arancione'], Violette: ['Violett', 'Purple', 'Viola'], Rose: ['Pink', 'Pink', 'Rosa'], Turquoise: ['Türkis', 'Turquoise', 'Turchese'], Marine: ['Marine', 'Navy', 'Blu marina'], Grise: ['Grau', 'Grey', 'Grigia'] };
+const PHASE_NAMES = { 'Index (qualification)': ['Index (Qualifikation)', 'Index (qualifying)', 'Index (qualificazione)'], Triathlon: ['Triathlon', 'Triathlon', 'Triathlon'], Finale: ['Finale', 'Final', 'Finale'], Podium: ['Podest', 'Podium', 'Podio'] };
+const LI = { de: 0, en: 1, it: 2 };
+const UI_RULES = [
+  [/^(\d+) joueurs? sur ce jeu$/, n => `${n} Spieler:in${n > 1 ? 'nen' : ''} auf diesem Spiel`, n => `${n} player${n > 1 ? 's' : ''} on this game`, n => `${n} giocator${n > 1 ? 'i' : 'e'} su questo gioco`],
+  [/^Station (.+)$/, g => `Station ${g}`, g => `Station ${g}`, g => `Postazione ${g}`],
+  [/^Finale · (.+)$/, g => `Finale · ${g}`, g => `Final · ${g}`, g => `Finale · ${g}`],
+  [/^La finale se joue sur (.+)\. Suivez-la sur le grand écran !$/, g => `Das Finale wird auf ${g} gespielt. Verfolgt es auf dem grossen Bildschirm!`, g => `The final is played on ${g}. Follow it on the big screen!`, g => `La finale si gioca su ${g}. Seguitela sul grande schermo!`],
+  [/^Triathlon de l'équilibre · (.+)$/, c => `Gleichgewichts-Triathlon · ${c}`, c => `Balance Triathlon · ${c}`, c => `Triathlon dell'equilibrio · ${c}`],
+  [/^Index officiel · (.+)$/, c => `Offizieller Index · ${c}`, c => `Official Index · ${c}`, c => `Index ufficiale · ${c}`],
+  [/^Séance PandaFit · (.+)$/, c => `PandaFit-Session · ${c}`, c => `PandaFit session · ${c}`, c => `Sessione PandaFit · ${c}`],
+  [/^Mois de l'équilibre · semaine (\d) sur 4$/, w => `Monat des Gleichgewichts · Woche ${w} von 4`, w => `Balance Month · week ${w} of 4`, w => `Mese dell'equilibrio · settimana ${w} di 4`],
+  [/^(Index \(qualification\)|Triathlon|Finale|Podium) · (\d+) équipes$/, (p, n) => `${PHASE_NAMES[p][0]} · ${n} Teams`, (p, n) => `${PHASE_NAMES[p][1]} · ${n} teams`, (p, n) => `${PHASE_NAMES[p][2]} · ${n} squadre`],
+  [/^(Index \(qualification\)|Triathlon|Finale|Podium) · équipes pas encore créées$/, p => `${PHASE_NAMES[p][0]} · Teams noch nicht erstellt`, p => `${PHASE_NAMES[p][1]} · teams not created yet`, p => `${PHASE_NAMES[p][2]} · squadre non ancora create`],
+  [/^Équipe (Rouge|Bleue|Verte|Jaune|Orange|Violette|Rose|Turquoise|Marine|Grise)$/, c => `Team ${TEAM_COLOR_NAMES[c][0]}`, c => `${TEAM_COLOR_NAMES[c][1]} team`, c => `Squadra ${TEAM_COLOR_NAMES[c][2]}`],
+  [/^(\d+) vies$/, n => `${n} Leben`, n => `${n} lives`, n => `${n} vite`],
+  [/^(\d+) buts?$/, n => `${n} ${n > 1 ? 'Tore' : 'Tor'}`, n => `${n} goal${n > 1 ? 's' : ''}`, n => `${n} gol`],
+  [/^\+(\d+) points, bravo !$/, n => `+${n} Punkte, bravo!`, n => `+${n} points, well done!`, n => `+${n} punti, bravo!`],
+  [/^(-\d+) points$/, n => `${n} Punkte`, n => `${n} points`, n => `${n} punti`],
+  [/^(\d+)j (\d\d)h (\d\d)min$/, (d, h, m) => `${d} T. ${h} Std. ${m} Min.`, (d, h, m) => `${d}d ${h}h ${m}min`, (d, h, m) => `${d}g ${h}h ${m}min`],
+  [/^Nouveau centre : X=(.+), Y=(.+) \((\d+) échantillons\)$/, (x, y, n) => `Neuer Mittelpunkt: X=${x}, Y=${y} (${n} Messwerte)`, (x, y, n) => `New centre: X=${x}, Y=${y} (${n} samples)`, (x, y, n) => `Nuovo centro: X=${x}, Y=${y} (${n} campioni)`],
+  [/^Tu fais mieux que (\d+) % du groupe \((\d+) participants\)\.$/, (p, n) => `Du bist besser als ${p} % der Gruppe (${n} Teilnehmende).`, (p, n) => `You did better than ${p}% of the group (${n} participants).`, (p, n) => `Fai meglio del ${p}% del gruppo (${n} partecipanti).`],
+  [/^C'est noté : « (.+) » apparaît au classement\.$/, s => `Notiert: «${s}» erscheint im Ranking.`, s => `Done: "${s}" appears in the ranking.`, s => `Fatto: «${s}» appare in classifica.`],
+  [/^✓ Bienvenue(.*) ! Ce test s'ajoutera à ton historique\.$/, n => `✓ Willkommen${n}! Dieser Test wird zu deinem Verlauf hinzugefügt.`, n => `✓ Welcome${n}! This test will be added to your history.`, n => `✓ Benvenuto${n}! Questo test sarà aggiunto alla tua cronologia.`],
+  [/^(.+) a déjà joué la finale\. Rejouer quand même \? \(seul le meilleur score compte\)$/, t => `${t} hat das Finale schon gespielt. Trotzdem nochmals spielen? (nur der beste Score zählt)`, t => `${t} has already played the final. Play again anyway? (only the best score counts)`, t => `${t} ha già giocato la finale. Rigiocare comunque? (conta solo il punteggio migliore)`],
+  [/^(.+) a déjà (\d+) joueurs sur ce jeu \(répartition 2-2-1\)\. Continuer quand même \?$/, (t, n) => `${t} hat schon ${n} Spieler:innen auf diesem Spiel (Aufteilung 2-2-1). Trotzdem weiter?`, (t, n) => `${t} already has ${n} players on this game (2-2-1 split). Continue anyway?`, (t, n) => `${t} ha già ${n} giocatori su questo gioco (ripartizione 2-2-1). Continuare comunque?`],
+];
+const UI_DICT = (() => {
+  const m = { de: new Map(), en: new Map(), it: new Map() };
+  const n = s => s.replace(/\s+/g, ' ').trim();
+  UI_DICT_ROWS.forEach(([fr, de, en, it]) => { m.de.set(n(fr), de); m.en.set(n(fr), en); m.it.set(n(fr), it); });
+  return m;
+})();
+function trText(s) {
+  if (currentLang === 'fr' || s == null) return s;
+  const str = String(s);
+  const core = str.replace(/\s+/g, ' ').trim();
+  if (!core || !/[A-Za-zÀ-ÿ]/.test(core)) return s;
+  let out = UI_DICT[currentLang]?.get(core);
+  if (out == null) {
+    for (const [re, ...fns] of UI_RULES) { const mm = core.match(re); if (mm) { out = fns[LI[currentLang]](...mm.slice(1)); break; } }
+  }
+  if (out == null) return s;
+  const lead = str.match(/^\s*/)[0], trail = str.match(/\s*$/)[0];
+  return lead + out + trail;
+}
+const uiTranslated = new WeakMap();
+function translateNode(root) {
+  if (currentLang === 'fr' || !root) return;
+  if (root.nodeType === 3) {
+    if (uiTranslated.get(root) === root.nodeValue) return;
+    const v = trText(root.nodeValue);
+    if (v !== root.nodeValue) root.nodeValue = v;
+    uiTranslated.set(root, root.nodeValue);
+    return;
+  }
+  if (root.nodeType !== 1 || root.id === 'logBox' || root.tagName === 'SCRIPT' || root.tagName === 'STYLE') return;
+  if (root.placeholder) { const p = trText(root.placeholder); if (p !== root.placeholder) root.placeholder = p; }
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
+    acceptNode: n => (n.nodeType === 1 && (n.id === 'logBox' || n.tagName === 'SCRIPT' || n.tagName === 'STYLE')) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+  });
+  let x;
+  while ((x = w.nextNode())) {
+    if (x.nodeType === 3) translateNode(x);
+    else if (x.placeholder) { const p = trText(x.placeholder); if (p !== x.placeholder) x.placeholder = p; }
+  }
+}
+new MutationObserver(muts => {
+  if (currentLang === 'fr') return;
+  for (const m of muts) {
+    if (m.type === 'characterData') translateNode(m.target);
+    else m.addedNodes.forEach(translateNode);
+  }
+}).observe(document.body, { childList: true, subtree: true, characterData: true });
+// Messages des fenêtres d'alerte / de confirmation
+(() => { const a = window.alert.bind(window), c = window.confirm.bind(window); window.alert = m => a(trText(m)); window.confirm = m => c(trText(m)); })();
+
 /** Choisit la version traduite d'un champ admin (défi, jeu, questionnaire...), avec repli sur le français. */
 function pickLang(obj, field) {
   if (!obj) return '';
@@ -2455,15 +2779,16 @@ async function refreshCampaign() {
   activeCampaign = await PandaFitBackend.fetchCampaign();
   if (JSON.stringify(activeCampaign) !== before && currentRoute === 'home' && !activeGameModule) render();
 }
-function frDay(iso) { const s = new Date(iso.length === 10 ? iso + 'T12:00:00' : iso).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' }); return s; }
+const LOCALES = { fr: 'fr-CH', de: 'de-CH', en: 'en-GB', it: 'it-CH' };
+function frDay(iso) { return new Date(iso.length === 10 ? iso + 'T12:00:00' : iso).toLocaleDateString(LOCALES[currentLang] || 'fr-CH', { weekday: 'long', day: 'numeric', month: 'long' }); }
 function campaignBannerHTML() {
   const c = activeCampaign, d = c.defi;
   return `
     <div class="hero-play" style="border:2px solid var(--primary);">
       <p style="margin:0 0 4px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#0c2018;font-weight:800;">Mois de l'équilibre · semaine ${c.week} sur 4</p>
-      <h3>${d ? escT(d.title) : "Entraîne ton équilibre en jouant"}</h3>
-      <p>${d ? `Jeu de la semaine : <b>${escT(eventGameName(d.game_id))}</b>. Le meilleur score gagne. Fin du défi : ${frDay(d.end_date)}.` : 'Joue quand tu veux, 2 minutes suffisent.'}
-        ${c.t1_at ? `<br>Mesure finale de ton Index avec le coach : <b>${frDay(c.t1_at)}</b>.` : ''}</p>
+      <h3>${d ? escT(pickLang(d, 'title') || d.title) : "Entraîne ton équilibre en jouant"}</h3>
+      <p>${d ? `<span>Jeu de la semaine :</span> <b>${escT(eventGameName(d.game_id))}</b><br><span>Le meilleur score gagne.</span><br><span>Fin du défi :</span> <b>${frDay(d.end_date)}</b>` : '<span>Joue quand tu veux, 2 minutes suffisent.</span>'}
+        ${c.t1_at ? `<br><span>Mesure finale de ton Index avec le coach :</span> <b>${frDay(c.t1_at)}</b>` : ''}</p>
       ${d ? `<button id="btnCampaignDefi">Jouer au défi de la semaine</button>` : ''}
     </div>`;
 }
@@ -2492,8 +2817,8 @@ function screenCampaignNoIndex() {
       <h1 class="page-title" style="justify-content:center;display:flex;align-items:center;gap:10px;"><i data-lucide="activity"></i> PandaFit Index</h1>
       <div class="card">
         <h2>Pendant le Mois de l'équilibre, l'Index se mesure avec le coach</h2>
-        <p class="page-sub" style="margin:0;">${activeCampaign.t1_at ? `Rendez-vous le <b>${frDay(activeCampaign.t1_at)}</b> pour ta mesure finale et ta progression.` : 'Rendez-vous à la mesure finale avec le coach.'}
-          D'ici là, entraîne-toi avec les jeux : c'est comme ça qu'on progresse.</p>
+        <p class="page-sub" style="margin:0;">${activeCampaign.t1_at ? `<span>Ta mesure finale avec le coach :</span> <b>${frDay(activeCampaign.t1_at)}</b>` : '<span>Rendez-vous à la mesure finale avec le coach.</span>'}
+          <br><span>D'ici là, entraîne-toi avec les jeux : c'est comme ça qu'on progresse.</span></p>
       </div>
       <button class="btn-primary" id="btnNoIndexGames" style="width:100%;">Voir les jeux</button>
     </div>`;
@@ -5394,7 +5719,7 @@ async function finishIndexTest(overall, staticResult, movementResult) {
       const el = document.getElementById('eventProgressText');
       if (!el || p?.t0_score == null) return;
       const d = overall - p.t0_score;
-      el.innerHTML = `Au lancement : <b>${p.t0_score}</b> · aujourd'hui : <b>${overall}</b> → <b style="color:var(--primary);">${d > 0 ? '+' + d + ' points, bravo !' : d === 0 ? 'stable' : d + ' points'}</b>`;
+      el.innerHTML = `<span>Au lancement :</span> <b>${p.t0_score}</b> · <span>aujourd'hui :</span> <b>${overall}</b> → <b style="color:var(--primary);">${d > 0 ? '+' + d + ' points, bravo !' : d === 0 ? 'stable' : d + ' points'}</b>`;
       el.style.display = 'block';
     });
   }
@@ -5434,8 +5759,8 @@ function screenIndexResult(overall, staticResult, movementResult) {
       <div class="card" style="margin-top:16px;text-align:center;${activeEvent?.campaign_step === 't0' ? 'border:2px solid var(--primary);' : ''}">
         <h2>${activeEvent?.campaign_step === 't0' ? 'Garde ton code pour la mesure finale' : 'Garde ton PandaFit Index'}</h2>
         <p class="page-sub">${activeEvent?.campaign_step === 't0'
-          ? `Prends cet écran en photo ou scanne le code avec <b>ton téléphone</b>.${activeEvent.t1_at ? ` À la mesure finale du <b>${frDay(activeEvent.t1_at)}</b>` : ' À la mesure finale'}, tu saisiras ton code pour voir ta progression.`
-          : `Scanne ce code avec l'appareil photo de <b>ton téléphone</b> pour voir ton historique et le retrouver la prochaine fois.`}</p>
+          ? `<span>Prends cet écran en photo ou scanne le code avec ton téléphone.</span>${activeEvent.t1_at ? `<br><span>Mesure finale :</span> <b>${frDay(activeEvent.t1_at)}</b>` : ''}<br><span>Tu saisiras alors ton code pour voir ta progression.</span>`
+          : `<span>Scanne ce code avec l'appareil photo de ton téléphone pour voir ton historique et le retrouver la prochaine fois.</span>`}</p>
         <canvas id="employeeQrCanvas" style="margin:0 auto;display:block;"></canvas>
         <p id="employeeQrFallback" class="page-sub" style="display:none;word-break:break-all;"></p>
         <p class="page-sub" style="margin-top:10px;">Ton code personnel : <b>${currentEmployee.claim_token}</b></p>

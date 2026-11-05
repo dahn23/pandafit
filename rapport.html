@@ -15,6 +15,9 @@
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   html, body { margin: 0; background: #e9edf2; color: var(--text); font-family: Montserrat, sans-serif; }
   .bar-top { max-width: 210mm; margin: 14px auto 0; display: flex; justify-content: flex-end; gap: 8px; padding: 0 8px; }
+  .bar-top .langs { display: flex; gap: 4px; margin-right: auto; }
+  .bar-top .langs button { background: #fff; color: var(--dim); padding: 8px 10px; font-size: 12px; }
+  .bar-top .langs button.on { background: var(--text); color: #fff; }
   .bar-top button { font: 700 14px Montserrat, sans-serif; border: none; border-radius: 10px; padding: 10px 16px; cursor: pointer; background: var(--green); color: #fff; }
   .page { width: 210mm; max-width: 100%; min-height: 297mm; margin: 12px auto 30px; background: #fff; padding: 15mm 15mm 12mm; box-shadow: 0 2px 14px rgba(20,25,40,.12); }
   .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -59,134 +62,264 @@
 const SUPABASE_URL = 'https://kabjpqvbukhhqvdjnkzr.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_QgLSQJyPJ09Uj3vCKCUykA_ca1LTm5E';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const OFFER_LABELS = { demo_vip: 'Démo PandaFit', decouverte: "Journée de l'équilibre – Découverte", team_building: "Journée de l'équilibre – Team building", mois_equilibre: "Mois de l'équilibre", campagne_annuelle: 'Campagne annuelle' };
 const eventId = new URLSearchParams(location.search).get('e');
 const app = document.getElementById('app');
+let data = null;
+let lang = (() => { try { return localStorage.getItem('pf_report_lang'); } catch (e) { return null; } })();
+
+// Rapport en 4 langues : langue de la séance par défaut, boutons pour changer
+const RT = {
+  fr: { locale: 'fr-CH',
+    offers: { demo_vip: 'Démo PandaFit', decouverte: "Journée de l'équilibre – Découverte", team_building: "Journée de l'équilibre – Team building", mois_equilibre: "Mois de l'équilibre", campagne_annuelle: 'Campagne annuelle' },
+    kSession: 'Rapport de séance', kT0: 'Rapport de lancement', kT1: 'Rapport de fin de mois · clôture', by: 'animé par', and: ' et ', print: 'Imprimer / enregistrer en PDF',
+    participants: 'Participants', ofRegistered: (p, r) => `${p} % des ${r} inscrits`, measured: 'PandaFit Index mesurés', avg: 'Index moyen', wholeGroup: "sur l'ensemble du groupe",
+    good: 'Bon équilibre', goodSub: g => `Index de ${g} et plus`, risk: 'Zone à risque', riskSub: r => `Index sous ${r}`,
+    zonesTitle: 'Répartition dans les 3 zones', legGood: g => `Bon équilibre (${g}+)`, legMid: (r, g) => `À entretenir (${r}–${g})`, legRisk: r => `Zone à risque (moins de ${r})`,
+    dist: 'Distribution des Index', tests: 'Les deux épreuves', static: 'Équilibre statique', movement: 'Équilibre en mouvement',
+    testsNote: "Moyennes du groupe sur 100. Le mouvement est l'équilibre de la marche et des déplacements.",
+    reco: 'Nos recommandations', advisor: 'Le mot de votre conseiller PandaFit',
+    privacy: "<b>Confidentialité.</b> Ce rapport est entièrement anonyme et agrégé : aucune donnée individuelle, et aucun résultat n'est calculé sur moins de 5 personnes. Chaque collaborateur garde son propre résultat. Seuils des zones : valeurs de référence PandaFit provisoires.",
+    published: d => `Publié le ${d}`, draft: "Brouillon, non publié dans l'espace RH",
+    notEnough: n => `Le rapport s'affiche à partir de 5 participants, pour garantir l'anonymat. ${n} participant(s) pour l'instant.`,
+    r_risk: p => `${p} % des participants sont en zone à risque : un entraînement régulier sur un mois (Mois de l'équilibre) permet de faire progresser ce groupe en priorité.`,
+    r_riskCampaign: p => `${p} % des participants sont en zone à risque : c'est ce groupe que le mois d'entraînement doit faire progresser en priorité.`,
+    r_good: "Plus de la moitié des participants ont un bon équilibre : un défi interne permettrait d'entretenir cette dynamique.",
+    r_mid: "La majorité des participants est en zone « à entretenir » : quelques minutes de jeu par semaine suffisent à progresser.",
+    r_move: (m, s) => `L'équilibre en mouvement (${m}) est nettement plus faible que l'équilibre statique (${s}) : c'est lui qui protège des chutes lors des déplacements, il est à travailler en priorité.`,
+    r_progress: (d, p) => `En un mois d'entraînement, l'Index des personnes mesurées deux fois a progressé de ${d} points en moyenne (${p} % d'entre elles progressent).`,
+    r_program: "Pour ancrer ces progrès dans la durée : le Programme annuel (panda toute l'année, 4 saisons de défis, 5 mesures avec le coach).",
+    r_remeasure: "Refaire une mesure dans 4 à 6 semaines permet de montrer la progression de l'équipe, chiffres à l'appui.",
+    progTitle: 'Progression : lancement → clôture', twice: 'Mesurés 2 fois', twiceSub: 'même personne, code anonyme', avgPts: d => `${d} points en moyenne`,
+    improve: 'Progressent', improveSub: 'des personnes mesurées 2 fois', riskPeople: 'personnes, lancement → clôture',
+    progWait: n => `La progression s'affiche dès 5 personnes mesurées au lancement et à la clôture avec leur code personnel (${n} pour l'instant).`,
+    training: 'Entraînement pendant le mois', wk: 'Sem.', plays: (n, a, b) => `${n} parties jouées en libre-service sur le panda, du ${a} au ${b}.`,
+    defis: 'Les défis de la semaine', defiName: (k, g) => `S${k} · ${k === 4 ? 'Grand défi final' : 'Défi ' + ({ base: 'précision', skiprev: 'mouvement', tempo: 'cerveau' }[g] || '')}`, scores: n => `${n} score${n > 1 ? 's' : ''}`,
+    t0note: d => `Mesure finale prévue le ${d} : chacun saisit son code personnel pour voir sa progression.`,
+    badLink: 'Lien de rapport incomplet.', login: "Connecte-toi d'abord : <a href=\"/espace-rh/\">espace RH</a> ou <a href=\"/\">console PandaFit</a>, puis rouvre ce lien.",
+    unavailable: "Ce rapport n'est pas disponible pour ce compte (pas encore publié, ou séance d'une autre entreprise).", title: 'Rapport de séance' },
+  de: { locale: 'de-CH',
+    offers: { demo_vip: 'PandaFit-Demo', decouverte: 'Tag des Gleichgewichts – Discovery', team_building: 'Tag des Gleichgewichts – Teambuilding', mois_equilibre: 'Monat des Gleichgewichts', campagne_annuelle: 'Jahreskampagne' },
+    kSession: 'Session-Bericht', kT0: 'Startbericht', kT1: 'Abschlussbericht des Monats', by: 'geleitet von', and: ' und ', print: 'Drucken / als PDF speichern',
+    participants: 'Teilnehmende', ofRegistered: (p, r) => `${p} % der ${r} Angemeldeten`, measured: 'gemessene PandaFit Index', avg: 'Durchschnittlicher Index', wholeGroup: 'über die ganze Gruppe',
+    good: 'Gutes Gleichgewicht', goodSub: g => `Index ab ${g}`, risk: 'Risikozone', riskSub: r => `Index unter ${r}`,
+    zonesTitle: 'Verteilung auf die 3 Zonen', legGood: g => `Gutes Gleichgewicht (${g}+)`, legMid: (r, g) => `Zu pflegen (${r}–${g})`, legRisk: r => `Risikozone (unter ${r})`,
+    dist: 'Verteilung der Index-Werte', tests: 'Die zwei Tests', static: 'Statisches Gleichgewicht', movement: 'Gleichgewicht in Bewegung',
+    testsNote: 'Gruppendurchschnitte auf 100. Bewegung ist das Gleichgewicht beim Gehen und bei Ortswechseln.',
+    reco: 'Unsere Empfehlungen', advisor: 'Das Wort Ihres PandaFit-Beraters',
+    privacy: '<b>Vertraulichkeit.</b> Dieser Bericht ist vollständig anonym und aggregiert: keine Einzeldaten, und kein Ergebnis wird für weniger als 5 Personen berechnet. Jede Person behält ihr eigenes Ergebnis. Zonengrenzen: provisorische PandaFit-Referenzwerte.',
+    published: d => `Veröffentlicht am ${d}`, draft: 'Entwurf, nicht im HR-Bereich veröffentlicht',
+    notEnough: n => `Der Bericht erscheint ab 5 Teilnehmenden, um die Anonymität zu garantieren. Bisher ${n} Teilnehmende.`,
+    r_risk: p => `${p} % der Teilnehmenden sind in der Risikozone: Ein regelmässiges Training über einen Monat (Monat des Gleichgewichts) bringt diese Gruppe gezielt weiter.`,
+    r_riskCampaign: p => `${p} % der Teilnehmenden sind in der Risikozone: Diese Gruppe soll der Trainingsmonat vorrangig weiterbringen.`,
+    r_good: 'Mehr als die Hälfte der Teilnehmenden hat ein gutes Gleichgewicht: Eine interne Challenge würde diese Dynamik erhalten.',
+    r_mid: 'Die Mehrheit der Teilnehmenden ist in der Zone „zu pflegen“: Ein paar Minuten Spiel pro Woche genügen, um Fortschritte zu machen.',
+    r_move: (m, s) => `Das Gleichgewicht in Bewegung (${m}) ist deutlich schwächer als das statische Gleichgewicht (${s}): Es schützt vor Stürzen beim Gehen und sollte vorrangig trainiert werden.`,
+    r_progress: (d, p) => `In einem Trainingsmonat ist der Index der zweimal gemessenen Personen im Durchschnitt um ${d} Punkte gestiegen (${p} % von ihnen verbessern sich).`,
+    r_program: 'Um diese Fortschritte dauerhaft zu verankern: das Jahresprogramm (Panda das ganze Jahr, 4 Saisons mit Challenges, 5 Messungen mit dem Coach).',
+    r_remeasure: 'Eine neue Messung in 4 bis 6 Wochen zeigt den Fortschritt des Teams, mit Zahlen belegt.',
+    progTitle: 'Fortschritt: Start → Abschluss', twice: '2-mal gemessen', twiceSub: 'gleiche Person, anonymer Code', avgPts: d => `${d} Punkte im Durchschnitt`,
+    improve: 'Verbessern sich', improveSub: 'der 2-mal gemessenen Personen', riskPeople: 'Personen, Start → Abschluss',
+    progWait: n => `Der Fortschritt erscheint ab 5 Personen, die beim Start und beim Abschluss mit ihrem persönlichen Code gemessen wurden (bisher ${n}).`,
+    training: 'Training während des Monats', wk: 'Wo.', plays: (n, a, b) => `${n} Runden im Selbstbedienungsmodus auf dem Panda, vom ${a} bis ${b}.`,
+    defis: 'Die Challenges der Woche', defiName: (k, g) => `W${k} · ${k === 4 ? 'Grosse Final-Challenge' : ({ base: 'Präzisions', skiprev: 'Bewegungs', tempo: 'Kopf' }[g] || '') + '-Challenge'}`, scores: n => `${n} Score${n > 1 ? 's' : ''}`,
+    t0note: d => `Finale Messung am ${d}: Alle geben ihren persönlichen Code ein, um ihren Fortschritt zu sehen.`,
+    badLink: 'Unvollständiger Berichtslink.', login: 'Melden Sie sich zuerst an: <a href="/espace-rh/">HR-Bereich</a> oder <a href="/">PandaFit-Konsole</a>, und öffnen Sie dann diesen Link erneut.',
+    unavailable: 'Dieser Bericht ist für dieses Konto nicht verfügbar (noch nicht veröffentlicht oder Session eines anderen Unternehmens).', title: 'Session-Bericht' },
+  en: { locale: 'en-GB',
+    offers: { demo_vip: 'PandaFit demo', decouverte: 'Balance Day – Discovery', team_building: 'Balance Day – Team building', mois_equilibre: 'Balance Month', campagne_annuelle: 'Annual campaign' },
+    kSession: 'Session report', kT0: 'Launch report', kT1: 'End-of-month report · closing', by: 'led by', and: ' and ', print: 'Print / save as PDF',
+    participants: 'Participants', ofRegistered: (p, r) => `${p}% of the ${r} registered`, measured: 'PandaFit Index tests', avg: 'Average Index', wholeGroup: 'across the whole group',
+    good: 'Good balance', goodSub: g => `Index of ${g} and above`, risk: 'Risk zone', riskSub: r => `Index below ${r}`,
+    zonesTitle: 'Split across the 3 zones', legGood: g => `Good balance (${g}+)`, legMid: (r, g) => `To maintain (${r}–${g})`, legRisk: r => `Risk zone (below ${r})`,
+    dist: 'Index distribution', tests: 'The two tests', static: 'Static balance', movement: 'Balance in motion',
+    testsNote: 'Group averages out of 100. Movement is the balance used when walking and moving around.',
+    reco: 'Our recommendations', advisor: 'A word from your PandaFit advisor',
+    privacy: '<b>Confidentiality.</b> This report is fully anonymous and aggregated: no individual data, and no result is calculated for fewer than 5 people. Each employee keeps their own result. Zone thresholds: provisional PandaFit reference values.',
+    published: d => `Published on ${d}`, draft: 'Draft, not published in the HR area',
+    notEnough: n => `The report is shown from 5 participants, to guarantee anonymity. ${n} participant(s) so far.`,
+    r_risk: p => `${p}% of participants are in the risk zone: regular training over one month (Balance Month) helps this group improve first.`,
+    r_riskCampaign: p => `${p}% of participants are in the risk zone: this is the group the training month should help improve first.`,
+    r_good: 'More than half of the participants have good balance: an internal challenge would keep this momentum going.',
+    r_mid: 'Most participants are in the "to maintain" zone: a few minutes of play a week are enough to improve.',
+    r_move: (m, s) => `Balance in motion (${m}) is clearly weaker than static balance (${s}): it is what protects against falls when moving around, so it should be trained first.`,
+    r_progress: (d, p) => `After one month of training, the Index of the people measured twice rose by ${d} points on average (${p}% of them improved).`,
+    r_program: 'To make this progress last: the Annual programme (panda all year, 4 seasons of challenges, 5 measurements with the coach).',
+    r_remeasure: "Measuring again in 4 to 6 weeks shows the team's progress, with figures to back it up.",
+    progTitle: 'Progress: launch → closing', twice: 'Measured twice', twiceSub: 'same person, anonymous code', avgPts: d => `${d} points on average`,
+    improve: 'Improve', improveSub: 'of people measured twice', riskPeople: 'people, launch → closing',
+    progWait: n => `Progress is shown from 5 people measured at both the launch and the closing with their personal code (${n} so far).`,
+    training: 'Training during the month', wk: 'Wk', plays: (n, a, b) => `${n} self-service games played on the panda, from ${a} to ${b}.`,
+    defis: "The week's challenges", defiName: (k, g) => `W${k} · ${k === 4 ? 'Grand final challenge' : ({ base: 'Precision', skiprev: 'Movement', tempo: 'Brain' }[g] || '') + ' challenge'}`, scores: n => `${n} score${n > 1 ? 's' : ''}`,
+    t0note: d => `Final measurement planned on ${d}: everyone enters their personal code to see their progress.`,
+    badLink: 'Incomplete report link.', login: 'Please sign in first: <a href="/espace-rh/">HR area</a> or <a href="/">PandaFit console</a>, then open this link again.',
+    unavailable: 'This report is not available for this account (not published yet, or a session from another company).', title: 'Session report' },
+  it: { locale: 'it-CH',
+    offers: { demo_vip: 'Demo PandaFit', decouverte: "Giornata dell'equilibrio – Scoperta", team_building: "Giornata dell'equilibrio – Team building", mois_equilibre: "Mese dell'equilibrio", campagne_annuelle: 'Campagna annuale' },
+    kSession: 'Rapporto della sessione', kT0: 'Rapporto di lancio', kT1: 'Rapporto di fine mese · chiusura', by: 'animato da', and: ' e ', print: 'Stampa / salva in PDF',
+    participants: 'Partecipanti', ofRegistered: (p, r) => `${p} % dei ${r} iscritti`, measured: 'PandaFit Index misurati', avg: 'Index medio', wholeGroup: "sull'intero gruppo",
+    good: 'Buon equilibrio', goodSub: g => `Index da ${g} in su`, risk: 'Zona a rischio', riskSub: r => `Index sotto ${r}`,
+    zonesTitle: 'Ripartizione nelle 3 zone', legGood: g => `Buon equilibrio (${g}+)`, legMid: (r, g) => `Da mantenere (${r}–${g})`, legRisk: r => `Zona a rischio (sotto ${r})`,
+    dist: 'Distribuzione degli Index', tests: 'Le due prove', static: 'Equilibrio statico', movement: 'Equilibrio in movimento',
+    testsNote: "Medie del gruppo su 100. Il movimento è l'equilibrio della camminata e degli spostamenti.",
+    reco: 'Le nostre raccomandazioni', advisor: 'La parola del vostro consulente PandaFit',
+    privacy: "<b>Riservatezza.</b> Questo rapporto è interamente anonimo e aggregato: nessun dato individuale, e nessun risultato è calcolato su meno di 5 persone. Ogni collaboratore conserva il proprio risultato. Soglie delle zone: valori di riferimento PandaFit provvisori.",
+    published: d => `Pubblicato il ${d}`, draft: 'Bozza, non pubblicata nello spazio RU',
+    notEnough: n => `Il rapporto appare da 5 partecipanti, per garantire l'anonimato. Per ora ${n} partecipante/i.`,
+    r_risk: p => `Il ${p} % dei partecipanti è in zona a rischio: un allenamento regolare per un mese (Mese dell'equilibrio) fa progredire questo gruppo in priorità.`,
+    r_riskCampaign: p => `Il ${p} % dei partecipanti è in zona a rischio: è questo il gruppo che il mese di allenamento deve far progredire in priorità.`,
+    r_good: "Più della metà dei partecipanti ha un buon equilibrio: una sfida interna permetterebbe di mantenere questa dinamica.",
+    r_mid: 'La maggioranza dei partecipanti è nella zona «da mantenere»: pochi minuti di gioco a settimana bastano per progredire.',
+    r_move: (m, s) => `L'equilibrio in movimento (${m}) è nettamente più debole di quello statico (${s}): è lui che protegge dalle cadute negli spostamenti, va allenato in priorità.`,
+    r_progress: (d, p) => `In un mese di allenamento, l'Index delle persone misurate due volte è salito in media di ${d} punti (il ${p} % di loro migliora).`,
+    r_program: "Per consolidare questi progressi nel tempo: il Programma annuale (panda tutto l'anno, 4 stagioni di sfide, 5 misurazioni con il coach).",
+    r_remeasure: "Rifare una misurazione tra 4-6 settimane permette di mostrare i progressi della squadra, cifre alla mano.",
+    progTitle: 'Progressione: lancio → chiusura', twice: 'Misurati 2 volte', twiceSub: 'stessa persona, codice anonimo', avgPts: d => `${d} punti in media`,
+    improve: 'Migliorano', improveSub: 'delle persone misurate 2 volte', riskPeople: 'persone, lancio → chiusura',
+    progWait: n => `La progressione appare da 5 persone misurate al lancio e alla chiusura con il loro codice personale (per ora ${n}).`,
+    training: 'Allenamento durante il mese', wk: 'Sett.', plays: (n, a, b) => `${n} partite giocate in libero servizio sul panda, dal ${a} al ${b}.`,
+    defis: 'Le sfide della settimana', defiName: (k, g) => `S${k} · ${k === 4 ? 'Grande sfida finale' : 'Sfida ' + ({ base: 'precisione', skiprev: 'movimento', tempo: 'cervello' }[g] || '')}`, scores: n => `${n} punteggi${n > 1 ? '' : 'o'}`,
+    t0note: d => `Misurazione finale prevista il ${d}: ognuno inserisce il proprio codice personale per vedere i suoi progressi.`,
+    badLink: 'Link del rapporto incompleto.', login: 'Accedi prima: <a href="/espace-rh/">spazio RU</a> o <a href="/">console PandaFit</a>, poi riapri questo link.',
+    unavailable: "Questo rapporto non è disponibile per questo account (non ancora pubblicato, o sessione di un'altra azienda).", title: 'Rapporto della sessione' },
+};
+const R = () => RT[lang] || RT.fr;
+const GAME_NAMES = { base: 'Electro', skiprev: 'Slalom', tempo: 'MindFit', thezone: 'The Zone', distance: 'Tir au but', migros: 'Le Panier Malin', cross: 'Zen' };
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-function day(iso) { const s = new Date(iso).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); return s.charAt(0).toUpperCase() + s.slice(1); }
-function hm(iso) { return new Date(iso).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' }); }
+function day(iso) { const s = new Date(iso).toLocaleDateString(R().locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); return s.charAt(0).toUpperCase() + s.slice(1); }
+function hm(iso) { return new Date(iso).toLocaleTimeString(R().locale, { hour: '2-digit', minute: '2-digit' }); }
 const pct = (n, t) => t ? Math.round(100 * n / t) : 0;
-const frn = n => Number(n).toLocaleString("fr-CH");
+const num = n => Number(n).toLocaleString(R().locale);
 
 // Recommandations générées à partir des résultats agrégés (le conseiller ajoute son propre mot)
 function recommendations(d) {
-  const r = [];
+  const r = [], L = R();
   const riskPct = pct(d.risk, d.participants), goodPct = pct(d.good, d.participants);
-  if (riskPct >= 15) r.push(`${riskPct} % des participants sont en zone à risque : un entraînement régulier sur un mois (Mois de l'équilibre) permet de faire progresser ce groupe en priorité.`);
-  else if (goodPct >= 50) r.push(`Plus de la moitié des participants ont un bon équilibre : un défi interne permettrait d'entretenir cette dynamique.`);
-  else r.push(`La majorité des participants est en zone « à entretenir » : quelques minutes de jeu par semaine suffisent à progresser.`);
-  if (d.avg_static != null && d.avg_movement != null && d.avg_static - d.avg_movement >= 20) r.push(`L'équilibre en mouvement (${d.avg_movement}) est nettement plus faible que l'équilibre statique (${d.avg_static}) : c'est lui qui protège des chutes lors des déplacements, il est à travailler en priorité.`);
+  if (riskPct >= 15) r.push(d.campaign ? L.r_riskCampaign(riskPct) : L.r_risk(riskPct));
+  else if (goodPct >= 50) r.push(L.r_good);
+  else r.push(L.r_mid);
+  if (d.avg_static != null && d.avg_movement != null && d.avg_static - d.avg_movement >= 20) r.push(L.r_move(d.avg_movement, d.avg_static));
   const p = d.campaign?.pairs;
   if (d.campaign?.step === 't1') {
-    if (p?.n >= 5 && p.delta > 0) r.unshift(`En un mois d'entraînement, l'Index des personnes mesurées deux fois a progressé de ${frn(p.delta)} points en moyenne (${p.improved_pct} % d'entre elles progressent).`);
-    r.push(`Pour ancrer ces progrès dans la durée : le Programme annuel (panda toute l'année, 4 saisons de défis, 5 mesures avec le coach).`);
-  } else {
-    r.push(`Refaire une mesure dans 4 à 6 semaines permet de montrer la progression de l'équipe, chiffres à l'appui.`);
-  }
-  // pendant / après un Mois de l'équilibre, inutile de le recommander
-  return d.campaign ? r.map(x => x.replace(` : un entraînement régulier sur un mois (Mois de l'équilibre) permet de faire progresser ce groupe en priorité.`, ` : c'est ce groupe que le mois d'entraînement doit faire progresser en priorité.`)) : r;
+    if (p?.n >= 5 && p.delta > 0) r.unshift(L.r_progress(num(p.delta), p.improved_pct));
+    r.push(L.r_program);
+  } else r.push(L.r_remeasure);
+  return r;
 }
 
-const GAME_NAMES = { base: 'Electro', skiprev: 'Slalom', tempo: 'MindFit', thezone: 'The Zone', distance: 'Tir au but', migros: 'Le Panier Malin', cross: 'Zen' };
 // Bloc « Mois de l'équilibre » : engagement des 4 semaines + progression appariée (clôture)
 function campaignHTML(d) {
-  const c = d.campaign;
+  const c = d.campaign, L = R();
   if (!c) return '';
-  const short = iso => new Date(iso + 'T12:00').toLocaleDateString('fr-CH', { day: 'numeric', month: 'long' });
+  const short = iso => new Date(iso + 'T12:00').toLocaleDateString(L.locale, { day: 'numeric', month: 'long' });
   const maxW = Math.max(1, ...c.weeks.map(w => w.plays));
   const total = c.weeks.reduce((s, w) => s + w.plays, 0);
   const p = c.pairs;
   let prog = '';
   if (c.step === 't1') {
     prog = p?.n >= 5 ? `
-      <h2>Progression : lancement → clôture</h2>
+      <h2>${L.progTitle}</h2>
       <div class="kpis">
-        <div class="kpi"><div class="l">Mesurés 2 fois</div><div class="v">${p.n}</div><div class="s">même personne, code anonyme</div></div>
-        <div class="kpi"><div class="l">Index moyen</div><div class="v">${p.avg_t0} → ${p.avg_t1}</div><div class="s">${p.delta > 0 ? '+' : ''}${frn(p.delta)} points en moyenne</div></div>
-        <div class="kpi"><div class="l">Progressent</div><div class="v">${p.improved_pct} %</div><div class="s">des personnes mesurées 2 fois</div></div>
-        <div class="kpi"><div class="l">Zone à risque</div><div class="v">${p.risk_t0} → ${p.risk_t1}</div><div class="s">personnes, lancement → clôture</div></div>
+        <div class="kpi"><div class="l">${L.twice}</div><div class="v">${p.n}</div><div class="s">${L.twiceSub}</div></div>
+        <div class="kpi"><div class="l">${L.avg}</div><div class="v">${p.avg_t0} → ${p.avg_t1}</div><div class="s">${L.avgPts((p.delta > 0 ? '+' : '') + num(p.delta))}</div></div>
+        <div class="kpi"><div class="l">${L.improve}</div><div class="v">${p.improved_pct} %</div><div class="s">${L.improveSub}</div></div>
+        <div class="kpi"><div class="l">${L.risk}</div><div class="v">${p.risk_t0} → ${p.risk_t1}</div><div class="s">${L.riskPeople}</div></div>
       </div>`
-      : `<h2>Progression : lancement → clôture</h2><p style="font-size:10pt;color:var(--dim);margin:0;">La progression s'affiche dès 5 personnes mesurées au lancement et à la clôture avec leur code personnel (${p?.n || 0} pour l'instant).</p>`;
+      : `<h2>${L.progTitle}</h2><p style="font-size:10pt;color:var(--dim);margin:0;">${L.progWait(p?.n || 0)}</p>`;
   }
   return `
     ${prog}
     <div class="two">
       <div>
-        <h2>Entraînement pendant le mois</h2>
+        <h2>${L.training}</h2>
         <div class="hist" style="height:24mm;">${c.weeks.map(w => `<div style="height:${Math.round(100 * w.plays / maxW)}%;background:var(--green);" title="${w.plays}"></div>`).join('')}</div>
-        <div class="hist-x">${c.weeks.map(w => `<span>Sem. ${w.week} · ${w.plays}</span>`).join('')}</div>
-        <p style="font-size:8.5pt;color:var(--dim);margin:2mm 0 0;">${total} parties jouées en libre-service sur le panda, du ${short(c.starts_on)} au ${short(c.ends_on)}.</p>
+        <div class="hist-x">${c.weeks.map(w => `<span>${L.wk} ${w.week} · ${w.plays}</span>`).join('')}</div>
+        <p style="font-size:8.5pt;color:var(--dim);margin:2mm 0 0;">${L.plays(total, short(c.starts_on), short(c.ends_on))}</p>
       </div>
       <div>
-        <h2>Les défis de la semaine</h2>
+        <h2>${L.defis}</h2>
         <table style="width:100%;border-collapse:collapse;font-size:9pt;">
-          ${c.defis.map(x => `<tr style="border-bottom:1px solid var(--border);"><td style="padding:1.6mm 0;">${esc(x.title.replace(/^Semaine (\d) · /, 'S$1 · '))}</td><td style="color:var(--dim);">${esc(GAME_NAMES[x.game_id] || x.game_id)}</td><td style="text-align:right;font-weight:800;">${x.entries} score${x.entries > 1 ? 's' : ''}</td></tr>`).join('')}
+          ${c.defis.map((x, i) => `<tr style="border-bottom:1px solid var(--border);"><td style="padding:1.6mm 0;">${esc(L.defiName(i + 1, x.game_id))}</td><td style="color:var(--dim);">${esc(GAME_NAMES[x.game_id] || x.game_id)}</td><td style="text-align:right;font-weight:800;">${L.scores(x.entries)}</td></tr>`).join('')}
         </table>
-        ${c.step === 't0' && c.t0?.participants ? `<p style="font-size:8.5pt;color:var(--dim);margin:2mm 0 0;">Mesure finale prévue le ${short(c.ends_on)} : chacun saisit son code personnel pour voir sa progression.</p>` : ''}
+        ${c.step === 't0' && c.t0?.participants ? `<p style="font-size:8.5pt;color:var(--dim);margin:2mm 0 0;">${L.t0note(short(c.ends_on))}</p>` : ''}
       </div>
     </div>`;
 }
 
+function langBar() {
+  return `<div class="bar-top"><span class="langs">${['fr', 'de', 'en', 'it'].map(l => `<button data-lang="${l}" class="${l === lang ? 'on' : ''}">${l.toUpperCase()}</button>`).join('')}</span><button onclick="window.print()">${R().print}</button></div>`;
+}
 function render(d) {
-  const ev = d.event;
+  const ev = d.event, L = R();
+  document.documentElement.lang = lang; document.title = 'PandaFit — ' + L.title;
   if (!d.enough) {
-    app.innerHTML = `<div class="msg"><b>${esc(d.client?.name || '')} · ${esc(day(ev.starts_at))}</b><br><br>
-      Le rapport s'affiche à partir de 5 participants, pour garantir l'anonymat. ${d.participants} participant(s) pour l'instant.</div>`;
-    return;
+    app.innerHTML = langBar() + `<div class="msg"><b>${esc(d.client?.name || '')} · ${esc(day(ev.starts_at))}</b><br><br>${L.notEnough(d.participants)}</div>`;
+    return wireLang();
   }
   const n = d.participants;
   const z = d.zones;
   const maxBin = Math.max(1, ...d.histogram.map(h => h.count));
   const binColor = from => from >= z.good_min ? 'var(--good)' : (from + 10 > z.risk_below ? 'var(--mid)' : 'var(--risk)');
-  app.innerHTML = `
-    <div class="bar-top"><button onclick="window.print()">Imprimer / enregistrer en PDF</button></div>
+  app.innerHTML = langBar() + `
     <div class="page">
       <div class="top"><img src="logo-pandafit.png" alt="PandaFit">${d.client?.logo_url ? `<img src="${esc(d.client.logo_url)}" alt="${esc(d.client.name)}">` : ''}</div>
-      <div class="k">${d.campaign?.step === 't1' ? 'Rapport de fin de mois · clôture' : d.campaign?.step === 't0' ? 'Rapport de lancement' : 'Rapport de séance'}</div>
-      <h1>${esc(OFFER_LABELS[ev.offer] || 'Séance PandaFit')}</h1>
-      <div class="meta">${esc(d.client?.name || '')} · ${esc(day(ev.starts_at))} · ${hm(ev.starts_at)} – ${hm(ev.ends_at)}${d.coaches?.length ? ' · animé par ' + esc(d.coaches.join(' et ')) : ''}</div>
+      <div class="k">${d.campaign?.step === 't1' ? L.kT1 : d.campaign?.step === 't0' ? L.kT0 : L.kSession}</div>
+      <h1>${esc(L.offers[ev.offer] || 'PandaFit')}</h1>
+      <div class="meta">${esc(d.client?.name || '')} · ${esc(day(ev.starts_at))} · ${hm(ev.starts_at)} – ${hm(ev.ends_at)}${d.coaches?.length ? ' · ' + L.by + ' ' + esc(d.coaches.join(L.and)) : ''}</div>
       <div class="kpis">
-        <div class="kpi"><div class="l">Participants</div><div class="v">${n}</div><div class="s">${d.registered ? `${pct(n, d.registered)} % des ${d.registered} inscrits` : 'PandaFit Index mesurés'}</div></div>
-        <div class="kpi"><div class="l">Index moyen</div><div class="v">${d.avg} / 100</div><div class="s">sur l'ensemble du groupe</div></div>
-        <div class="kpi"><div class="l">Bon équilibre</div><div class="v">${pct(d.good, n)} %</div><div class="s">Index de ${z.good_min} et plus</div></div>
-        <div class="kpi"><div class="l">Zone à risque</div><div class="v">${pct(d.risk, n)} %</div><div class="s">Index sous ${z.risk_below}</div></div>
+        <div class="kpi"><div class="l">${L.participants}</div><div class="v">${n}</div><div class="s">${d.registered ? L.ofRegistered(pct(n, d.registered), d.registered) : L.measured}</div></div>
+        <div class="kpi"><div class="l">${L.avg}</div><div class="v">${d.avg} / 100</div><div class="s">${L.wholeGroup}</div></div>
+        <div class="kpi"><div class="l">${L.good}</div><div class="v">${pct(d.good, n)} %</div><div class="s">${L.goodSub(z.good_min)}</div></div>
+        <div class="kpi"><div class="l">${L.risk}</div><div class="v">${pct(d.risk, n)} %</div><div class="s">${L.riskSub(z.risk_below)}</div></div>
       </div>
-      <h2>Répartition dans les 3 zones</h2>
+      <h2>${L.zonesTitle}</h2>
       <div class="zones">
         ${d.good ? `<span style="width:${pct(d.good, n)}%;background:var(--good);">${pct(d.good, n)} %</span>` : ''}
         ${d.mid ? `<span style="width:${pct(d.mid, n)}%;background:var(--mid);">${pct(d.mid, n)} %</span>` : ''}
         ${d.risk ? `<span style="width:${pct(d.risk, n)}%;background:var(--risk);">${pct(d.risk, n)} %</span>` : ''}
       </div>
-      <div class="leg"><span><i style="background:var(--good)"></i>Bon équilibre (${z.good_min}+)</span><span><i style="background:var(--mid)"></i>À entretenir (${z.risk_below}–${z.good_min - 1})</span><span><i style="background:var(--risk)"></i>Zone à risque (moins de ${z.risk_below})</span></div>
+      <div class="leg"><span><i style="background:var(--good)"></i>${L.legGood(z.good_min)}</span><span><i style="background:var(--mid)"></i>${L.legMid(z.risk_below, z.good_min - 1)}</span><span><i style="background:var(--risk)"></i>${L.legRisk(z.risk_below)}</span></div>
       <div class="two">
         <div>
-          <h2>Distribution des Index</h2>
+          <h2>${L.dist}</h2>
           <div class="hist">${d.histogram.map(h => `<div style="height:${Math.round(100 * h.count / maxBin)}%;background:${binColor(h.from)};" title="${h.count}"></div>`).join('')}</div>
           <div class="hist-x">${d.histogram.map(h => `<span>${h.from}</span>`).join('')}</div>
         </div>
         <div class="cmp">
-          <h2>Les deux épreuves</h2>
-          <div class="row"><b>Équilibre statique</b><div class="track"><span style="width:${d.avg_static ?? 0}%"></span></div><em>${d.avg_static ?? '—'}</em></div>
-          <div class="row"><b>Équilibre en mouvement</b><div class="track"><span style="width:${d.avg_movement ?? 0}%"></span></div><em>${d.avg_movement ?? '—'}</em></div>
-          <p style="font-size:8.5pt;color:var(--dim);margin:2mm 0 0;">Moyennes du groupe sur 100. Le mouvement est l'équilibre de la marche et des déplacements.</p>
+          <h2>${L.tests}</h2>
+          <div class="row"><b>${L.static}</b><div class="track"><span style="width:${d.avg_static ?? 0}%"></span></div><em>${d.avg_static ?? '—'}</em></div>
+          <div class="row"><b>${L.movement}</b><div class="track"><span style="width:${d.avg_movement ?? 0}%"></span></div><em>${d.avg_movement ?? '—'}</em></div>
+          <p style="font-size:8.5pt;color:var(--dim);margin:2mm 0 0;">${L.testsNote}</p>
         </div>
       </div>
       ${campaignHTML(d)}
-      <h2>Nos recommandations</h2>
+      <h2>${L.reco}</h2>
       <ul>${recommendations(d).map(r => `<li>${esc(r)}</li>`).join('')}</ul>
-      ${ev.note ? `<h2>Le mot de votre conseiller PandaFit</h2><div class="note">${esc(ev.note)}</div>` : ''}
-      <div class="box"><b>Confidentialité.</b> Ce rapport est entièrement anonyme et agrégé : aucune donnée individuelle, et aucun résultat n'est calculé sur moins de 5 personnes. Chaque collaborateur garde son propre résultat. Seuils des zones : valeurs de référence PandaFit provisoires.</div>
-      <div class="foot"><span>PandaFit SA · info@pandafit.ch · pandafit.ch</span><span>${ev.published_at ? 'Publié le ' + new Date(ev.published_at).toLocaleDateString('fr-CH') : 'Brouillon, non publié dans l\'espace RH'}</span></div>
+      ${ev.note ? `<h2>${L.advisor}</h2><div class="note">${esc(ev.note)}</div>` : ''}
+      <div class="box">${L.privacy}</div>
+      <div class="foot"><span>PandaFit SA · info@pandafit.ch · pandafit.ch</span><span>${ev.published_at ? L.published(new Date(ev.published_at).toLocaleDateString(L.locale)) : L.draft}</span></div>
     </div>`;
+  wireLang();
+}
+function wireLang() {
+  app.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => {
+    lang = b.dataset.lang;
+    try { localStorage.setItem('pf_report_lang', lang); } catch (e) {}
+    render(data);
+  }));
 }
 
 (async () => {
-  if (!eventId) { app.innerHTML = '<div class="msg">Lien de rapport incomplet.</div>'; return; }
+  if (!lang) lang = 'fr';
+  if (!eventId) { app.innerHTML = `<div class="msg">${R().badLink}</div>`; return; }
   const { data: { session } } = await sb.auth.getSession();
-  if (!session) { app.innerHTML = '<div class="msg">Connecte-toi d\'abord : <a href="/espace-rh/">espace RH</a> ou <a href="/">console PandaFit</a>, puis rouvre ce lien.</div>'; return; }
-  const { data, error } = await sb.rpc('report_data', { p_event: eventId });
-  if (error || !data) { app.innerHTML = '<div class="msg">Ce rapport n\'est pas disponible pour ce compte (pas encore publié, ou séance d\'une autre entreprise).</div>'; return; }
+  if (!session) { app.innerHTML = `<div class="msg">${R().login}</div>`; return; }
+  const res = await sb.rpc('report_data', { p_event: eventId });
+  if (res.error || !res.data) { app.innerHTML = `<div class="msg">${R().unavailable}</div>`; return; }
+  data = res.data;
+  // Langue : choix mémorisé de la personne, sinon langue de la séance
+  let saved = null; try { saved = localStorage.getItem('pf_report_lang'); } catch (e) {}
+  if (!saved && data.event?.language && RT[data.event.language]) lang = data.event.language;
   render(data);
 })();
 </script>

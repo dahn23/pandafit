@@ -112,6 +112,53 @@ const OFFER_LABELS = {
   demo_vip: 'Démo PandaFit', decouverte: "Journée de l'équilibre", team_building: "Journée de l'équilibre – Team building",
   mois_equilibre: "Mois de l'équilibre", campagne_annuelle: 'Campagne annuelle',
 };
+// Textes de l'écran en 4 langues (langue de la séance)
+let PL = (navigator.language || 'fr').slice(0, 2);
+const PTX = {
+  fr: { locale: 'fr-CH', slogan: "L'équilibre est dans le mouvement", board: 'Classement PandaFit Index', participants: n => `participant${n > 1 ? 's' : ''}`,
+    live: 'En direct', ended: 'Séance terminée', invite: 'À vous de jouer !',
+    inviteSub: "Montez sur le PandaFit, passez votre Index en 90 secondes et choisissez un pseudo : les meilleurs scores s'affichent ici en direct.",
+    codeLbl: 'Code de la séance :', tri: "Triathlon de l'équilibre", podium: 'Podium', teams: 'équipes', plays: 'parties jouées', team: 'Équipe', total: 'Total', finale: 'Finale', pts: 'pts',
+    players: n => `${n} joueur${n > 1 ? 's' : ''}`, kind: { base: 'précision', skiprev: 'mouvement', tempo: 'cerveau' },
+    rule: (a, b) => `Sur chaque jeu, la 1ʳᵉ équipe marque ${a} points, la 2ᵉ ${b}… · la finale compte double · jamais de comparaison de scores entre jeux`,
+    ask: 'Entre le code de la séance pour afficher le classement.', show: 'Afficher le classement', unknown: 'Code inconnu, ou séance pas encore ouverte ou terminée depuis plus de 2 jours.',
+    offers: OFFER_LABELS, colors: null },
+  de: { locale: 'de-CH', slogan: 'Gleichgewicht ist Bewegung', board: 'Ranking PandaFit Index', participants: n => 'Teilnehmende',
+    live: 'Live', ended: 'Session beendet', invite: 'Jetzt seid ihr dran!',
+    inviteSub: 'Steigt auf den PandaFit, macht euren Index in 90 Sekunden und wählt ein Pseudonym: Die besten Scores erscheinen hier live.',
+    codeLbl: 'Session-Code:', tri: 'Gleichgewichts-Triathlon', podium: 'Podest', teams: 'Teams', plays: 'gespielte Runden', team: 'Team', total: 'Total', finale: 'Finale', pts: 'Pkt.',
+    players: n => `${n} Spieler:in${n > 1 ? 'nen' : ''}`, kind: { base: 'Präzision', skiprev: 'Bewegung', tempo: 'Kopf' },
+    rule: (a, b) => `Auf jedem Spiel erhält das 1. Team ${a} Punkte, das 2. ${b}… · das Finale zählt doppelt · nie ein Vergleich der Scores zwischen den Spielen`,
+    ask: 'Gib den Session-Code ein, um das Ranking anzuzeigen.', show: 'Ranking anzeigen', unknown: 'Unbekannter Code, oder Session noch nicht geöffnet oder seit über 2 Tagen beendet.',
+    offers: { demo_vip: 'PandaFit-Demo', decouverte: 'Tag des Gleichgewichts', team_building: 'Tag des Gleichgewichts – Teambuilding', mois_equilibre: 'Monat des Gleichgewichts', campagne_annuelle: 'Jahreskampagne' },
+    colors: ['Rot', 'Blau', 'Grün', 'Gelb', 'Orange', 'Violett', 'Pink', 'Türkis', 'Marine', 'Grau'], team_tpl: c => `Team ${c}` },
+  en: { locale: 'en-GB', slogan: 'Balance is in motion', board: 'PandaFit Index ranking', participants: n => `participant${n !== 1 ? 's' : ''}`,
+    live: 'Live', ended: 'Session over', invite: 'Your turn!',
+    inviteSub: 'Step onto the PandaFit, take your Index in 90 seconds and pick a nickname: the best scores appear here live.',
+    codeLbl: 'Session code:', tri: 'Balance Triathlon', podium: 'Podium', teams: 'teams', plays: 'games played', team: 'Team', total: 'Total', finale: 'Final', pts: 'pts',
+    players: n => `${n} player${n > 1 ? 's' : ''}`, kind: { base: 'precision', skiprev: 'movement', tempo: 'brain' },
+    rule: (a, b) => `On each game, the 1st team scores ${a} points, the 2nd ${b}… · the final counts double · scores are never compared across games`,
+    ask: 'Enter the session code to show the ranking.', show: 'Show the ranking', unknown: 'Unknown code, or session not open yet or ended more than 2 days ago.',
+    offers: { demo_vip: 'PandaFit demo', decouverte: 'Balance Day', team_building: 'Balance Day – Team building', mois_equilibre: 'Balance Month', campagne_annuelle: 'Annual campaign' },
+    colors: ['Red', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple', 'Pink', 'Turquoise', 'Navy', 'Grey'], team_tpl: c => `${c} team` },
+  it: { locale: 'it-CH', slogan: "L'equilibrio è nel movimento", board: 'Classifica PandaFit Index', participants: n => `partecipant${n !== 1 ? 'i' : 'e'}`,
+    live: 'In diretta', ended: 'Sessione terminata', invite: 'Tocca a voi!',
+    inviteSub: 'Salite sul PandaFit, fate il vostro Index in 90 secondi e scegliete uno pseudonimo: i migliori punteggi appaiono qui in diretta.',
+    codeLbl: 'Codice della sessione:', tri: "Triathlon dell'equilibrio", podium: 'Podio', teams: 'squadre', plays: 'partite giocate', team: 'Squadra', total: 'Totale', finale: 'Finale', pts: 'pt',
+    players: n => `${n} giocator${n > 1 ? 'i' : 'e'}`, kind: { base: 'precisione', skiprev: 'movimento', tempo: 'cervello' },
+    rule: (a, b) => `Su ogni gioco, la 1ª squadra segna ${a} punti, la 2ª ${b}… · la finale conta doppio · mai confronti di punteggi tra giochi`,
+    ask: 'Inserisci il codice della sessione per mostrare la classifica.', show: 'Mostra la classifica', unknown: 'Codice sconosciuto, oppure sessione non ancora aperta o terminata da più di 2 giorni.',
+    offers: { demo_vip: 'Demo PandaFit', decouverte: "Giornata dell'equilibrio", team_building: "Giornata dell'equilibrio – Team building", mois_equilibre: "Mese dell'equilibrio", campagne_annuelle: 'Campagna annuale' },
+    colors: ['Rossa', 'Blu', 'Verde', 'Gialla', 'Arancione', 'Viola', 'Rosa', 'Turchese', 'Blu marina', 'Grigia'], team_tpl: c => `Squadra ${c}` },
+};
+if (!PTX[PL]) PL = 'fr';
+const P = k => PTX[PL][k] ?? PTX.fr[k];
+// Noms d'équipe par défaut (« Équipe Rouge »…) traduits ; un nom choisi par le coach reste tel quel
+const FR_COLORS = ['Rouge', 'Bleue', 'Verte', 'Jaune', 'Orange', 'Violette', 'Rose', 'Turquoise', 'Marine', 'Grise'];
+function teamName(n) {
+  const m = /^Équipe (\S+)$/.exec(n || ''); const i = m ? FR_COLORS.indexOf(m[1]) : -1;
+  return i >= 0 && PTX[PL].colors ? PTX[PL].team_tpl(PTX[PL].colors[i]) : n;
+}
 const screen = document.getElementById('screen');
 const code = (new URLSearchParams(location.search).get('code') || '').trim().toUpperCase();
 let lastKeys = new Set();
@@ -123,9 +170,9 @@ function askCode(msg) {
   screen.innerHTML = `
     <div class="ask">
       <div class="brand" style="justify-content:center;"><div class="client-logo"><img src="${PF_ICON}" alt="PandaFit"></div></div>
-      <p class="meta" style="margin-top:18px;text-transform:none;">${msg || 'Entre le code de la séance pour afficher le classement.'}</p>
+      <p class="meta" style="margin-top:18px;text-transform:none;">${msg || P('ask')}</p>
       <input id="code" placeholder="PANDA-XXXX" value="${esc(code)}">
-      <button id="go">Afficher le classement</button>
+      <button id="go">${P('show')}</button>
     </div>`;
   document.getElementById('go').addEventListener('click', () => {
     let c = document.getElementById('code').value.trim().toUpperCase();
@@ -158,8 +205,8 @@ let lastTri = '';
 function teamStep(t, place) {
   if (!t) return `<div class="step p${place} empty"><div class="medal">${place}</div><div class="who">—</div></div>`;
   return `<div class="step p${place}"><div class="medal">${place}</div>
-    <div class="who"><span class="dotc" style="background:${esc(t.color)}"></span>${esc(t.name)}</div>
-    <div class="sc">${t.total}<small> pts</small></div></div>`;
+    <div class="who"><span class="dotc" style="background:${esc(t.color)}"></span>${esc(teamName(t.name))}</div>
+    <div class="sc">${t.total}<small> ${P('pts')}</small></div></div>`;
 }
 function triBody(b) {
   const tr = b.triathlon, teams = tr.teams || [], games = tr.games || [];
@@ -168,29 +215,29 @@ function triBody(b) {
   const ranks = teams.map((t, i) => i === 0 || t.total !== teams[i - 1].total ? i + 1 : null);
   for (let i = 1; i < ranks.length; i++) if (ranks[i] === null) ranks[i] = ranks[i - 1];
   if (tr.phase === 'podium') {
-    return { eyebrow: "Triathlon de l'équilibre · Podium", counter: [teams.length, 'équipes'], body: `
+    return { eyebrow: P('tri') + ' · ' + P('podium'), counter: [teams.length, P('teams')], body: `
       <div class="podium">${teamStep(teams[1], 2)}${teamStep(teams[0], 1)}${teamStep(teams[2], 3)}</div>
-      <div class="rest">${teams.slice(3).map((t, i) => `<div class="row"><span class="r">${ranks[i + 3]}</span><span class="p"><span class="dotc" style="background:${esc(t.color)}"></span>${esc(t.name)}</span><span class="sc">${t.total}<small> pts</small></span></div>`).join('')}</div>` };
+      <div class="rest">${teams.slice(3).map((t, i) => `<div class="row"><span class="r">${ranks[i + 3]}</span><span class="p"><span class="dotc" style="background:${esc(t.color)}"></span>${esc(teamName(t.name))}</span><span class="sc">${t.total}<small> ${P('pts')}</small></span></div>`).join('')}</div>` };
   }
   const cols = tr.phase === 'finale' || teams.some(t => t.finale) ? [...games, 'finale'] : games;
-  const head = `<div class="tri-head" style="--g:${cols.length}"><span>#</span><span>Équipe</span>${cols.map(g => g === 'finale'
-    ? `<span>Finale<small>${esc(GAME_NAMES[tr.finale_game] || '')}</small></span>`
-    : `<span>${esc(GAME_NAMES[g] || g)}<small>${GAME_KIND[g] || ''}</small></span>`).join('')}<span>Total</span></div>`;
+  const head = `<div class="tri-head" style="--g:${cols.length}"><span>#</span><span>${P('team')}</span>${cols.map(g => g === 'finale'
+    ? `<span>${P('finale')}<small>${esc(GAME_NAMES[tr.finale_game] || '')}</small></span>`
+    : `<span>${esc(GAME_NAMES[g] || g)}<small>${P('kind')[g] || ''}</small></span>`).join('')}<span>${P('total')}</span></div>`;
   const rows = teams.map((t, i) => `<div class="tri-row ${ranks[i] === 1 && t.total > 0 ? 'lead' : ''}" style="--g:${cols.length};--c:${esc(t.color)}">
-      <span class="r">${ranks[i]}</span><span class="tn">${esc(t.name)}</span>
-      ${cols.map(g => { const x = g === 'finale' ? t.finale : t.games?.[g]; return x ? `<span class="pt">${x.points}<small>${g === 'finale' ? x.score : x.n + ' joueur' + (x.n > 1 ? 's' : '')}</small></span>` : '<span class="pt none">–</span>'; }).join('')}
+      <span class="r">${ranks[i]}</span><span class="tn">${esc(teamName(t.name))}</span>
+      ${cols.map(g => { const x = g === 'finale' ? t.finale : t.games?.[g]; return x ? `<span class="pt">${x.points}<small>${g === 'finale' ? x.score : P('players')(x.n)}</small></span>` : '<span class="pt none">–</span>'; }).join('')}
       <span class="tot">${t.total}</span></div>`).join('');
   return {
-    eyebrow: tr.phase === 'finale' ? `Finale · ${GAME_NAMES[tr.finale_game] || ''}` : "Triathlon de l'équilibre",
-    counter: [played, 'parties jouées'],
+    eyebrow: tr.phase === 'finale' ? `${P('finale')} · ${GAME_NAMES[tr.finale_game] || ''}` : P('tri'),
+    counter: [played, P('plays')],
     body: `<div class="tri-wrap">${head}${rows}
-      <div class="meta" style="text-align:center;margin-top:.6vh;">Sur chaque jeu, la 1ʳᵉ équipe marque ${teams.length} points, la 2ᵉ ${teams.length - 1}… · la finale compte double · jamais de comparaison de scores entre jeux</div></div>` };
+      <div class="meta" style="text-align:center;margin-top:.6vh;">${P('rule')(teams.length, teams.length - 1)}</div></div>` };
 }
 
 function draw(b) {
   if (b.triathlon && ['triathlon', 'finale', 'podium'].includes(b.phase) && b.triathlon.teams?.length) return drawTriathlon(b);
   const top = b.top || [];
-  let date = b.starts_at ? new Date(b.starts_at).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  let date = b.starts_at ? new Date(b.starts_at).toLocaleDateString(P('locale'), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
   date = date.charAt(0).toUpperCase() + date.slice(1);
   const n = b.participants || 0;
   const body = top.length ? `
@@ -198,24 +245,24 @@ function draw(b) {
       <div class="rest">${top.slice(3).map((r, i) => `
         <div class="row ${lastKeys.size && !lastKeys.has(key(r)) ? 'fresh' : ''}"><span class="r">${i + 4}</span><span class="p">${esc(r.pseudo)}</span><span class="sc">${r.score}<small> /100</small></span></div>`).join('')}
       </div>`
-    : `<div class="invite"><div class="big">À vous de jouer !</div>
-        <div class="small">Montez sur le PandaFit, passez votre Index en 90 secondes et choisissez un pseudo : les meilleurs scores s'affichent ici en direct.</div></div>`;
+    : `<div class="invite"><div class="big">${P('invite')}</div>
+        <div class="small">${P('inviteSub')}</div></div>`;
   screen.innerHTML = `
     <header>
-      <div class="brand"><div class="client-logo"><img src="${PF_ICON}" alt="PandaFit"></div><div class="s" style="font-size:2.2vh;">L'équilibre est dans le mouvement</div></div>
+      <div class="brand"><div class="client-logo"><img src="${PF_ICON}" alt="PandaFit"></div><div class="s" style="font-size:2.2vh;">${P('slogan')}</div></div>
       ${b.logo_url ? `<div class="client-logo"><img src="${esc(b.logo_url)}" alt="${esc(b.client || '')}"></div>` : ''}
     </header>
     <div class="titlebar">
       <div>
-        <div class="eyebrow">Classement PandaFit Index</div>
+        <div class="eyebrow">${P('board')}</div>
         <h1>${esc(b.title || b.client || 'Séance PandaFit')}</h1>
-        <div class="meta">${b.title && b.client ? esc(b.client) + ' · ' : ''}${esc(OFFER_LABELS[b.offer] || '')}${date ? ' · ' + esc(date) : ''}</div>
+        <div class="meta">${b.title && b.client ? esc(b.client) + ' · ' : ''}${esc(P('offers')[b.offer] || '')}${date ? ' · ' + esc(date) : ''}</div>
       </div>
-      <div class="counter"><div class="n">${n}</div><div class="l">participant${n > 1 ? 's' : ''}</div>
-        <div class="live ${b.status === 'cloturee' ? 'off' : ''}"><i></i>${b.status === 'cloturee' ? 'Séance terminée' : 'En direct'}</div></div>
+      <div class="counter"><div class="n">${n}</div><div class="l">${P('participants')(n)}</div>
+        <div class="live ${b.status === 'cloturee' ? 'off' : ''}"><i></i>${b.status === 'cloturee' ? P('ended') : P('live')}</div></div>
     </div>
     <div class="content">${body}</div>
-    <footer><span>Code de la séance : <b>${esc(code)}</b></span><span>pandafit.ch</span></footer>`;
+    <footer><span>${P('codeLbl')} <b>${esc(code)}</b></span><span>pandafit.ch</span></footer>`;
   lastKeys = new Set(top.map(key));
   lastTri = '';
 }
@@ -223,32 +270,33 @@ function drawTriathlon(b) {
   const sig = JSON.stringify(b.triathlon) + b.status;
   if (sig === lastTri) return; // rien de neuf : on ne redessine pas (évite les clignotements)
   lastTri = sig;
-  let date = b.starts_at ? new Date(b.starts_at).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  let date = b.starts_at ? new Date(b.starts_at).toLocaleDateString(P('locale'), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
   date = date.charAt(0).toUpperCase() + date.slice(1);
   const v = triBody(b);
   screen.innerHTML = `
     <header>
-      <div class="brand"><div class="client-logo"><img src="${PF_ICON}" alt="PandaFit"></div><div class="s" style="font-size:2.2vh;">L'équilibre est dans le mouvement</div></div>
+      <div class="brand"><div class="client-logo"><img src="${PF_ICON}" alt="PandaFit"></div><div class="s" style="font-size:2.2vh;">${P('slogan')}</div></div>
       ${b.logo_url ? `<div class="client-logo"><img src="${esc(b.logo_url)}" alt="${esc(b.client || '')}"></div>` : ''}
     </header>
     <div class="titlebar">
       <div>
         <div class="eyebrow">${esc(v.eyebrow)}</div>
         <h1>${esc(b.title && !/^TEST /.test(b.title) ? b.title : b.client || 'Séance PandaFit')}</h1>
-        <div class="meta">${b.title && b.client ? esc(b.client) + ' · ' : ''}${esc(OFFER_LABELS[b.offer] || '')}${date ? ' · ' + esc(date) : ''}</div>
+        <div class="meta">${b.title && b.client ? esc(b.client) + ' · ' : ''}${esc(P('offers')[b.offer] || '')}${date ? ' · ' + esc(date) : ''}</div>
       </div>
       <div class="counter"><div class="n">${v.counter[0]}</div><div class="l">${v.counter[1]}</div>
-        <div class="live ${b.status === 'cloturee' ? 'off' : ''}"><i></i>${b.status === 'cloturee' ? 'Séance terminée' : 'En direct'}</div></div>
+        <div class="live ${b.status === 'cloturee' ? 'off' : ''}"><i></i>${b.status === 'cloturee' ? P('ended') : P('live')}</div></div>
     </div>
     <div class="content">${v.body}</div>
-    <footer><span>Code de la séance : <b>${esc(code)}</b></span><span>pandafit.ch</span></footer>`;
+    <footer><span>${P('codeLbl')} <b>${esc(code)}</b></span><span>pandafit.ch</span></footer>`;
   lastKeys = new Set();
 }
 
 async function tick() {
   try {
     const b = await fetchBoard();
-    if (!b) { askCode('Code inconnu, ou séance pas encore ouverte ou terminée depuis plus de 2 jours.'); return; }
+    if (!b) { askCode(P('unknown')); return; }
+    if (b.language && PTX[b.language] && b.language !== PL) { PL = b.language; document.documentElement.lang = PL; lastTri = ""; lastKeys = new Set(); }
     draw(b);
   } catch (e) { /* coupure réseau passagère : on garde l'affichage et on réessaie */ }
   setTimeout(tick, 3000);

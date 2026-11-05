@@ -20,6 +20,9 @@
   .kicker { font-size: 11.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #2fe07c; }
   h1 { font-size: 26px; font-weight: 900; margin: 6px 0 8px; line-height: 1.15; }
   .meta { color: #c9c3da; font-size: 14px; line-height: 1.5; }
+  .langs { display: flex; gap: 6px; margin-top: 14px; }
+  .langs button { font: 700 12px 'Montserrat', sans-serif; border: 1px solid rgba(255,255,255,.25); background: none; color: #c9c3da; border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+  .langs button.on { background: #fff; color: var(--night); border-color: #fff; }
   .wrap { padding: 18px 16px 40px; }
   .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
   h2 { font-size: 16px; margin: 0 0 10px; }
@@ -42,18 +45,53 @@
 </style>
 </head>
 <body>
-<div id="app"><div class="wrap"><p class="note">Chargement…</p></div></div>
+<div id="app"><div class="wrap"><p class="note">…</p></div></div>
 <script>
 const SUPABASE_URL = 'https://kabjpqvbukhhqvdjnkzr.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_QgLSQJyPJ09Uj3vCKCUykA_ca1LTm5E';
-const OFFER_LABELS = { demo_vip: 'Démo PandaFit', decouverte: "Journée de l'équilibre", team_building: "Journée de l'équilibre – Team building", mois_equilibre: "Mois de l'équilibre", campagne_annuelle: 'Campagne annuelle' };
+// Textes en 4 langues (langue de la séance par défaut, modifiable par la personne)
+const I18N = {
+  fr: { offers: { demo_vip: 'Démo PandaFit', decouverte: "Journée de l'équilibre", team_building: "Journée de l'équilibre – Team building", mois_equilibre: "Mois de l'équilibre", campagne_annuelle: 'Campagne annuelle' },
+    step1: '1. Choisis ton créneau', full: 'complet', places: n => `${n} place${n > 1 ? 's' : ''}`, step2: '2. Ton nom', optional: '(facultatif)', first: 'Prénom', last: 'Nom',
+    privacy: "Ton nom sert uniquement à organiser les passages. Il n'est jamais relié à ton résultat, qui reste personnel et anonyme.",
+    go: "Je m'inscris", going: 'Inscription…', pitch: "90 secondes sur une plateforme d'équilibre pour mesurer ton PandaFit Index.",
+    fullErr: "Ce créneau vient d'être complet, choisis-en un autre.", fail: 'Inscription impossible : ', net: 'Connexion impossible, réessaie dans un instant.',
+    done: "C'est noté !", at: 'à', doneNote: 'Viens 5 minutes avant ton créneau, en chaussures plates de préférence. À bientôt sur le PandaFit !',
+    badLink: "Lien d'inscription incomplet. Utilise le lien reçu de ton service RH.", closed: "Les inscriptions pour cette séance sont fermées, ou le lien n'est plus valable.", title: 'Inscription' },
+  de: { offers: { demo_vip: 'PandaFit-Demo', decouverte: 'Tag des Gleichgewichts', team_building: 'Tag des Gleichgewichts – Teambuilding', mois_equilibre: 'Monat des Gleichgewichts', campagne_annuelle: 'Jahreskampagne' },
+    step1: '1. Wähle deinen Zeitslot', full: 'ausgebucht', places: n => `${n} ${n > 1 ? 'Plätze' : 'Platz'}`, step2: '2. Dein Name', optional: '(freiwillig)', first: 'Vorname', last: 'Name',
+    privacy: 'Dein Name dient nur zur Organisation der Durchgänge. Er wird nie mit deinem Ergebnis verknüpft, das persönlich und anonym bleibt.',
+    go: 'Ich melde mich an', going: 'Anmeldung…', pitch: '90 Sekunden auf einer Gleichgewichtsplattform, um deinen PandaFit Index zu messen.',
+    fullErr: 'Dieser Slot ist gerade ausgebucht, wähle einen anderen.', fail: 'Anmeldung nicht möglich: ', net: 'Keine Verbindung, versuch es gleich nochmals.',
+    done: 'Angemeldet!', at: 'um', doneNote: 'Komm 5 Minuten vor deinem Slot, am besten in flachen Schuhen. Bis bald auf dem PandaFit!',
+    badLink: 'Unvollständiger Anmeldelink. Verwende den Link, den du von deiner Personalabteilung erhalten hast.', closed: 'Die Anmeldungen für diese Session sind geschlossen oder der Link ist nicht mehr gültig.', title: 'Anmeldung' },
+  en: { offers: { demo_vip: 'PandaFit demo', decouverte: 'Balance Day', team_building: 'Balance Day – Team building', mois_equilibre: 'Balance Month', campagne_annuelle: 'Annual campaign' },
+    step1: '1. Choose your time slot', full: 'full', places: n => `${n} place${n > 1 ? 's' : ''} left`, step2: '2. Your name', optional: '(optional)', first: 'First name', last: 'Last name',
+    privacy: 'Your name is only used to organise the sessions. It is never linked to your result, which stays personal and anonymous.',
+    go: 'Sign me up', going: 'Signing up…', pitch: '90 seconds on a balance platform to measure your PandaFit Index.',
+    fullErr: 'This slot has just filled up, please choose another one.', fail: 'Sign-up not possible: ', net: 'No connection, try again in a moment.',
+    done: "You're signed up!", at: 'at', doneNote: 'Come 5 minutes before your slot, ideally in flat shoes. See you soon on the PandaFit!',
+    badLink: 'Incomplete sign-up link. Use the link you received from your HR department.', closed: 'Sign-ups for this session are closed, or the link is no longer valid.', title: 'Sign-up' },
+  it: { offers: { demo_vip: 'Demo PandaFit', decouverte: "Giornata dell'equilibrio", team_building: "Giornata dell'equilibrio – Team building", mois_equilibre: "Mese dell'equilibrio", campagne_annuelle: 'Campagna annuale' },
+    step1: '1. Scegli la tua fascia oraria', full: 'completo', places: n => `${n} post${n > 1 ? 'i' : 'o'}`, step2: '2. Il tuo nome', optional: '(facoltativo)', first: 'Nome', last: 'Cognome',
+    privacy: 'Il tuo nome serve solo a organizzare i passaggi. Non viene mai collegato al tuo risultato, che resta personale e anonimo.',
+    go: 'Mi iscrivo', going: 'Iscrizione…', pitch: "90 secondi su una piattaforma d'equilibrio per misurare il tuo PandaFit Index.",
+    fullErr: "Questa fascia si è appena riempita, scegline un'altra.", fail: 'Iscrizione impossibile: ', net: 'Connessione impossibile, riprova tra un attimo.',
+    done: 'Iscrizione fatta!', at: 'alle', doneNote: 'Vieni 5 minuti prima della tua fascia, possibilmente con scarpe basse. A presto sul PandaFit!',
+    badLink: "Link d'iscrizione incompleto. Usa il link ricevuto dal tuo servizio risorse umane.", closed: 'Le iscrizioni per questa sessione sono chiuse, o il link non è più valido.', title: 'Iscrizione' },
+};
+const LOCALES = { fr: 'fr-CH', de: 'de-CH', en: 'en-GB', it: 'it-CH' };
 const token = new URLSearchParams(location.search).get('t');
 const app = document.getElementById('app');
 let info = null, chosen = null;
+let lang = (() => { try { return localStorage.getItem('pf_signup_lang'); } catch (e) { return null; } })() || ((navigator.language || 'fr').slice(0, 2));
+if (!I18N[lang]) lang = 'fr';
+let langChosen = false;
+const T = () => I18N[lang];
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-function day(iso) { const s = new Date(iso).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' }); return s.charAt(0).toUpperCase() + s.slice(1); }
-function hm(iso) { return new Date(iso).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' }); }
+function day(iso) { const s = new Date(iso).toLocaleDateString(LOCALES[lang], { weekday: 'long', day: 'numeric', month: 'long' }); return s.charAt(0).toUpperCase() + s.slice(1); }
+function hm(iso) { return new Date(iso).toLocaleTimeString(LOCALES[lang], { hour: '2-digit', minute: '2-digit' }); }
 async function rpc(name, args) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, { method: 'POST', cache: 'no-store',
     headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
@@ -65,46 +103,64 @@ function hero() {
   return `<div class="hero"><div class="hero-in">
     <div class="logos"><div class="pill"><img src="logo-pandafit.png" alt="PandaFit"></div>${info.logo_url ? `<div class="pill"><img src="${esc(info.logo_url)}" alt="${esc(info.client)}"></div>` : ''}</div>
     <div class="kicker">${esc(info.client)} · PandaFit</div>
-    <h1>${esc(info.title && !/^TEST /.test(info.title) ? info.title : OFFER_LABELS[info.offer] || 'PandaFit')}</h1>
+    <h1>${esc(info.title && !/^TEST /.test(info.title) ? info.title : T().offers[info.offer] || 'PandaFit')}</h1>
     <div class="meta">${esc(day(info.starts_at))} · ${hm(info.starts_at)}–${hm(info.ends_at)}${info.address ? '<br>' + esc(info.address) : ''}</div>
+    <div class="langs">${['fr', 'de', 'en', 'it'].map(l => `<button data-lang="${l}" class="${l === lang ? 'on' : ''}">${l.toUpperCase()}</button>`).join('')}</div>
   </div></div>`;
+}
+function wireLangs(again) {
+  app.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => {
+    lang = b.dataset.lang; langChosen = true;
+    try { localStorage.setItem('pf_signup_lang', lang); } catch (e) {}
+    document.documentElement.lang = lang; document.title = 'PandaFit — ' + T().title;
+    again();
+  }));
 }
 
 function render(err) {
   const slots = info.slots || [];
   app.innerHTML = hero() + `<div class="wrap">
     <div class="card">
-      <h2>1. Choisis ton créneau</h2>
+      <h2>${T().step1}</h2>
       <div class="slots">${slots.map(s => `<button class="slot ${chosen === s.id ? 'on' : ''}" data-slot="${s.id}" ${s.left <= 0 ? 'disabled' : ''}>
-        <b>${hm(s.starts_at)}</b><span>${s.left <= 0 ? 'complet' : s.left + ' place' + (s.left > 1 ? 's' : '')}</span></button>`).join('')}</div>
+        <b>${hm(s.starts_at)}</b><span>${s.left <= 0 ? T().full : T().places(s.left)}</span></button>`).join('')}</div>
     </div>
     <div class="card">
-      <h2>2. Ton nom <span style="font-weight:600;color:var(--dim);font-size:13px;">(facultatif)</span></h2>
-      <div class="row2"><div><label>Prénom</label><input id="first" autocomplete="given-name"></div><div><label>Nom</label><input id="last" autocomplete="family-name"></div></div>
-      <p class="note">Ton nom sert uniquement à organiser les passages. Il n'est jamais relié à ton résultat, qui reste personnel et anonyme.</p>
+      <h2>${T().step2} <span style="font-weight:600;color:var(--dim);font-size:13px;">${T().optional}</span></h2>
+      <div class="row2"><div><label>${T().first}</label><input id="first" autocomplete="given-name"></div><div><label>${T().last}</label><input id="last" autocomplete="family-name"></div></div>
+      <p class="note">${T().privacy}</p>
     </div>
-    <button class="go" id="go" ${chosen ? '' : 'disabled'}>Je m'inscris</button>
+    <button class="go" id="go" ${chosen ? '' : 'disabled'}>${T().go}</button>
     ${err ? `<p class="err">${esc(err)}</p>` : ''}
-    <p class="note" style="text-align:center;">90 secondes sur une plateforme d'équilibre pour mesurer ton PandaFit Index.</p>
+    <p class="note" style="text-align:center;">${T().pitch}</p>
   </div>`;
+  wireLangs(() => render());
   app.querySelectorAll('[data-slot]').forEach(b => b.addEventListener('click', () => { chosen = b.dataset.slot; render(); }));
   document.getElementById('go').addEventListener('click', async () => {
-    const btn = document.getElementById('go'); btn.disabled = true; btn.textContent = 'Inscription…';
+    const btn = document.getElementById('go'); btn.disabled = true; btn.textContent = T().going;
     try {
       const r = await rpc('signup_register', { p_token: token, p_slot: chosen, p_first: document.getElementById('first').value, p_last: document.getElementById('last').value });
-      if (!r?.ok) { info = await rpc('signup_info', { p_token: token }); chosen = null; return render(r?.error === 'complet' ? 'Ce créneau vient d\'être complet, choisis-en un autre.' : 'Inscription impossible : ' + (r?.error || 'erreur')); }
+      if (!r?.ok) { info = await rpc('signup_info', { p_token: token }); chosen = null; return render(r?.error === 'complet' ? T().fullErr : T().fail + (r?.error || '')); }
       const s = info.slots.find(x => x.id === chosen);
-      app.innerHTML = hero() + `<div class="wrap"><div class="card done"><div class="ok">✅</div><h2>C'est noté !</h2>
-        <p style="font-size:17px;font-weight:800;margin:6px 0;">${esc(day(info.starts_at))} à ${hm(s.starts_at)}</p>
-        <p class="note">Viens 5 minutes avant ton créneau, en chaussures plates de préférence. À bientôt sur le PandaFit !</p></div></div>`;
-    } catch (e) { render('Connexion impossible, réessaie dans un instant.'); }
+      const doneScreen = () => {
+        app.innerHTML = hero() + `<div class="wrap"><div class="card done"><div class="ok">✅</div><h2>${T().done}</h2>
+          <p style="font-size:17px;font-weight:800;margin:6px 0;">${esc(day(info.starts_at))} ${T().at} ${hm(s.starts_at)}</p>
+          <p class="note">${T().doneNote}</p></div></div>`;
+        wireLangs(doneScreen);
+      };
+      doneScreen();
+    } catch (e) { render(T().net); }
   });
 }
 
 (async () => {
-  if (!token) { app.innerHTML = '<div class="wrap"><div class="card">Lien d\'inscription incomplet. Utilise le lien reçu de ton service RH.</div></div>'; return; }
+  if (!token) { app.innerHTML = `<div class="wrap"><div class="card">${T().badLink}</div></div>`; return; }
   try { info = await rpc('signup_info', { p_token: token }); } catch (e) { info = null; }
-  if (!info) { app.innerHTML = '<div class="wrap"><div class="card">Les inscriptions pour cette séance sont fermées, ou le lien n\'est plus valable.</div></div>'; return; }
+  if (!info) { app.innerHTML = `<div class="wrap"><div class="card">${T().closed}</div></div>`; return; }
+  // Langue : celle choisie par la personne, sinon celle de la séance
+  let saved = null; try { saved = localStorage.getItem('pf_signup_lang'); } catch (e) {}
+  if (!saved && info.language && I18N[info.language]) lang = info.language;
+  document.documentElement.lang = lang; document.title = 'PandaFit — ' + T().title;
   render();
 })();
 </script>
