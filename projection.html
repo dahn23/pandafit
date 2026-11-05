@@ -9,36 +9,79 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800;900&display=swap" rel="stylesheet">
 <style>
-  :root { --bg: #160f26; --panel: #221a38; --text: #f4f2fa; --dim: #9992ad; --green: #43cea2; --gold: #f4c542; --silver: #c9cfd8; --bronze: #d9905a; }
+  /* Écran TV / beamer (16:9) : tout est en vh pour s'adapter à n'importe quelle résolution */
+  :root {
+    --bg: #120c20; --panel: rgba(255,255,255,.055); --panel-line: rgba(255,255,255,.09);
+    --text: #f6f4fb; --dim: #a39cb8; --green: #43cea2; --green-2: #2fe07c;
+    --gold: #f6c945; --silver: #d3d8e0; --bronze: #e09a62;
+  }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: radial-gradient(ellipse at top, #2a1d4a 0%, var(--bg) 60%); color: var(--text); font-family: 'Montserrat', sans-serif; overflow: hidden; }
-  .screen { height: 100%; display: flex; flex-direction: column; padding: 3.5vh 5vw; }
+  html, body { margin: 0; height: 100%; color: var(--text); font-family: 'Montserrat', sans-serif; overflow: hidden; background: var(--bg); }
+  body::before { content: ""; position: fixed; inset: -20%; z-index: -1;
+    background: radial-gradient(40% 35% at 18% 12%, rgba(67,206,162,.22), transparent 70%),
+                radial-gradient(35% 30% at 85% 90%, rgba(200,109,215,.18), transparent 70%),
+                radial-gradient(60% 50% at 50% 50%, #1d1433, var(--bg)); }
+  .screen { height: 100%; display: flex; flex-direction: column; padding: 4vh 4.5vw 3vh; }
+
   header { display: flex; align-items: center; justify-content: space-between; gap: 3vw; }
   .brand { display: flex; align-items: center; gap: 1.2vw; }
-  .brand img { width: 6vh; height: 6vh; border-radius: 1.2vh; }
-  .brand .t { font-weight: 900; font-size: 3.2vh; }
-  .brand .s { font-weight: 600; font-size: 2vh; color: var(--dim); }
-  .live { display: flex; align-items: center; gap: .8vw; font-weight: 800; font-size: 2.2vh; color: var(--green); }
-  .live i { width: 1.4vh; height: 1.4vh; border-radius: 50%; background: var(--green); animation: pulse 1.4s infinite; }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
-  h1 { font-size: 6.4vh; font-weight: 900; margin: 3vh 0 .6vh; letter-spacing: -.02em; }
-  .sub { font-size: 2.6vh; color: var(--dim); font-weight: 600; }
-  .sub b { color: var(--text); }
-  .board { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(5, auto); grid-auto-flow: column; gap: 1.6vh 3vw; margin-top: 4vh; align-content: start; }
-  .row { display: flex; align-items: center; gap: 1.6vw; background: var(--panel); border-radius: 1.6vh; padding: 1.6vh 2vw; transition: transform .4s; }
-  .row .r { font-weight: 900; font-size: 3.4vh; width: 5vh; text-align: center; color: var(--dim); }
-  .row .p { flex: 1; font-weight: 800; font-size: 3.4vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .row .sc { font-weight: 900; font-size: 4vh; color: var(--green); }
-  .row .sc small { font-size: 2vh; color: var(--dim); font-weight: 700; }
-  .row.n1 { box-shadow: inset 0 0 0 .35vh var(--gold); } .row.n1 .r { color: var(--gold); }
-  .row.n2 { box-shadow: inset 0 0 0 .35vh var(--silver); } .row.n2 .r { color: var(--silver); }
-  .row.n3 { box-shadow: inset 0 0 0 .35vh var(--bronze); } .row.n3 .r { color: var(--bronze); }
-  .empty { grid-column: 1 / -1; text-align: center; font-size: 3vh; color: var(--dim); margin-top: 8vh; line-height: 1.5; }
-  footer { display: flex; justify-content: space-between; font-size: 2vh; color: var(--dim); font-weight: 600; }
-  @media (max-aspect-ratio: 1/1) { .board { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-flow: row; } h1 { font-size: 4.6vh; } }
+  .brand img { width: 6.4vh; height: 6.4vh; border-radius: 1.4vh; }
+  .brand .t { font-weight: 900; font-size: 3.2vh; letter-spacing: -.01em; }
+  .brand .s { font-weight: 600; font-size: 1.8vh; color: var(--dim); margin-top: .2vh; }
+  .client-logo { height: 8vh; max-width: 22vw; background: #fff; border-radius: 1.4vh; padding: 1vh 1.4vh; display: flex; align-items: center; justify-content: center; }
+  .client-logo img { max-height: 100%; max-width: 100%; object-fit: contain; display: block; }
+
+  .titlebar { display: flex; align-items: flex-end; justify-content: space-between; gap: 3vw; margin-top: 3.2vh; }
+  .eyebrow { font-size: 2vh; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--green); }
+  h1 { font-size: 6vh; font-weight: 900; margin: .6vh 0 0; letter-spacing: -.02em; line-height: 1.05; }
+  .meta { font-size: 2.3vh; color: var(--dim); font-weight: 600; margin-top: 1vh; }
+  .counter { text-align: right; flex: 0 0 auto; }
+  .counter .n { font-size: 8vh; font-weight: 900; line-height: 1; color: var(--green-2); }
+  .counter .l { font-size: 2vh; color: var(--dim); font-weight: 700; }
+  .live { display: inline-flex; align-items: center; gap: .7vw; font-weight: 800; font-size: 1.9vh; color: var(--green); margin-top: 1vh; }
+  .live i { width: 1.3vh; height: 1.3vh; border-radius: 50%; background: var(--green); animation: pulse 1.4s infinite; }
+  .live.off { color: var(--dim); } .live.off i { background: var(--dim); animation: none; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .3; transform: scale(.8); } }
+
+  .content { flex: 1; display: grid; grid-template-columns: 1.25fr 1fr; gap: 3vw; margin-top: 4vh; min-height: 0; }
+  /* Podium */
+  .podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; align-items: end; gap: 1.4vw; }
+  .step { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; border-radius: 2vh 2vh 1vh 1vh; padding: 2.4vh 1vw; text-align: center; background: var(--panel); border: .25vh solid var(--panel-line); }
+  .step .medal { width: 7vh; height: 7vh; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 3.6vh; color: #1a1228; margin-bottom: 1.6vh; }
+  .step .who { font-weight: 800; font-size: 3vh; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .step .sc { font-weight: 900; font-size: 6.4vh; line-height: 1.1; margin-top: .6vh; }
+  .step .sc small { font-size: 2.2vh; color: var(--dim); font-weight: 700; }
+  .step.p1 { height: 46vh; border-color: rgba(246,201,69,.55); background: linear-gradient(180deg, rgba(246,201,69,.16), var(--panel) 60%); }
+  .step.p2 { height: 37vh; border-color: rgba(211,216,224,.45); }
+  .step.p3 { height: 31vh; border-color: rgba(224,154,98,.45); }
+  .step.p1 .medal { background: var(--gold); } .step.p2 .medal { background: var(--silver); } .step.p3 .medal { background: var(--bronze); }
+  .step.p1 .sc { color: var(--gold); font-size: 7.6vh; }
+  .step.empty { opacity: .35; }
+  /* Suite du classement */
+  .rest { display: flex; flex-direction: column; gap: 1.2vh; justify-content: flex-end; }
+  .row { display: flex; align-items: center; gap: 1.4vw; background: var(--panel); border: .2vh solid var(--panel-line); border-radius: 1.4vh; padding: 1.3vh 1.6vw; }
+  .row .r { font-weight: 900; font-size: 2.8vh; width: 4vh; text-align: center; color: var(--dim); }
+  .row .p { flex: 1; font-weight: 800; font-size: 2.9vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .sc { font-weight: 900; font-size: 3.2vh; color: var(--green); }
+  .row .sc small { font-size: 1.7vh; color: var(--dim); font-weight: 700; }
+  .fresh { animation: fresh 2.4s ease-out; }
+  @keyframes fresh { 0% { box-shadow: 0 0 0 .5vh rgba(67,206,162,.9); transform: scale(1.03); } 100% { box-shadow: 0 0 0 0 rgba(67,206,162,0); transform: scale(1); } }
+  .invite { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 2vh; }
+  .invite .big { font-size: 5vh; font-weight: 900; }
+  .invite .small { font-size: 2.6vh; color: var(--dim); max-width: 60vw; line-height: 1.5; }
+
+  footer { display: flex; justify-content: space-between; align-items: center; font-size: 1.9vh; color: var(--dim); font-weight: 600; margin-top: 2.4vh; }
+  footer b { color: var(--text); letter-spacing: .06em; }
+
   .ask { max-width: 520px; margin: 18vh auto 0; text-align: center; }
-  .ask input { width: 100%; padding: 16px; border-radius: 12px; border: none; background: var(--panel); color: var(--text); font-size: 22px; text-align: center; text-transform: uppercase; font-family: inherit; margin: 18px 0 12px; }
+  .ask input { width: 100%; padding: 16px; border-radius: 12px; border: none; background: #241b3a; color: var(--text); font-size: 22px; text-align: center; text-transform: uppercase; font-family: inherit; margin: 18px 0 12px; }
   .ask button { width: 100%; padding: 16px; border-radius: 12px; border: none; background: var(--green); color: #0d2a22; font-weight: 800; font-size: 18px; font-family: inherit; cursor: pointer; }
+
+  @media (max-aspect-ratio: 1/1) {
+    .content { grid-template-columns: 1fr; }
+    .step.p1 { height: 30vh; } .step.p2 { height: 25vh; } .step.p3 { height: 21vh; }
+    h1 { font-size: 4.4vh; } .counter .n { font-size: 6vh; }
+  }
 </style>
 </head>
 <body>
@@ -52,14 +95,16 @@ const OFFER_LABELS = {
 };
 const screen = document.getElementById('screen');
 const code = (new URLSearchParams(location.search).get('code') || '').trim().toUpperCase();
+let lastKeys = new Set();
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function key(r) { return r.pseudo + '|' + r.score; }
 
 function askCode(msg) {
   screen.innerHTML = `
     <div class="ask">
       <div class="brand" style="justify-content:center;"><img src="/icon-192.png" alt=""><div class="t">PandaFit</div></div>
-      <p class="sub" style="margin-top:18px;">${msg || 'Entre le code de la séance pour afficher le classement.'}</p>
+      <p class="meta" style="margin-top:18px;text-transform:none;">${msg || 'Entre le code de la séance pour afficher le classement.'}</p>
       <input id="code" placeholder="PANDA-XXXX" value="${esc(code)}">
       <button id="go">Afficher le classement</button>
     </div>`;
@@ -81,21 +126,41 @@ async function fetchBoard() {
   return text ? JSON.parse(text) : null;
 }
 
+function stepHTML(r, place) {
+  if (!r) return `<div class="step p${place} empty"><div class="medal">${place}</div><div class="who">—</div></div>`;
+  return `<div class="step p${place} ${lastKeys.size && !lastKeys.has(key(r)) ? 'fresh' : ''}">
+    <div class="medal">${place}</div><div class="who">${esc(r.pseudo)}</div><div class="sc">${r.score}<small> /100</small></div></div>`;
+}
+
 function draw(b) {
   const top = b.top || [];
+  let date = b.starts_at ? new Date(b.starts_at).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  date = date.charAt(0).toUpperCase() + date.slice(1);
+  const n = b.participants || 0;
+  const body = top.length ? `
+      <div class="podium">${stepHTML(top[1], 2)}${stepHTML(top[0], 1)}${stepHTML(top[2], 3)}</div>
+      <div class="rest">${top.slice(3).map((r, i) => `
+        <div class="row ${lastKeys.size && !lastKeys.has(key(r)) ? 'fresh' : ''}"><span class="r">${i + 4}</span><span class="p">${esc(r.pseudo)}</span><span class="sc">${r.score}<small> /100</small></span></div>`).join('')}
+      </div>`
+    : `<div class="invite"><div class="big">À vous de jouer !</div>
+        <div class="small">Montez sur le PandaFit, passez votre Index en 90 secondes et choisissez un pseudo : les meilleurs scores s'affichent ici en direct.</div></div>`;
   screen.innerHTML = `
     <header>
       <div class="brand"><img src="/icon-192.png" alt=""><div><div class="t">PandaFit</div><div class="s">L'équilibre est dans le mouvement</div></div></div>
-      <div class="live"><i></i>${b.status === 'cloturee' ? 'Séance terminée' : 'En direct'}</div>
+      ${b.logo_url ? `<div class="client-logo"><img src="${esc(b.logo_url)}" alt="${esc(b.client || '')}"></div>` : ''}
     </header>
-    <h1>${esc(b.title || 'Classement PandaFit Index')}</h1>
-    <div class="sub">${esc(b.client || '')} · ${esc(OFFER_LABELS[b.offer] || '')} · <b>${b.participants || 0}</b> participant${(b.participants || 0) > 1 ? 's' : ''}</div>
-    <div class="board">
-      ${top.length ? top.map((r, i) => `
-        <div class="row n${i + 1}"><span class="r">${i + 1}</span><span class="p">${esc(r.pseudo)}</span><span class="sc">${r.score}<small> /100</small></span></div>
-      `).join('') : '<div class="empty">Les meilleurs PandaFit Index apparaîtront ici.<br>Passe ton test et choisis un pseudo pour entrer au classement !</div>'}
+    <div class="titlebar">
+      <div>
+        <div class="eyebrow">Classement PandaFit Index</div>
+        <h1>${esc(b.title || b.client || 'Séance PandaFit')}</h1>
+        <div class="meta">${b.title && b.client ? esc(b.client) + ' · ' : ''}${esc(OFFER_LABELS[b.offer] || '')}${date ? ' · ' + esc(date) : ''}</div>
+      </div>
+      <div class="counter"><div class="n">${n}</div><div class="l">participant${n > 1 ? 's' : ''}</div>
+        <div class="live ${b.status === 'cloturee' ? 'off' : ''}"><i></i>${b.status === 'cloturee' ? 'Séance terminée' : 'En direct'}</div></div>
     </div>
-    <footer><span>Code de la séance : ${esc(code)}</span><span>pandafit.ch</span></footer>`;
+    <div class="content">${body}</div>
+    <footer><span>Code de la séance : <b>${esc(code)}</b></span><span>pandafit.ch</span></footer>`;
+  lastKeys = new Set(top.map(key));
 }
 
 async function tick() {
