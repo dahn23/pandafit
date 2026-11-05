@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>PandaFit — Espace RH</title>
+<link rel="icon" href="../icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+  :root {
+    --bg: #f3f5f8; --panel: #ffffff; --panel-hi: #eef1f5; --text: #1d2130; --dim: #5f6677; --border: #dfe3ea;
+    --primary: #17a461; --primary-bright: #2fe07c; --night: #1c162e; --danger: #c42a3c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; }
+  .topbar { background: var(--night); color: #f4f2fa; }
+  .topbar-in { max-width: 1040px; margin: 0 auto; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; }
+  .brand .logos { display: flex; align-items: center; gap: 8px; }
+  .brand .pill { background: #fff; border-radius: 10px; height: 40px; padding: 4px 8px; display: flex; align-items: center; }
+  .brand .pill img { max-height: 32px; max-width: 110px; display: block; }
+  .brand small { display: block; font-size: 12px; font-weight: 600; color: #a39cb8; }
+  nav.tabs { background: #241d38; }
+  nav.tabs .in { max-width: 1040px; margin: 0 auto; padding: 0 12px; display: flex; flex-wrap: wrap; }
+  nav.tabs button { background: none; border: none; color: #a39cb8; font: 600 13.5px 'Montserrat', sans-serif; padding: 13px 14px; cursor: pointer; border-bottom: 2px solid transparent; }
+  nav.tabs button.on { color: #fff; border-color: var(--primary-bright); }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 22px 18px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  .sub { color: var(--dim); font-size: 13.5px; margin: 0 0 18px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(20,25,40,.05); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .kicker { font-size: 11.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--primary); }
+  .big { font-size: 20px; font-weight: 800; margin: 4px 0; }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .row:last-child { border-bottom: none; }
+  .row .k { color: var(--dim); }
+  .row .v { font-weight: 600; text-align: right; }
+  .bar { height: 10px; background: var(--panel-hi); border-radius: 99px; overflow: hidden; margin-top: 8px; }
+  .bar > span { display: block; height: 100%; background: var(--primary); }
+  button.btn { font: 700 14px 'Montserrat', sans-serif; border: none; border-radius: 10px; padding: 11px 16px; cursor: pointer; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-ghost { background: var(--panel-hi); color: var(--text); }
+  .btn-danger { background: rgba(196,42,60,.1); color: var(--danger); }
+  .btn-sm { padding: 6px 10px; font-size: 12.5px; }
+  input, select, textarea { font: 14.5px 'Montserrat', sans-serif; width: 100%; padding: 11px 12px; border: 1px solid #cfd5df; border-radius: 10px; background: #fff; color: var(--text); margin-bottom: 10px; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
+  label.lbl { display: block; font-size: 12px; color: var(--dim); margin: 2px 0 4px; font-weight: 600; }
+  .inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .inline input { margin: 0; flex: 1; min-width: 120px; }
+  .list-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .list-item:last-child { border-bottom: none; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 99px; background: var(--panel-hi); color: var(--dim); }
+  .badge.ok { background: rgba(23,164,97,.12); color: var(--primary); }
+  .slot { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .slot-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-weight: 700; }
+  .people { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .person { background: var(--panel-hi); border-radius: 99px; padding: 5px 6px 5px 12px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+  .person button { border: none; background: none; color: var(--dim); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; }
+  .modes { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .modes button { flex: 1; min-width: 120px; }
+  .modes button.on { background: var(--primary); color: #fff; }
+  .ad { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .ad img { width: 120px; height: 60px; object-fit: cover; border-radius: 8px; background: var(--panel-hi); }
+  .empty { color: var(--dim); font-size: 14px; padding: 12px 0; }
+  .notice { background: rgba(23,164,97,.08); border: 1px solid rgba(23,164,97,.3); color: #0f6e48; border-radius: 12px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 14px; }
+  .warn { background: #fff7e6; border: 1px solid #f2d39a; color: #7a5300; border-radius: 12px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 14px; }
+  .linkbox { display: flex; gap: 8px; align-items: center; }
+  .linkbox input { margin: 0; font-size: 13px; color: var(--dim); }
+  .login { max-width: 420px; margin: 10vh auto 0; padding: 0 16px; }
+  @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const SUPABASE_URL = 'https://kabjpqvbukhhqvdjnkzr.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_QgLSQJyPJ09Uj3vCKCUykA_ca1LTm5E';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const app = document.getElementById('app');
+const SIGNUP_BASE = 'https://app.pandafit.ch/inscription.html?t=';
+
+const OFFER_LABELS = {
+  demo_vip: 'Démo PandaFit', decouverte: "Journée de l'équilibre – Découverte", team_building: "Journée de l'équilibre – Team building",
+  mois_equilibre: "Mois de l'équilibre", campagne_annuelle: 'Campagne annuelle',
+};
+const MODE_LABELS = { auto: 'Automatique', satisfaction: 'Sondage', ads: 'Annonces', none: 'Rien' };
+
+let me = null, events = [], tab = 'home', openEventId = null, slots = [], flash = null, satDays = 30;
+
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function day(iso) { const s = new Date(iso).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); return s.charAt(0).toUpperCase() + s.slice(1); }
+function hm(iso) { return new Date(iso).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' }); }
+function upcoming() { return events.filter(e => new Date(e.ends_at) > new Date() && e.status !== 'cloturee'); }
+
+/* ---------------- Connexion (lien e-mail) ---------------- */
+function renderLogin(msg, ok) {
+  app.innerHTML = `
+    <div class="login">
+      <div class="brand" style="margin-bottom:16px;"><div class="pill"><img src="../icon-192.png" alt="" style="max-height:32px;border-radius:6px;"></div><div>PandaFit<small style="color:var(--dim);">Espace RH</small></div></div>
+      ${msg ? `<div class="${ok ? 'notice' : 'warn'}">${esc(msg)}</div>` : ''}
+      <div class="card">
+        <h2>Connexion</h2>
+        <p class="sub" style="margin-bottom:12px;">Entre l'adresse e-mail enregistrée par PandaFit : tu reçois un lien de connexion, sans mot de passe.</p>
+        <input id="email" type="email" autocomplete="email" placeholder="prenom.nom@entreprise.ch">
+        <button class="btn btn-primary" id="btnSend" style="width:100%;">Recevoir mon lien de connexion</button>
+      </div>
+    </div>`;
+  document.getElementById('btnSend').addEventListener('click', async () => {
+    const email = document.getElementById('email').value.trim();
+    if (!email) return;
+    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + '/espace-rh/' } });
+    error ? renderLogin('Envoi impossible : ' + error.message) : renderLogin(`Lien envoyé à ${email}. Ouvre l'e-mail et clique sur le lien.`, true);
+  });
+}
+
+let booting = false;
+async function boot() {
+  if (booting) return; booting = true;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { renderLogin(); return; }
+    const { data: role } = await sb.rpc('claim_invite');
+    if (role !== 'client_hr') {
+      await sb.auth.signOut();
+      renderLogin(role ? "Ce compte n'est pas un compte RH : utilise la console PandaFit." : "Cette adresse n'a pas d'accès à l'espace RH. Demande-le à PandaFit.");
+      return;
+    }
+    await loadAll(); render();
+  } finally { booting = false; }
+}
+sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_IN' && !me) boot(); });
+
+async function loadAll() {
+  const [{ data: m }, { data: ev }] = await Promise.all([sb.rpc('rh_me'), sb.rpc('rh_events')]);
+  me = m; events = ev || [];
+}
+
+/* ---------------- Cadre ---------------- */
+function render() {
+  const c = me.client;
+  const tabs = [['home', 'Accueil'], ['events', 'Inscriptions'], ['screen', 'Écran de la tablette'], ['reports', 'Rapports'], ['account', 'Compte']];
+  app.innerHTML = `
+    <div class="topbar"><div class="topbar-in">
+      <div class="brand"><div class="logos">${c.logo_url ? `<div class="pill"><img src="${esc(c.logo_url)}" alt=""></div>` : ''}</div>
+        <div>${esc(c.name)}<small>Espace RH · PandaFit</small></div></div>
+      <span style="font-size:12.5px;color:#a39cb8;">${esc(me.name || me.email)}</span>
+    </div></div>
+    <nav class="tabs"><div class="in">${tabs.map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${l}</button>`).join('')}</div></nav>
+    <div class="wrap" id="view">${flash ? `<div class="notice">${esc(flash)}</div>` : ''}<p class="empty">Chargement…</p></div>`;
+  app.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; openEventId = null; flash = null; render(); }));
+  const view = document.getElementById('view');
+  const f = flash ? `<div class="notice">${esc(flash)}</div>` : '';
+  ({ home: viewHome, events: viewEvents, screen: viewScreen, reports: viewReports, account: viewAccount })[tab](view, f);
+}
+
+/* ---------------- Accueil ---------------- */
+async function viewHome(view, f) {
+  const next = upcoming()[0];
+  const others = upcoming().slice(1);
+  const { data: sat } = await sb.rpc('rh_satisfaction', { p_days: 30 });
+  view.innerHTML = f + `
+    <h1>Bonjour${me.name ? ' ' + esc(me.name.split(' ')[0]) : ''} 👋</h1>
+    <p class="sub">Organisez les interventions PandaFit, communiquez avec vos équipes et retrouvez vos bilans.</p>
+    <div class="grid2">
+      <div class="card">
+        <div class="kicker">Prochaine intervention</div>
+        ${next ? `
+          <div class="big">${esc(day(next.starts_at))}</div>
+          <div class="row"><span class="k">Horaire</span><span class="v">${hm(next.starts_at)} – ${hm(next.ends_at)}</span></div>
+          <div class="row"><span class="k">Offre</span><span class="v">${esc(OFFER_LABELS[next.offer] || next.offer)}</span></div>
+          <div class="row"><span class="k">Lieu</span><span class="v">${esc(next.address || '—')}</span></div>
+          <div class="row"><span class="k">Coach</span><span class="v">${esc((next.coaches || []).join(', ') || 'à confirmer')}</span></div>
+          <div class="row"><span class="k">Inscrits</span><span class="v">${next.registered} / ${next.capacity || '—'}</span></div>
+          ${next.capacity ? `<div class="bar"><span style="width:${Math.min(100, Math.round(100 * next.registered / next.capacity))}%"></span></div>` : ''}
+          <button class="btn btn-primary" data-open="${next.id}" style="margin-top:14px;">Gérer les inscriptions et la communication</button>
+        ` : '<p class="empty">Aucune intervention prévue. Votre conseiller PandaFit planifie les prochaines avec vous.</p>'}
+      </div>
+      <div class="card">
+        <div class="kicker">Sondage de la tablette · 30 derniers jours</div>
+        ${satHTML(sat)}
+        <button class="btn btn-ghost" data-tab-go="screen" style="margin-top:12px;">Modifier la question</button>
+      </div>
+    </div>
+    ${others.length ? `<div class="card"><h2>Ensuite</h2>${others.map(e => `
+      <div class="list-item"><div><b>${esc(day(e.starts_at))}</b> · ${hm(e.starts_at)}<br><span class="sub" style="margin:0;">${esc(OFFER_LABELS[e.offer] || e.offer)}</span></div>
+      <button class="btn btn-ghost btn-sm" data-open="${e.id}">Inscriptions (${e.registered})</button></div>`).join('')}</div>` : ''}`;
+  wireCommon(view);
+}
+function satHTML(sat) {
+  if (!sat || sat.total < 5) return `<p class="empty">${sat?.total || 0} réponse(s) : les résultats s'affichent à partir de 5 réponses, pour rester anonymes.</p>`;
+  const p = n => Math.round(100 * n / sat.total);
+  const line = (emoji, label, n, color) => `<div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:14px;"><span>${emoji} ${label}</span><b>${p(n)} %</b></div><div class="bar"><span style="width:${p(n)}%;background:${color};"></span></div></div>`;
+  return `<div class="big">${sat.total} réponses</div>
+    ${line('😀', 'Bien', sat.green, '#2fbf71')}${line('😐', 'Moyen', sat.yellow, '#f2b43a')}${line('😕', 'Pas bien', sat.red, '#e0564a')}`;
+}
+
+/* ---------------- Inscriptions ---------------- */
+async function viewEvents(view, f) {
+  if (openEventId) return viewEventDetail(view, f);
+  const list = upcoming();
+  const past = events.filter(e => !list.includes(e)).reverse();
+  const item = e => `<div class="list-item"><div><b>${esc(day(e.starts_at))}</b> · ${hm(e.starts_at)}–${hm(e.ends_at)}<br>
+      <span style="font-size:13px;color:var(--dim);">${esc(OFFER_LABELS[e.offer] || e.offer)}${e.title ? ' · ' + esc(e.title) : ''}</span></div>
+      <div class="inline"><span class="badge ${e.registered ? 'ok' : ''}">${e.registered} inscrit(s)</span><button class="btn btn-ghost btn-sm" data-open="${e.id}">Ouvrir</button></div></div>`;
+  view.innerHTML = f + `<h1>Inscriptions</h1><p class="sub">Partagez le lien d'inscription : chaque collaborateur choisit son créneau (le nom est facultatif).</p>
+    <div class="card"><h2>À venir</h2>${list.length ? list.map(item).join('') : '<p class="empty">Aucune intervention à venir.</p>'}</div>
+    ${past.length ? `<div class="card"><h2>Passées</h2>${past.map(item).join('')}</div>` : ''}`;
+  wireCommon(view);
+}
+
+async function viewEventDetail(view, f) {
+  const e = events.find(x => x.id === openEventId);
+  const { data } = await sb.rpc('rh_event_slots', { p_event: openEventId });
+  slots = data || [];
+  const link = SIGNUP_BASE + e.signup_token;
+  const total = slots.reduce((s, x) => s + x.people.length, 0);
+  view.innerHTML = f + `
+    <button class="btn btn-ghost btn-sm" data-back>← Retour</button>
+    <h1 style="margin-top:12px;">${esc(day(e.starts_at))}</h1>
+    <p class="sub">${esc(OFFER_LABELS[e.offer] || e.offer)} · ${hm(e.starts_at)}–${hm(e.ends_at)} · ${esc(e.address || '')} · <b>${total} inscrit(s)</b></p>
+    <div class="grid2">
+      <div class="card">
+        <h2>Lien d'inscription</h2>
+        <div class="linkbox"><input id="signupLink" value="${esc(link)}" readonly><button class="btn btn-primary btn-sm" data-copy="signupLink">Copier</button></div>
+        <p class="sub" style="margin:10px 0 0;">À envoyer par e-mail ou sur l'intranet. Chacun choisit son créneau en 10 secondes.</p>
+        <div class="inline" style="margin-top:12px;"><button class="btn btn-ghost" id="btnPoster">Imprimer l'affiche (QR code)</button></div>
+      </div>
+      <div class="card">
+        <h2>Texte d'annonce</h2>
+        <textarea id="mailText" rows="7">${esc(mailText(e, link))}</textarea>
+        <button class="btn btn-ghost btn-sm" data-copy="mailText">Copier le texte</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Créneaux</h2>
+      ${slots.length ? slots.map(s => `
+        <div class="slot">
+          <div class="slot-head"><span>${hm(s.starts_at)} – ${hm(s.ends_at)}</span><span class="badge ${s.people.length >= s.capacity ? '' : 'ok'}">${s.people.length} / ${s.capacity}</span></div>
+          <div class="people">${s.people.length ? s.people.map(p => `<span class="person">${esc([p.first_name, p.last_name].filter(Boolean).join(' ') || 'Anonyme')}<button title="Retirer" data-del-reg="${p.id}">×</button></span>`).join('') : '<span style="font-size:13px;color:var(--dim);">Personne pour l\'instant</span>'}</div>
+          <div class="inline"><input placeholder="Prénom (facultatif)" data-first="${s.id}"><input placeholder="Nom (facultatif)" data-last="${s.id}"><button class="btn btn-ghost btn-sm" data-add="${s.id}">Ajouter</button></div>
+        </div>`).join('') : '<p class="empty">Pas de créneaux pour ce format.</p>'}
+    </div>`;
+  wireCommon(view);
+  view.querySelector('[data-back]').addEventListener('click', () => { openEventId = null; render(); });
+  view.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', async () => {
+    const id = b.dataset.add;
+    const { error } = await sb.rpc('rh_add_registration', { p_slot: id, p_first: view.querySelector(`[data-first="${id}"]`).value, p_last: view.querySelector(`[data-last="${id}"]`).value });
+    if (error) return alert('Erreur : ' + error.message);
+    await loadAll(); render();
+  }));
+  view.querySelectorAll('[data-del-reg]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Retirer cette inscription ?')) return;
+    await sb.rpc('rh_remove_registration', { p_id: b.dataset.delReg });
+    await loadAll(); render();
+  }));
+  document.getElementById('btnPoster').addEventListener('click', () => printPoster(e, link));
+}
+
+function mailText(e, link) {
+  return `Bonjour à toutes et à tous,
+
+Le ${day(e.starts_at).toLowerCase()}, de ${hm(e.starts_at)} à ${hm(e.ends_at)}, nous accueillons PandaFit${e.address ? ' (' + e.address + ')' : ''}.
+
+En 90 secondes sur une plateforme d'équilibre, chacun mesure son PandaFit Index : un moment ludique pour prendre soin de son équilibre et prévenir les chutes. Les résultats sont personnels et anonymes.
+
+Choisissez votre créneau ici (10 secondes, nom facultatif) :
+${link}
+
+Belle journée !`;
+}
+
+async function printPoster(e, link) {
+  const qr = await QRCode.toDataURL(link, { width: 520, margin: 1, color: { dark: '#1c162e', light: '#ffffff' } });
+  const w = window.open('', '_blank');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Affiche PandaFit</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800;900&display=swap" rel="stylesheet">
+    <style>@page{size:A4;margin:0}body{margin:0;font-family:Montserrat,sans-serif;color:#1c162e}
+    .p{width:210mm;height:297mm;padding:20mm 18mm;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;text-align:center;
+      background:linear-gradient(180deg,#ffffff 0%,#ffffff 62%,#eafaf2 100%)}
+    .top{display:flex;justify-content:space-between;align-items:center;width:100%}
+    .top img{max-height:22mm;max-width:60mm}
+    .k{font-size:13pt;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#17a461;margin-top:18mm}
+    h1{font-size:40pt;font-weight:900;line-height:1.05;margin:6mm 0 0}
+    .d{font-size:18pt;font-weight:800;margin-top:9mm}.l{font-size:13pt;font-weight:600;color:#5f6677;margin-top:2mm}
+    .qr{margin-top:12mm;width:78mm;height:78mm}.c{font-size:15pt;font-weight:800;margin-top:6mm}
+    .s{font-size:11pt;color:#5f6677;font-weight:600;margin-top:2mm}.f{margin-top:auto;font-size:11pt;font-weight:800;color:#17a461}</style></head>
+    <body><div class="p">
+      <div class="top"><img src="${location.origin}/icon-192.png" alt="" style="border-radius:4mm">${me.client.logo_url ? `<img src="${esc(me.client.logo_url)}" alt="">` : '<span></span>'}</div>
+      <div class="k">PandaFit · L'équilibre est dans le mouvement</div>
+      <h1>Testez votre équilibre<br>en 90 secondes</h1>
+      <div class="d">${esc(day(e.starts_at))} · ${hm(e.starts_at)}–${hm(e.ends_at)}</div>
+      <div class="l">${esc(e.address || '')}</div>
+      <img class="qr" src="${qr}" alt="QR code d'inscription">
+      <div class="c">Scannez pour choisir votre créneau</div>
+      <div class="s">10 secondes · nom facultatif · résultats personnels et anonymes</div>
+      <div class="f">pandafit.ch</div>
+    </div><script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`);
+  w.document.close();
+}
+
+/* ---------------- Écran de la tablette ---------------- */
+async function viewScreen(view, f) {
+  const c = me.client;
+  const [{ data: sat }, { data: ads }] = await Promise.all([sb.rpc('rh_satisfaction', { p_days: satDays }), sb.rpc('rh_ads')]);
+  const modes = ['auto', ...(c.satisfaction_enabled ? ['satisfaction'] : []), ...(c.ads_enabled ? ['ads'] : []), 'none'];
+  const cur = c.home_display_mode || 'auto';
+  view.innerHTML = f + `
+    <h1>Écran de la tablette</h1>
+    <p class="sub">Ce qui s'affiche en bas de l'accueil de la tablette PandaFit. Les changements arrivent sur la tablette en environ 20 secondes.</p>
+    <div class="card">
+      <h2>Affichage</h2>
+      <div class="modes">${modes.map(m => `<button class="btn btn-ghost ${cur === m ? 'on' : ''}" data-mode="${m}">${MODE_LABELS[m]}</button>`).join('')}</div>
+      <p class="sub" style="margin:0;">« Automatique » : le sondage s'il est activé, sinon les annonces.</p>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h2>Question du sondage</h2>
+        ${c.satisfaction_enabled ? `
+          <input id="question" value="${esc(c.satisfaction_question || '')}" placeholder="Quel est votre niveau de satisfaction aujourd'hui ?">
+          <button class="btn btn-primary" id="btnSaveQuestion">Enregistrer la question</button>
+          <p class="sub" style="margin:10px 0 0;">Les collaborateurs répondent d'un geste (rouge, jaune, vert).</p>
+        ` : '<div class="warn" style="margin:0;">Le sondage n\'est pas activé pour votre entreprise. Demandez-le à votre conseiller PandaFit.</div>'}
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <h2 style="margin:0;">Résultats</h2>
+          <select id="satDays" style="width:auto;margin:0;">${[[7, '7 jours'], [30, '30 jours'], [90, '3 mois']].map(([d, l]) => `<option value="${d}" ${satDays === d ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        </div>
+        ${satHTML(sat)}
+      </div>
+    </div>
+    <div class="card">
+      <h2>Annonces</h2>
+      ${c.ads_enabled ? `
+        ${(ads || []).length ? ads.map(a => `
+          <div class="ad"><img src="${esc(a.image_url)}" alt="">
+            <div style="flex:1;font-size:13px;color:var(--dim);">${a.start_at ? 'du ' + new Date(a.start_at).toLocaleDateString('fr-CH') : ''} ${a.end_at ? 'au ' + new Date(a.end_at).toLocaleDateString('fr-CH') : ''}<br>
+              <span class="badge ${a.is_active ? 'ok' : ''}">${a.is_active ? 'Affichée' : 'Masquée'}</span></div>
+            <button class="btn btn-ghost btn-sm" data-ad-toggle="${a.id}" data-active="${a.is_active}">${a.is_active ? 'Masquer' : 'Afficher'}</button>
+            <button class="btn btn-danger btn-sm" data-ad-del="${a.id}">Supprimer</button></div>`).join('') : '<p class="empty">Aucune annonce.</p>'}
+        <h2 style="margin-top:16px;">Ajouter une annonce</h2>
+        <p class="sub">Une image au format paysage (idéalement 1600 × 800) : nouveauté, événement interne, promotion…</p>
+        <input type="file" id="adFile" accept="image/*">
+        <div class="inline"><div style="flex:1;"><label class="lbl">À partir du</label><input type="date" id="adStart"></div><div style="flex:1;"><label class="lbl">Jusqu'au (facultatif)</label><input type="date" id="adEnd"></div></div>
+        <button class="btn btn-primary" id="btnAddAd">Publier l'annonce</button>
+      ` : '<div class="warn" style="margin:0;">Les annonces ne sont pas activées pour votre entreprise. Demandez-les à votre conseiller PandaFit.</div>'}
+    </div>`;
+  wireCommon(view);
+  view.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', async () => {
+    const { error } = await sb.rpc('rh_set_home', { p_mode: b.dataset.mode, p_question: c.satisfaction_question || '' });
+    if (error) return alert('Erreur : ' + error.message);
+    await loadAll(); flash = 'Affichage modifié.'; render();
+  }));
+  document.getElementById('btnSaveQuestion')?.addEventListener('click', async () => {
+    const { error } = await sb.rpc('rh_set_home', { p_mode: cur, p_question: document.getElementById('question').value });
+    if (error) return alert('Erreur : ' + error.message);
+    await loadAll(); flash = 'Question enregistrée : elle apparaît sur la tablette dans environ 20 secondes.'; render();
+  });
+  document.getElementById('satDays').addEventListener('change', ev => { satDays = Number(ev.target.value); render(); });
+  view.querySelectorAll('[data-ad-toggle]').forEach(b => b.addEventListener('click', async () => {
+    await sb.rpc('rh_update_ad', { p_id: b.dataset.adToggle, p_active: b.dataset.active !== 'true', p_delete: false }); render();
+  }));
+  view.querySelectorAll('[data-ad-del]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Supprimer cette annonce ?')) return;
+    await sb.rpc('rh_update_ad', { p_id: b.dataset.adDel, p_active: false, p_delete: true }); render();
+  }));
+  document.getElementById('btnAddAd')?.addEventListener('click', async () => {
+    const file = document.getElementById('adFile').files[0];
+    if (!file) return alert('Choisis une image.');
+    const path = `rh/${c.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const up = await sb.storage.from('banners').upload(path, file, { contentType: file.type });
+    if (up.error) return alert('Envoi impossible : ' + up.error.message);
+    const url = sb.storage.from('banners').getPublicUrl(path).data.publicUrl;
+    const s = document.getElementById('adStart').value, en = document.getElementById('adEnd').value;
+    const { error } = await sb.rpc('rh_add_ad', { p_image_url: url, p_start: s ? new Date(s + 'T00:00').toISOString() : null, p_end: en ? new Date(en + 'T23:59').toISOString() : null });
+    if (error) return alert('Erreur : ' + error.message);
+    flash = 'Annonce publiée.'; render();
+  });
+}
+
+/* ---------------- Rapports ---------------- */
+async function viewReports(view, f) {
+  const { data } = await sb.rpc('rh_reports');
+  const list = data || [];
+  view.innerHTML = f + `<h1>Rapports</h1><p class="sub">Les bilans de vos interventions, préparés par PandaFit et présentés lors d'un échange de 30 minutes. Toujours anonymisés et agrégés.</p>
+    <div class="card">${list.length ? list.map(r => `
+      <div class="list-item"><div><b>${esc(r.title)}</b><br><span style="font-size:13px;color:var(--dim);">${r.event ? esc(OFFER_LABELS[r.event.offer] || '') + ' · ' + new Date(r.event.starts_at).toLocaleDateString('fr-CH') + ' · ' : ''}déposé le ${new Date(r.created_at).toLocaleDateString('fr-CH')}</span></div>
+      <button class="btn btn-primary btn-sm" data-dl="${r.id}">Ouvrir le PDF</button></div>`).join('') : '<p class="empty">Aucun rapport pour l\'instant. Il sera déposé ici après votre bilan.</p>'}</div>`;
+  wireCommon(view);
+  view.querySelectorAll('[data-dl]').forEach(b => b.addEventListener('click', async () => {
+    const r = list.find(x => x.id === b.dataset.dl);
+    if (r.file_url) return window.open(r.file_url, '_blank');
+    const { data: s, error } = await sb.storage.from('client-reports').createSignedUrl(r.file_path, 300);
+    if (error) return alert('Ouverture impossible : ' + error.message);
+    window.open(s.signedUrl, '_blank');
+  }));
+}
+
+/* ---------------- Compte ---------------- */
+function viewAccount(view, f) {
+  view.innerHTML = f + `<h1>Compte</h1>
+    <div class="grid2">
+      <div class="card"><h2>Moi</h2>
+        <div class="row"><span class="k">Nom</span><span class="v">${esc(me.name || '—')}</span></div>
+        <div class="row"><span class="k">E-mail</span><span class="v">${esc(me.email)}</span></div>
+        <div class="row"><span class="k">Entreprise</span><span class="v">${esc(me.client.name)}</span></div>
+        <button class="btn btn-ghost" id="btnLogout" style="margin-top:12px;">Se déconnecter</button></div>
+      <div class="card"><h2>Collègues ayant accès</h2>
+        ${(me.colleagues || []).length ? me.colleagues.map(c => `<div class="row"><span class="k">${esc(c.name || '')}</span><span class="v">${esc(c.email)}</span></div>`).join('') : '<p class="empty">Personne d\'autre pour l\'instant.</p>'}
+        <h2 style="margin-top:14px;">Inviter un collègue</h2>
+        <input id="invName" placeholder="Prénom Nom (ex. responsable sécurité)"><input id="invEmail" type="email" placeholder="E-mail professionnel">
+        <button class="btn btn-primary" id="btnInvite">Donner l'accès</button>
+        <p class="sub" style="margin:10px 0 0;">Il se connecte sur console.pandafit.ch/espace-rh avec son e-mail.</p></div>
+    </div>`;
+  wireCommon(view);
+  document.getElementById('btnLogout').addEventListener('click', async () => { await sb.auth.signOut(); me = null; renderLogin('Tu es déconnecté.', true); });
+  document.getElementById('btnInvite').addEventListener('click', async () => {
+    const email = document.getElementById('invEmail').value.trim();
+    if (!email) return;
+    const { error } = await sb.rpc('rh_invite', { p_email: email, p_name: document.getElementById('invName').value });
+    if (error) return alert(error.message.includes('duplicate') ? 'Cette adresse a déjà un accès.' : 'Erreur : ' + error.message);
+    await loadAll(); flash = `Accès donné à ${email}.`; render();
+  });
+}
+
+function wireCommon(view) {
+  view.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => { tab = 'events'; openEventId = b.dataset.open; flash = null; render(); }));
+  view.querySelectorAll('[data-tab-go]').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tabGo; render(); }));
+  view.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', async () => {
+    const el = document.getElementById(b.dataset.copy);
+    try { await navigator.clipboard.writeText(el.value); } catch (e) { el.select(); document.execCommand('copy'); }
+    b.textContent = 'Copié ✓';
+  }));
+}
+
+boot();
+</script>
+</body>
+</html>

@@ -670,7 +670,7 @@ const PandaFitBackend = (() => {
     const gameShowOnHome = {};
     rows.forEach(r => { gameSortOrders[r.game_id] = r.sort_order || 0; gameImages[r.game_id] = r.image_url || null; gameQuestionnaires[r.game_id] = r.questionnaire_id || null; gameShowOnHome[r.game_id] = r.show_on_home !== false; });
 
-    return { deviceId: device.id, deviceName: device.name, deviceNames, clientId, clientName, enabledGameIds, gameSortOrders, gameImages, gameQuestionnaires, gameShowOnHome, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder, indexQuestionnaireId, indexImageUrl, adsEnabled, showBenefitsPage, showInitiationPage, satisfactionEnabled, homeDisplayMode, refreshToken, reloadToken, nightlyReloadEnabled, nightlyReloadHour };
+    return { deviceId: device.id, deviceName: device.name, deviceNames, clientId, clientName, enabledGameIds, gameSortOrders, gameImages, gameQuestionnaires, gameShowOnHome, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder, indexQuestionnaireId, indexImageUrl, adsEnabled, showBenefitsPage, showInitiationPage, satisfactionEnabled, homeDisplayMode, satisfactionQuestion: device.clients?.satisfaction_question || null, refreshToken, reloadToken, nightlyReloadEnabled, nightlyReloadHour };
   }
 
   /** Enregistre le score d'une partie terminée. */
@@ -2670,11 +2670,12 @@ function updateAdsBanner() {
   if (wantsSatisfaction) {
     label.dataset.i18n = 'satisfaction_label';
     label.textContent = t('satisfaction_label');
-    if (banner.dataset.mode !== 'satisfaction' || banner.dataset.lang !== currentLang) {
+    if (banner.dataset.mode !== 'satisfaction' || banner.dataset.lang !== currentLang || banner.dataset.q !== (clientConfig?.satisfactionQuestion || '')) {
       if (adsRotationTimer) { clearInterval(adsRotationTimer); adsRotationTimer = null; }
       banner.innerHTML = satisfactionBannerHTML();
       banner.dataset.mode = 'satisfaction';
       banner.dataset.lang = currentLang;
+      banner.dataset.q = clientConfig?.satisfactionQuestion || '';
       delete banner.dataset.built;
       delete banner.dataset.count;
       wireSatisfactionBanner();
@@ -2705,7 +2706,7 @@ function updateAdsBanner() {
 
 /** Contenu de la bannière "Indice de satisfaction" (question + 3 boutons, puis remerciement + vidéo). */
 function satisfactionBannerHTML() {
-  const q = pickLang(satisfactionSettings, 'question') || t('satisfaction_default_question');
+  const q = clientConfig?.satisfactionQuestion || pickLang(satisfactionSettings, 'question') || t('satisfaction_default_question');
   return `
     <div class="satisfaction-block" id="satisfactionBlock">
       <div class="satisfaction-question" id="satisfactionQuestion">${q}</div>

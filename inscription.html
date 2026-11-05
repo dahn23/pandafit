@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>PandaFit — Inscription</title>
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #f3f5f8; --text: #1d2130; --dim: #5f6677; --border: #dfe3ea; --primary: #17a461; --night: #1c162e; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; }
+  .hero { background: var(--night); color: #fff; padding: 22px 18px 26px; }
+  .hero-in, .wrap { max-width: 560px; margin: 0 auto; }
+  .logos { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .logos .pill { background: #fff; border-radius: 10px; height: 44px; padding: 5px 9px; display: flex; align-items: center; }
+  .logos img { max-height: 34px; max-width: 120px; display: block; }
+  .kicker { font-size: 11.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #2fe07c; }
+  h1 { font-size: 26px; font-weight: 900; margin: 6px 0 8px; line-height: 1.15; }
+  .meta { color: #c9c3da; font-size: 14px; line-height: 1.5; }
+  .wrap { padding: 18px 16px 40px; }
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+  h2 { font-size: 16px; margin: 0 0 10px; }
+  .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .slot { border: 2px solid var(--border); background: #fff; border-radius: 12px; padding: 12px 10px; text-align: center; cursor: pointer; font-family: inherit; color: var(--text); }
+  .slot b { display: block; font-size: 16px; }
+  .slot span { font-size: 12px; color: var(--dim); }
+  .slot.on { border-color: var(--primary); background: rgba(23,164,97,.07); }
+  .slot:disabled { opacity: .45; cursor: not-allowed; }
+  label { display: block; font-size: 12px; color: var(--dim); font-weight: 600; margin: 4px 0; }
+  input { font: 15px 'Montserrat', sans-serif; width: 100%; padding: 12px; border: 1px solid #cfd5df; border-radius: 10px; margin-bottom: 10px; }
+  input:focus { outline: none; border-color: var(--primary); }
+  .row2 { display: flex; gap: 8px; } .row2 > div { flex: 1; }
+  button.go { width: 100%; font: 800 16px 'Montserrat', sans-serif; border: none; border-radius: 12px; padding: 15px; background: var(--primary); color: #fff; cursor: pointer; }
+  button.go:disabled { opacity: .5; }
+  .note { font-size: 12.5px; color: var(--dim); line-height: 1.5; margin: 10px 0 0; }
+  .done { text-align: center; padding: 28px 16px; }
+  .done .ok { font-size: 46px; }
+  .err { color: #c42a3c; font-size: 13.5px; margin: 8px 0 0; }
+</style>
+</head>
+<body>
+<div id="app"><div class="wrap"><p class="note">Chargement…</p></div></div>
+<script>
+const SUPABASE_URL = 'https://kabjpqvbukhhqvdjnkzr.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_QgLSQJyPJ09Uj3vCKCUykA_ca1LTm5E';
+const OFFER_LABELS = { demo_vip: 'Démo PandaFit', decouverte: "Journée de l'équilibre", team_building: "Journée de l'équilibre – Team building", mois_equilibre: "Mois de l'équilibre", campagne_annuelle: 'Campagne annuelle' };
+const token = new URLSearchParams(location.search).get('t');
+const app = document.getElementById('app');
+let info = null, chosen = null;
+
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function day(iso) { const s = new Date(iso).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' }); return s.charAt(0).toUpperCase() + s.slice(1); }
+function hm(iso) { return new Date(iso).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' }); }
+async function rpc(name, args) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, { method: 'POST', cache: 'no-store',
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const t = await res.text(); return t ? JSON.parse(t) : null;
+}
+
+function hero() {
+  return `<div class="hero"><div class="hero-in">
+    <div class="logos"><div class="pill"><img src="icon-192.png" alt="PandaFit" style="border-radius:6px;"></div>${info.logo_url ? `<div class="pill"><img src="${esc(info.logo_url)}" alt="${esc(info.client)}"></div>` : ''}</div>
+    <div class="kicker">${esc(info.client)} · PandaFit</div>
+    <h1>${esc(info.title && !/^TEST /.test(info.title) ? info.title : OFFER_LABELS[info.offer] || 'PandaFit')}</h1>
+    <div class="meta">${esc(day(info.starts_at))} · ${hm(info.starts_at)}–${hm(info.ends_at)}${info.address ? '<br>' + esc(info.address) : ''}</div>
+  </div></div>`;
+}
+
+function render(err) {
+  const slots = info.slots || [];
+  app.innerHTML = hero() + `<div class="wrap">
+    <div class="card">
+      <h2>1. Choisis ton créneau</h2>
+      <div class="slots">${slots.map(s => `<button class="slot ${chosen === s.id ? 'on' : ''}" data-slot="${s.id}" ${s.left <= 0 ? 'disabled' : ''}>
+        <b>${hm(s.starts_at)}</b><span>${s.left <= 0 ? 'complet' : s.left + ' place' + (s.left > 1 ? 's' : '')}</span></button>`).join('')}</div>
+    </div>
+    <div class="card">
+      <h2>2. Ton nom <span style="font-weight:600;color:var(--dim);font-size:13px;">(facultatif)</span></h2>
+      <div class="row2"><div><label>Prénom</label><input id="first" autocomplete="given-name"></div><div><label>Nom</label><input id="last" autocomplete="family-name"></div></div>
+      <p class="note">Ton nom sert uniquement à organiser les passages. Il n'est jamais relié à ton résultat, qui reste personnel et anonyme.</p>
+    </div>
+    <button class="go" id="go" ${chosen ? '' : 'disabled'}>Je m'inscris</button>
+    ${err ? `<p class="err">${esc(err)}</p>` : ''}
+    <p class="note" style="text-align:center;">90 secondes sur une plateforme d'équilibre pour mesurer ton PandaFit Index.</p>
+  </div>`;
+  app.querySelectorAll('[data-slot]').forEach(b => b.addEventListener('click', () => { chosen = b.dataset.slot; render(); }));
+  document.getElementById('go').addEventListener('click', async () => {
+    const btn = document.getElementById('go'); btn.disabled = true; btn.textContent = 'Inscription…';
+    try {
+      const r = await rpc('signup_register', { p_token: token, p_slot: chosen, p_first: document.getElementById('first').value, p_last: document.getElementById('last').value });
+      if (!r?.ok) { info = await rpc('signup_info', { p_token: token }); chosen = null; return render(r?.error === 'complet' ? 'Ce créneau vient d\'être complet, choisis-en un autre.' : 'Inscription impossible : ' + (r?.error || 'erreur')); }
+      const s = info.slots.find(x => x.id === chosen);
+      app.innerHTML = hero() + `<div class="wrap"><div class="card done"><div class="ok">✅</div><h2>C'est noté !</h2>
+        <p style="font-size:17px;font-weight:800;margin:6px 0;">${esc(day(info.starts_at))} à ${hm(s.starts_at)}</p>
+        <p class="note">Viens 5 minutes avant ton créneau, en chaussures plates de préférence. À bientôt sur le PandaFit !</p></div></div>`;
+    } catch (e) { render('Connexion impossible, réessaie dans un instant.'); }
+  });
+}
+
+(async () => {
+  if (!token) { app.innerHTML = '<div class="wrap"><div class="card">Lien d\'inscription incomplet. Utilise le lien reçu de ton service RH.</div></div>'; return; }
+  try { info = await rpc('signup_info', { p_token: token }); } catch (e) { info = null; }
+  if (!info) { app.innerHTML = '<div class="wrap"><div class="card">Les inscriptions pour cette séance sont fermées, ou le lien n\'est plus valable.</div></div>'; return; }
+  render();
+})();
+</script>
+</body>
+</html>
