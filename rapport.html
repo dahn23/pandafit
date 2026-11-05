@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>PandaFit — Rapport de séance</title>
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  /* Rapport anonymisé et agrégé, lisible à l'écran et imprimable en A4 */
+  :root { --text: #1d2130; --dim: #5f6677; --border: #dfe3ea; --green: #17a461; --good: #2fbf71; --mid: #f2b43a; --risk: #e0564a; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { margin: 0; background: #e9edf2; color: var(--text); font-family: Montserrat, sans-serif; }
+  .bar-top { max-width: 210mm; margin: 14px auto 0; display: flex; justify-content: flex-end; gap: 8px; padding: 0 8px; }
+  .bar-top button { font: 700 14px Montserrat, sans-serif; border: none; border-radius: 10px; padding: 10px 16px; cursor: pointer; background: var(--green); color: #fff; }
+  .page { width: 210mm; max-width: 100%; min-height: 297mm; margin: 12px auto 30px; background: #fff; padding: 15mm 15mm 12mm; box-shadow: 0 2px 14px rgba(20,25,40,.12); }
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .top img { height: 15mm; max-width: 55mm; object-fit: contain; }
+  .k { font-size: 9pt; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--green); margin-top: 9mm; }
+  h1 { font-size: 23pt; font-weight: 900; margin: 2mm 0 1mm; line-height: 1.1; }
+  .meta { font-size: 10.5pt; color: var(--dim); font-weight: 600; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm; margin-top: 8mm; }
+  .kpi { border: 1px solid var(--border); border-radius: 3mm; padding: 4mm; }
+  .kpi .l { font-size: 7.5pt; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+  .kpi .v { font-size: 20pt; font-weight: 900; margin-top: 1.5mm; }
+  .kpi .s { font-size: 8pt; color: var(--dim); margin-top: 1mm; }
+  h2 { font-size: 12pt; font-weight: 800; margin: 8mm 0 3mm; }
+  .zones { display: flex; height: 8mm; border-radius: 2mm; overflow: hidden; }
+  .zones span { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 8.5pt; font-weight: 800; white-space: nowrap; overflow: hidden; }
+  .leg { display: flex; flex-wrap: wrap; gap: 6mm; font-size: 8.5pt; color: var(--dim); margin-top: 2mm; }
+  .leg i { display: inline-block; width: 3mm; height: 3mm; border-radius: 50%; margin-right: 1.5mm; vertical-align: -0.3mm; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 7mm; }
+  .hist { display: flex; align-items: flex-end; gap: 1.5mm; height: 30mm; border-bottom: 1px solid var(--border); }
+  .hist div { flex: 1; border-radius: 1mm 1mm 0 0; }
+  .hist-x { display: flex; gap: 1.5mm; font-size: 7pt; color: var(--dim); margin-top: 1mm; }
+  .hist-x span { flex: 1; text-align: center; }
+  .cmp .row { display: flex; align-items: center; gap: 3mm; margin: 3mm 0; font-size: 9.5pt; }
+  .cmp .row b { width: 32mm; }
+  .cmp .track { flex: 1; height: 4mm; background: #eef1f5; border-radius: 2mm; overflow: hidden; }
+  .cmp .track span { display: block; height: 100%; background: var(--green); }
+  .cmp .row em { font-style: normal; font-weight: 800; width: 14mm; text-align: right; }
+  ul { margin: 0; padding-left: 5mm; font-size: 10pt; line-height: 1.55; }
+  li { margin-bottom: 1.5mm; }
+  .note { white-space: pre-line; font-size: 10pt; line-height: 1.55; background: #f3f5f8; border-radius: 3mm; padding: 4mm 5mm; }
+  .box { background: #f3f5f8; border-radius: 3mm; padding: 4mm 5mm; font-size: 9pt; line-height: 1.5; margin-top: 7mm; }
+  .foot { margin-top: 8mm; padding-top: 4mm; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 8pt; color: var(--dim); }
+  .msg { max-width: 520px; margin: 18vh auto; background: #fff; border-radius: 14px; padding: 24px; text-align: center; font-size: 15px; line-height: 1.5; }
+  .msg a { color: var(--green); font-weight: 700; }
+  @media print { html, body { background: #fff; } .bar-top { display: none; } .page { margin: 0; box-shadow: none; } @page { size: A4; margin: 0; } }
+  @media (max-width: 700px) { .page { padding: 18px; min-height: 0; } .kpis { grid-template-columns: 1fr 1fr; } .two { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div id="app"><div class="msg">Chargement du rapport…</div></div>
+<script>
+const SUPABASE_URL = 'https://kabjpqvbukhhqvdjnkzr.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_QgLSQJyPJ09Uj3vCKCUykA_ca1LTm5E';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const OFFER_LABELS = { demo_vip: 'Démo PandaFit', decouverte: "Journée de l'équilibre – Découverte", team_building: "Journée de l'équilibre – Team building", mois_equilibre: "Mois de l'équilibre", campagne_annuelle: 'Campagne annuelle' };
+const eventId = new URLSearchParams(location.search).get('e');
+const app = document.getElementById('app');
+
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function day(iso) { const s = new Date(iso).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); return s.charAt(0).toUpperCase() + s.slice(1); }
+function hm(iso) { return new Date(iso).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' }); }
+const pct = (n, t) => t ? Math.round(100 * n / t) : 0;
+
+// Recommandations générées à partir des résultats agrégés (le conseiller ajoute son propre mot)
+function recommendations(d) {
+  const r = [];
+  const riskPct = pct(d.risk, d.participants), goodPct = pct(d.good, d.participants);
+  if (riskPct >= 15) r.push(`${riskPct} % des participants sont en zone à risque : un entraînement régulier sur un mois (Mois de l'équilibre) permet de faire progresser ce groupe en priorité.`);
+  else if (goodPct >= 50) r.push(`Plus de la moitié des participants ont un bon équilibre : un défi interne permettrait d'entretenir cette dynamique.`);
+  else r.push(`La majorité des participants est en zone « à entretenir » : quelques minutes de jeu par semaine suffisent à progresser.`);
+  if (d.avg_static != null && d.avg_movement != null && d.avg_static - d.avg_movement >= 20) r.push(`L'équilibre en mouvement (${d.avg_movement}) est nettement plus faible que l'équilibre statique (${d.avg_static}) : c'est lui qui protège des chutes lors des déplacements, il est à travailler en priorité.`);
+  r.push(`Refaire une mesure dans 4 à 6 semaines permet de montrer la progression de l'équipe, chiffres à l'appui.`);
+  return r;
+}
+
+function render(d) {
+  const ev = d.event;
+  if (!d.enough) {
+    app.innerHTML = `<div class="msg"><b>${esc(d.client?.name || '')} · ${esc(day(ev.starts_at))}</b><br><br>
+      Le rapport s'affiche à partir de 5 participants, pour garantir l'anonymat. ${d.participants} participant(s) pour l'instant.</div>`;
+    return;
+  }
+  const n = d.participants;
+  const z = d.zones;
+  const maxBin = Math.max(1, ...d.histogram.map(h => h.count));
+  const binColor = from => from >= z.good_min ? 'var(--good)' : (from + 10 > z.risk_below ? 'var(--mid)' : 'var(--risk)');
+  app.innerHTML = `
+    <div class="bar-top"><button onclick="window.print()">Imprimer / enregistrer en PDF</button></div>
+    <div class="page">
+      <div class="top"><img src="logo-pandafit.png" alt="PandaFit">${d.client?.logo_url ? `<img src="${esc(d.client.logo_url)}" alt="${esc(d.client.name)}">` : ''}</div>
+      <div class="k">Rapport de séance</div>
+      <h1>${esc(OFFER_LABELS[ev.offer] || 'Séance PandaFit')}</h1>
+      <div class="meta">${esc(d.client?.name || '')} · ${esc(day(ev.starts_at))} · ${hm(ev.starts_at)} – ${hm(ev.ends_at)}${d.coaches?.length ? ' · animé par ' + esc(d.coaches.join(' et ')) : ''}</div>
+      <div class="kpis">
+        <div class="kpi"><div class="l">Participants</div><div class="v">${n}</div><div class="s">${d.registered ? `${pct(n, d.registered)} % des ${d.registered} inscrits` : 'PandaFit Index mesurés'}</div></div>
+        <div class="kpi"><div class="l">Index moyen</div><div class="v">${d.avg} / 100</div><div class="s">sur l'ensemble du groupe</div></div>
+        <div class="kpi"><div class="l">Bon équilibre</div><div class="v">${pct(d.good, n)} %</div><div class="s">Index de ${z.good_min} et plus</div></div>
+        <div class="kpi"><div class="l">Zone à risque</div><div class="v">${pct(d.risk, n)} %</div><div class="s">Index sous ${z.risk_below}</div></div>
+      </div>
+      <h2>Répartition dans les 3 zones</h2>
+      <div class="zones">
+        ${d.good ? `<span style="width:${pct(d.good, n)}%;background:var(--good);">${pct(d.good, n)} %</span>` : ''}
+        ${d.mid ? `<span style="width:${pct(d.mid, n)}%;background:var(--mid);">${pct(d.mid, n)} %</span>` : ''}
+        ${d.risk ? `<span style="width:${pct(d.risk, n)}%;background:var(--risk);">${pct(d.risk, n)} %</span>` : ''}
+      </div>
+      <div class="leg"><span><i style="background:var(--good)"></i>Bon équilibre (${z.good_min}+)</span><span><i style="background:var(--mid)"></i>À entretenir (${z.risk_below}–${z.good_min - 1})</span><span><i style="background:var(--risk)"></i>Zone à risque (moins de ${z.risk_below})</span></div>
+      <div class="two">
+        <div>
+          <h2>Distribution des Index</h2>
+          <div class="hist">${d.histogram.map(h => `<div style="height:${Math.round(100 * h.count / maxBin)}%;background:${binColor(h.from)};" title="${h.count}"></div>`).join('')}</div>
+          <div class="hist-x">${d.histogram.map(h => `<span>${h.from}</span>`).join('')}</div>
+        </div>
+        <div class="cmp">
+          <h2>Les deux épreuves</h2>
+          <div class="row"><b>Équilibre statique</b><div class="track"><span style="width:${d.avg_static ?? 0}%"></span></div><em>${d.avg_static ?? '—'}</em></div>
+          <div class="row"><b>Équilibre en mouvement</b><div class="track"><span style="width:${d.avg_movement ?? 0}%"></span></div><em>${d.avg_movement ?? '—'}</em></div>
+          <p style="font-size:8.5pt;color:var(--dim);margin:2mm 0 0;">Moyennes du groupe sur 100. Le mouvement est l'équilibre de la marche et des déplacements.</p>
+        </div>
+      </div>
+      <h2>Nos recommandations</h2>
+      <ul>${recommendations(d).map(r => `<li>${esc(r)}</li>`).join('')}</ul>
+      ${ev.note ? `<h2>Le mot de votre conseiller PandaFit</h2><div class="note">${esc(ev.note)}</div>` : ''}
+      <div class="box"><b>Confidentialité.</b> Ce rapport est entièrement anonyme et agrégé : aucune donnée individuelle, et aucun résultat n'est calculé sur moins de 5 personnes. Chaque collaborateur garde son propre résultat. Seuils des zones : valeurs de référence PandaFit provisoires.</div>
+      <div class="foot"><span>PandaFit SA · info@pandafit.ch · pandafit.ch</span><span>${ev.published_at ? 'Publié le ' + new Date(ev.published_at).toLocaleDateString('fr-CH') : 'Brouillon, non publié dans l\'espace RH'}</span></div>
+    </div>`;
+}
+
+(async () => {
+  if (!eventId) { app.innerHTML = '<div class="msg">Lien de rapport incomplet.</div>'; return; }
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { app.innerHTML = '<div class="msg">Connecte-toi d\'abord : <a href="/espace-rh/">espace RH</a> ou <a href="/">console PandaFit</a>, puis rouvre ce lien.</div>'; return; }
+  const { data, error } = await sb.rpc('report_data', { p_event: eventId });
+  if (error || !data) { app.innerHTML = '<div class="msg">Ce rapport n\'est pas disponible pour ce compte (pas encore publié, ou séance d\'une autre entreprise).</div>'; return; }
+  render(data);
+})();
+</script>
+</body>
+</html>

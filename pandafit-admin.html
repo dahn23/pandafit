@@ -3455,7 +3455,10 @@ async function loadInterventions() {
   interventions = ev || [];
   coachList = coaches || [];
   gamesForEvents = games || [];
+  const { data: zones } = await sb.from('index_zones').select('*').maybeSingle();
+  indexZones = zones;
 }
+let indexZones = null;
 
 function coachName(id) { const c = coachList.find(x => x.id === id); return c ? (c.display_name || c.email) : '—'; }
 
@@ -3482,6 +3485,15 @@ async function renderInterventionsView() {
     <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="clipboard-list"></i> Interventions</div>
     <div class="section-sub">Le commercial prépare la séance et attribue les coachs ; le coach retrouve tout sur console.pandafit.ch/coach (fiche, code, matériel, compte-rendu).</div>
     <button class="btn-primary" id="btnNewEvent" style="width:auto;margin-bottom:14px;">+ Nouvelle intervention</button>
+    ${currentAdmin?.is_superadmin ? `<div class="card">
+      <h3>Seuils des zones de l'Index (valeurs provisoires)</h3>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div><div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">« Bon équilibre » à partir de</div><input id="zoneGood" type="number" min="1" max="100" value="${indexZones?.good_min ?? 70}" style="width:120px;margin:0;"></div>
+        <div><div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">« Zone à risque » en dessous de</div><input id="zoneRisk" type="number" min="1" max="100" value="${indexZones?.risk_below ?? 50}" style="width:120px;margin:0;"></div>
+        <button class="btn-ghost" id="btnSaveZones">Enregistrer</button>
+      </div>
+      <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Entre les deux : « à entretenir ». S'applique à tous les rapports, y compris ceux déjà publiés.</p>
+    </div>` : ''}
     <div class="card">
       <h3>À venir</h3>
       ${upcoming.length ? `<table><tr><th>Date</th><th>Client · offre</th><th>Coach(s)</th><th>Code</th><th>Statut</th></tr>${upcoming.map(rowHTML).join('')}</table>` : '<p class="empty">Aucune intervention prévue.</p>'}
@@ -3489,6 +3501,13 @@ async function renderInterventionsView() {
     ${past.length ? `<div class="card"><h3>Passées et annulées</h3><table><tr><th>Date</th><th>Client · offre</th><th>Coach(s)</th><th>Code</th><th>Statut</th></tr>${past.map(rowHTML).join('')}</table></div>` : ''}
   `;
   document.getElementById('btnNewEvent').addEventListener('click', () => { editingInterventionId = 'new'; renderInterventionsView(); });
+  document.getElementById('btnSaveZones')?.addEventListener('click', async () => {
+    const good = Number(document.getElementById('zoneGood').value), risk = Number(document.getElementById('zoneRisk').value);
+    if (!(risk < good)) { alert('Le seuil de la zone à risque doit être plus bas que celui du bon équilibre.'); return; }
+    const { error } = await sb.from('index_zones').update({ good_min: good, risk_below: risk, updated_at: new Date().toISOString() }).eq('id', true);
+    alert(error ? 'Erreur : ' + error.message : 'Seuils enregistrés.');
+    renderInterventionsView();
+  });
   main.querySelectorAll('[data-open-event]').forEach(tr => tr.addEventListener('click', () => { editingInterventionId = tr.dataset.openEvent; renderInterventionsView(); }));
   if (window.lucide) lucide.createIcons();
 }
@@ -3519,6 +3538,16 @@ function renderInterventionEditor() {
         ${rep.comment ? `<tr><td>Commentaire</td><td>${rep.comment}</td></tr>` : ''}
         <tr><td>Envoyé le</td><td>${new Date(rep.created_at).toLocaleString('fr-CH')}</td></tr>
       </table></div>` : ''}
+    ${e ? `<div class="card">
+      <h3>Rapport de la séance ${e.report_published_at ? '· <span class="badge badge-payee">publié dans l\'espace RH</span>' : ''}</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Généré automatiquement à partir des Index officiels de la séance (agrégé, à partir de 5 participants). Présente-le lors du bilan de 30 minutes, puis publie-le dans l'espace RH du client.</p>
+      <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Le mot du conseiller (apparaît dans le rapport)</div>
+      <textarea id="evReportNote" rows="4" style="${taStyle}" placeholder="Ce qui a marché, ce qu'on retient, la suite proposée…">${e.report_note || ''}</textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <button class="btn-ghost" id="btnViewReport">Voir le rapport</button>
+        <button class="btn-primary" id="btnPublishReport" style="width:auto;">${e.report_published_at ? 'Retirer de l\'espace RH' : 'Publier dans l\'espace RH'}</button>
+      </div>
+    </div>` : ''}
     <div class="card">
       <h3>${e ? 'Modifier l\'intervention' : 'Nouvelle intervention'}</h3>
       <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:10px;">
@@ -3581,6 +3610,20 @@ function renderInterventionEditor() {
   `;
 
   document.getElementById('btnBackEvents').addEventListener('click', () => { editingInterventionId = null; renderInterventionsView(); });
+  document.getElementById('btnViewReport')?.addEventListener('click', async () => {
+    await sb.from('event_sessions').update({ report_note: document.getElementById('evReportNote').value.trim() || null }).eq('id', e.id);
+    window.open(`/rapport.html?e=${e.id}`, '_blank');
+  });
+  document.getElementById('btnPublishReport')?.addEventListener('click', async () => {
+    const publish = !e.report_published_at;
+    if (publish && !confirm("Publier le rapport dans l'espace RH du client ? (à faire après le bilan de 30 minutes)")) return;
+    const { error } = await sb.from('event_sessions').update({
+      report_note: document.getElementById('evReportNote').value.trim() || null,
+      report_published_at: publish ? new Date().toISOString() : null,
+    }).eq('id', e.id);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    renderInterventionsView();
+  });
   document.getElementById('evMaterialsReset').addEventListener('click', ev => {
     ev.preventDefault();
     document.getElementById('evMaterials').value = defaultMaterials(document.getElementById('evOffer').value, document.getElementById('evParticipants').value);

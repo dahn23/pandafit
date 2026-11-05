@@ -390,10 +390,11 @@ async function viewReports(view, f) {
   view.innerHTML = f + `<h1>Rapports</h1><p class="sub">Les bilans de vos interventions, préparés par PandaFit et présentés lors d'un échange de 30 minutes. Toujours anonymisés et agrégés.</p>
     <div class="card">${list.length ? list.map(r => `
       <div class="list-item"><div><b>${esc(r.title)}</b><br><span style="font-size:13px;color:var(--dim);">${r.event ? esc(OFFER_LABELS[r.event.offer] || '') + ' · ' + new Date(r.event.starts_at).toLocaleDateString('fr-CH') + ' · ' : ''}déposé le ${new Date(r.created_at).toLocaleDateString('fr-CH')}</span></div>
-      <button class="btn btn-primary btn-sm" data-dl="${r.id}">Ouvrir le PDF</button></div>`).join('') : '<p class="empty">Aucun rapport pour l\'instant. Il sera déposé ici après votre bilan.</p>'}</div>`;
+      <button class="btn btn-primary btn-sm" data-dl="${r.id}">${r.kind === 'auto' ? 'Ouvrir le rapport' : 'Ouvrir le PDF'}</button></div>`).join('') : '<p class="empty">Aucun rapport pour l\'instant. Il sera déposé ici après votre bilan.</p>'}</div>`;
   wireCommon(view);
   view.querySelectorAll('[data-dl]').forEach(b => b.addEventListener('click', async () => {
     const r = list.find(x => x.id === b.dataset.dl);
+    if (r.kind === 'auto') return window.open('/rapport.html?e=' + r.id, '_blank');
     if (r.file_url) return window.open(r.file_url, '_blank');
     const { data: s, error } = await sb.storage.from('client-reports').createSignedUrl(r.file_path, 300);
     if (error) return alert('Ouverture impossible : ' + error.message);
