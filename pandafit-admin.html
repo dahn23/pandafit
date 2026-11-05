@@ -303,6 +303,8 @@ async function loadCurrentAdmin() {
   if (!user) { currentAdmin = null; return; }
   const { data: rows } = await sb.from('admin_users').select('*').eq('user_id', user.id);
   currentAdmin = rows?.[0] || null;
+  // Les coachs ont leur propre espace (mobile)
+  if (currentAdmin?.role === 'coach') { location.href = '/coach/'; return; }
   // Comptes sur invitation uniquement : sans fiche admin_users, pas d'accès à la console
   if (!currentAdmin) {
     await sb.auth.signOut();
@@ -368,6 +370,7 @@ async function render() {
 
   const allTopTabs = [
     { key: 'clients', label: 'Clients', icon: 'users', always: true },
+    { key: 'interventions', label: 'Interventions', icon: 'clipboard-list', always: true },
     { key: 'crm', label: 'CRM', icon: 'briefcase', perm: 'menu_crm' },
     { key: 'globalstats', label: 'Statistiques', icon: 'bar-chart-3', perm: 'menu_globalstats' },
     { key: 'access', label: 'Accès', icon: 'shield', superadminOnly: true },
@@ -452,6 +455,9 @@ async function render() {
       viewMode = 'client';
       render();
     });
+  } else if (topView === 'interventions') {
+    container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
+    await renderInterventionsView();
   } else if (topView === 'crm') {
     container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
     await renderCRMView();
@@ -3068,7 +3074,7 @@ let territoriesList = [];
 
 async function loadAdminUsers() {
   const [{ data }, { data: terr }] = await Promise.all([
-    sb.from('admin_users').select('*, admin_client_access(client_id), user_territories(territory_id)').order('created_at'),
+    sb.from('admin_users').select('*, admin_client_access(client_id), user_territories(territory_id), coach_profiles(*)').order('created_at'),
     sb.from('territories').select('*').order('name'),
   ]);
   adminUsersList = data || [];
@@ -3097,6 +3103,19 @@ async function renderAccessView() {
       </div>
       <p style="font-size:12px;color:var(--text-dim);margin:8px 0;">L'admin pourra le changer via "Mot de passe oublié" sur l'écran de connexion.</p>
       <button class="btn-primary" id="btnCreateAdmin" style="width:auto;">Créer le compte</button>
+    </div>
+    <div class="card">
+      <h3>Nouveau coach</h3>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <input id="newCoachEmail" type="email" placeholder="Email du coach">
+        <input id="newCoachName" placeholder="Prénom Nom">
+        <select id="newCoachTerritory" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+          ${territoriesList.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+        </select>
+        <input id="newCoachFee" type="number" value="550" placeholder="Honoraires par ½ journée (CHF)">
+      </div>
+      <p style="font-size:12px;color:var(--text-dim);margin:8px 0;">Pas de mot de passe : le coach ouvre <b>console.pandafit.ch/coach</b>, tape son e-mail et reçoit un lien de connexion.</p>
+      <button class="btn-primary" id="btnCreateCoach" style="width:auto;">Ajouter le coach</button>
     </div>
     <div class="card">
       <h3>Comptes existants</h3>
@@ -3138,6 +3157,20 @@ async function renderAccessView() {
     renderAccessView();
   });
 
+  document.getElementById('btnCreateCoach').addEventListener('click', async () => {
+    const email = document.getElementById('newCoachEmail').value.trim().toLowerCase();
+    const display_name = document.getElementById('newCoachName').value.trim() || null;
+    const territoryId = document.getElementById('newCoachTerritory').value;
+    const fee = Number(document.getElementById('newCoachFee').value) || 550;
+    if (!email) { alert('Email requis.'); return; }
+    const { data: created, error } = await sb.from('admin_users').insert({ email, display_name, role: 'coach', permissions: {} }).select('id').single();
+    if (error) { alert('Erreur : ' + error.message); return; }
+    if (territoryId) await sb.from('user_territories').insert({ admin_user_id: created.id, territory_id: territoryId });
+    await sb.from('coach_profiles').insert({ admin_user_id: created.id, default_fee: fee });
+    alert(`Coach ajouté. Envoie-lui le lien console.pandafit.ch/coach : il s'y connecte avec ${email}.`);
+    renderAccessView();
+  });
+
   main.querySelectorAll('[data-edit-admin]').forEach(btn => {
     btn.addEventListener('click', () => { editingAdminId = btn.dataset.editAdmin; renderAccessView(); });
   });
@@ -3165,8 +3198,20 @@ function renderAdminEditor() {
       <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Rôle</div>
       <select id="editAdminRole" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);margin-bottom:10px;">
         <option value="territory_admin" ${admin.role === 'territory_admin' ? 'selected' : ''}>Admin de territoire (équipe commerciale ou franchisé)</option>
+        <option value="coach" ${admin.role === 'coach' ? 'selected' : ''}>Coach (espace coach uniquement)</option>
         <option value="superadmin" ${admin.role === 'superadmin' ? 'selected' : ''}>Superadmin (tous les droits)</option>
       </select>
+      ${admin.role === 'coach' ? `
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:10px;">
+          <div><div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Certification</div>
+            <select id="editCoachCert" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+              ${[['en_formation', 'En formation'], ['certifie', 'Certifié'], ['suspendu', 'Suspendu']].map(([k, l]) => `<option value="${k}" ${(admin.coach_profiles?.certification || 'en_formation') === k ? 'selected' : ''}>${l}</option>`).join('')}
+            </select></div>
+          <div><div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Honoraires par défaut (CHF / ½ journée)</div>
+            <input id="editCoachFee" type="number" value="${admin.coach_profiles?.default_fee ?? 550}"></div>
+        </div>
+        <p style="font-size:12px;color:var(--text-dim);margin:0 0 10px;">${admin.user_id ? 'Le coach s\'est déjà connecté.' : 'Pas encore connecté : envoie-lui le lien console.pandafit.ch/coach.'}${admin.coach_profiles?.phone ? ' · Tél. ' + admin.coach_profiles.phone : ''}</p>
+      ` : ''}
       <button class="btn-ghost" id="btnSendReset" style="width:auto;">Envoyer un email de réinitialisation du mot de passe</button>
     </div>
     <div class="card">
@@ -3219,6 +3264,15 @@ function renderAdminEditor() {
 
     const { error } = await sb.from('admin_users').update({ display_name, permissions, role }).eq('id', admin.id);
     if (error) { alert('Erreur : ' + error.message); return; }
+    if (document.getElementById('editCoachCert')) {
+      await sb.from('coach_profiles').upsert({
+        admin_user_id: admin.id,
+        certification: document.getElementById('editCoachCert').value,
+        default_fee: Number(document.getElementById('editCoachFee').value) || 550,
+        phone: admin.coach_profiles?.phone ?? null,
+        languages: admin.coach_profiles?.languages ?? ['fr'],
+      });
+    }
     await sb.from('admin_client_access').delete().eq('admin_user_id', admin.id);
     if (selectedClientIds.length) {
       await sb.from('admin_client_access').insert(selectedClientIds.map(cid => ({ admin_user_id: admin.id, client_id: cid })));
@@ -3229,6 +3283,225 @@ function renderAdminEditor() {
     }
     editingAdminId = null;
     renderAccessView();
+  });
+}
+
+/* ---------------- Interventions (le commercial prépare, le coach exécute) ---------------- */
+const OFFER_LABELS = {
+  decouverte: "Journée de l'équilibre – Découverte",
+  team_building: "Journée de l'équilibre – Team building",
+  mois_equilibre: "Mois de l'équilibre",
+  campagne_annuelle: 'Campagne annuelle',
+  demo_vip: 'Démo VIP (offerte)',
+};
+const EVENT_STATUS_LABELS = { preparee: 'Préparée', en_cours: 'En cours', cloturee: 'Clôturée', annulee: 'Annulée' };
+let interventions = [];
+let coachList = [];
+let gamesForEvents = [];
+let editingInterventionId = null; // null = liste, 'new' = création, sinon id
+
+function defaultMaterials(offer, participants) {
+  const n = Number(participants) || 0;
+  switch (offer) {
+    case 'demo_vip': return '1 panda + 1 tablette chargée\nTenue VIP';
+    case 'decouverte': return '2 pandas + 2 tablettes chargées (drapeaux Chrome OK)\nRollup PandaFit\nTenue coach';
+    case 'team_building': {
+      const p = n > 70 ? 4 : 3;
+      return `${p} pandas + ${p} tablettes chargées\nAdaptateur HDMI / Chromecast pour projeter le classement\nRollup PandaFit\nTenue coach (2 coachs)`;
+    }
+    case 'mois_equilibre': return "2 pandas + 2 tablettes pour les mesures\n1 panda + 1 tablette à installer à demeure (lancement) ou à reprendre (clôture)\nAffiche des consignes de sécurité\nTenue coach";
+    case 'campagne_annuelle': return '2 pandas + 2 tablettes pour les mesures\nVérifier le panda à demeure\nTenue coach';
+    default: return '';
+  }
+}
+// Arrivée conseillée avant le début : installation (cadre des offres)
+function defaultArrivalMinutes(offer) { return offer === 'team_building' ? 45 : 30; }
+function pad2(n) { return String(n).padStart(2, '0'); }
+function localDate(iso) { const d = new Date(iso); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+function localTime(iso) { const d = new Date(iso); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; }
+
+async function loadInterventions() {
+  const [{ data: ev }, { data: coaches }, { data: games }] = await Promise.all([
+    sb.from('event_sessions').select('*, clients(name), event_session_coaches(admin_user_id, fee, is_lead), event_reports(*)').order('starts_at', { ascending: false }),
+    sb.from('admin_users').select('id, email, display_name, coach_profiles(default_fee, certification, phone), coach_availability(day)').eq('role', 'coach').order('display_name'),
+    sb.from('games').select('id, name').order('name'),
+  ]);
+  interventions = ev || [];
+  coachList = coaches || [];
+  gamesForEvents = games || [];
+}
+
+function coachName(id) { const c = coachList.find(x => x.id === id); return c ? (c.display_name || c.email) : '—'; }
+
+async function renderInterventionsView() {
+  await loadInterventions();
+  if (editingInterventionId) { renderInterventionEditor(); return; }
+  const main = document.getElementById('main');
+  const now = Date.now();
+  const upcoming = interventions.filter(e => new Date(e.ends_at).getTime() >= now - 12 * 3600 * 1000 && e.status !== 'annulee').reverse();
+  const past = interventions.filter(e => !upcoming.includes(e));
+  const rowHTML = e => {
+    const coaches = (e.event_session_coaches || []).map(c => coachName(c.admin_user_id)).join(', ') || '<span style="color:var(--destructive);">aucun coach</span>';
+    const rep = e.event_reports;
+    return `
+      <tr data-open-event="${e.id}" style="cursor:pointer;">
+        <td>${new Date(e.starts_at).toLocaleDateString('fr-CH')} ${localTime(e.starts_at)}</td>
+        <td><b>${e.clients?.name || '—'}</b><br><span style="font-size:12px;color:var(--text-dim);">${OFFER_LABELS[e.offer] || e.offer}</span></td>
+        <td>${coaches}</td>
+        <td><span class="badge">${e.code || '—'}</span></td>
+        <td>${EVENT_STATUS_LABELS[e.status] || e.status}${rep ? ` · CR ✓${rep.hot_lead ? ' 🔥' : ''}` : ''}</td>
+      </tr>`;
+  };
+  main.innerHTML = `
+    <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="clipboard-list"></i> Interventions</div>
+    <div class="section-sub">Le commercial prépare la séance et attribue les coachs ; le coach retrouve tout sur console.pandafit.ch/coach (fiche, code, matériel, compte-rendu).</div>
+    <button class="btn-primary" id="btnNewEvent" style="width:auto;margin-bottom:14px;">+ Nouvelle intervention</button>
+    <div class="card">
+      <h3>À venir</h3>
+      ${upcoming.length ? `<table><tr><th>Date</th><th>Client · offre</th><th>Coach(s)</th><th>Code</th><th>Statut</th></tr>${upcoming.map(rowHTML).join('')}</table>` : '<p class="empty">Aucune intervention prévue.</p>'}
+    </div>
+    ${past.length ? `<div class="card"><h3>Passées et annulées</h3><table><tr><th>Date</th><th>Client · offre</th><th>Coach(s)</th><th>Code</th><th>Statut</th></tr>${past.map(rowHTML).join('')}</table></div>` : ''}
+  `;
+  document.getElementById('btnNewEvent').addEventListener('click', () => { editingInterventionId = 'new'; renderInterventionsView(); });
+  main.querySelectorAll('[data-open-event]').forEach(tr => tr.addEventListener('click', () => { editingInterventionId = tr.dataset.openEvent; renderInterventionsView(); }));
+  if (window.lucide) lucide.createIcons();
+}
+
+function renderInterventionEditor() {
+  const main = document.getElementById('main');
+  const e = editingInterventionId === 'new' ? null : interventions.find(x => x.id === editingInterventionId);
+  if (editingInterventionId !== 'new' && !e) { editingInterventionId = null; renderInterventionsView(); return; }
+  const assigned = new Map((e?.event_session_coaches || []).map(c => [c.admin_user_id, c]));
+  const offer = e?.offer || 'decouverte';
+  const dateVal = e ? localDate(e.starts_at) : '';
+  const rep = e?.event_reports;
+  const field = (label, html) => `<div><div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">${label}</div>${html}</div>`;
+  const selStyle = 'width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);';
+  const taStyle = 'width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);font-family:inherit;';
+
+  main.innerHTML = `
+    <button class="btn-ghost" id="btnBackEvents" style="margin-bottom:14px;">← Retour aux interventions</button>
+    ${e ? `<div class="card"><h3>Code de session : <span class="badge" style="font-size:15px;">${e.code}</span> · ${EVENT_STATUS_LABELS[e.status]}</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0;">Le coach le voit dans sa fiche dès maintenant, pour préparer et tester la tablette avant le jour J.</p></div>` : ''}
+    ${rep ? `<div class="card"><h3>Compte-rendu du coach ${rep.hot_lead ? '🔥 piste chaude' : ''}</h3>
+      <table>
+        <tr><td style="width:40%;">Participants</td><td>${rep.participants ?? '—'}</td></tr>
+        <tr><td>Ambiance</td><td>${rep.mood ? '★'.repeat(rep.mood) + '☆'.repeat(5 - rep.mood) : '—'}</td></tr>
+        ${rep.lead_comment ? `<tr><td>Piste commerciale</td><td>${rep.lead_comment}</td></tr>` : ''}
+        ${rep.material_issue ? `<tr><td>Matériel</td><td>${rep.material_issue}</td></tr>` : ''}
+        ${rep.comment ? `<tr><td>Commentaire</td><td>${rep.comment}</td></tr>` : ''}
+        <tr><td>Envoyé le</td><td>${new Date(rep.created_at).toLocaleString('fr-CH')}</td></tr>
+      </table></div>` : ''}
+    <div class="card">
+      <h3>${e ? 'Modifier l\'intervention' : 'Nouvelle intervention'}</h3>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:10px;">
+        ${field('Client', `<select id="evClient" style="${selStyle}">${clients.map(c => `<option value="${c.id}" ${e?.client_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}</select>`)}
+        ${field('Offre', `<select id="evOffer" style="${selStyle}">${Object.entries(OFFER_LABELS).map(([k, l]) => `<option value="${k}" ${offer === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`)}
+        ${field('Date', `<input id="evDate" type="date" value="${dateVal}">`)}
+        ${field('Titre (facultatif)', `<input id="evTitle" value="${e?.title || ''}" placeholder="ex. Défi Équilibre Atelier">`)}
+        ${field('Début', `<input id="evStart" type="time" value="${e ? localTime(e.starts_at) : '08:30'}">`)}
+        ${field('Fin', `<input id="evEnd" type="time" value="${e ? localTime(e.ends_at) : '11:30'}">`)}
+        ${field('Arrivée du coach (installation)', `<input id="evArrival" type="time" value="${e?.arrival_at ? localTime(e.arrival_at) : ''}" placeholder="auto">`)}
+        ${field('Participants attendus', `<input id="evParticipants" type="number" min="0" value="${e?.expected_participants ?? ''}">`)}
+        ${field('Adresse', `<input id="evAddress" value="${e?.address || ''}" placeholder="Rue, NPA Ville">`)}
+        ${field('Contact sur place', `<input id="evContactName" value="${e?.contact_name || ''}" placeholder="Prénom Nom">`)}
+        ${field('Téléphone du contact', `<input id="evContactPhone" value="${e?.contact_phone || ''}" placeholder="+41 79 …">`)}
+        ${field('Ambiance', `<select id="evAmbiance" style="${selStyle}"><option value="securite" ${e?.ambiance !== 'festive' ? 'selected' : ''}>Sécurité / sobre</option><option value="festive" ${e?.ambiance === 'festive' ? 'selected' : ''}>Fun / festive</option></select>`)}
+        ${field('Langue', `<select id="evLanguage" style="${selStyle}">${[['fr', 'Français'], ['de', 'Deutsch'], ['it', 'Italiano'], ['en', 'English']].map(([k, l]) => `<option value="${k}" ${(e?.language || 'fr') === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`)}
+      </div>
+      <div style="font-size:11.5px;color:var(--text-dim);margin:12px 0 6px;">Jeux de la séance</div>
+      <div>${gamesForEvents.map(g => `<span class="client-check-row"><input type="checkbox" class="ev-game" id="evg-${g.id}" value="${g.id}" ${(e?.games || []).includes(g.id) ? 'checked' : ''}><label for="evg-${g.id}">${g.name}</label></span>`).join('')}</div>
+      <div style="font-size:11.5px;color:var(--text-dim);margin:12px 0 4px;">Matériel à prendre <a href="#" id="evMaterialsReset" style="color:var(--primary);">recalculer selon l'offre</a></div>
+      <textarea id="evMaterials" rows="4" style="${taStyle}">${e?.materials ?? defaultMaterials(offer, e?.expected_participants)}</textarea>
+      <div style="font-size:11.5px;color:var(--text-dim);margin:10px 0 4px;">Infos pour le coach (accès, parking, particularités…)</div>
+      <textarea id="evNotes" rows="3" style="${taStyle}">${e?.notes_for_coach || ''}</textarea>
+    </div>
+    <div class="card">
+      <h3>Coach(s) attribué(s)</h3>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">Le 1ᵉʳ coché est le coach principal. « dispo » = le coach a indiqué ce jour comme disponible.</p>
+      <div id="evCoaches">${coachList.length ? coachList.map(c => {
+        const a = assigned.get(c.id);
+        const available = dateVal && (c.coach_availability || []).some(d => d.day === dateVal);
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <input type="checkbox" class="ev-coach" value="${c.id}" ${a ? 'checked' : ''} style="width:20px;height:20px;">
+          <span style="flex:1;">${c.display_name || c.email} ${available ? '<span class="badge">dispo</span>' : ''} ${c.coach_profiles?.certification === 'certifie' ? '' : '<span style="font-size:11px;color:var(--text-dim);">(en formation)</span>'}</span>
+          <span style="font-size:12px;color:var(--text-dim);">Honoraires</span>
+          <input type="number" class="ev-fee" data-coach="${c.id}" value="${a?.fee ?? c.coach_profiles?.default_fee ?? 550}" style="width:110px;margin:0;">
+        </div>`;
+      }).join('') : '<p class="empty">Aucun coach inscrit. Crée-les dans l\'onglet Accès.</p>'}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn-primary" id="btnSaveEvent" style="width:auto;">${e ? 'Enregistrer' : 'Créer l\'intervention'}</button>
+      ${e && e.status !== 'annulee' ? '<button class="btn-ghost" id="btnCancelEvent">Annuler l\'intervention</button>' : ''}
+      ${e ? '<button class="btn-destructive" id="btnDeleteEvent">Supprimer</button>' : ''}
+    </div>
+  `;
+
+  document.getElementById('btnBackEvents').addEventListener('click', () => { editingInterventionId = null; renderInterventionsView(); });
+  document.getElementById('evMaterialsReset').addEventListener('click', ev => {
+    ev.preventDefault();
+    document.getElementById('evMaterials').value = defaultMaterials(document.getElementById('evOffer').value, document.getElementById('evParticipants').value);
+  });
+  document.getElementById('evOffer').addEventListener('change', () => {
+    if (!e) document.getElementById('evMaterials').value = defaultMaterials(document.getElementById('evOffer').value, document.getElementById('evParticipants').value);
+  });
+  document.getElementById('btnSaveEvent').addEventListener('click', async () => {
+    const date = document.getElementById('evDate').value;
+    const start = document.getElementById('evStart').value, end = document.getElementById('evEnd').value;
+    if (!date || !start || !end) { alert('Date, heure de début et heure de fin requises.'); return; }
+    const offerVal = document.getElementById('evOffer').value;
+    const startsAt = new Date(`${date}T${start}`);
+    const arrivalVal = document.getElementById('evArrival').value;
+    const arrivalAt = arrivalVal ? new Date(`${date}T${arrivalVal}`) : new Date(startsAt.getTime() - defaultArrivalMinutes(offerVal) * 60000);
+    const payload = {
+      client_id: document.getElementById('evClient').value,
+      offer: offerVal,
+      title: document.getElementById('evTitle').value.trim() || null,
+      starts_at: startsAt.toISOString(),
+      ends_at: new Date(`${date}T${end}`).toISOString(),
+      arrival_at: arrivalAt.toISOString(),
+      address: document.getElementById('evAddress').value.trim() || null,
+      contact_name: document.getElementById('evContactName').value.trim() || null,
+      contact_phone: document.getElementById('evContactPhone').value.trim() || null,
+      expected_participants: Number(document.getElementById('evParticipants').value) || null,
+      ambiance: document.getElementById('evAmbiance').value,
+      language: document.getElementById('evLanguage').value,
+      games: [...main.querySelectorAll('.ev-game:checked')].map(c => c.value),
+      materials: document.getElementById('evMaterials').value.trim() || null,
+      notes_for_coach: document.getElementById('evNotes').value.trim() || null,
+    };
+    let eventId = e?.id;
+    if (e) {
+      const { error } = await sb.from('event_sessions').update(payload).eq('id', e.id);
+      if (error) { alert('Erreur : ' + error.message); return; }
+    } else {
+      const { data, error } = await sb.from('event_sessions').insert({ ...payload, created_by: currentAdmin?.id }).select('id').single();
+      if (error) { alert('Erreur : ' + error.message); return; }
+      eventId = data.id;
+    }
+    const checked = [...main.querySelectorAll('.ev-coach:checked')].map(c => c.value);
+    await sb.from('event_session_coaches').delete().eq('event_session_id', eventId);
+    if (checked.length) {
+      const rows = checked.map((cid, i) => ({
+        event_session_id: eventId, admin_user_id: cid, is_lead: i === 0,
+        fee: Number(main.querySelector(`.ev-fee[data-coach="${cid}"]`)?.value) || 550,
+      }));
+      const { error } = await sb.from('event_session_coaches').insert(rows);
+      if (error) { alert('Intervention enregistrée, mais erreur sur les coachs : ' + error.message); }
+    }
+    editingInterventionId = eventId;
+    renderInterventionsView();
+  });
+  document.getElementById('btnCancelEvent')?.addEventListener('click', async () => {
+    if (!confirm('Annuler cette intervention ? Elle disparaîtra de l\'espace du coach.')) return;
+    await sb.from('event_sessions').update({ status: 'annulee' }).eq('id', e.id);
+    renderInterventionsView();
+  });
+  document.getElementById('btnDeleteEvent')?.addEventListener('click', async () => {
+    if (!confirm('Supprimer définitivement cette intervention et son compte-rendu ?')) return;
+    await sb.from('event_sessions').delete().eq('id', e.id);
+    editingInterventionId = null;
+    renderInterventionsView();
   });
 }
 

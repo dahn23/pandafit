@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>PandaFit — Espace coach</title>
+<link rel="icon" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root {
+    --bg: #1c162e; --panel: #241d38; --panel-hi: #2c2444;
+    --primary: #43cea2; --primary-dark: #185a9d;
+    --accent: #c86dd7; --destructive: #e6374e; --warn: #f4b740;
+    --text: #f4f2fa; --text-dim: #9992ad;
+    --border: #35294f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; }
+  body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 18px 16px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; }
+  .brand img { width: 32px; height: 32px; border-radius: 8px; }
+  .brand small { display: block; font-weight: 600; font-size: 11.5px; color: var(--text-dim); }
+  h2 { font-size: 18px; margin: 18px 0 10px; }
+  h3 { font-size: 15px; margin: 0 0 8px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+  .mission { cursor: pointer; display: block; width: 100%; text-align: left; color: inherit; }
+  .mission .when { font-size: 12.5px; color: var(--primary); font-weight: 700; text-transform: capitalize; }
+  .mission .who { font-size: 16px; font-weight: 800; margin: 4px 0 2px; }
+  .mission .what { font-size: 13px; color: var(--text-dim); }
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 99px; background: var(--panel-hi); color: var(--text-dim); margin-left: 6px; vertical-align: middle; }
+  .badge.live { background: rgba(67,206,162,.18); color: var(--primary); }
+  .badge.done { background: rgba(200,109,215,.16); color: var(--accent); }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .row:last-child { border-bottom: none; }
+  .row .k { color: var(--text-dim); flex: 0 0 38%; }
+  .row .v { text-align: right; font-weight: 600; word-break: break-word; }
+  .row .v a { color: var(--primary); text-decoration: none; }
+  .code { font-size: 30px; font-weight: 800; letter-spacing: .08em; text-align: center; padding: 14px; border-radius: 12px; background: #17132a; border: 1px dashed var(--primary); color: var(--primary); }
+  .hint { font-size: 12.5px; color: var(--text-dim); margin: 8px 0 0; line-height: 1.45; }
+  .pre { white-space: pre-line; font-size: 14px; line-height: 1.5; }
+  input, textarea, select { width: 100%; padding: 13px 14px; border-radius: 10px; border: 1px solid var(--border); background: #17132a; color: var(--text); font-size: 15px; font-family: inherit; margin-bottom: 10px; }
+  textarea { resize: vertical; min-height: 70px; }
+  label.lbl { display: block; font-size: 12px; color: var(--text-dim); margin: 4px 0 4px; }
+  button { font-family: inherit; border: none; cursor: pointer; border-radius: 10px; font-weight: 700; font-size: 15px; padding: 13px 18px; }
+  .btn-primary { background: var(--primary); color: #0d2a22; width: 100%; }
+  .btn-ghost { background: var(--panel-hi); color: var(--text); }
+  .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+  .btn-row > * { flex: 1; }
+  .back { background: none; color: var(--text-dim); padding: 6px 0; font-size: 14px; }
+  .mood { display: flex; gap: 6px; margin-bottom: 10px; }
+  .mood button { flex: 1; background: var(--panel-hi); color: var(--text); font-size: 18px; padding: 10px 0; }
+  .mood button.on { background: var(--primary); color: #0d2a22; }
+  .toggle { display: flex; align-items: center; gap: 10px; font-size: 14px; margin: 4px 0 10px; }
+  .toggle input { width: 22px; height: 22px; margin: 0; }
+  .empty { color: var(--text-dim); font-size: 14px; text-align: center; padding: 18px 0; }
+  .notice { background: rgba(244,183,64,.12); border: 1px solid rgba(244,183,64,.35); color: #ffd98a; border-radius: 12px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 12px; }
+  .ok { background: rgba(67,206,162,.12); border: 1px solid rgba(67,206,162,.35); color: #9ff0d3; border-radius: 12px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 12px; }
+  .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .cal-head b { text-transform: capitalize; }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .cal .dow { font-size: 11px; color: var(--text-dim); text-align: center; font-weight: 700; }
+  .cal button { padding: 0; aspect-ratio: 1; font-size: 14px; background: var(--panel-hi); color: var(--text); border-radius: 9px; }
+  .cal button.on { background: var(--primary); color: #0d2a22; }
+  .cal button.past { opacity: .35; }
+  .cal button.mission-day { box-shadow: inset 0 0 0 2px var(--accent); }
+  .total { display: flex; justify-content: space-between; font-weight: 800; font-size: 15px; padding-top: 10px; margin-top: 4px; border-top: 2px solid var(--text); }
+  .langs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .langs label { display: flex; align-items: center; gap: 6px; background: var(--panel-hi); padding: 9px 12px; border-radius: 9px; font-size: 14px; }
+  .langs input { width: 18px; height: 18px; margin: 0; }
+  nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; background: #17132a; border-top: 1px solid var(--border); display: flex; padding-bottom: env(safe-area-inset-bottom); }
+  nav.tabs button { flex: 1; background: none; color: var(--text-dim); font-size: 12px; font-weight: 700; padding: 12px 0 14px; border-radius: 0; }
+  nav.tabs button .ico { display: block; font-size: 19px; margin-bottom: 2px; }
+  nav.tabs button.on { color: var(--primary); }
+  .login { max-width: 420px; margin: 12vh auto 0; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<nav class="tabs" id="tabs" style="display:none"></nav>
+
+<script>
+const SUPABASE_URL = 'https://kabjpqvbukhhqvdjnkzr.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_QgLSQJyPJ09Uj3vCKCUykA_ca1LTm5E';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const app = document.getElementById('app');
+const tabsEl = document.getElementById('tabs');
+
+const OFFER_LABELS = {
+  demo_vip: 'Démo VIP',
+  decouverte: "Journée de l'équilibre – Découverte",
+  team_building: "Journée de l'équilibre – Team building",
+  mois_equilibre: "Mois de l'équilibre",
+  campagne_annuelle: 'Campagne annuelle',
+};
+// Déroulé de référence par offre (cadre des offres) — rappel pour le coach
+const OFFER_RUNBOOK = {
+  demo_vip: "1 h pour quelques décideurs : accueil, démo, chacun passe son Index, échange sur leurs enjeux. Tenue VIP.",
+  decouverte: "Arrivée 30 min avant : installer 2 pandas, saisir le code de session sur les tablettes.\nPar groupe de ~20 toutes les 30 min : intro de 5-6 min (chutes, Suva, démo), puis 20 min de tests (2 pandas × 10).\nEn fin de matinée : clôturer la séance et remplir le compte-rendu.",
+  team_building: "Arrivée 45 min avant avec le 2ᵉ coach : 3 pandas, projection du classement.\nAccueil et speech (15 min), Triathlon de l'équilibre (précision, mouvement, cerveau), finale et podium.\nRangement 30 min après, puis clôture et compte-rendu.",
+  mois_equilibre: "Visite de lancement ou de clôture : Index de chacun avec le coach, installation ou reprise du panda à demeure, consignes de sécurité affichées.",
+  campagne_annuelle: "Visite trimestrielle : Index de chacun, lancement des défis de la saison, vérification du panda à demeure.",
+};
+const AMBIANCE_LABELS = { securite: 'Sécurité / sobre', festive: 'Fun / festive' };
+const LANG_LABELS = { fr: 'Français', de: 'Deutsch', it: 'Italiano', en: 'English' };
+const STATUS_LABELS = { preparee: 'Préparée', en_cours: 'En cours', cloturee: 'Clôturée' };
+
+let me = null;
+let missions = [];
+let tab = 'missions';
+let openMissionId = null;
+let calMonth = startOfMonth(new Date());
+let calDays = new Set();
+let flash = null;
+
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+function ymd(d) { const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; }
+function fmtDay(iso) { return new Date(iso).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' }); }
+function fmtTime(iso) { return iso ? new Date(iso).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' }) : '—'; }
+function chf(n) { return Number(n || 0).toLocaleString('fr-CH').replace(/ |\s/g, "'") + ' CHF'; }
+function isPast(m) { return new Date(m.ends_at) < new Date(Date.now() - 12 * 3600 * 1000) || m.status === 'cloturee'; }
+
+/* ---------------- Connexion par lien magique ---------------- */
+function renderLogin(msg, ok) {
+  tabsEl.style.display = 'none';
+  app.innerHTML = `
+    <div class="login">
+      <div class="brand" style="margin-bottom:18px;"><img src="/icon-192.png" alt=""><div>PandaFit<small>Espace coach</small></div></div>
+      ${msg ? `<div class="${ok ? 'ok' : 'notice'}">${esc(msg)}</div>` : ''}
+      <div class="card">
+        <h3>Connexion</h3>
+        <p class="hint" style="margin:0 0 12px;">Entre l'adresse e-mail que PandaFit a enregistrée pour toi. Tu reçois un lien de connexion, sans mot de passe.</p>
+        <input id="email" type="email" autocomplete="email" placeholder="ton.email@exemple.ch">
+        <button class="btn-primary" id="btnSend">Recevoir mon lien de connexion</button>
+      </div>
+    </div>`;
+  document.getElementById('btnSend').addEventListener('click', async () => {
+    const email = document.getElementById('email').value.trim();
+    if (!email) return;
+    const btn = document.getElementById('btnSend');
+    btn.disabled = true; btn.textContent = 'Envoi…';
+    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + '/coach/' } });
+    if (error) renderLogin('Envoi impossible : ' + error.message);
+    else renderLogin(`Lien envoyé à ${email}. Ouvre l'e-mail sur ce téléphone et touche le lien.`, true);
+  });
+}
+
+let booting = false;
+async function boot() {
+  if (booting) return;
+  booting = true;
+  try { await bootInner(); } finally { booting = false; }
+}
+async function bootInner() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { renderLogin(); return; }
+  const { data: role } = await sb.rpc('claim_invite');
+  if (role !== 'coach') {
+    await sb.auth.signOut();
+    renderLogin(role ? "Ce compte n'est pas un compte coach : utilise la console admin (console.pandafit.ch)." : "Cette adresse n'a pas d'accès coach. Demande à PandaFit de t'inscrire.");
+    return;
+  }
+  await loadAll();
+  render();
+}
+sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_IN' && !me) boot(); });
+
+async function loadAll() {
+  const [{ data: profile }, { data: list }] = await Promise.all([sb.rpc('coach_me'), sb.rpc('coach_missions')]);
+  me = profile;
+  missions = list || [];
+}
+
+/* ---------------- Rendu ---------------- */
+function render() {
+  tabsEl.style.display = 'flex';
+  const items = [['missions', '📋', 'Missions'], ['dispos', '📅', 'Dispos'], ['releve', '🧾', 'Relevé'], ['profil', '👤', 'Profil']];
+  tabsEl.innerHTML = items.map(([k, ico, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}"><span class="ico">${ico}</span>${l}</button>`).join('');
+  tabsEl.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; openMissionId = null; flash = null; render(); window.scrollTo(0, 0); }));
+  const head = `<div class="top"><div class="brand"><img src="/icon-192.png" alt=""><div>PandaFit<small>Espace coach · ${esc(me?.name || me?.email || '')}</small></div></div></div>`;
+  const flashHtml = flash ? `<div class="ok">${esc(flash)}</div>` : '';
+  if (tab === 'missions') app.innerHTML = head + flashHtml + (openMissionId ? missionDetailHTML() : missionsListHTML());
+  if (tab === 'dispos') { app.innerHTML = head + flashHtml + `<div id="calBox"><p class="empty">Chargement…</p></div>`; renderCalendar(); }
+  if (tab === 'releve') app.innerHTML = head + releveHTML();
+  if (tab === 'profil') app.innerHTML = head + flashHtml + profilHTML();
+  wire();
+}
+
+function missionCard(m) {
+  const badge = m.status === 'en_cours' ? '<span class="badge live">En cours</span>' : m.status === 'cloturee' ? '<span class="badge done">Clôturée</span>' : '';
+  return `
+    <button class="card mission" data-open="${m.id}">
+      <div class="when">${esc(fmtDay(m.starts_at))} · ${fmtTime(m.starts_at)}–${fmtTime(m.ends_at)}${badge}</div>
+      <div class="who">${esc(m.client)}</div>
+      <div class="what">${esc(OFFER_LABELS[m.offer] || m.offer)}${m.address ? ' · ' + esc(m.address) : ''}</div>
+    </button>`;
+}
+function missionsListHTML() {
+  const upcoming = missions.filter(m => !isPast(m));
+  const past = missions.filter(m => isPast(m)).reverse();
+  return `
+    <h2>À venir</h2>
+    ${upcoming.length ? upcoming.map(missionCard).join('') : '<p class="empty">Aucune mission prévue pour l\'instant.</p>'}
+    ${past.length ? `<h2>Passées</h2>${past.slice(0, 20).map(missionCard).join('')}` : ''}`;
+}
+
+function missionDetailHTML() {
+  const m = missions.find(x => x.id === openMissionId);
+  if (!m) return '<p class="empty">Mission introuvable.</p>';
+  const mapUrl = m.address ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(m.address) : null;
+  const sameDay = ymd(new Date(m.starts_at)) <= ymd(new Date());
+  const contact = m.contact_phone
+    ? `${esc(m.contact_name || '')}<br><a href="tel:${esc(m.contact_phone.replace(/\s/g, ''))}">${esc(m.contact_phone)}</a>`
+    : (m.contact_name ? esc(m.contact_name) + '<br><span class="hint">numéro masqué 7 jours après la séance</span>' : '—');
+  return `
+    <button class="back" data-back>← Mes missions</button>
+    <div class="card">
+      <div class="when" style="color:var(--primary);font-weight:700;font-size:13px;text-transform:capitalize;">${esc(fmtDay(m.starts_at))}</div>
+      <h2 style="margin:4px 0 2px;">${esc(m.client)}</h2>
+      <div class="hint" style="margin:0;">${esc(OFFER_LABELS[m.offer] || m.offer)}${m.title ? ' · ' + esc(m.title) : ''} · <b>${esc(STATUS_LABELS[m.status] || m.status)}</b></div>
+    </div>
+    <div class="card">
+      <h3>Code de session</h3>
+      <div class="code">${esc(m.code || '—')}</div>
+      <p class="hint">À saisir sur la tablette (Réglages → mode événement). Teste-le la veille.</p>
+    </div>
+    <div class="card">
+      <div class="row"><span class="k">Arrivée</span><span class="v">${fmtTime(m.arrival_at)}</span></div>
+      <div class="row"><span class="k">Séance</span><span class="v">${fmtTime(m.starts_at)} – ${fmtTime(m.ends_at)}</span></div>
+      <div class="row"><span class="k">Lieu</span><span class="v">${m.address ? `<a href="${mapUrl}" target="_blank" rel="noopener">${esc(m.address)}</a>` : '—'}</span></div>
+      <div class="row"><span class="k">Contact sur place</span><span class="v">${contact}</span></div>
+      <div class="row"><span class="k">Participants attendus</span><span class="v">${m.expected_participants || '—'}</span></div>
+      <div class="row"><span class="k">Ambiance</span><span class="v">${esc(AMBIANCE_LABELS[m.ambiance] || m.ambiance)}</span></div>
+      <div class="row"><span class="k">Langue</span><span class="v">${esc(LANG_LABELS[m.language] || m.language)}</span></div>
+      ${m.games?.length ? `<div class="row"><span class="k">Jeux</span><span class="v">${esc(m.games.join(', '))}</span></div>` : ''}
+      <div class="row"><span class="k">Coéquipier</span><span class="v">${m.teammates?.length ? esc(m.teammates.join(', ')) : 'Seul'}</span></div>
+      <div class="row"><span class="k">Honoraires</span><span class="v">${chf(m.fee)}</span></div>
+    </div>
+    ${m.materials ? `<div class="card"><h3>Matériel à prendre</h3><div class="pre">${esc(m.materials)}</div></div>` : ''}
+    ${m.notes ? `<div class="card"><h3>Infos du commercial</h3><div class="pre">${esc(m.notes)}</div></div>` : ''}
+    <div class="card"><h3>Déroulé</h3><div class="pre">${esc(OFFER_RUNBOOK[m.offer] || '')}</div></div>
+    ${m.status === 'preparee' && sameDay ? `<button class="btn-primary" data-start="${m.id}">Démarrer la séance</button>` : ''}
+    ${m.status !== 'cloturee' || !m.report_done ? reportFormHTML(m) : '<div class="ok">Séance clôturée, compte-rendu envoyé. Merci !</div>'}
+  `;
+}
+
+function reportFormHTML(m) {
+  if (!['en_cours', 'cloturee'].includes(m.status) && new Date(m.starts_at) > new Date()) return '';
+  return `
+    <div class="card" style="margin-top:12px;">
+      <h3>Clôturer et envoyer le compte-rendu</h3>
+      <label class="lbl">Nombre de participants</label>
+      <input id="rParticipants" type="number" inputmode="numeric" min="0" placeholder="ex. 85">
+      <label class="lbl">Ambiance</label>
+      <div class="mood" id="rMood">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-mood="${n}">${['😕', '😐', '🙂', '😀', '🤩'][n - 1]}</button>`).join('')}</div>
+      <div class="toggle"><input type="checkbox" id="rLead"><label for="rLead">Piste commerciale chaude (envie d'un Mois, d'une Campagne…)</label></div>
+      <textarea id="rLeadComment" placeholder="Qui, quoi ? (facultatif)"></textarea>
+      <label class="lbl">Problème de matériel</label>
+      <input id="rMaterial" placeholder="Rien à signaler">
+      <label class="lbl">Commentaire</label>
+      <textarea id="rComment" placeholder="Ce qui a marché, ce qui est à améliorer (facultatif)"></textarea>
+      <button class="btn-primary" data-close="${m.id}">Clôturer la séance</button>
+    </div>`;
+}
+
+function releveHTML() {
+  const done = missions.filter(m => isPast(m));
+  if (!done.length) return '<h2>Relevé</h2><p class="empty">Pas encore de mission réalisée.</p>';
+  const byMonth = {};
+  done.forEach(m => { const k = m.starts_at.slice(0, 7); (byMonth[k] = byMonth[k] || []).push(m); });
+  return '<h2>Relevé de mes missions</h2><p class="hint" style="margin-top:-4px;">Pour ta facture mensuelle à PandaFit SA.</p>' +
+    Object.keys(byMonth).sort().reverse().map(k => {
+      const list = byMonth[k].sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+      const label = new Date(k + '-01T12:00:00').toLocaleDateString('fr-CH', { month: 'long', year: 'numeric' });
+      return `<div class="card"><h3 style="text-transform:capitalize;">${esc(label)}</h3>
+        ${list.map(m => `<div class="row"><span class="k">${new Date(m.starts_at).toLocaleDateString('fr-CH')} · ${esc(m.client)}<br><span class="hint">${esc(OFFER_LABELS[m.offer] || m.offer)}</span></span><span class="v">${chf(m.fee)}</span></div>`).join('')}
+        <div class="total"><span>Total</span><span>${chf(list.reduce((s, m) => s + Number(m.fee || 0), 0))}</span></div></div>`;
+    }).join('');
+}
+
+function profilHTML() {
+  const langs = me?.languages || ['fr'];
+  const cert = { en_formation: 'En formation', certifie: 'Certifié', suspendu: 'Suspendu' }[me?.certification] || '—';
+  return `
+    <h2>Mon profil</h2>
+    <div class="card">
+      <label class="lbl">Nom affiché</label>
+      <input id="pName" value="${esc(me?.name || '')}" placeholder="Prénom Nom">
+      <label class="lbl">Téléphone</label>
+      <input id="pPhone" type="tel" value="${esc(me?.phone || '')}" placeholder="+41 79 …">
+      <label class="lbl">Langues d'animation</label>
+      <div class="langs">${Object.entries(LANG_LABELS).map(([k, l]) => `<label><input type="checkbox" class="pLang" value="${k}" ${langs.includes(k) ? 'checked' : ''}>${l}</label>`).join('')}</div>
+      <div class="row"><span class="k">E-mail</span><span class="v">${esc(me?.email || '')}</span></div>
+      <div class="row"><span class="k">Certification</span><span class="v">${esc(cert)}</span></div>
+      <button class="btn-primary" id="btnSaveProfile" style="margin-top:12px;">Enregistrer</button>
+    </div>
+    <button class="btn-ghost" id="btnLogout" style="width:100%;">Se déconnecter</button>`;
+}
+
+/* ---------------- Disponibilités ---------------- */
+async function renderCalendar() {
+  const from = calMonth, to = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0);
+  const { data } = await sb.rpc('coach_availability_get', { p_from: ymd(from), p_to: ymd(to) });
+  calDays = new Set((data || []).map(String));
+  drawCalendar();
+}
+function drawCalendar() {
+  const box = document.getElementById('calBox');
+  if (!box) return;
+  const y = calMonth.getFullYear(), mo = calMonth.getMonth();
+  const first = new Date(y, mo, 1), nDays = new Date(y, mo + 1, 0).getDate();
+  const offset = (first.getDay() + 6) % 7;
+  const today = ymd(new Date());
+  const missionDays = new Set(missions.map(m => ymd(new Date(m.starts_at))));
+  let cells = '';
+  for (let i = 0; i < offset; i++) cells += '<span></span>';
+  for (let d = 1; d <= nDays; d++) {
+    const k = ymd(new Date(y, mo, d));
+    cells += `<button data-day="${k}" class="${calDays.has(k) ? 'on' : ''} ${k < today ? 'past' : ''} ${missionDays.has(k) ? 'mission-day' : ''}" ${k < today ? 'disabled' : ''}>${d}</button>`;
+  }
+  box.innerHTML = `
+    <h2>Mes disponibilités</h2>
+    <p class="hint" style="margin-top:-4px;">Touche les jours où tu peux intervenir. Le contour violet = une mission déjà prévue.</p>
+    <div class="card">
+      <div class="cal-head"><button class="btn-ghost" data-cal="-1">‹</button><b>${first.toLocaleDateString('fr-CH', { month: 'long', year: 'numeric' })}</b><button class="btn-ghost" data-cal="1">›</button></div>
+      <div class="cal">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => `<span class="dow">${x}</span>`).join('')}${cells}</div>
+      <button class="btn-primary" id="btnSaveCal" style="margin-top:14px;">Enregistrer ce mois</button>
+    </div>`;
+  box.querySelectorAll('[data-day]').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.day; calDays.has(k) ? calDays.delete(k) : calDays.add(k); b.classList.toggle('on');
+  }));
+  box.querySelectorAll('[data-cal]').forEach(b => b.addEventListener('click', () => {
+    calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + Number(b.dataset.cal), 1); renderCalendar();
+  }));
+  document.getElementById('btnSaveCal').addEventListener('click', async () => {
+    const to = new Date(y, mo + 1, 0);
+    const { error } = await sb.rpc('coach_availability_set', { p_from: ymd(first), p_to: ymd(to), p_days: [...calDays] });
+    flash = error ? null : 'Disponibilités enregistrées.';
+    if (error) alert('Erreur : ' + error.message);
+    render();
+  });
+}
+
+/* ---------------- Actions ---------------- */
+function wire() {
+  app.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => { openMissionId = b.dataset.open; flash = null; render(); window.scrollTo(0, 0); }));
+  app.querySelector('[data-back]')?.addEventListener('click', () => { openMissionId = null; render(); });
+  app.querySelector('[data-start]')?.addEventListener('click', async (e) => {
+    const { error } = await sb.rpc('coach_start', { p_event: e.currentTarget.dataset.start });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    await loadAll(); flash = 'Séance démarrée. Bonne animation !'; render();
+  });
+  let mood = null;
+  app.querySelectorAll('#rMood [data-mood]').forEach(b => b.addEventListener('click', () => {
+    mood = Number(b.dataset.mood);
+    app.querySelectorAll('#rMood button').forEach(x => x.classList.toggle('on', Number(x.dataset.mood) === mood));
+  }));
+  app.querySelector('[data-close]')?.addEventListener('click', async (e) => {
+    if (!confirm('Clôturer la séance et envoyer le compte-rendu ?')) return;
+    const report = {
+      participants: document.getElementById('rParticipants').value,
+      mood: mood ? String(mood) : '',
+      hot_lead: document.getElementById('rLead').checked,
+      lead_comment: document.getElementById('rLeadComment').value.trim() || null,
+      material_issue: document.getElementById('rMaterial').value.trim() || null,
+      comment: document.getElementById('rComment').value.trim() || null,
+    };
+    const { error } = await sb.rpc('coach_close', { p_event: e.currentTarget.dataset.close, p_report: report });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    await loadAll(); flash = 'Compte-rendu envoyé. Merci !'; render();
+  });
+  document.getElementById('btnSaveProfile')?.addEventListener('click', async () => {
+    const langs = [...app.querySelectorAll('.pLang:checked')].map(c => c.value);
+    const { error } = await sb.rpc('coach_update_profile', {
+      p_name: document.getElementById('pName').value, p_phone: document.getElementById('pPhone').value, p_languages: langs.length ? langs : ['fr'],
+    });
+    if (error) { alert('Erreur : ' + error.message); return; }
+    await loadAll(); flash = 'Profil enregistré.'; render();
+  });
+  document.getElementById('btnLogout')?.addEventListener('click', async () => { await sb.auth.signOut(); me = null; renderLogin('Tu es déconnecté.', true); });
+}
+
+boot();
+</script>
+</body>
+</html>
