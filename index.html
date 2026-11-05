@@ -216,8 +216,8 @@
   .tri-team.full span { color: #ffb44d; }
   /* Mode séance (code de session saisi) : plus de menus, seulement le déroulé de la séance */
   body.event-kiosk .bottomnav, body.event-kiosk #adsBanner, body.event-kiosk #adsLabel,
-  body.event-kiosk #btnZoneBackHome, body.event-kiosk #btnMigrosBack, body.event-kiosk #btnSkiBack, body.event-kiosk #btnElectroBackHome,
-  body.event-kiosk #btnFootballBack, body.event-kiosk #btnRelaxBack, body.event-kiosk #btnTempoBack { display: none !important; }
+  body.event-kiosk:not(.poste-jeux) #btnZoneBackHome, body.event-kiosk:not(.poste-jeux) #btnMigrosBack, body.event-kiosk:not(.poste-jeux) #btnSkiBack, body.event-kiosk:not(.poste-jeux) #btnElectroBackHome,
+  body.event-kiosk:not(.poste-jeux) #btnFootballBack, body.event-kiosk:not(.poste-jeux) #btnRelaxBack, body.event-kiosk:not(.poste-jeux) #btnTempoBack { display: none !important; }
   .kiosk-gear { position: fixed; right: 12px; bottom: 12px; width: 40px; height: 40px; border-radius: 50%; border: none; background: rgba(255,255,255,.05); color: var(--text-dim); opacity: .45; display: none; align-items: center; justify-content: center; z-index: 60; cursor: pointer; padding: 0; }
   .kiosk-gear svg { width: 20px; height: 20px; }
   body.event-kiosk .kiosk-gear { display: flex; }
@@ -693,7 +693,8 @@ const PandaFitBackend = (() => {
     const gameShowOnHome = {};
     rows.forEach(r => { gameSortOrders[r.game_id] = r.sort_order || 0; gameImages[r.game_id] = r.image_url || null; gameQuestionnaires[r.game_id] = r.questionnaire_id || null; gameShowOnHome[r.game_id] = r.show_on_home !== false; });
 
-    return { deviceId: device.id, deviceName: device.name, deviceNames, clientId, clientName, enabledGameIds, gameSortOrders, gameImages, gameQuestionnaires, gameShowOnHome, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder, indexQuestionnaireId, indexImageUrl, adsEnabled, showBenefitsPage, showInitiationPage, satisfactionEnabled, homeDisplayMode, satisfactionQuestion: device.clients?.satisfaction_question || null, refreshToken, reloadToken, nightlyReloadEnabled, nightlyReloadHour };
+    return { project: boot.project || null, live: boot.live || null, poste: boot.device.poste || null, projectId: boot.device.project_id || null,
+      deviceId: device.id, deviceName: device.name, deviceNames, clientId, clientName, enabledGameIds, gameSortOrders, gameImages, gameQuestionnaires, gameShowOnHome, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder, indexQuestionnaireId, indexImageUrl, adsEnabled, showBenefitsPage, showInitiationPage, satisfactionEnabled, homeDisplayMode, satisfactionQuestion: device.clients?.satisfaction_question || null, refreshToken, reloadToken, nightlyReloadEnabled, nightlyReloadHour };
   }
 
   /** Enregistre le score d'une partie terminée. */
@@ -716,9 +717,20 @@ const PandaFitBackend = (() => {
     } catch (e) { return null; /* pas grave si ça échoue ponctuellement, on ne bloque pas le jeu */ }
   }
 
-  /* ---------- Mode événement (séance animée par un coach, code PANDA-XXXX) ---------- */
+  /* ---------- Projets : la tablette rejoint un projet avec son code PANDA-XXXX ----------
+     Au parc (aucun projet) → écran « code du projet ». Dans un projet : séance en cours (démarrée par le coach),
+     sinon libre-service (Mois / abonnement) ou attente. Le poste (Index / jeux / station) est réglé par le coach. */
   async function joinEvent(code) {
     return await rpc('tablet_join_event', { p_device_key: getDeviceKey(), p_code: code });
+  }
+  async function tabletState() {
+    return await rpc('tablet_state', { p_device_key: getDeviceKey() });
+  }
+  async function joinProject(code) {
+    return await rpc('tablet_join_project', { p_device_key: getDeviceKey(), p_code: code });
+  }
+  async function projectAction(pin, action, arg) {
+    return await rpc('tablet_project_action', { p_device_key: getDeviceKey(), p_pin: pin, p_action: action, p_arg: arg ?? null });
   }
   async function eventRank(score) {
     if (!activeEvent) return null;
@@ -820,13 +832,13 @@ const PandaFitBackend = (() => {
   }
 
   async function fetchHighlights(config) {
-    if (!config) return { mainHighlights: [] };
+    if (!config || !config.projectId) return { mainHighlights: [] }; // au parc : rien à afficher
     const today = new Date().toISOString().slice(0, 10);
     try {
       const [defisRes, participRes, eventsRes] = await Promise.all([
-        fetch(`${REST}/defis?client_id=eq.${config.clientId}&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*,games(name)`, { headers: headers(), cache: 'no-store' }),
+        fetch(`${REST}/defis?project_id=eq.${config.projectId}&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*,games(name)`, { headers: headers(), cache: 'no-store' }),
         fetch(`${REST}/challenge_participants?client_id=eq.${config.clientId}&select=challenge_id`, { headers: headers(), cache: 'no-store' }),
-        fetch(`${REST}/events?client_id=eq.${config.clientId}&end_date=gte.${today}&is_active=eq.true&select=*,event_devices(device_id)`, { headers: headers(), cache: 'no-store' }),
+        fetch(`${REST}/events?project_id=eq.${config.projectId}&end_date=gte.${today}&is_active=eq.true&select=*,event_devices(device_id)`, { headers: headers(), cache: 'no-store' }),
       ]);
       const defisActive = defisRes.ok ? await defisRes.json() : [];
       const participations = participRes.ok ? await participRes.json() : [];
@@ -888,7 +900,7 @@ const PandaFitBackend = (() => {
     if (!clientId) return [];
     try {
       const res = await fetch(
-        `${REST}/client_ads?client_id=eq.${clientId}&is_active=eq.true&order=created_at.desc`,
+        `${REST}/client_ads?project_id=eq.${clientId}&is_active=eq.true&order=created_at.desc`,
         { headers: headers(), cache: 'no-store' }
       );
       const rows = res.ok ? await res.json() : [];
@@ -963,7 +975,7 @@ const PandaFitBackend = (() => {
     const today = new Date().toISOString().slice(0, 10);
     try {
       const res = await fetch(
-        `${REST}/defis?client_id=eq.${clientId}&game_id=eq.${gameId}&mode=eq.arcade&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*&limit=1`,
+        `${REST}/defis?project_id=eq.${clientId}&game_id=eq.${gameId}&mode=eq.arcade&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*&limit=1`,
         { headers: headers(), cache: 'no-store' }
       );
       const rows = res.ok ? await res.json() : [];
@@ -982,7 +994,7 @@ const PandaFitBackend = (() => {
     } catch (e) { console.error('submitArcadeScore a échoué:', e); return false; }
   }
 
-  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore, fetchSatisfactionSettings, submitSatisfactionResponse, setHomeDisplayMode, fetchTabletSignals, joinEvent, eventRank, setPseudo, fetchCampaign, campaignProgress };
+  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore, fetchSatisfactionSettings, submitSatisfactionResponse, setHomeDisplayMode, fetchTabletSignals, joinEvent, tabletState, joinProject, projectAction, eventRank, setPseudo, fetchCampaign, campaignProgress };
 })();
 
 /* =====================================================================================
@@ -2539,6 +2551,33 @@ const UI_DICT_ROWS = [
   ["Séance", "Session", "Session", "Sessione"],
   ["Code", "Code", "Code", "Codice"],
   ["Projection", "Projektion", "Projection", "Proiezione"],
+  // Projets (tablette au parc, attente, postes)
+  ["Tablette au parc PandaFit", "Tablet im PandaFit-Pool", "Tablet in the PandaFit pool", "Tablet nel parco PandaFit"],
+  ["Entre le code du projet", "Gib den Projektcode ein", "Enter the project code", "Inserisci il codice del progetto"],
+  ["Le code est dans la fiche de ta mission (espace coach).", "Der Code steht in deinem Einsatzblatt (Coach-Bereich).", "The code is in your mission sheet (coach area).", "Il codice è nella scheda della tua missione (area coach)."],
+  ["Rejoindre le projet", "Projekt beitreten", "Join the project", "Unisciti al progetto"],
+  ["Ce projet est terminé.", "Dieses Projekt ist abgeschlossen.", "This project has ended.", "Questo progetto è terminato."],
+  ["Code inconnu. Vérifie le code dans la fiche de la mission.", "Unbekannter Code. Prüfe den Code im Einsatzblatt.", "Unknown code. Check the code in the mission sheet.", "Codice sconosciuto. Controlla il codice nella scheda della missione."],
+  ["La séance va bientôt commencer", "Die Session beginnt bald", "The session will start soon", "La sessione inizierà a breve"],
+  ["Prochaine séance :", "Nächste Session:", "Next session:", "Prossima sessione:"],
+  ["Aucune séance prévue pour le moment.", "Im Moment ist keine Session geplant.", "No session planned for now.", "Nessuna sessione prevista per il momento."],
+  ["Poste de cette tablette :", "Posten dieses Tablets:", "This tablet's station:", "Postazione di questo tablet:"],
+  ["▶ Démarrer la séance (coach)", "▶ Session starten (Coach)", "▶ Start the session (coach)", "▶ Avvia la sessione (coach)"],
+  ["▶ Démarrer la séance", "▶ Session starten", "▶ Start the session", "▶ Avvia la sessione"],
+  ["■ Terminer la séance", "■ Session beenden", "■ End the session", "■ Termina la sessione"],
+  ["Jeux libres", "Freie Spiele", "Free games", "Giochi liberi"],
+  ["Choisis un jeu et entraîne ton équilibre.", "Wähle ein Spiel und trainiere dein Gleichgewicht.", "Pick a game and train your balance.", "Scegli un gioco e allena il tuo equilibrio."],
+  ["Une séance est déjà en cours.", "Es läuft bereits eine Session.", "A session is already running.", "Una sessione è già in corso."],
+  ["Aucune séance à démarrer dans ce projet.", "In diesem Projekt gibt es keine Session zum Starten.", "There is no session to start in this project.", "Non c'è nessuna sessione da avviare in questo progetto."],
+  ["Projet", "Projekt", "Project", "Progetto"],
+  ["En cours", "Läuft", "In progress", "In corso"],
+  ["Prochaine :", "Nächste:", "Next:", "Prossima:"],
+  ["Retirer la tablette du projet (retour au parc)", "Tablet aus dem Projekt entfernen (zurück in den Pool)", "Remove the tablet from the project (back to the pool)", "Rimuovi il tablet dal progetto (ritorno al parco)"],
+  ["Cette tablette est au parc PandaFit. Entre le code du projet pour la rejoindre (ex. PANDA-7K3Q).", "Dieses Tablet ist im PandaFit-Pool. Gib den Projektcode ein, um beizutreten (z. B. PANDA-7K3Q).", "This tablet is in the PandaFit pool. Enter the project code to join it (e.g. PANDA-7K3Q).", "Questo tablet è nel parco PandaFit. Inserisci il codice del progetto per unirti (es. PANDA-7K3Q)."],
+  ["← Retour à l'accueil", "← Zurück zum Start", "← Back to home", "← Torna alla home"],
+  ["Démarrer la séance ? Toutes les tablettes du projet passent en mode séance.", "Session starten? Alle Tablets des Projekts wechseln in den Session-Modus.", "Start the session? All the project's tablets switch to session mode.", "Avviare la sessione? Tutti i tablet del progetto passano in modalità sessione."],
+  ["Terminer la séance ? Les tablettes du projet quittent le mode séance.", "Session beenden? Die Tablets des Projekts verlassen den Session-Modus.", "End the session? The project's tablets leave session mode.", "Terminare la sessione? I tablet del progetto escono dalla modalità sessione."],
+  ["Retirer cette tablette du projet ? Elle retourne au parc PandaFit.", "Dieses Tablet aus dem Projekt entfernen? Es kehrt in den PandaFit-Pool zurück.", "Remove this tablet from the project? It goes back to the PandaFit pool.", "Rimuovere questo tablet dal progetto? Torna al parco PandaFit."],
   ["Phase (pilotée par le coach)", "Phase (vom Coach gesteuert)", "Phase (run by the coach)", "Fase (gestita dal coach)"],
   ["Station de cette tablette pendant le Triathlon :", "Station dieses Tablets während des Triathlons:", "This tablet's station during the Triathlon:", "Postazione di questo tablet durante il Triathlon:"],
   ["Index seulement", "Nur Index", "Index only", "Solo Index"],
@@ -2559,7 +2598,7 @@ const UI_DICT_ROWS = [
   ["Non configurée", "Nicht eingerichtet", "Not set up", "Non configurato"],
   ["Nom de la tablette", "Name des Tablets", "Tablet name", "Nome del tablet"],
   ["Reconfigurer la tablette", "Tablet neu einrichten", "Reconfigure the tablet", "Riconfigura il tablet"],
-  ["Détacher cette tablette du client actuel et redemander la clé de configuration ?", "Dieses Tablet vom aktuellen Kunden trennen und den Konfigurationsschlüssel neu abfragen?", "Detach this tablet from the current client and ask for the setup key again?", "Scollegare questo tablet dal cliente attuale e richiedere di nuovo la chiave di configurazione?"],
+  ["Effacer la clé de cette tablette et redemander la clé de configuration ?", "Den Schlüssel dieses Tablets löschen und den Konfigurationsschlüssel neu abfragen?", "Erase this tablet's key and ask for the setup key again?", "Cancellare la chiave di questo tablet e richiedere la chiave di configurazione?"],
   ["Capteur", "Sensor", "Sensor", "Sensore"],
   ["Appareil", "Gerät", "Device", "Dispositivo"],
   ["État", "Status", "Status", "Stato"],
@@ -2570,7 +2609,7 @@ const UI_DICT_ROWS = [
   ["Déconnecter", "Trennen", "Disconnect", "Disconnetti"],
   ["Journal", "Protokoll", "Log", "Registro"],
   ["Configuration de la tablette", "Einrichtung des Tablets", "Tablet setup", "Configurazione del tablet"],
-  ["Cette tablette n'est pas encore reliée à un client PandaFit. Entre la clé fournie par le superadmin (une seule fois).", "Dieses Tablet ist noch keinem PandaFit-Kunden zugeordnet. Gib den Schlüssel des Superadmins ein (nur einmal).", "This tablet is not linked to a PandaFit client yet. Enter the key provided by the superadmin (only once).", "Questo tablet non è ancora collegato a un cliente PandaFit. Inserisci la chiave fornita dal superadmin (una sola volta)."],
+  ["Cette tablette n'est pas encore enregistrée. Entre la clé fournie par le superadmin (une seule fois).", "Dieses Tablet ist noch nicht registriert. Gib den Schlüssel des Superadmins ein (nur einmal).", "This tablet is not registered yet. Enter the key provided by the superadmin (only once).", "Questo tablet non è ancora registrato. Inserisci la chiave fornita dal superadmin (una sola volta)."],
   // Le Panier Malin
   ["Reste dans la zone en bas sans en sortir, et tape sur les bons aliments qui tombent — évite les sucreries.", "Bleib unten in der Zone und tippe auf die guten Lebensmittel, die herunterfallen — meide Süssigkeiten.", "Stay in the zone at the bottom and tap the healthy foods that fall — avoid the sweets.", "Resta nella zona in basso e tocca i cibi buoni che cadono — evita i dolciumi."],
   ["Reste dans le cercle, tape les bons aliments.", "Bleib im Kreis, tippe die guten Lebensmittel an.", "Stay in the circle, tap the healthy foods.", "Resta nel cerchio, tocca i cibi buoni."],
@@ -2780,9 +2819,30 @@ function pickLang(obj, field) {
 
 let logLines = [];
 let clientConfig = null; // { deviceId, deviceName, clientId, clientName, enabledGameIds }
-// Mode événement : séance rejointe avec un code PANDA-XXXX (gardée en mémoire si la tablette redémarre)
-const EVENT_STORAGE_KEY = 'pandafit_event';
-let activeEvent = null; // { id, code, client, title, offer, games, ambiance, language, starts_at, ends_at }
+// Projet : la tablette le rejoint avec son code PANDA-XXXX (l'état vient du serveur, rien n'est gardé en local).
+// activeEvent = la séance EN COURS du projet (démarrée par le coach), null entre deux séances.
+const EVENT_STORAGE_KEY = 'pandafit_event'; // ancien stockage local (nettoyé au démarrage)
+let activeProject = null; // { id, code, title, offer, client, language, libre, next_event }
+let devicePoste = null;   // 'index' | 'jeux' | id d'un jeu (station du Triathlon)
+let activeEvent = null; // { id, code (du projet), client, title, offer, games, ambiance, language, starts_at, ends_at, station }
+let enteredPin = null;  // code PIN tapé pour ouvrir les Réglages (renvoyé au serveur pour les actions du coach)
+function posteToStation(p) { return !p || p === 'index' ? 'indextest' : p; }
+function withStation(ev) { return ev ? { ...ev, station: posteToStation(devicePoste) } : null; }
+// parc = dans aucun projet · seance = séance en cours · libre = libre-service (Mois, abonnement) · attente = séance pas encore démarrée
+function tabletMode() {
+  if (!clientConfig) return 'setup';
+  if (!activeProject) return 'parc';
+  if (activeEvent) return 'seance';
+  return activeProject.libre ? 'libre' : 'attente';
+}
+function isKiosk() { return ['parc', 'seance', 'attente'].includes(tabletMode()); }
+function applyProjectState(cfg) {
+  activeProject = cfg?.project || null;
+  devicePoste = cfg?.poste || null;
+  activeEvent = withStation(cfg?.live || null);
+  const lang = activeEvent?.language || (isKiosk() ? activeProject?.language : null);
+  if (lang && lang !== currentLang && TRANSLATIONS[lang]) { currentLang = lang; try { localStorage.setItem('pandafit_lang', lang); } catch (e) {} applyStaticI18n(); }
+}
 let lastIndexSessionId = null;
 // Code personnel + QR d'historique : masqués pour l'instant (décision Dan 05.11.2026, ça surcharge l'écran).
 // Le code reste créé en arrière-plan (comptage des participants) ; à réactiver pour le Mois de l'équilibre (progression avant / après).
@@ -2845,12 +2905,7 @@ function screenCampaignNoIndex() {
       <button class="btn-primary" id="btnNoIndexGames" style="width:100%;">Voir les jeux</button>
     </div>`;
 }
-function saveActiveEvent() {
-  try { activeEvent ? localStorage.setItem(EVENT_STORAGE_KEY, JSON.stringify(activeEvent)) : localStorage.removeItem(EVENT_STORAGE_KEY); } catch (e) {}
-}
-function loadSavedEvent() {
-  try { return JSON.parse(localStorage.getItem(EVENT_STORAGE_KEY) || 'null'); } catch (e) { return null; }
-}
+function saveActiveEvent() { /* l'état du projet vient du serveur */ }
 // Triathlon de l'équilibre (Team building) : chaque tablette = une station (un jeu), réglée dans Réglages.
 // Le coach pilote la phase (qualif Index → Triathlon → Finale → Podium) depuis son espace ; la tablette la relit toutes les 8 s.
 let eventPlayCtx = null;   // { event_team_id, round, team } : équipe du joueur pour la partie en cours
@@ -2898,16 +2953,43 @@ function wireTriathlon(st) {
     launchGameWithQuestionnaire(st.game);
   }));
 }
+// Toutes les 8 s : le coach a-t-il démarré / terminé la séance, changé le poste, ou le projet est-il fini ?
+let pendingStateRender = false;
 async function refreshEventState() {
-  if (!activeEvent?.code || (activeEvent.offer !== 'team_building' && !activeEvent.teams?.length)) return;
+  if (!clientConfig || refreshEventState.busy) return;
+  refreshEventState.busy = true;
   try {
-    const ev = await PandaFitBackend.joinEvent(activeEvent.code);
-    if (!ev || !activeEvent) return;
-    const before = JSON.stringify([activeEvent.phase, activeEvent.finale_game, activeEvent.teams]);
-    activeEvent = { ...ev, station: activeEvent.station };
-    saveActiveEvent();
-    if (currentRoute === 'home' && JSON.stringify([ev.phase, ev.finale_game, ev.teams]) !== before) render();
+    const st = await PandaFitBackend.tabletState();
+    if (!st) return;
+    if ((st.project_id || null) !== (activeProject?.id || null)) { // projet rejoint, quitté ou terminé → tout recharger
+      log(st.project_id ? 'Projet modifié à distance.' : 'Projet terminé : retour au parc PandaFit.');
+      await softRefresh('projet');
+      return;
+    }
+    const posteChanged = (st.poste || null) !== devicePoste;
+    const liveChanged = (st.live_id || null) !== (activeEvent?.id || null);
+    const before = JSON.stringify([activeEvent?.phase, activeEvent?.finale_game, activeEvent?.teams]);
+    devicePoste = st.poste || null;
+    if (activeProject) activeProject.next_event = st.next_event || null;
+    activeEvent = withStation(st.live || null);
+    if (liveChanged) {
+      log(activeEvent ? `Séance démarrée : ${activeEvent.title || activeEvent.client}.` : 'Séance terminée.');
+      if (activeEvent?.language && activeEvent.language !== currentLang && TRANSLATIONS[activeEvent.language]) {
+        currentLang = activeEvent.language; try { localStorage.setItem('pandafit_lang', currentLang); } catch (e) {} applyStaticI18n();
+      }
+    }
+    if (posteChanged) log(`Poste de la tablette : ${devicePoste}.`);
+    const changed = liveChanged || posteChanged || JSON.stringify([activeEvent?.phase, activeEvent?.finale_game, activeEvent?.teams]) !== before;
+    if (!changed && !pendingStateRender) return;
+    if (activeGameModule) { pendingStateRender = true; return; } // ne jamais couper une partie : on affiche au prochain écran
+    pendingStateRender = false;
+    if (liveChanged || posteChanged) {
+      if (currentRoute !== 'settings' && currentRoute !== 'calibrate') { rhUnlocked = false; currentRoute = 'home'; }
+      applyNavLockVisuals();
+      render();
+    } else if (currentRoute === 'home') render();
   } catch (e) { /* hors ligne : on garde l'état connu */ }
+  finally { refreshEventState.busy = false; }
 }
 function startEventPolling() {
   clearInterval(eventPollTimer);
@@ -2962,9 +3044,13 @@ function navigate(route) {
     activeGameModule.abort();
     activeGameModule = null;
   }
-  // Mode séance : seulement le déroulé de la séance (Index, Triathlon) et l'accès coach (Réglages, calibration)
-  if (activeEvent && !['home', 'indextest', 'settings', 'calibrate', 'initiation'].includes(route)) route = 'home';
-  if (activeEvent && route === 'home' && rhUnlocked) { rhUnlocked = false; applyNavLockVisuals(); } // retour à la séance : le code PIN est redemandé
+  // Parc / attente / séance : pas de menus, seulement le déroulé prévu et l'accès coach (Réglages, calibration)
+  if (isKiosk()) {
+    const allowed = ['home', 'settings', 'calibrate', 'initiation'];
+    if (tabletMode() === 'seance' && devicePoste !== 'jeux') allowed.push('indextest');
+    if (!allowed.includes(route)) route = 'home'; // poste « jeux » : l'accueil EST la grille des jeux
+    if (route === 'home' && rhUnlocked) { rhUnlocked = false; applyNavLockVisuals(); } // retour à l'accueil : le code PIN est redemandé
+  }
   if (isRouteLocked(route) && !rhUnlocked) {
     requestRHUnlock(route);
     return;
@@ -3001,13 +3087,15 @@ function screenRHPin(targetRoute, errorMsg) {
   `;
 }
 function wireRHPin(targetRoute) {
-  document.getElementById('btnRHCancel')?.addEventListener('click', () => navigate('home'));
+  document.getElementById('btnRHCancel')?.addEventListener('click', () => { pinThen = null; navigate('home'); });
   const input = document.getElementById('rhPinInput');
   input?.focus();
   const validate = () => {
     const val = input.value.trim();
     if (clientConfig && val === clientConfig.rhPin) {
       rhUnlocked = true;
+      enteredPin = val;
+      if (pinThen) { const f = pinThen; pinThen = null; f(); return; } // ex. « Démarrer la séance » depuis l'écran d'attente
       applyNavLockVisuals();
       currentRoute = targetRoute;
       document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('active', b.dataset.nav === targetRoute));
@@ -3027,7 +3115,8 @@ function render() {
   const connected = PandaFitSensor.isConnected();
   content.style.paddingTop = '';
   applyKioskMode();
-  if (!connected && (currentRoute === 'home' || currentRoute === 'games' || currentRoute === 'indextest')) {
+  const noSensorNeeded = currentRoute === 'home' && ['parc', 'attente'].includes(tabletMode()); // entrer le code / attendre le coach
+  if (!connected && !noSensorNeeded && (currentRoute === 'home' || currentRoute === 'games' || currentRoute === 'indextest')) {
     content.innerHTML = screenConnect();
     wireConnectScreen();
     return;
@@ -3051,7 +3140,7 @@ function render() {
 async function maybeShowArcadePrompt(gameId, score) {
   if (!launchedFromChallenge) return;
   if (!clientConfig?.clientId) return;
-  const defi = await PandaFitBackend.fetchActiveArcadeDefi(clientConfig.clientId, gameId);
+  const defi = await PandaFitBackend.fetchActiveArcadeDefi(clientConfig.projectId, gameId);
   if (!defi) return;
   const scores = await PandaFitBackend.fetchArcadeScores(defi.id);
   const qualifies = scores.length < 10 || score > scores[9].score;
@@ -3133,7 +3222,7 @@ function updateAdsBanner() {
   const label = document.getElementById('adsLabel');
   if (!banner || !label) return;
   const connected = PandaFitSensor.isConnected();
-  const onHome = currentRoute === 'home' && connected && !activeEvent; // jamais de bannière pendant une séance
+  const onHome = currentRoute === 'home' && connected && tabletMode() === 'libre'; // bannière seulement en libre-service (jamais en séance, au parc ou en attente)
   const eff = onHome ? resolveHomeMode() : 'none';
   const wantsSatisfaction = eff === 'satisfaction';
   const wantsAds = eff === 'ads';
@@ -3290,6 +3379,101 @@ function wireEventHome() {
   document.getElementById('btnEventIndex')?.addEventListener('click', () => navigate('indextest'));
   document.querySelectorAll('.event-home .lang-flag-btn').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
 }
+function langFlagsHTML() {
+  return [['fr', '🇫🇷'], ['de', '🇩🇪'], ['en', '🇬🇧'], ['it', '🇮🇹']]
+    .map(([l, f]) => `<button class="lang-flag-btn ${currentLang === l ? 'active' : ''}" data-lang="${l}">${f}</button>`).join('');
+}
+// Poste « jeux libres » pendant une séance : l'accueil est directement la grille des jeux du projet
+function screenEventGames() {
+  return `
+    <div class="event-home" style="min-height:0;max-width:none;"><div class="eh-top" style="margin-bottom:10px;"><div class="eh-brand">PandaFit</div><div class="eh-flags">${langFlagsHTML()}</div></div></div>
+    <p class="tri-kicker">Séance PandaFit · ${escT(activeEvent.client)}</p>
+    ${screenGames().replace(/<p class="page-sub">[\s\S]*?<\/p>/, '<p class="page-sub">Choisis un jeu et entraîne ton équilibre.</p>')}`;
+}
+function wireEventGames() {
+  content.style.paddingTop = '';
+  document.querySelectorAll('.eh-flags .lang-flag-btn').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+  wireGamesScreen();
+}
+// Tablette au parc PandaFit : on entre le code du projet, c'est tout
+function screenParcHome(errorMsg) {
+  return `
+    <div class="event-home">
+      <div class="eh-top"><div class="eh-brand">PandaFit</div><div class="eh-flags">${langFlagsHTML()}</div></div>
+      <div class="eh-card">
+        <p class="tri-kicker">Tablette au parc PandaFit</p>
+        <h1>Entre le code du projet</h1>
+        <p class="page-sub" style="margin:0 0 14px;">Le code est dans la fiche de ta mission (espace coach).</p>
+        <input id="projectCodeInput" placeholder="PANDA-XXXX" autocapitalize="characters" autocomplete="off"
+          style="width:100%;padding:16px;border-radius:12px;border:none;background:var(--panel-hi);color:var(--text);font-size:22px;text-align:center;letter-spacing:.08em;margin-bottom:10px;box-sizing:border-box;text-transform:uppercase;">
+        <p id="projectCodeError" style="color:#ff8a97;font-size:14px;margin:0 0 10px;${errorMsg ? '' : 'display:none;'}">${errorMsg || ''}</p>
+        <button class="btn-primary eh-go" id="btnJoinProject">Rejoindre le projet</button>
+      </div>
+    </div>`;
+}
+async function joinProjectWithCode(code, errEl) {
+  code = (code || '').trim().toUpperCase().replace(/\s+/g, '');
+  if (code && !code.startsWith('PANDA-')) code = 'PANDA-' + code.replace(/^PANDA/, '');
+  if (!code) return;
+  const showErr = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+  try {
+    const r = await PandaFitBackend.joinProject(code);
+    if (!r?.ok) { showErr(r?.reason === 'termine' ? 'Ce projet est terminé.' : 'Code inconnu. Vérifie le code dans la fiche de la mission.'); return; }
+    log(`Projet rejoint : ${code} (poste : ${r.poste}).`);
+    rhUnlocked = false; currentRoute = 'home';
+    await softRefresh('projet rejoint');
+  } catch (e) { showErr('Impossible de vérifier le code. Vérifie la connexion internet.'); }
+}
+function wireParcHome() {
+  content.style.paddingTop = '';
+  const input = document.getElementById('projectCodeInput');
+  const go = () => joinProjectWithCode(input.value, document.getElementById('projectCodeError'));
+  document.getElementById('btnJoinProject')?.addEventListener('click', go);
+  input?.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+  document.querySelectorAll('.event-home .lang-flag-btn').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+}
+// Dans un projet, séance pas encore démarrée par le coach (Découverte, Team building…)
+function posteLabel(p) { return p === 'jeux' ? 'Jeux libres' : (!p || p === 'index') ? 'PandaFit Index' : `Station ${eventGameName(p)}`; }
+function screenWaitingHome() {
+  const nx = activeProject.next_event;
+  return `
+    <div class="event-home">
+      <div class="eh-top"><div class="eh-brand">PandaFit</div><div class="eh-flags">${langFlagsHTML()}</div></div>
+      <div class="eh-card">
+        <p class="tri-kicker">${escT(activeProject.client)}${activeProject.title && !/^TEST /.test(activeProject.title) ? ' · ' + escT(activeProject.title) : ''}</p>
+        <h1>La séance va bientôt commencer</h1>
+        <p class="page-sub" style="margin:0;">${nx ? `<span>Prochaine séance :</span> <b>${frDay(nx.starts_at)}</b>` : '<span>Aucune séance prévue pour le moment.</span>'}</p>
+        <p class="eh-next"><span>Poste de cette tablette :</span> <b>${escT(posteLabel(devicePoste))}</b></p>
+        ${nx ? `<button class="btn-primary eh-go" id="btnStartSession">▶ Démarrer la séance (coach)</button>` : ''}
+      </div>
+    </div>`;
+}
+function wireWaitingHome() {
+  content.style.paddingTop = '';
+  document.querySelectorAll('.event-home .lang-flag-btn').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+  document.getElementById('btnStartSession')?.addEventListener('click', () => {
+    if (rhUnlocked && enteredPin) { coachProjectAction('start'); return; }
+    content.innerHTML = screenRHPin('home');
+    wireRHPin('home');
+    pinThen = () => coachProjectAction('start');
+  });
+}
+// Action du coach sur le projet (démarrer / terminer la séance, poste, quitter) — le serveur revérifie le code PIN
+let pinThen = null;
+async function coachProjectAction(action, arg) {
+  try {
+    await PandaFitBackend.projectAction(enteredPin, action, arg);
+    log({ start: 'Séance démarrée.', end: 'Séance terminée.', poste: `Poste : ${arg}.`, leave: 'Tablette retirée du projet (retour au parc).' }[action] || action);
+    if (action === 'leave' || action === 'end') { rhUnlocked = false; currentRoute = 'home'; await softRefresh(action); return; }
+    if (action === 'start') { rhUnlocked = false; currentRoute = 'home'; }
+    await refreshEventState();
+    render();
+  } catch (e) {
+    const m = String(e.message || '');
+    alert(m.includes('PIN') ? 'Code incorrect.' : m.includes('déjà en cours') ? 'Une séance est déjà en cours.' : m.includes('Aucun événement') ? "Aucune séance à démarrer dans ce projet." : 'Erreur : ' + m.replace(/^RPC \S+ refusée: \d+ /, ''));
+    render();
+  }
+}
 // Roue discrète (coin en bas à droite) : accès coach aux Réglages, protégé par le code PIN
 (() => {
   const g = document.createElement('button');
@@ -3298,11 +3482,18 @@ function wireEventHome() {
   g.addEventListener('click', () => navigate('settings'));
   document.body.appendChild(g);
 })();
-function applyKioskMode() { document.body.classList.toggle('event-kiosk', !!activeEvent); }
+function applyKioskMode() {
+  document.body.classList.toggle('event-kiosk', isKiosk());
+  document.body.classList.toggle('poste-jeux', tabletMode() === 'seance' && devicePoste === 'jeux');
+}
 
 function screenHome() {
+  const mode = tabletMode();
+  if (mode === 'parc') return screenParcHome();
+  if (mode === 'attente') return screenWaitingHome();
   const tri = triathlonStation();
   if (tri) return screenTriathlon(tri);
+  if (activeEvent && devicePoste === 'jeux') return screenEventGames();
   if (activeEvent) return screenEventHome();
   const benefitsImg = infoPagesCatalog?.benefits?.image_url;
   const initiationImg = infoPagesCatalog?.initiation?.image_url;
@@ -3369,8 +3560,12 @@ function wireInfoCardsSparkle() {
   infoCardsSparkleTimer = setInterval(trigger, 3000);
 }
 function wireHomeScreen() {
+  const mode = tabletMode();
+  if (mode === 'parc') return wireParcHome();
+  if (mode === 'attente') return wireWaitingHome();
   const tri = triathlonStation();
   if (tri) { eventPlayCtx = null; return wireTriathlon(tri); }
+  if (activeEvent && devicePoste === 'jeux') return wireEventGames();
   if (activeEvent) return wireEventHome();
   document.getElementById('btnGoGames')?.addEventListener('click', () => navigate('games'));
   document.getElementById('btnEventIndex')?.addEventListener('click', () => navigate('indextest'));
@@ -4188,39 +4383,41 @@ function homeDisplayCard() {
 function screenSettings() {
   const center = PandaFitSensor.getCenter();
   return `
-    ${activeEvent ? `<button class="btn-primary" id="btnBackToSession" style="width:100%;margin-bottom:14px;">← Retour à la séance</button>` : ''}
+    ${isKiosk() ? `<button class="btn-primary" id="btnBackToSession" style="width:100%;margin-bottom:14px;">← ${activeEvent ? 'Retour à la séance' : "Retour à l'accueil"}</button>` : ''}
     <h1 class="page-title">Réglages</h1>
     <div class="card">
       <h2>Application</h2>
       <button class="btn-primary" id="btnRefreshApp" style="width:100%;">🔄 Actualiser l'app (récupérer la dernière version)</button>
     </div>
     <div class="card">
-      <h2>Mode événement</h2>
-      ${activeEvent ? `
-        <div class="setting-row"><span class="lbl">Séance</span><span class="val">${activeEvent.client}${activeEvent.title ? ' · ' + activeEvent.title : ''}</span></div>
-        <div class="setting-row"><span class="lbl">Code</span><span class="val">${activeEvent.code}</span></div>
-        <div class="setting-row"><span class="lbl">Projection</span><span class="val" style="word-break:break-all;">app.pandafit.ch/projection.html?code=${activeEvent.code}</span></div>
-        ${activeEvent.offer === 'team_building' || activeEvent.teams?.length ? `
-          <div class="setting-row"><span class="lbl">Phase (pilotée par le coach)</span><span class="val">${TRI_PHASE_LABEL[activeEvent.phase] || '—'}${activeEvent.teams?.length ? ` · ${activeEvent.teams.length} équipes` : ' · équipes pas encore créées'}</span></div>
-          <p class="page-sub" style="margin:12px 0 8px;">Station de cette tablette pendant le Triathlon :</p>
-          <div id="stationButtons" style="display:flex;flex-wrap:wrap;gap:8px;">
-            ${['indextest', ...(activeEvent.triathlon_games || [])].map(g => `<button class="${(activeEvent.station || 'indextest') === g ? 'btn-primary' : 'btn-ghost'}" data-station="${g}" style="flex:1;min-width:120px;">${g === 'indextest' ? 'Index seulement' : escT(eventGameName(g))}</button>`).join('')}
-          </div>
-        ` : ''}
-        <button class="btn-ghost" id="btnLeaveEvent" style="width:100%;margin-top:10px;">Quitter l'événement (retour en mode borne)</button>
+      <h2>Projet</h2>
+      ${activeProject ? `
+        <div class="setting-row"><span class="lbl">Client</span><span class="val">${escT(activeProject.client)}</span></div>
+        <div class="setting-row"><span class="lbl">Projet</span><span class="val">${escT(activeProject.title || '—')}</span></div>
+        <div class="setting-row"><span class="lbl">Code</span><span class="val">${escT(activeProject.code)}</span></div>
+        <div class="setting-row"><span class="lbl">Projection</span><span class="val" style="word-break:break-all;">app.pandafit.ch/projection.html?code=${escT(activeProject.code)}</span></div>
+        <div class="setting-row"><span class="lbl">Séance</span><span class="val">${activeEvent ? `<span>En cours</span> · ${escT(activeEvent.title || activeEvent.client)}` : activeProject.next_event ? `<span>Prochaine :</span> ${frDay(activeProject.next_event.starts_at)}` : '—'}</span></div>
+        ${activeEvent ? `<button class="btn-ghost" id="btnEndSession" style="width:100%;margin-top:10px;">■ Terminer la séance</button>`
+          : activeProject.next_event ? `<button class="btn-primary" id="btnStartSessionSettings" style="width:100%;margin-top:10px;">▶ Démarrer la séance</button>` : ''}
+        ${activeEvent && (activeEvent.offer === 'team_building' || activeEvent.teams?.length) ? `
+          <div class="setting-row"><span class="lbl">Phase (pilotée par le coach)</span><span class="val">${TRI_PHASE_LABEL[activeEvent.phase] || '—'}${activeEvent.teams?.length ? ` · ${activeEvent.teams.length} équipes` : ' · équipes pas encore créées'}</span></div>` : ''}
+        <p class="page-sub" style="margin:14px 0 8px;">Poste de cette tablette :</p>
+        <div id="posteButtons" style="display:flex;flex-wrap:wrap;gap:8px;">
+          ${['index', 'jeux', ...(activeProject.offer === 'team_building' ? (activeEvent?.triathlon_games || ['base', 'skiprev', 'tempo']) : [])].map(p =>
+            `<button class="${(devicePoste || 'index') === p ? 'btn-primary' : 'btn-ghost'}" data-poste="${p}" style="flex:1;min-width:120px;">${escT(posteLabel(p))}</button>`).join('')}
+        </div>
+        <button class="btn-ghost" id="btnLeaveProject" style="width:100%;margin-top:14px;">Retirer la tablette du projet (retour au parc)</button>
       ` : `
-        <p class="page-sub" style="margin:0 0 10px;">Pour une séance animée par un coach : entre le code de session (ex. PANDA-7K3Q). Les Index passés pendant la séance seront « officiels » et rattachés au client de la séance.</p>
-        <input id="eventCodeInput" placeholder="PANDA-XXXX" autocapitalize="characters" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--panel-hi);color:var(--text);font-size:16px;margin-bottom:10px;box-sizing:border-box;text-transform:uppercase;">
-        <p id="eventCodeError" style="color:#ff8a97;font-size:13px;margin:0 0 10px;display:none;"></p>
-        <button class="btn-primary" id="btnJoinEvent" style="width:100%;">Rejoindre la séance</button>
+        <p class="page-sub" style="margin:0 0 10px;">Cette tablette est au parc PandaFit. Entre le code du projet pour la rejoindre (ex. PANDA-7K3Q).</p>
+        <input id="projectCodeInputSettings" placeholder="PANDA-XXXX" autocapitalize="characters" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--panel-hi);color:var(--text);font-size:16px;margin-bottom:10px;box-sizing:border-box;text-transform:uppercase;">
+        <p id="projectCodeErrorSettings" style="color:#ff8a97;font-size:13px;margin:0 0 10px;display:none;"></p>
+        <button class="btn-primary" id="btnJoinProjectSettings" style="width:100%;">Rejoindre le projet</button>
       `}
     </div>
-    ${activeEvent ? '' : homeDisplayCard()}
+    ${tabletMode() === 'libre' ? homeDisplayCard() : ''}
     <div class="card">
       <h2>Tablette</h2>
-      ${activeEvent ? `<p class="page-sub" style="margin:-2px 0 10px;">C'est le client habituel de la tablette. Pendant la séance, les Index sont enregistrés pour le client de la séance.</p>` : ''}
-      <div class="setting-row"><span class="lbl">Client habituel</span><span class="val">${clientConfig ? clientConfig.clientName : 'Non configurée'}</span></div>
-      <div class="setting-row"><span class="lbl">Nom de la tablette</span><span class="val">${clientConfig ? clientConfig.deviceName : '—'}</span></div>
+      <div class="setting-row"><span class="lbl">Nom de la tablette</span><span class="val">${clientConfig ? escT(clientConfig.deviceName) : '—'}</span></div>
       <button class="btn-ghost" id="btnReconfigure" style="width:100%;margin-top:10px;">Reconfigurer la tablette</button>
     </div>
     <div class="card">
@@ -4268,45 +4465,30 @@ function wireSettingsScreen() {
     }
     location.reload(true);
   });
-  document.getElementById('btnJoinEvent')?.addEventListener('click', async () => {
-    const input = document.getElementById('eventCodeInput');
-    const err = document.getElementById('eventCodeError');
-    let code = (input.value || '').trim().toUpperCase().replace(/\s+/g, '');
-    if (code && !code.startsWith('PANDA-')) code = 'PANDA-' + code.replace(/^PANDA/, '');
-    if (!code) return;
-    try {
-      const ev = await PandaFitBackend.joinEvent(code);
-      if (!ev) { err.textContent = "Code inconnu, ou séance pas encore ouverte (dès la veille) ou déjà clôturée."; err.style.display = 'block'; return; }
-      activeEvent = ev;
-      saveActiveEvent();
-      if (ev.language && ev.language !== currentLang) setLang(ev.language);
-      log(`Mode événement : ${ev.client} (${ev.code}).`);
-      navigate('home');
-    } catch (e) {
-      err.textContent = 'Impossible de vérifier le code. Vérifie la connexion internet.'; err.style.display = 'block';
-    }
-  });
+  document.getElementById('btnJoinProjectSettings')?.addEventListener('click', () =>
+    joinProjectWithCode(document.getElementById('projectCodeInputSettings').value, document.getElementById('projectCodeErrorSettings')));
   document.getElementById('btnBackToSession')?.addEventListener('click', () => navigate('home'));
-  document.querySelectorAll('#stationButtons [data-station]').forEach(b => b.addEventListener('click', () => {
-    activeEvent.station = b.dataset.station;
-    saveActiveEvent();
-    log(`Station Triathlon : ${b.dataset.station === 'indextest' ? 'Index' : eventGameName(b.dataset.station)}.`);
-    content.innerHTML = screenSettings();
-    wireSettingsScreen();
+  const settingsAction = async (action, arg) => {
+    await coachProjectAction(action, arg);
+    if (currentRoute === 'settings') { content.innerHTML = screenSettings(); wireSettingsScreen(); }
+  };
+  document.querySelectorAll('#posteButtons [data-poste]').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.poste === devicePoste) return;
+    settingsAction('poste', b.dataset.poste);
   }));
-  document.getElementById('btnLeaveEvent')?.addEventListener('click', () => {
-    if (!confirm("Quitter l'événement et revenir en mode borne ?")) return;
-    log(`Mode événement terminé (${activeEvent?.code}).`);
-    activeEvent = null;
-    saveActiveEvent();
-    applyKioskMode();
-    content.innerHTML = screenSettings();
-    wireSettingsScreen();
+  document.getElementById('btnStartSessionSettings')?.addEventListener('click', () => {
+    if (confirm('Démarrer la séance ? Toutes les tablettes du projet passent en mode séance.')) coachProjectAction('start');
+  });
+  document.getElementById('btnEndSession')?.addEventListener('click', () => {
+    if (confirm('Terminer la séance ? Les tablettes du projet quittent le mode séance.')) coachProjectAction('end');
+  });
+  document.getElementById('btnLeaveProject')?.addEventListener('click', () => {
+    if (confirm('Retirer cette tablette du projet ? Elle retourne au parc PandaFit.')) coachProjectAction('leave');
   });
   document.getElementById('btnRecalibrate')?.addEventListener('click', () => navigate('calibrate'));
   document.getElementById('btnDisconnect')?.addEventListener('click', () => { PandaFitSensor.disconnect(); navigate('home'); });
   document.getElementById('btnReconfigure')?.addEventListener('click', () => {
-    if (confirm('Détacher cette tablette du client actuel et redemander la clé de configuration ?')) {
+    if (confirm('Effacer la clé de cette tablette et redemander la clé de configuration ?')) {
       PandaFitBackend.clearDeviceKey();
       clientConfig = null;
       boot();
@@ -5884,7 +6066,7 @@ function screenDeviceSetup(errorMsg) {
     <div class="connect-hero">
       <div class="icon"><i data-lucide="key"></i></div>
       <h2>Configuration de la tablette</h2>
-      <p>Cette tablette n'est pas encore reliée à un client PandaFit. Entre la clé fournie par le superadmin (une seule fois).</p>
+      <p>Cette tablette n'est pas encore enregistrée. Entre la clé fournie par le superadmin (une seule fois).</p>
       <input id="deviceKeyInput" placeholder="ex: DEV-TEST-0001" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--panel-hi);color:var(--text);font-size:15px;margin-bottom:12px;box-sizing:border-box;">
       ${errorMsg ? `<p style="color:#ff8a97;font-size:13px;margin-bottom:12px;">${errorMsg}</p>` : ''}
       <button class="btn-primary" id="btnSaveDeviceKey" style="width:100%">Valider</button>
@@ -5898,11 +6080,9 @@ function wireDeviceSetup() {
     try {
       clientConfig = await PandaFitBackend.fetchClientConfig(val);
       PandaFitBackend.setDeviceKey(val);
-      log(`Tablette reliée au client "${clientConfig.clientName}".`);
-      gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
-      activeAds = clientConfig.adsEnabled ? await PandaFitBackend.fetchActiveAds(clientConfig.clientId) : [];
-      infoPagesCatalog = await PandaFitBackend.fetchInfoPages(); initiationSteps = await PandaFitBackend.fetchInitiationSteps(); satisfactionSettings = await PandaFitBackend.fetchSatisfactionSettings();
-      activeCampaign = await PandaFitBackend.fetchCampaign();
+      log(`Tablette configurée : ${clientConfig.deviceName}.`);
+      await loadTabletData();
+      startEventPolling();
       startRefreshPolling();
       startNightlyReload();
       render();
@@ -5923,16 +6103,22 @@ let lastReloadToken = null;
 let nightlyTimer = null;
 const NIGHTLY_RELOAD_HOUR = 2; // heure locale du rechargement nocturne (mises à jour de code)
 
+// Charge tout ce dont la tablette a besoin pour son projet (ou rien de plus au parc)
+async function loadTabletData() {
+  applyProjectState(clientConfig);
+  gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
+  activeAds = clientConfig.adsEnabled && clientConfig.projectId ? await PandaFitBackend.fetchActiveAds(clientConfig.projectId) : [];
+  infoPagesCatalog = await PandaFitBackend.fetchInfoPages(); initiationSteps = await PandaFitBackend.fetchInitiationSteps(); satisfactionSettings = await PandaFitBackend.fetchSatisfactionSettings();
+  activeCampaign = clientConfig.projectId ? await PandaFitBackend.fetchCampaign() : null; // Mois de l'équilibre ?
+}
 async function softRefresh(reason) {
   const savedKey = PandaFitBackend.getDeviceKey();
   if (!savedKey) return;
   try {
     clientConfig = await PandaFitBackend.fetchClientConfig(savedKey);
     lastRefreshToken = clientConfig.refreshToken || lastRefreshToken;
-    gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
-    activeAds = clientConfig.adsEnabled ? await PandaFitBackend.fetchActiveAds(clientConfig.clientId) : [];
-    infoPagesCatalog = await PandaFitBackend.fetchInfoPages(); initiationSteps = await PandaFitBackend.fetchInitiationSteps(); satisfactionSettings = await PandaFitBackend.fetchSatisfactionSettings();
-    activeCampaign = await PandaFitBackend.fetchCampaign();
+    lastReloadToken = clientConfig.reloadToken || lastReloadToken; // changement de projet = autres jetons : ce n'est pas un ordre de rechargement
+    await loadTabletData();
     log('Rafraîchissement à distance appliqué' + (reason ? ' (' + reason + ')' : '') + '.');
     if (!activeGameModule) render(); // ne pas interrompre une partie en cours ; les données seront prises au prochain écran
   } catch (e) {
@@ -6031,21 +6217,11 @@ document.getElementById('btnFullscreen')?.addEventListener('click', () => {
   }
   try {
     clientConfig = await PandaFitBackend.fetchClientConfig(savedKey);
-    log(`Tablette reliée au client "${clientConfig.clientName}".`);
-    // Séance en cours avant un redémarrage : on la reprend si son code est toujours valide
-    const savedEvent = loadSavedEvent();
-    if (savedEvent?.code) {
-      try { activeEvent = await PandaFitBackend.joinEvent(savedEvent.code); } catch (e) { activeEvent = savedEvent; }
-      if (activeEvent && savedEvent.station) activeEvent.station = savedEvent.station; // garde la station Triathlon de la tablette
-      saveActiveEvent();
-      if (activeEvent) log(`Mode événement repris : ${activeEvent.client} (${activeEvent.code}).`);
-    }
-    gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
-    activeAds = clientConfig.adsEnabled ? await PandaFitBackend.fetchActiveAds(clientConfig.clientId) : [];
-    infoPagesCatalog = await PandaFitBackend.fetchInfoPages(); initiationSteps = await PandaFitBackend.fetchInitiationSteps(); satisfactionSettings = await PandaFitBackend.fetchSatisfactionSettings();
-    activeCampaign = await PandaFitBackend.fetchCampaign(); // Mois de l'équilibre en cours chez ce client ?
+    try { localStorage.removeItem(EVENT_STORAGE_KEY); } catch (e) {} // ancien « mode événement » local, remplacé par les projets
+    await loadTabletData();
+    log(activeProject ? `Projet : ${activeProject.client} · ${activeProject.code}${activeEvent ? ' (séance en cours)' : ''}.` : 'Tablette au parc PandaFit (aucun projet).');
     setInterval(refreshCampaign, 30 * 60 * 1000);
-    startEventPolling();   // Triathlon : relit la phase et les équipes de la séance (sans effet hors Team building)
+    startEventPolling();   // projet / séance / poste : relus toutes les 8 s (pilotés par le coach)
     startRefreshPolling(); // interroge les signaux (refresh doux + rechargement) poussés depuis la console admin
     startNightlyReload();  // rechargement nocturne pour les mises à jour de code
     // Reconnexion automatique du capteur au démarrage (Méthode watchAdvertisements, validée sur le
