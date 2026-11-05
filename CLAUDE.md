@@ -48,6 +48,13 @@ PandaFit = application web pour **tablette**, autour d'un **capteur d'équilibre
 - **Nocturne** : par client, `clients.nightly_reload_enabled` + `clients.nightly_reload_hour` (0-23). `startNightlyReload()` relit la config en direct.
 - Console admin → onglet **Tablettes** : carte « Mettre à jour les tablettes » (refresh doux / rechargement / nocturne).
 
+### Langues (FR / DE / EN / IT)
+- Tablette : les écrans sont écrits en français et traduits à l'affichage par `UI_DICT_ROWS` (lignes `[fr, de, en, it]`, clé = texte français exact) + `UI_RULES` (textes avec nombres). **Toute nouvelle phrase affichée sur la tablette = ajouter sa ligne dans `UI_DICT_ROWS`.** Éviter de couper une phrase par des `<b>` / dates : mettre les valeurs dans leur propre élément.
+- Projection, inscription, rapport : dictionnaires propres à chaque page, langue = `event_sessions.language`.
+
+### Mode séance (code PANDA-XXXX saisi)
+- Plus de menus : accueil = « Passer mon PandaFit Index » (ou écran Triathlon), routes limitées à home / indextest / settings / calibrate / initiation. Coach : roue discrète en bas à droite → Réglages (PIN redemandé à chaque retour).
+
 ### PWA
 - App installable en plein écran. Manifest **externe** `manifest.webmanifest` (⚠️ un manifest data-URI ne permet PAS l'install WebAPK Android). `sw.js` en **network-first** (jamais de code périmé). Icônes 192 + 512.
 
