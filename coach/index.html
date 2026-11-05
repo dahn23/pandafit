@@ -279,7 +279,7 @@ function releveHTML() {
       const list = byMonth[k].sort((a, b) => a.starts_at.localeCompare(b.starts_at));
       const label = new Date(k + '-01T12:00:00').toLocaleDateString('fr-CH', { month: 'long', year: 'numeric' });
       return `<div class="card"><h3 style="text-transform:capitalize;">${esc(label)}</h3>
-        ${list.map(m => `<div class="row"><span class="k">${new Date(m.starts_at).toLocaleDateString('fr-CH')} · ${esc(m.client)}<br><span class="hint">${esc(OFFER_LABELS[m.offer] || m.offer)}</span></span><span class="v">${chf(m.fee)}</span></div>`).join('')}
+        ${list.map(m => `<div class="row"><span class="k">${new Date(m.starts_at).toLocaleDateString('fr-CH')} · ${esc(m.client)}<br><span class="hint">${esc(OFFER_LABELS[m.offer] || m.offer)}</span></span><span class="v">${chf(m.fee)}<br><span class="hint">${m.paid_at ? 'payé le ' + new Date(m.paid_at).toLocaleDateString('fr-CH') : 'à payer'}</span></span></div>`).join('')}
         <div class="total"><span>Total</span><span>${chf(list.reduce((s, m) => s + Number(m.fee || 0), 0))}</span></div></div>`;
     }).join('');
 }

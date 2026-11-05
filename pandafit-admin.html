@@ -383,6 +383,7 @@ async function render() {
   const allTopTabs = [
     { key: 'clients', label: 'Clients', icon: 'users', always: true },
     { key: 'interventions', label: 'Interventions', icon: 'clipboard-list', always: true },
+    { key: 'fees', label: 'Honoraires', icon: 'wallet', always: true },
     { key: 'crm', label: 'CRM', icon: 'briefcase', perm: 'menu_crm' },
     { key: 'globalstats', label: 'Statistiques', icon: 'bar-chart-3', perm: 'menu_globalstats' },
     { key: 'access', label: 'Accès', icon: 'shield', superadminOnly: true },
@@ -470,6 +471,9 @@ async function render() {
   } else if (topView === 'interventions') {
     container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
     await renderInterventionsView();
+  } else if (topView === 'fees') {
+    container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
+    await renderFeesView();
   } else if (topView === 'crm') {
     container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
     await renderCRMView();
@@ -3515,6 +3519,98 @@ function renderInterventionEditor() {
     await sb.from('event_sessions').delete().eq('id', e.id);
     editingInterventionId = null;
     renderInterventionsView();
+  });
+}
+
+/* ---------------- Honoraires des coachs (ce que PandaFit doit à chaque coach, par mois) ---------------- */
+let feesMonth = (() => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; })();
+
+function chfFmt(n) { return Number(n || 0).toLocaleString('fr-CH').replace(/ |\s/g, "'") + ' CHF'; }
+
+async function renderFeesView() {
+  const main = document.getElementById('main');
+  const [y, m] = feesMonth.split('-').map(Number);
+  const from = new Date(y, m - 1, 1), to = new Date(y, m, 1);
+  const { data } = await sb.from('event_session_coaches')
+    .select('event_session_id, admin_user_id, fee, is_lead, paid_at, admin_users(display_name, email), event_sessions!inner(starts_at, ends_at, status, offer, code, clients(name))')
+    .gte('event_sessions.starts_at', from.toISOString()).lt('event_sessions.starts_at', to.toISOString());
+  // Une mission compte dès qu'elle est passée (ou clôturée) et n'a pas été annulée
+  const rows = (data || []).filter(r => r.event_sessions.status !== 'annulee' &&
+    (r.event_sessions.status === 'cloturee' || new Date(r.event_sessions.ends_at) < new Date()));
+  const upcoming = (data || []).filter(r => r.event_sessions.status !== 'annulee' && !rows.includes(r));
+  const byCoach = {};
+  rows.forEach(r => { (byCoach[r.admin_user_id] = byCoach[r.admin_user_id] || { name: r.admin_users?.display_name || r.admin_users?.email, items: [] }).items.push(r); });
+  const coachIds = Object.keys(byCoach).sort((a, b) => byCoach[a].name.localeCompare(byCoach[b].name));
+  const monthLabel = from.toLocaleDateString('fr-CH', { month: 'long', year: 'numeric' });
+  const total = rows.reduce((s, r) => s + Number(r.fee || 0), 0);
+  const unpaid = rows.filter(r => !r.paid_at).reduce((s, r) => s + Number(r.fee || 0), 0);
+
+  main.innerHTML = `
+    <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="wallet"></i> Honoraires des coachs</div>
+    <div class="section-sub">Missions réalisées dans le mois (passées ou clôturées, hors annulations), avec les honoraires attribués dans chaque intervention. Le coach voit le même relevé dans son espace.</div>
+    <div class="card" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <button class="btn-ghost" id="feesPrev">‹</button>
+      <b style="text-transform:capitalize;min-width:160px;text-align:center;">${monthLabel}</b>
+      <button class="btn-ghost" id="feesNext">›</button>
+      <span style="flex:1;"></span>
+      <span>Total du mois : <b>${chfFmt(total)}</b> · reste à payer : <b style="color:${unpaid ? 'var(--destructive)' : 'var(--primary)'};">${chfFmt(unpaid)}</b></span>
+      <button class="btn-ghost" id="feesExport" ${rows.length ? '' : 'disabled'}>Exporter (CSV)</button>
+    </div>
+    ${coachIds.length ? coachIds.map(cid => {
+      const c = byCoach[cid];
+      const items = c.items.sort((a, b) => a.event_sessions.starts_at.localeCompare(b.event_sessions.starts_at));
+      const sum = items.reduce((s, r) => s + Number(r.fee || 0), 0);
+      const due = items.filter(r => !r.paid_at).reduce((s, r) => s + Number(r.fee || 0), 0);
+      return `
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+            <h3 style="margin:0;flex:1;">${c.name}</h3>
+            <span>${chfFmt(sum)}${due ? ` · <b style="color:var(--destructive);">à payer ${chfFmt(due)}</b>` : ' · <span class="badge">payé</span>'}</span>
+            ${due ? `<button class="btn-primary" data-pay-coach="${cid}" style="width:auto;">Marquer comme payé</button>` : `<button class="btn-ghost" data-unpay-coach="${cid}">Annuler le paiement</button>`}
+          </div>
+          <table>
+            <tr><th>Date</th><th>Client · offre</th><th>Rôle</th><th>Honoraires</th><th>Statut</th></tr>
+            ${items.map(r => `
+              <tr>
+                <td>${new Date(r.event_sessions.starts_at).toLocaleDateString('fr-CH')}</td>
+                <td>${r.event_sessions.clients?.name || '—'} · <span style="color:var(--text-dim);">${OFFER_LABELS[r.event_sessions.offer] || r.event_sessions.offer}</span></td>
+                <td>${r.is_lead ? 'Principal' : 'Second'}</td>
+                <td>${chfFmt(r.fee)}</td>
+                <td>${r.paid_at ? 'payé le ' + new Date(r.paid_at).toLocaleDateString('fr-CH') : '<span style="color:var(--destructive);">à payer</span>'}</td>
+              </tr>`).join('')}
+          </table>
+        </div>`;
+    }).join('') : '<div class="card"><p class="empty">Aucune mission réalisée ce mois-ci.</p></div>'}
+    ${upcoming.length ? `<p style="font-size:12.5px;color:var(--text-dim);">À venir ce mois-ci (pas encore dû) : ${upcoming.length} mission(s), ${chfFmt(upcoming.reduce((s, r) => s + Number(r.fee || 0), 0))}.</p>` : ''}
+  `;
+  if (window.lucide) lucide.createIcons();
+
+  const shift = d => { const n = new Date(y, m - 1 + d, 1); feesMonth = `${n.getFullYear()}-${pad2(n.getMonth() + 1)}`; renderFeesView(); };
+  document.getElementById('feesPrev').addEventListener('click', () => shift(-1));
+  document.getElementById('feesNext').addEventListener('click', () => shift(1));
+  const setPaid = async (cid, value) => {
+    const ids = byCoach[cid].items.map(r => r.event_session_id);
+    const { error } = await sb.from('event_session_coaches').update({ paid_at: value })
+      .eq('admin_user_id', cid).in('event_session_id', ids);
+    if (error) alert('Erreur : ' + error.message);
+    renderFeesView();
+  };
+  main.querySelectorAll('[data-pay-coach]').forEach(b => b.addEventListener('click', () => {
+    if (confirm(`Marquer les honoraires de ${byCoach[b.dataset.payCoach].name} pour ${monthLabel} comme payés ?`)) setPaid(b.dataset.payCoach, new Date().toISOString());
+  }));
+  main.querySelectorAll('[data-unpay-coach]').forEach(b => b.addEventListener('click', () => setPaid(b.dataset.unpayCoach, null)));
+  document.getElementById('feesExport').addEventListener('click', () => {
+    const lines = [['Coach', 'Date', 'Client', 'Offre', 'Code', 'Rôle', 'Honoraires CHF', 'Payé le']];
+    rows.forEach(r => lines.push([
+      r.admin_users?.display_name || r.admin_users?.email, new Date(r.event_sessions.starts_at).toLocaleDateString('fr-CH'),
+      r.event_sessions.clients?.name || '', OFFER_LABELS[r.event_sessions.offer] || r.event_sessions.offer, r.event_sessions.code || '',
+      r.is_lead ? 'Principal' : 'Second', r.fee, r.paid_at ? new Date(r.paid_at).toLocaleDateString('fr-CH') : '',
+    ]));
+    const csv = '﻿' + lines.map(l => l.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `PandaFit-honoraires-coachs-${feesMonth}.csv`;
+    a.click();
   });
 }
 
