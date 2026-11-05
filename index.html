@@ -214,6 +214,21 @@
   .tri-team b { display: block; font-size: 20px; font-weight: 800; margin: 0 0 6px 8px; }
   .tri-team span { display: block; font-size: 13.5px; color: var(--text-dim); margin-left: 8px; }
   .tri-team.full span { color: #ffb44d; }
+  /* Mode séance (code de session saisi) : plus de menus, seulement le déroulé de la séance */
+  body.event-kiosk .bottomnav, body.event-kiosk #adsBanner,
+  body.event-kiosk #btnZoneBackHome, body.event-kiosk #btnMigrosBack, body.event-kiosk #btnSkiBack, body.event-kiosk #btnElectroBackHome,
+  body.event-kiosk #btnFootballBack, body.event-kiosk #btnRelaxBack, body.event-kiosk #btnTempoBack { display: none !important; }
+  .kiosk-gear { position: fixed; right: 12px; bottom: 12px; width: 40px; height: 40px; border-radius: 50%; border: none; background: rgba(255,255,255,.05); color: var(--text-dim); opacity: .45; display: none; align-items: center; justify-content: center; z-index: 60; cursor: pointer; padding: 0; }
+  .kiosk-gear svg { width: 20px; height: 20px; }
+  body.event-kiosk .kiosk-gear { display: flex; }
+  .event-home { min-height: 70vh; display: flex; flex-direction: column; justify-content: center; max-width: 720px; margin: 0 auto; }
+  .event-home .eh-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .event-home .eh-brand { font-weight: 900; font-size: 22px; }
+  .event-home .eh-flags { display: flex; gap: 6px; }
+  .event-home .eh-card { background: var(--panel); border: 2px solid var(--primary); border-radius: 26px; padding: 34px 30px; text-align: center; }
+  .event-home h1 { font-size: 30px; margin: 6px 0 10px; line-height: 1.15; }
+  .event-home .eh-go { width: 100%; font-size: 20px; padding: 22px; margin-top: 18px; border-radius: 18px; }
+  .event-home .eh-next { margin: 14px 0 0; font-size: 13.5px; color: var(--text-dim); }
 
   .hero-index {
     background: var(--grad-accent); border-radius: 22px; padding: 18px 20px;
@@ -2670,6 +2685,11 @@ const UI_DICT_ROWS = [
   ["· précision", "· Präzision", "· precision", "· precisione"],
   ["· mouvement", "· Bewegung", "· movement", "· movimento"],
   ["· cerveau", "· Kopf", "· brain", "· cervello"],
+  // Mode séance
+  ["Mesure de lancement du Mois de l'équilibre : passe ton Index et garde ton code personnel.", "Startmessung des Monats des Gleichgewichts: Mach deinen Index und behalte deinen persönlichen Code.", "Launch measurement of the Balance Month: take your Index and keep your personal code.", "Misurazione di lancio del Mese dell'equilibrio: fai il tuo Index e conserva il tuo codice personale."],
+  ["Mesure finale du Mois de l'équilibre : passe ton Index et entre ton code pour voir ta progression.", "Finale Messung des Monats des Gleichgewichts: Mach deinen Index und gib deinen Code ein, um deinen Fortschritt zu sehen.", "Final measurement of the Balance Month: take your Index and enter your code to see your progress.", "Misurazione finale del Mese dell'equilibrio: fai il tuo Index e inserisci il tuo codice per vedere i tuoi progressi."],
+  ["Ensuite : le Triathlon de l'équilibre par équipes.", "Danach: der Gleichgewichts-Triathlon im Team.", "Next: the Balance Triathlon in teams.", "Poi: il Triathlon dell'equilibrio a squadre."],
+  ["← Retour à la séance", "← Zurück zur Session", "← Back to the session", "← Torna alla sessione"],
 ];
 // Textes avec des nombres ou des noms : [motif français, de, en, it] (fonctions qui reçoivent les groupes capturés)
 const TEAM_COLOR_NAMES = { Rouge: ['Rot', 'Red', 'Rossa'], Bleue: ['Blau', 'Blue', 'Blu'], Verte: ['Grün', 'Green', 'Verde'], Jaune: ['Gelb', 'Yellow', 'Gialla'], Orange: ['Orange', 'Orange', 'Arancione'], Violette: ['Violett', 'Purple', 'Viola'], Rose: ['Pink', 'Pink', 'Rosa'], Turquoise: ['Türkis', 'Turquoise', 'Turchese'], Marine: ['Marine', 'Navy', 'Blu marina'], Grise: ['Grau', 'Grey', 'Grigia'] };
@@ -2940,6 +2960,9 @@ function navigate(route) {
     activeGameModule.abort();
     activeGameModule = null;
   }
+  // Mode séance : seulement le déroulé de la séance (Index, Triathlon) et l'accès coach (Réglages, calibration)
+  if (activeEvent && !['home', 'indextest', 'settings', 'calibrate', 'initiation'].includes(route)) route = 'home';
+  if (activeEvent && route === 'home' && rhUnlocked) { rhUnlocked = false; applyNavLockVisuals(); } // retour à la séance : le code PIN est redemandé
   if (isRouteLocked(route) && !rhUnlocked) {
     requestRHUnlock(route);
     return;
@@ -3001,6 +3024,7 @@ function wireRHPin(targetRoute) {
 function render() {
   const connected = PandaFitSensor.isConnected();
   content.style.paddingTop = '';
+  applyKioskMode();
   if (!connected && (currentRoute === 'home' || currentRoute === 'games' || currentRoute === 'indextest')) {
     content.innerHTML = screenConnect();
     wireConnectScreen();
@@ -3239,9 +3263,45 @@ function wireConnectScreen() {
 }
 
 /* ---------- Écran : accueil ---------- */
+// Accueil en mode séance : un seul chemin, passer son Index (le Triathlon a son propre écran)
+function screenEventHome() {
+  const ev = activeEvent;
+  const sub = ev.campaign_step === 't0' ? "Mesure de lancement du Mois de l'équilibre : passe ton Index et garde ton code personnel."
+    : ev.campaign_step === 't1' ? "Mesure finale du Mois de l'équilibre : passe ton Index et entre ton code pour voir ta progression."
+    : '90 secondes pour mesurer ton équilibre, avec ton coach PandaFit.';
+  const flags = [['fr', '🇫🇷'], ['de', '🇩🇪'], ['en', '🇬🇧'], ['it', '🇮🇹']]
+    .map(([l, f]) => `<button class="lang-flag-btn ${currentLang === l ? 'active' : ''}" data-lang="${l}">${f}</button>`).join('');
+  return `
+    <div class="event-home">
+      <div class="eh-top"><div class="eh-brand">PandaFit</div><div class="eh-flags">${flags}</div></div>
+      <div class="eh-card">
+        <p class="tri-kicker">Séance PandaFit · ${escT(ev.client)}</p>
+        <h1>${ev.title && !/^TEST /.test(ev.title) ? escT(ev.title) : 'Passe ton PandaFit Index'}</h1>
+        <p class="page-sub" style="margin:0;">${sub}</p>
+        <button class="btn-primary eh-go" id="btnEventIndex">Passer mon PandaFit Index</button>
+        ${ev.offer === 'team_building' && ev.phase === 'qualif' ? `<p class="eh-next">Ensuite : le Triathlon de l'équilibre par équipes.</p>` : ''}
+      </div>
+    </div>`;
+}
+function wireEventHome() {
+  content.style.paddingTop = '';
+  document.getElementById('btnEventIndex')?.addEventListener('click', () => navigate('indextest'));
+  document.querySelectorAll('.event-home .lang-flag-btn').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+}
+// Roue discrète (coin en bas à droite) : accès coach aux Réglages, protégé par le code PIN
+(() => {
+  const g = document.createElement('button');
+  g.className = 'kiosk-gear'; g.id = 'kioskGear'; g.setAttribute('aria-label', 'Réglages');
+  g.innerHTML = '<i data-lucide="settings"></i>';
+  g.addEventListener('click', () => navigate('settings'));
+  document.body.appendChild(g);
+})();
+function applyKioskMode() { document.body.classList.toggle('event-kiosk', !!activeEvent); }
+
 function screenHome() {
   const tri = triathlonStation();
   if (tri) return screenTriathlon(tri);
+  if (activeEvent) return screenEventHome();
   const benefitsImg = infoPagesCatalog?.benefits?.image_url;
   const initiationImg = infoPagesCatalog?.initiation?.image_url;
   return `
@@ -3309,6 +3369,7 @@ function wireInfoCardsSparkle() {
 function wireHomeScreen() {
   const tri = triathlonStation();
   if (tri) { eventPlayCtx = null; return wireTriathlon(tri); }
+  if (activeEvent) return wireEventHome();
   document.getElementById('btnGoGames')?.addEventListener('click', () => navigate('games'));
   document.getElementById('btnEventIndex')?.addEventListener('click', () => navigate('indextest'));
   document.getElementById('btnCampaignDefi')?.addEventListener('click', () => launchGame(activeCampaign.defi.game_id));
@@ -4125,6 +4186,7 @@ function homeDisplayCard() {
 function screenSettings() {
   const center = PandaFitSensor.getCenter();
   return `
+    ${activeEvent ? `<button class="btn-primary" id="btnBackToSession" style="width:100%;margin-bottom:14px;">← Retour à la séance</button>` : ''}
     <h1 class="page-title">Réglages</h1>
     <div class="card">
       <h2>Application</h2>
@@ -4221,6 +4283,7 @@ function wireSettingsScreen() {
       err.textContent = 'Impossible de vérifier le code. Vérifie la connexion internet.'; err.style.display = 'block';
     }
   });
+  document.getElementById('btnBackToSession')?.addEventListener('click', () => navigate('home'));
   document.querySelectorAll('#stationButtons [data-station]').forEach(b => b.addEventListener('click', () => {
     activeEvent.station = b.dataset.station;
     saveActiveEvent();
@@ -4233,6 +4296,7 @@ function wireSettingsScreen() {
     log(`Mode événement terminé (${activeEvent?.code}).`);
     activeEvent = null;
     saveActiveEvent();
+    applyKioskMode();
     content.innerHTML = screenSettings();
     wireSettingsScreen();
   });
