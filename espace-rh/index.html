@@ -101,7 +101,7 @@ function upcoming() { return events.filter(e => new Date(e.ends_at) > new Date()
 function renderLogin(msg, ok) {
   app.innerHTML = `
     <div class="login">
-      <div class="brand" style="margin-bottom:16px;"><div class="pill"><img src="../icon-192.png" alt="" style="max-height:32px;border-radius:6px;"></div><div>PandaFit<small style="color:var(--dim);">Espace RH</small></div></div>
+      <div class="brand" style="margin-bottom:16px;"><div class="pill"><img src="../logo-pandafit.png" alt="PandaFit"></div><div>PandaFit<small style="color:var(--dim);">Espace RH</small></div></div>
       ${msg ? `<div class="${ok ? 'notice' : 'warn'}">${esc(msg)}</div>` : ''}
       <div class="card">
         <h2>Connexion</h2>
@@ -290,7 +290,7 @@ async function printPoster(e, link) {
     .qr{margin-top:12mm;width:78mm;height:78mm}.c{font-size:15pt;font-weight:800;margin-top:6mm}
     .s{font-size:11pt;color:#5f6677;font-weight:600;margin-top:2mm}.f{margin-top:auto;font-size:11pt;font-weight:800;color:#17a461}</style></head>
     <body><div class="p">
-      <div class="top"><img src="${location.origin}/icon-192.png" alt="" style="border-radius:4mm">${me.client.logo_url ? `<img src="${esc(me.client.logo_url)}" alt="">` : '<span></span>'}</div>
+      <div class="top"><img src="${location.origin}/logo-pandafit.png" alt="PandaFit">${me.client.logo_url ? `<img src="${esc(me.client.logo_url)}" alt="">` : '<span></span>'}</div>
       <div class="k">PandaFit · L'équilibre est dans le mouvement</div>
       <h1>Testez votre équilibre<br>en 90 secondes</h1>
       <div class="d">${esc(day(e.starts_at))} · ${hm(e.starts_at)}–${hm(e.ends_at)}</div>

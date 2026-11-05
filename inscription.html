@@ -63,7 +63,7 @@ async function rpc(name, args) {
 
 function hero() {
   return `<div class="hero"><div class="hero-in">
-    <div class="logos"><div class="pill"><img src="icon-192.png" alt="PandaFit" style="border-radius:6px;"></div>${info.logo_url ? `<div class="pill"><img src="${esc(info.logo_url)}" alt="${esc(info.client)}"></div>` : ''}</div>
+    <div class="logos"><div class="pill"><img src="logo-pandafit.png" alt="PandaFit"></div>${info.logo_url ? `<div class="pill"><img src="${esc(info.logo_url)}" alt="${esc(info.client)}"></div>` : ''}</div>
     <div class="kicker">${esc(info.client)} · PandaFit</div>
     <h1>${esc(info.title && !/^TEST /.test(info.title) ? info.title : OFFER_LABELS[info.offer] || 'PandaFit')}</h1>
     <div class="meta">${esc(day(info.starts_at))} · ${hm(info.starts_at)}–${hm(info.ends_at)}${info.address ? '<br>' + esc(info.address) : ''}</div>
