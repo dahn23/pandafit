@@ -77,6 +77,23 @@
   .ask input { width: 100%; padding: 16px; border-radius: 12px; border: none; background: #241b3a; color: var(--text); font-size: 22px; text-align: center; text-transform: uppercase; font-family: inherit; margin: 18px 0 12px; }
   .ask button { width: 100%; padding: 16px; border-radius: 12px; border: none; background: var(--green); color: #0d2a22; font-weight: 800; font-size: 18px; font-family: inherit; cursor: pointer; }
 
+  /* Triathlon par équipes */
+  .tri-wrap { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 1.1vh; min-height: 0; }
+  .tri-head, .tri-row { display: grid; grid-template-columns: 5vh 1fr repeat(var(--g), 13vw) 11vw; align-items: center; gap: 1vw; }
+  .tri-head { font-size: 1.8vh; font-weight: 800; color: var(--dim); text-transform: uppercase; letter-spacing: .1em; padding: 0 1.6vw; text-align: center; }
+  .tri-head span:nth-child(2) { text-align: left; }
+  .tri-head small { display: block; text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 1.5vh; }
+  .tri-row { background: var(--panel); border: .2vh solid var(--panel-line); border-radius: 1.4vh; padding: 1.1vh 1.6vw; position: relative; overflow: hidden; }
+  .tri-row::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: .9vw; background: var(--c); }
+  .tri-row .r { font-weight: 900; font-size: 3vh; text-align: center; color: var(--dim); }
+  .tri-row .tn { font-weight: 800; font-size: 3vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tri-row .pt { text-align: center; font-weight: 800; font-size: 2.8vh; }
+  .tri-row .pt small { display: block; font-size: 1.4vh; color: var(--dim); font-weight: 600; }
+  .tri-row .pt.none { color: rgba(255,255,255,.2); }
+  .tri-row .tot { text-align: center; font-weight: 900; font-size: 4vh; color: var(--green-2); }
+  .tri-row.lead { border-color: rgba(246,201,69,.6); background: linear-gradient(90deg, rgba(246,201,69,.14), var(--panel) 55%); }
+  .tri-row.lead .r { color: var(--gold); }
+  .step .who .dotc, .row .dotc { display: inline-block; width: 2vh; height: 2vh; border-radius: 50%; margin-right: .8vw; vertical-align: middle; }
   @media (max-aspect-ratio: 1/1) {
     .content { grid-template-columns: 1fr; }
     .step.p1 { height: 30vh; } .step.p2 { height: 25vh; } .step.p3 { height: 21vh; }
@@ -134,7 +151,44 @@ function stepHTML(r, place) {
     <div class="medal">${place}</div><div class="who">${esc(r.pseudo)}</div><div class="sc">${r.score}<small> /100</small></div></div>`;
 }
 
+/* ---------- Triathlon de l'équilibre (Team building) ---------- */
+const GAME_NAMES = { base: 'Electro', skiprev: 'Slalom', tempo: 'MindFit', thezone: 'The Zone', distance: 'Tir au but', migros: 'Le Panier Malin', cross: 'Zen' };
+const GAME_KIND = { base: 'précision', skiprev: 'mouvement', tempo: 'cerveau' };
+let lastTri = '';
+function teamStep(t, place) {
+  if (!t) return `<div class="step p${place} empty"><div class="medal">${place}</div><div class="who">—</div></div>`;
+  return `<div class="step p${place}"><div class="medal">${place}</div>
+    <div class="who"><span class="dotc" style="background:${esc(t.color)}"></span>${esc(t.name)}</div>
+    <div class="sc">${t.total}<small> pts</small></div></div>`;
+}
+function triBody(b) {
+  const tr = b.triathlon, teams = tr.teams || [], games = tr.games || [];
+  const played = teams.reduce((s, t) => s + Object.values(t.games || {}).reduce((a, x) => a + (x.n || 0), 0), 0);
+  // rang partagé en cas d'égalité de points
+  const ranks = teams.map((t, i) => i === 0 || t.total !== teams[i - 1].total ? i + 1 : null);
+  for (let i = 1; i < ranks.length; i++) if (ranks[i] === null) ranks[i] = ranks[i - 1];
+  if (tr.phase === 'podium') {
+    return { eyebrow: "Triathlon de l'équilibre · Podium", counter: [teams.length, 'équipes'], body: `
+      <div class="podium">${teamStep(teams[1], 2)}${teamStep(teams[0], 1)}${teamStep(teams[2], 3)}</div>
+      <div class="rest">${teams.slice(3).map((t, i) => `<div class="row"><span class="r">${ranks[i + 3]}</span><span class="p"><span class="dotc" style="background:${esc(t.color)}"></span>${esc(t.name)}</span><span class="sc">${t.total}<small> pts</small></span></div>`).join('')}</div>` };
+  }
+  const cols = tr.phase === 'finale' || teams.some(t => t.finale) ? [...games, 'finale'] : games;
+  const head = `<div class="tri-head" style="--g:${cols.length}"><span>#</span><span>Équipe</span>${cols.map(g => g === 'finale'
+    ? `<span>Finale<small>${esc(GAME_NAMES[tr.finale_game] || '')}</small></span>`
+    : `<span>${esc(GAME_NAMES[g] || g)}<small>${GAME_KIND[g] || ''}</small></span>`).join('')}<span>Total</span></div>`;
+  const rows = teams.map((t, i) => `<div class="tri-row ${ranks[i] === 1 && t.total > 0 ? 'lead' : ''}" style="--g:${cols.length};--c:${esc(t.color)}">
+      <span class="r">${ranks[i]}</span><span class="tn">${esc(t.name)}</span>
+      ${cols.map(g => { const x = g === 'finale' ? t.finale : t.games?.[g]; return x ? `<span class="pt">${x.points}<small>${g === 'finale' ? x.score : x.n + ' joueur' + (x.n > 1 ? 's' : '')}</small></span>` : '<span class="pt none">–</span>'; }).join('')}
+      <span class="tot">${t.total}</span></div>`).join('');
+  return {
+    eyebrow: tr.phase === 'finale' ? `Finale · ${GAME_NAMES[tr.finale_game] || ''}` : "Triathlon de l'équilibre",
+    counter: [played, 'parties jouées'],
+    body: `<div class="tri-wrap">${head}${rows}
+      <div class="meta" style="text-align:center;margin-top:.6vh;">Sur chaque jeu, la 1ʳᵉ équipe marque ${teams.length} points, la 2ᵉ ${teams.length - 1}… · jamais de comparaison de scores entre jeux</div></div>` };
+}
+
 function draw(b) {
+  if (b.triathlon && ['triathlon', 'finale', 'podium'].includes(b.phase) && b.triathlon.teams?.length) return drawTriathlon(b);
   const top = b.top || [];
   let date = b.starts_at ? new Date(b.starts_at).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
   date = date.charAt(0).toUpperCase() + date.slice(1);
@@ -163,6 +217,32 @@ function draw(b) {
     <div class="content">${body}</div>
     <footer><span>Code de la séance : <b>${esc(code)}</b></span><span>pandafit.ch</span></footer>`;
   lastKeys = new Set(top.map(key));
+  lastTri = '';
+}
+function drawTriathlon(b) {
+  const sig = JSON.stringify(b.triathlon) + b.status;
+  if (sig === lastTri) return; // rien de neuf : on ne redessine pas (évite les clignotements)
+  lastTri = sig;
+  let date = b.starts_at ? new Date(b.starts_at).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  date = date.charAt(0).toUpperCase() + date.slice(1);
+  const v = triBody(b);
+  screen.innerHTML = `
+    <header>
+      <div class="brand"><div class="client-logo"><img src="${PF_ICON}" alt="PandaFit"></div><div class="s" style="font-size:2.2vh;">L'équilibre est dans le mouvement</div></div>
+      ${b.logo_url ? `<div class="client-logo"><img src="${esc(b.logo_url)}" alt="${esc(b.client || '')}"></div>` : ''}
+    </header>
+    <div class="titlebar">
+      <div>
+        <div class="eyebrow">${esc(v.eyebrow)}</div>
+        <h1>${esc(b.title && !/^TEST /.test(b.title) ? b.title : b.client || 'Séance PandaFit')}</h1>
+        <div class="meta">${b.title && b.client ? esc(b.client) + ' · ' : ''}${esc(OFFER_LABELS[b.offer] || '')}${date ? ' · ' + esc(date) : ''}</div>
+      </div>
+      <div class="counter"><div class="n">${v.counter[0]}</div><div class="l">${v.counter[1]}</div>
+        <div class="live ${b.status === 'cloturee' ? 'off' : ''}"><i></i>${b.status === 'cloturee' ? 'Séance terminée' : 'En direct'}</div></div>
+    </div>
+    <div class="content">${v.body}</div>
+    <footer><span>Code de la séance : <b>${esc(code)}</b></span><span>pandafit.ch</span></footer>`;
+  lastKeys = new Set();
 }
 
 async function tick() {

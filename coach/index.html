@@ -77,6 +77,20 @@
   nav.tabs button .ico { display: block; font-size: 19px; margin-bottom: 2px; }
   nav.tabs button.on { color: var(--primary); }
   .login { max-width: 420px; margin: 12vh auto 0; }
+  /* Triathlon */
+  .phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0 12px; }
+  .phases button { background: var(--panel-hi); color: var(--text-dim); font-size: 12.5px; padding: 11px 4px; line-height: 1.25; }
+  .phases button b { display: block; font-size: 15px; color: var(--text); }
+  .phases button.on { background: var(--primary); color: #0d2a22; }
+  .phases button.on b { color: #0d2a22; }
+  .team-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .team-row .dot { flex: 0 0 14px; height: 14px; border-radius: 50%; }
+  .team-row input { margin: 0; padding: 10px 12px; }
+  table.tri { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 4px; }
+  table.tri th { color: var(--text-dim); font-size: 11px; font-weight: 700; text-align: center; padding: 6px 2px; }
+  table.tri td { padding: 8px 2px; border-top: 1px solid var(--border); text-align: center; }
+  table.tri td:first-child, table.tri th:first-child { text-align: left; }
+  table.tri td.tot { font-weight: 800; color: var(--primary); font-size: 15px; }
 </style>
 </head>
 <body>
@@ -245,6 +259,7 @@ function missionDetailHTML() {
     ${m.materials ? `<div class="card"><h3>Matériel à prendre</h3><div class="pre">${esc(m.materials)}</div></div>` : ''}
     ${m.notes ? `<div class="card"><h3>Infos du commercial</h3><div class="pre">${esc(m.notes)}</div></div>` : ''}
     <div class="card"><h3>Déroulé</h3><div class="pre">${esc(OFFER_RUNBOOK[m.offer] || '')}</div></div>
+    ${m.offer === 'team_building' && m.status !== 'cloturee' ? `<div class="card" id="triBox"><h3>Triathlon de l'équilibre</h3><p class="empty">Chargement…</p></div>` : ''}
     ${m.status === 'preparee' && sameDay ? `<button class="btn-primary" data-start="${m.id}">Démarrer la séance</button>` : ''}
     ${m.status !== 'cloturee' || !m.report_done ? reportFormHTML(m) : '<div class="ok">Séance clôturée, compte-rendu envoyé. Merci !</div>'}
   `;
@@ -347,8 +362,101 @@ function drawCalendar() {
   });
 }
 
+/* ---------------- Triathlon de l'équilibre (Team building) ---------------- */
+const GAME_NAMES = { base: 'Electro', skiprev: 'Slalom', tempo: 'MindFit', thezone: 'The Zone', distance: 'Tir au but', migros: 'Le Panier Malin', cross: 'Zen' };
+const TEAM_COLORS = [['Rouge', '#e5484d'], ['Bleue', '#3b82f6'], ['Verte', '#22c55e'], ['Jaune', '#eab308'], ['Orange', '#f97316'], ['Violette', '#8b5cf6'], ['Rose', '#ec4899'], ['Turquoise', '#14b8a6'], ['Marine', '#1e40af'], ['Grise', '#6b7280']];
+const PHASES = [['qualif', '1', 'Index'], ['triathlon', '2', 'Triathlon'], ['finale', '3', 'Finale'], ['podium', '4', 'Podium']];
+let tri = null, triEventId = null, triTimer = null;
+function colorIdx(c) { const i = TEAM_COLORS.findIndex(([, x]) => x === c); return i < 0 ? 99 : i; } // ordre stable des équipes à l'édition
+
+async function loadTriathlon(eventId) {
+  triEventId = eventId;
+  const { data, error } = await sb.rpc('event_triathlon_get', { p_event: eventId });
+  if (error) { const b = document.getElementById('triBox'); if (b) b.innerHTML = `<h3>Triathlon de l'équilibre</h3><p class="notice">${esc(error.message)}</p>`; return; }
+  tri = data;
+  drawTriathlon();
+}
+function drawTriathlon() {
+  const box = document.getElementById('triBox');
+  const m = missions.find(x => x.id === triEventId);
+  if (!box || !tri || !m) return;
+  const games = tri.games || [];
+  const teams = tri.teams || [];
+  const suggested = Math.min(10, Math.max(2, Math.round((m.expected_participants || 30) / 5)));
+  box.innerHTML = `
+    <h3>Triathlon de l'équilibre</h3>
+    <p class="hint" style="margin:0 0 10px;">Tu pilotes ici la phase affichée sur les tablettes et sur le grand écran.</p>
+    <div class="phases">${PHASES.map(([k, n, l]) => `<button data-phase="${k}" class="${tri.phase === k ? 'on' : ''}"><b>${n}</b>${l}</button>`).join('')}</div>
+    ${tri.phase === 'finale' || tri.phase === 'triathlon' ? `
+      <label class="lbl">Jeu de la finale</label>
+      <select id="triFinale">${games.map(g => `<option value="${g}" ${tri.finale_game === g ? 'selected' : ''}>${esc(GAME_NAMES[g] || g)}</option>`).join('')}</select>` : ''}
+    <h3 style="margin-top:6px;">Équipes</h3>
+    ${teams.length ? `
+      ${teams.slice().sort((a, b) => colorIdx(a.color) - colorIdx(b.color)).map(t => `<div class="team-row"><span class="dot" style="background:${esc(t.color)}"></span><input data-team-name="${t.id}" data-color="${esc(t.color)}" value="${esc(t.name)}"></div>`).join('')}
+      <div class="btn-row"><button class="btn-ghost" id="triSaveTeams">Enregistrer les noms</button><button class="btn-ghost" id="triAddTeam">+ Une équipe</button></div>
+    ` : `
+      <label class="lbl">Nombre d'équipes (5 personnes par équipe, idéalement)</label>
+      <input id="triNbTeams" type="number" inputmode="numeric" min="2" max="10" value="${suggested}">
+      <button class="btn-primary" id="triCreateTeams">Créer les équipes</button>
+    `}
+    <p class="hint">Sur chaque tablette : Réglages → Mode événement → <b>Station</b> (${games.map(g => esc(GAME_NAMES[g] || g)).join(' / ')}). Chaque équipe répartit ses joueurs 2-2-1 sur les 3 jeux.</p>
+    ${teams.length ? `
+      <h3 style="margin-top:14px;">Classement <span class="hint" style="font-weight:500;">(points par jeu, mis à jour toutes les 10 s)</span></h3>
+      <table class="tri"><thead><tr><th>Équipe</th>${games.map(g => `<th>${esc(GAME_NAMES[g] || g)}</th>`).join('')}<th>Finale</th><th>Total</th></tr></thead>
+      <tbody>${teams.map(t => `<tr><td><span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${esc(t.color)};margin-right:6px;"></span>${esc(t.name)}</td>
+        ${games.map(g => { const x = t.games?.[g]; return `<td>${x ? `${x.points}<div class="hint" style="margin:0;font-size:10.5px;">${x.n} j.</div>` : '–'}</td>`; }).join('')}
+        <td>${t.finale ? t.finale.points : '–'}</td><td class="tot">${t.total}</td></tr>`).join('')}</tbody></table>
+      <p class="hint">Points par jeu : 1ʳᵉ équipe = ${teams.length} pts, 2ᵉ = ${teams.length - 1}… (moyenne des joueurs de l'équipe sur ce jeu). La finale compte comme un 4ᵉ jeu.</p>
+    ` : ''}`;
+  box.querySelectorAll('[data-phase]').forEach(b => b.addEventListener('click', async () => {
+    const p = b.dataset.phase;
+    if (p === tri.phase) return;
+    if (p !== 'qualif' && !teams.length) { alert("Crée d'abord les équipes."); return; }
+    const labels = { qualif: "revenir à l'Index (qualification)", triathlon: 'lancer le Triathlon', finale: 'lancer la finale', podium: 'afficher le podium' };
+    if (!confirm(`Confirmer : ${labels[p]} ? Les tablettes et le grand écran changent dans les 10 secondes.`)) return;
+    const fin = document.getElementById('triFinale')?.value || tri.finale_game || null;
+    const { data, error } = await sb.rpc('event_set_phase', { p_event: triEventId, p_phase: p, p_finale_game: fin });
+    if (error) return alert('Erreur : ' + error.message);
+    tri = data; drawTriathlon();
+  }));
+  document.getElementById('triFinale')?.addEventListener('change', async (e) => {
+    const { data, error } = await sb.rpc('event_set_phase', { p_event: triEventId, p_phase: tri.phase, p_finale_game: e.target.value });
+    if (error) return alert('Erreur : ' + error.message);
+    tri = data; drawTriathlon();
+  });
+  document.getElementById('triCreateTeams')?.addEventListener('click', async () => {
+    const n = Math.min(10, Math.max(2, Number(document.getElementById('triNbTeams').value) || suggested));
+    await saveTeams(TEAM_COLORS.slice(0, n).map(([name, color]) => ({ name: 'Équipe ' + name, color })));
+  });
+  const currentTeams = () => [...box.querySelectorAll('[data-team-name]')].map(i => ({ id: i.dataset.teamName, name: i.value, color: i.dataset.color }));
+  document.getElementById('triSaveTeams')?.addEventListener('click', () => saveTeams(currentTeams(), 'Noms enregistrés.'));
+  document.getElementById('triAddTeam')?.addEventListener('click', () => {
+    const list = currentTeams();
+    if (list.length >= 10) return alert('10 équipes au maximum.');
+    const free = TEAM_COLORS.find(([, c]) => !list.some(t => t.color === c)) || TEAM_COLORS[list.length % TEAM_COLORS.length];
+    saveTeams([...list, { name: 'Équipe ' + free[0], color: free[1] }]);
+  });
+}
+async function saveTeams(list, msg) {
+  const { data, error } = await sb.rpc('event_set_teams', { p_event: triEventId, p_teams: list });
+  if (error) return alert('Erreur : ' + error.message);
+  tri = data; drawTriathlon();
+  if (msg) { const b = document.getElementById('triSaveTeams'); if (b) { b.textContent = '✓ ' + msg; setTimeout(() => { if (b.isConnected) b.textContent = 'Enregistrer les noms'; }, 2000); } }
+}
+function startTriathlonPolling(eventId) {
+  clearInterval(triTimer);
+  loadTriathlon(eventId);
+  triTimer = setInterval(() => {
+    // pas de rafraîchissement pendant que le coach tape un nom d'équipe
+    if (!document.getElementById('triBox')) { clearInterval(triTimer); return; }
+    if (document.activeElement?.matches?.('#triBox input, #triBox select')) return;
+    loadTriathlon(eventId);
+  }, 10000);
+}
+
 /* ---------------- Actions ---------------- */
 function wire() {
+  if (document.getElementById('triBox') && openMissionId) startTriathlonPolling(openMissionId); else clearInterval(triTimer);
   app.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => { openMissionId = b.dataset.open; flash = null; render(); window.scrollTo(0, 0); }));
   app.querySelector('[data-back]')?.addEventListener('click', () => { openMissionId = null; render(); });
   app.querySelector('[data-start]')?.addEventListener('click', async (e) => {

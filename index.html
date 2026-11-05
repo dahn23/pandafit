@@ -206,6 +206,14 @@
   .hero-play h3 { margin: 0 0 6px; font-size: 20px; color: #0c2018; font-weight: 800; }
   .hero-play p { margin: 0 0 18px; color: #0c2018; opacity: 0.75; font-size: 13.5px; }
   .hero-play button { background: #0c2018; color: #fff; width: 100%; }
+  /* Triathlon de l'équilibre : choix de l'équipe sur la tablette de la station */
+  .tri-kicker { margin: 0 0 6px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--primary); font-weight: 800; }
+  .tri-teams { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 18px; }
+  .tri-team { background: var(--panel-hi); border: 3px solid var(--c); border-radius: 18px; padding: 22px 16px; color: var(--text); text-align: left; cursor: pointer; font-family: inherit; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; min-height: 96px; width: 100%; }
+  .tri-team::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 10px; background: var(--c); }
+  .tri-team b { display: block; font-size: 20px; font-weight: 800; margin: 0 0 6px 8px; }
+  .tri-team span { display: block; font-size: 13.5px; color: var(--text-dim); margin-left: 8px; }
+  .tri-team.full span { color: #ffb44d; }
 
   .hero-index {
     background: var(--grad-accent); border-radius: 22px; padding: 18px 20px;
@@ -676,15 +684,20 @@ const PandaFitBackend = (() => {
   /** Enregistre le score d'une partie terminée. */
   async function recordSession(config, gameId, score, meta, employeeId) {
     if (!config) return null;
+    // Triathlon : la partie est rattachée à l'équipe choisie sur la station (puis on libère pour le joueur suivant)
+    const tri = (activeEvent && eventPlayCtx) ? eventPlayCtx : null;
+    eventPlayCtx = null;
     try {
-      return await rpc('tablet_record_play', {
+      const id = await rpc('tablet_record_play', {
         p_device_key: getDeviceKey(),
         p_game_id: gameId,
         p_score: Math.round(score || 0),
-        p_meta: meta || null,
+        p_meta: tri ? { ...(meta || {}), event_team_id: tri.event_team_id, round: tri.round } : (meta || null),
         p_employee_id: employeeId || null,
         p_event_code: activeEvent?.code || null, // mode événement : partie rattachée à la séance (Index « officiel »)
       });
+      if (tri) refreshEventState(); // met à jour le compteur de joueurs par équipe sur la station
+      return id;
     } catch (e) { return null; /* pas grave si ça échoue ponctuellement, on ne bloque pas le jeu */ }
   }
 
@@ -2425,6 +2438,68 @@ function saveActiveEvent() {
 function loadSavedEvent() {
   try { return JSON.parse(localStorage.getItem(EVENT_STORAGE_KEY) || 'null'); } catch (e) { return null; }
 }
+// Triathlon de l'équilibre (Team building) : chaque tablette = une station (un jeu), réglée dans Réglages.
+// Le coach pilote la phase (qualif Index → Triathlon → Finale → Podium) depuis son espace ; la tablette la relit toutes les 8 s.
+let eventPlayCtx = null;   // { event_team_id, round, team } : équipe du joueur pour la partie en cours
+let eventPollTimer = null;
+const TRI_KIND = { base: 'précision', skiprev: 'mouvement', tempo: 'cerveau' };
+const TRI_PHASE_LABEL = { qualif: 'Index (qualification)', triathlon: 'Triathlon', finale: 'Finale', podium: 'Podium' };
+function escT(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function eventGameName(id) { return (gamesCatalog?.[id] && pickLang(gamesCatalog[id], 'name')) || GAMES.find(g => g.id === id)?.name || id; }
+function triathlonStation() {
+  if (!activeEvent?.teams?.length || !activeEvent.station || activeEvent.station === 'indextest') return null;
+  const phase = activeEvent.phase;
+  if (phase === 'triathlon' && (activeEvent.triathlon_games || []).includes(activeEvent.station)) return { round: 'triathlon', game: activeEvent.station };
+  if (phase === 'finale') return { round: 'finale', game: activeEvent.finale_game, here: activeEvent.station === activeEvent.finale_game };
+  if (phase === 'podium') return { round: 'podium' };
+  return null;
+}
+function screenTriathlon(st) {
+  const head = `<p class="tri-kicker">Triathlon de l'équilibre · ${escT(activeEvent.client)}</p>`;
+  if (st.round === 'podium' || (st.round === 'finale' && !st.here)) {
+    return `<div class="centered-page" id="triathlonPanel">${head}
+      <h1 class="page-title">${st.round === 'podium' ? 'Place au podium !' : 'Finale en cours'}</h1>
+      <p class="page-sub">${st.round === 'podium' ? 'Rendez-vous devant le grand écran pour découvrir les gagnants.' : `La finale se joue sur ${escT(eventGameName(st.game))}. Suivez-la sur le grand écran !`}</p></div>`;
+  }
+  const key = st.round === 'finale' ? 'finale' : st.game;
+  const teams = activeEvent.teams.map(tm => {
+    const n = tm.played?.[key] || 0;
+    const full = st.round === 'finale' ? n >= 1 : n >= 2;
+    const lbl = st.round === 'finale' ? (n ? 'a joué la finale ✓' : 'à jouer') : `${n} joueur${n > 1 ? 's' : ''} sur ce jeu`;
+    return `<button class="tri-team ${full ? 'full' : ''}" data-team="${tm.id}" style="--c:${escT(tm.color)}"><b>${escT(tm.name)}</b><span>${lbl}</span></button>`;
+  }).join('');
+  return `<div id="triathlonPanel">${head}
+    <h1 class="page-title">${st.round === 'finale' ? 'Finale · ' : 'Station '}${escT(eventGameName(st.game))}${st.round !== 'finale' && TRI_KIND[st.game] ? ` <span style="font-weight:600;color:var(--text-dim);">· ${TRI_KIND[st.game]}</span>` : ''}</h1>
+    <p class="page-sub">${st.round === 'finale' ? "Le champion de chaque équipe joue. Seul le meilleur score de l'équipe compte." : "Choisis ton équipe, puis lance la partie. Répartition par équipe : 2 joueurs, 2 joueurs, 1 joueur sur les 3 jeux."}</p>
+    <div class="tri-teams">${teams}</div></div>`;
+}
+function wireTriathlon(st) {
+  content.style.paddingTop = '';
+  document.querySelectorAll('.tri-team').forEach(b => b.addEventListener('click', () => {
+    const tm = activeEvent.teams.find(x => x.id === b.dataset.team);
+    if (!tm) return;
+    const n = tm.played?.[st.round === 'finale' ? 'finale' : st.game] || 0;
+    if (st.round === 'finale' && n >= 1 && !confirm(`${tm.name} a déjà joué la finale. Rejouer quand même ? (seul le meilleur score compte)`)) return;
+    if (st.round === 'triathlon' && n >= 2 && !confirm(`${tm.name} a déjà ${n} joueurs sur ce jeu (répartition 2-2-1). Continuer quand même ?`)) return;
+    eventPlayCtx = { event_team_id: tm.id, round: st.round, team: tm.name };
+    launchGameWithQuestionnaire(st.game);
+  }));
+}
+async function refreshEventState() {
+  if (!activeEvent?.code || (activeEvent.offer !== 'team_building' && !activeEvent.teams?.length)) return;
+  try {
+    const ev = await PandaFitBackend.joinEvent(activeEvent.code);
+    if (!ev || !activeEvent) return;
+    const before = JSON.stringify([activeEvent.phase, activeEvent.finale_game, activeEvent.teams]);
+    activeEvent = { ...ev, station: activeEvent.station };
+    saveActiveEvent();
+    if (currentRoute === 'home' && JSON.stringify([ev.phase, ev.finale_game, ev.teams]) !== before) render();
+  } catch (e) { /* hors ligne : on garde l'état connu */ }
+}
+function startEventPolling() {
+  clearInterval(eventPollTimer);
+  eventPollTimer = setInterval(refreshEventState, 8000);
+}
 let activeAds = [];
 let adsRotationTimer = null;
 let adsCurrentIndex = 0;
@@ -2774,6 +2849,8 @@ function wireConnectScreen() {
 
 /* ---------- Écran : accueil ---------- */
 function screenHome() {
+  const tri = triathlonStation();
+  if (tri) return screenTriathlon(tri);
   const benefitsImg = infoPagesCatalog?.benefits?.image_url;
   const initiationImg = infoPagesCatalog?.initiation?.image_url;
   return `
@@ -2838,6 +2915,8 @@ function wireInfoCardsSparkle() {
   infoCardsSparkleTimer = setInterval(trigger, 3000);
 }
 function wireHomeScreen() {
+  const tri = triathlonStation();
+  if (tri) { eventPlayCtx = null; return wireTriathlon(tri); }
   document.getElementById('btnGoGames')?.addEventListener('click', () => navigate('games'));
   document.getElementById('btnEventIndex')?.addEventListener('click', () => navigate('indextest'));
   document.getElementById('btnGoBenefits')?.addEventListener('click', () => navigate('benefits'));
@@ -3059,10 +3138,12 @@ function launchGame(gameId) {
   }
 }
 function launchGameWithQuestionnaire(gameId, fromChallenge) {
+  // Station de Triathlon : chaque partie doit passer par le choix de l'équipe (sinon elle ne compterait pas)
+  if (triathlonStation() && !eventPlayCtx) { navigate('home'); return; }
   launchedFromChallenge = !!fromChallenge;
   currentRoute = 'games';
   updateAdsBanner();
-  const qId = clientConfig?.gameQuestionnaires?.[gameId];
+  const qId = eventPlayCtx ? null : clientConfig?.gameQuestionnaires?.[gameId]; // pas de questionnaire pendant le Triathlon
   showQuestionnaireThenLaunch(qId, () => {
     if (GAME_LAUNCHERS[gameId]) GAME_LAUNCHERS[gameId]();
     else alert('Ce jeu sera bientôt disponible.');
@@ -3649,6 +3730,13 @@ function screenSettings() {
         <div class="setting-row"><span class="lbl">Séance</span><span class="val">${activeEvent.client}${activeEvent.title ? ' · ' + activeEvent.title : ''}</span></div>
         <div class="setting-row"><span class="lbl">Code</span><span class="val">${activeEvent.code}</span></div>
         <div class="setting-row"><span class="lbl">Projection</span><span class="val" style="word-break:break-all;">${location.origin}/projection.html?code=${activeEvent.code}</span></div>
+        ${activeEvent.offer === 'team_building' || activeEvent.teams?.length ? `
+          <div class="setting-row"><span class="lbl">Phase (pilotée par le coach)</span><span class="val">${TRI_PHASE_LABEL[activeEvent.phase] || '—'}${activeEvent.teams?.length ? ` · ${activeEvent.teams.length} équipes` : ' · équipes pas encore créées'}</span></div>
+          <p class="page-sub" style="margin:12px 0 8px;">Station de cette tablette pendant le Triathlon :</p>
+          <div id="stationButtons" style="display:flex;flex-wrap:wrap;gap:8px;">
+            ${['indextest', ...(activeEvent.triathlon_games || [])].map(g => `<button class="${(activeEvent.station || 'indextest') === g ? 'btn-primary' : 'btn-ghost'}" data-station="${g}" style="flex:1;min-width:120px;">${g === 'indextest' ? 'Index seulement' : escT(eventGameName(g))}</button>`).join('')}
+          </div>
+        ` : ''}
         <button class="btn-ghost" id="btnLeaveEvent" style="width:100%;margin-top:10px;">Quitter l'événement (retour en mode borne)</button>
       ` : `
         <p class="page-sub" style="margin:0 0 10px;">Pour une séance animée par un coach : entre le code de session (ex. PANDA-7K3Q). Les Index passés pendant la séance seront « officiels » et rattachés au client de la séance.</p>
@@ -3727,6 +3815,13 @@ function wireSettingsScreen() {
       err.textContent = 'Impossible de vérifier le code. Vérifie la connexion internet.'; err.style.display = 'block';
     }
   });
+  document.querySelectorAll('#stationButtons [data-station]').forEach(b => b.addEventListener('click', () => {
+    activeEvent.station = b.dataset.station;
+    saveActiveEvent();
+    log(`Station Triathlon : ${b.dataset.station === 'indextest' ? 'Index' : eventGameName(b.dataset.station)}.`);
+    content.innerHTML = screenSettings();
+    wireSettingsScreen();
+  }));
   document.getElementById('btnLeaveEvent')?.addEventListener('click', () => {
     if (!confirm("Quitter l'événement et revenir en mode borne ?")) return;
     log(`Mode événement terminé (${activeEvent?.code}).`);
@@ -5449,12 +5544,14 @@ document.getElementById('btnFullscreen')?.addEventListener('click', () => {
     const savedEvent = loadSavedEvent();
     if (savedEvent?.code) {
       try { activeEvent = await PandaFitBackend.joinEvent(savedEvent.code); } catch (e) { activeEvent = savedEvent; }
+      if (activeEvent && savedEvent.station) activeEvent.station = savedEvent.station; // garde la station Triathlon de la tablette
       saveActiveEvent();
       if (activeEvent) log(`Mode événement repris : ${activeEvent.client} (${activeEvent.code}).`);
     }
     gamesCatalog = await PandaFitBackend.fetchGamesCatalog(); await refreshHighlights(); applyNavLockVisuals();
     activeAds = clientConfig.adsEnabled ? await PandaFitBackend.fetchActiveAds(clientConfig.clientId) : [];
     infoPagesCatalog = await PandaFitBackend.fetchInfoPages(); initiationSteps = await PandaFitBackend.fetchInitiationSteps(); satisfactionSettings = await PandaFitBackend.fetchSatisfactionSettings();
+    startEventPolling();   // Triathlon : relit la phase et les équipes de la séance (sans effet hors Team building)
     startRefreshPolling(); // interroge les signaux (refresh doux + rechargement) poussés depuis la console admin
     startNightlyReload();  // rechargement nocturne pour les mises à jour de code
     // Reconnexion automatique du capteur au démarrage (Méthode watchAdvertisements, validée sur le
