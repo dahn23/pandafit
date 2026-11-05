@@ -110,18 +110,19 @@ const OFFER_LABELS = {
   team_building: "Journée de l'équilibre – Team building",
   mois_equilibre: "Mois de l'équilibre",
   campagne_annuelle: 'Campagne annuelle',
+  abonnement: 'Abonnement (borne en libre-service)',
 };
 // Déroulé de référence par offre (cadre des offres) — rappel pour le coach
 const OFFER_RUNBOOK = {
   demo_vip: "1 h pour quelques décideurs : accueil, démo, chacun passe son Index, échange sur leurs enjeux. Tenue VIP.",
-  decouverte: "Arrivée 30 min avant : installer 2 pandas, saisir le code de session sur les tablettes.\nPar groupe de ~20 toutes les 30 min : intro de 5-6 min (chutes, Suva, démo), puis 20 min de tests (2 pandas × 10).\nEn fin de matinée : clôturer la séance et remplir le compte-rendu.",
+  decouverte: "Arrivée 30 min avant : installer 2 pandas, entrer le code du projet sur les tablettes, puis démarrer la séance.\nPar groupe de ~20 toutes les 30 min : intro de 5-6 min (chutes, Suva, démo), puis 20 min de tests (2 pandas × 10).\nEn fin de matinée : clôturer la séance et remplir le compte-rendu.",
   team_building: "Arrivée 45 min avant avec le 2ᵉ coach : 3 pandas, projection du classement.\nAccueil et speech (15 min), Triathlon de l'équilibre (précision, mouvement, cerveau), finale et podium.\nRangement 30 min après, puis clôture et compte-rendu.",
   mois_equilibre: "Visite de lancement ou de clôture : Index de chacun avec le coach, installation ou reprise du panda à demeure, consignes de sécurité affichées.",
   campagne_annuelle: "Visite trimestrielle : Index de chacun, lancement des défis de la saison, vérification du panda à demeure.",
 };
 const AMBIANCE_LABELS = { securite: 'Sécurité / sobre', festive: 'Fun / festive' };
 const LANG_LABELS = { fr: 'Français', de: 'Deutsch', it: 'Italiano', en: 'English' };
-const STATUS_LABELS = { preparee: 'Préparée', en_cours: 'En cours', cloturee: 'Clôturée' };
+const STATUS_LABELS = { preparee: 'Préparée', en_cours: 'En cours', cloturee: 'Terminée' };
 
 let me = null;
 let missions = [];
@@ -239,11 +240,13 @@ function missionDetailHTML() {
       <div class="hint" style="margin:0;">${esc(OFFER_LABELS[m.offer] || m.offer)}${m.title ? ' · ' + esc(m.title) : ''} · <b>${esc(STATUS_LABELS[m.status] || m.status)}</b></div>
     </div>
     <div class="card">
-      <h3>Code de session</h3>
+      <h3>Code du projet (tablettes)</h3>
       <div class="code">${esc(m.code || '—')}</div>
-      <p class="hint">À saisir sur la tablette : Réglages → Mode événement. Teste-le la veille (la séance s'ouvre dès la veille).</p>
+      ${m.pin ? `<div class="row"><span class="k">Code PIN des Réglages</span><span class="v"><b>${esc(m.pin)}</b></span></div>` : ''}
+      <p class="hint">Allume la tablette : au parc, elle demande le code du projet. Entre-le sur chaque tablette (tu peux le faire la veille) ; le poste de chaque tablette est proposé tout seul.</p>
       ${m.code ? `<p class="hint">Classement à projeter sur l'écran : <a style="color:var(--primary);" href="https://app.pandafit.ch/projection.html?code=${encodeURIComponent(m.code)}" target="_blank" rel="noopener">app.pandafit.ch/projection.html?code=${esc(m.code)}</a></p>` : ''}
     </div>
+    ${m.project_id ? `<div class="card" id="projBox"><h3>Séance et tablettes</h3><p class="empty">Chargement…</p></div>` : ''}
     <div class="card">
       <div class="row"><span class="k">Arrivée</span><span class="v">${fmtTime(m.arrival_at)}</span></div>
       <div class="row"><span class="k">Séance</span><span class="v">${fmtTime(m.starts_at)} – ${fmtTime(m.ends_at)}</span></div>
@@ -260,7 +263,7 @@ function missionDetailHTML() {
     ${m.notes ? `<div class="card"><h3>Infos du commercial</h3><div class="pre">${esc(m.notes)}</div></div>` : ''}
     <div class="card"><h3>Déroulé</h3><div class="pre">${esc(OFFER_RUNBOOK[m.offer] || '')}</div></div>
     ${m.offer === 'team_building' && m.status !== 'cloturee' ? `<div class="card" id="triBox"><h3>Triathlon de l'équilibre</h3><p class="empty">Chargement…</p></div>` : ''}
-    ${m.status === 'preparee' && sameDay ? `<button class="btn-primary" data-start="${m.id}">Démarrer la séance</button>` : ''}
+    ${!m.project_id && m.status === 'preparee' && sameDay ? `<button class="btn-primary" data-start="${m.id}">Démarrer la séance</button>` : ''}
     ${m.status !== 'cloturee' || !m.report_done ? reportFormHTML(m) : '<div class="ok">Séance clôturée, compte-rendu envoyé. Merci !</div>'}
   `;
 }
@@ -454,9 +457,72 @@ function startTriathlonPolling(eventId) {
   }, 10000);
 }
 
+/* ---------------- Projet : séances (démarrer / terminer) + tablettes et leur poste ---------------- */
+let proj = null, projTimer = null;
+const POSTE_LABELS = { index: 'PandaFit Index', jeux: 'Jeux libres', base: 'Station Electro', skiprev: 'Station Slalom', tempo: 'Station MindFit', thezone: 'Station The Zone', distance: 'Station Tir au but' };
+async function loadProject(projectId) {
+  const { data, error } = await sb.rpc('coach_project', { p_project: projectId });
+  if (error) { const b = document.getElementById('projBox'); if (b) b.innerHTML = `<h3>Séance et tablettes</h3><p class="empty">${esc(error.message)}</p>`; return; }
+  proj = data; drawProject();
+}
+function drawProject() {
+  const box = document.getElementById('projBox');
+  if (!box || !proj) return;
+  const live = proj.events.find(e => e.status === 'en_cours');
+  const next = proj.events.find(e => e.status === 'preparee');
+  const stepName = e => e.campaign_step === 't0' ? 'Lancement' : e.campaign_step === 't1' ? 'Clôture' : (e.title || OFFER_LABELS[e.offer] || 'Séance');
+  const postes = ['index', 'jeux', ...(proj.offer === 'team_building' ? (proj.triathlon_games || ['base', 'skiprev', 'tempo']) : [])];
+  box.innerHTML = `
+    <h3>Séance et tablettes</h3>
+    ${!proj.open ? '<p class="hint">Projet terminé : les tablettes sont retournées au parc.</p>' : ''}
+    ${proj.events.map(e => `<div class="row"><span class="k">${esc(new Date(e.starts_at).toLocaleDateString('fr-CH'))} · ${esc(stepName(e))}${e.id === openMissionId ? ' <span class="hint">(cette mission)</span>' : ''}</span>
+      <span class="v">${e.status === 'en_cours' ? '<span class="badge live">En cours</span>' : esc(STATUS_LABELS[e.status] || e.status)}</span></div>`).join('')}
+    ${live && live.mine ? `<button class="btn-ghost" data-pend="${live.id}" style="width:100%;margin-top:10px;">■ Terminer la séance (${esc(stepName(live))})</button>` : ''}
+    ${!live && next && next.mine && proj.open ? `<button class="btn-primary" data-pstart="${next.id}" style="margin-top:10px;">▶ Démarrer la séance (${esc(stepName(next))})</button>
+      <p class="hint">Les dates sont indicatives : tu démarres quand tu es prêt. Toutes les tablettes du projet passent en mode séance en quelques secondes.</p>` : ''}
+    <h3 style="margin-top:16px;">Tablettes du projet</h3>
+    ${proj.devices.length ? proj.devices.map(d => `<div class="row"><span class="k">${esc(d.name)}<br><span class="hint">${d.online ? '<span style="color:#2ec27e;">● en ligne</span>' : 'hors ligne'}</span></span>
+      <span class="v"><select data-poste="${d.id}" style="max-width:190px;">${postes.map(p => `<option value="${p}" ${d.poste === p ? 'selected' : ''}>${esc(POSTE_LABELS[p] || p)}</option>`).join('')}</select>
+      <br><button class="btn-ghost" data-premove="${d.id}" style="margin-top:4px;padding:4px 10px;font-size:12px;">Retirer</button></span></div>`).join('')
+      : '<p class="hint">Aucune tablette pour l\'instant : entre le code du projet sur chaque tablette.</p>'}`;
+  box.querySelector('[data-pstart]')?.addEventListener('click', async (ev) => {
+    if (!confirm('Démarrer la séance ? Toutes les tablettes du projet passent en mode séance.')) return;
+    const { error } = await sb.rpc('coach_start', { p_event: ev.currentTarget.dataset.pstart });
+    if (error) return alert('Erreur : ' + error.message);
+    await loadAll(); flash = 'Séance démarrée. Bonne animation !'; render();
+  });
+  box.querySelector('[data-pend]')?.addEventListener('click', async (ev) => {
+    if (!confirm('Terminer la séance ? Les tablettes quittent le mode séance. (Tu pourras envoyer le compte-rendu ensuite.)')) return;
+    const { error } = await sb.rpc('coach_end', { p_event: ev.currentTarget.dataset.pend });
+    if (error) return alert('Erreur : ' + error.message);
+    await loadAll(); flash = 'Séance terminée. Pense au compte-rendu.'; render();
+  });
+  box.querySelectorAll('[data-poste]').forEach(s => s.addEventListener('change', async () => {
+    const { error } = await sb.rpc('coach_set_poste', { p_device: s.dataset.poste, p_poste: s.value });
+    if (error) alert('Erreur : ' + error.message);
+  }));
+  box.querySelectorAll('[data-premove]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Retirer cette tablette du projet ? Elle retourne au parc PandaFit.')) return;
+    const { error } = await sb.rpc('coach_remove_device', { p_device: b.dataset.premove });
+    if (error) return alert('Erreur : ' + error.message);
+    loadProject(proj.id);
+  }));
+}
+function startProjectPolling(projectId) {
+  clearInterval(projTimer);
+  loadProject(projectId);
+  projTimer = setInterval(() => {
+    if (!document.getElementById('projBox')) { clearInterval(projTimer); return; }
+    if (document.activeElement?.matches?.('#projBox select')) return; // le coach est en train de choisir un poste
+    loadProject(projectId);
+  }, 10000);
+}
+
 /* ---------------- Actions ---------------- */
 function wire() {
   if (document.getElementById('triBox') && openMissionId) startTriathlonPolling(openMissionId); else clearInterval(triTimer);
+  const om = openMissionId && missions.find(x => x.id === openMissionId);
+  if (document.getElementById('projBox') && om?.project_id) startProjectPolling(om.project_id); else clearInterval(projTimer);
   app.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => { openMissionId = b.dataset.open; flash = null; render(); window.scrollTo(0, 0); }));
   app.querySelector('[data-back]')?.addEventListener('click', () => { openMissionId = null; render(); });
   app.querySelector('[data-start]')?.addEventListener('click', async (e) => {
