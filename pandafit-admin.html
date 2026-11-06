@@ -4048,12 +4048,12 @@ function renderInterventionEditor() {
     const d = iso => iso ? new Date(iso.slice(0, 10) + 'T12:00').toLocaleDateString('fr-CH', { weekday: 'short', day: 'numeric', month: 'short' }) : '—';
     box.innerHTML = `
       <h3>Mois de l'équilibre${e.campaign_step ? ` · <span class="badge">${e.campaign_step === 't0' ? 'lancement (T0)' : 'clôture (T1)'}</span>` : ''}</h3>
-      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Du ${d(proj?.starts_on)} au ${d(proj?.ends_on)} (indicatif). Entre le lancement et la clôture, le panda à demeure sert à s'entraîner (pas d'Index en libre-service, consignes de sécurité avant chaque partie). À la clôture, chacun saisit son code personnel : le rapport compare lancement et clôture.</p>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Du ${d(proj?.starts_on)} au ${d(proj?.ends_on)} (indicatif). Entre le lancement et la clôture, le panda à demeure sert à s'entraîner (pas d'Index en libre-service, consignes de sécurité avant chaque partie). Code personnel désactivé pour l'instant : le rapport donne les résultats du lancement et de la clôture, sans progression individuelle.</p>
       ${other ? `<button class="btn-ghost" id="btnOpenOther" style="margin-bottom:10px;">→ Ouvrir ${other.campaign_step === 't1' ? 'la clôture' : 'le lancement'} (${new Date(other.starts_at).toLocaleDateString('fr-CH')})</button>` : ''}
       <table><tr><th>Défi</th><th>Jeu</th><th>Dates</th></tr>
         ${dfs.map(x => `<tr><td>${escA(x.title)}${x.is_active ? '' : ' <span style="color:var(--text-dim);">(désactivé)</span>'}</td><td>${gName(x.game_id)}</td><td>${d(x.start_date)} → ${d(x.end_date)}</td></tr>`).join('')}
       </table>
-      <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Les défis se modifient dans l'onglet Défis du projet. ${e.campaign_step === 't1' ? 'Le rapport de cette clôture inclut la progression (dès 5 personnes mesurées aux deux dates).' : ''}</p>`;
+      <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Les défis se modifient dans l'onglet Défis du projet.</p>`;
     document.getElementById('btnOpenOther')?.addEventListener('click', () => { editingInterventionId = other.id; renderInterventionsView(); });
   }
   document.getElementById('btnViewReport')?.addEventListener('click', async () => {

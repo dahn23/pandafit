@@ -732,6 +732,10 @@ const PandaFitBackend = (() => {
   async function projectAction(pin, action, arg) {
     return await rpc('tablet_project_action', { p_device_key: getDeviceKey(), p_pin: pin, p_action: action, p_arg: arg ?? null });
   }
+  /** Suivi en direct de la séance en cours (Réglages, coach) : Index passés / inscrits, groupes, séance suivante. */
+  async function liveStats(pin) {
+    return await rpc('tablet_live_stats', { p_device_key: getDeviceKey(), p_pin: pin });
+  }
   async function eventRank(score) {
     if (!activeEvent) return null;
     try { return await rpc('tablet_event_rank', { p_device_key: getDeviceKey(), p_event_code: activeEvent.code, p_score: Math.round(score || 0) }); }
@@ -994,7 +998,7 @@ const PandaFitBackend = (() => {
     } catch (e) { console.error('submitArcadeScore a échoué:', e); return false; }
   }
 
-  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore, fetchSatisfactionSettings, submitSatisfactionResponse, setHomeDisplayMode, fetchTabletSignals, joinEvent, tabletState, joinProject, projectAction, eventRank, setPseudo, fetchCampaign, campaignProgress };
+  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore, fetchSatisfactionSettings, submitSatisfactionResponse, setHomeDisplayMode, fetchTabletSignals, joinEvent, tabletState, joinProject, projectAction, liveStats, eventRank, setPseudo, fetchCampaign, campaignProgress };
 })();
 
 /* =====================================================================================
@@ -2730,6 +2734,25 @@ const UI_DICT_ROWS = [
   ["Mesure de lancement du Mois de l'équilibre : passe ton Index et garde ton code personnel.", "Startmessung des Monats des Gleichgewichts: Mach deinen Index und behalte deinen persönlichen Code.", "Launch measurement of the Balance Month: take your Index and keep your personal code.", "Misurazione di lancio del Mese dell'equilibrio: fai il tuo Index e conserva il tuo codice personale."],
   ["Mesure finale du Mois de l'équilibre : passe ton Index et entre ton code pour voir ta progression.", "Finale Messung des Monats des Gleichgewichts: Mach deinen Index und gib deinen Code ein, um deinen Fortschritt zu sehen.", "Final measurement of the Balance Month: take your Index and enter your code to see your progress.", "Misurazione finale del Mese dell'equilibrio: fai il tuo Index e inserisci il tuo codice per vedere i tuoi progressi."],
   ["Ensuite : le Triathlon de l'équilibre par équipes.", "Danach: der Gleichgewichts-Triathlon im Team.", "Next: the Balance Triathlon in teams.", "Poi: il Triathlon dell'equilibrio a squadre."],
+  ["Mesure de lancement du Mois de l'équilibre : passe ton Index avec ton coach.", "Startmessung des Monats des Gleichgewichts: Mach deinen Index mit deinem Coach.", "Launch measurement of the Balance Month: take your Index with your coach.", "Misurazione di lancio del Mese dell'equilibrio: fai il tuo Index con il tuo coach."],
+  ["Mesure finale du Mois de l'équilibre : passe ton Index avec ton coach.", "Finale Messung des Monats des Gleichgewichts: Mach deinen Index mit deinem Coach.", "Final measurement of the Balance Month: take your Index with your coach.", "Misurazione finale del Mese dell'equilibrio: fai il tuo Index con il tuo coach."],
+  ["En direct", "Live", "Live", "In diretta"],
+  ["Dernier passage :", "Letzter Durchgang:", "Last test:", "Ultimo passaggio:"],
+  ["Aucun passage pour l'instant", "Noch kein Durchgang", "No tests yet", "Ancora nessun passaggio"],
+  ["Index passés", "Index gemacht", "Index done", "Index fatti"],
+  ["inscrits", "angemeldet", "registered", "iscritti"],
+  ["attendus", "erwartet", "expected", "attesi"],
+  ["Groupe en cours", "Aktuelle Gruppe", "Current group", "Gruppo in corso"],
+  ["Prochain groupe", "Nächste Gruppe", "Next group", "Prossimo gruppo"],
+  ["Étape suivante", "Nächster Schritt", "Next step", "Prossimo passo"],
+  ["Pilote les phases du Triathlon depuis l'espace coach, puis termine la séance.", "Steuere die Triathlon-Phasen im Coach-Bereich und beende dann die Session.", "Run the Triathlon phases from the coach area, then end the session.", "Gestisci le fasi del Triathlon dallo spazio coach, poi termina la sessione."],
+  ["Quand tout le monde est passé, termine la séance.", "Wenn alle durch sind, beende die Session.", "When everyone is done, end the session.", "Quando tutti sono passati, termina la sessione."],
+  ["Inscrits pas encore passés :", "Angemeldete, noch nicht durch:", "Registered, not yet tested:", "Iscritti non ancora passati:"],
+  ["S'il n'y a plus personne, tu peux terminer la séance maintenant.", "Wenn niemand mehr kommt, kannst du die Session jetzt beenden.", "If nobody else is coming, you can end the session now.", "Se non c'è più nessuno, puoi terminare la sessione adesso."],
+  ["Tous les inscrits sont passés : tu peux terminer la séance.", "Alle Angemeldeten sind durch: Du kannst die Session beenden.", "All registered people are done: you can end the session.", "Tutti gli iscritti sono passati: puoi terminare la sessione."],
+  ["Ensuite : prochaine séance le", "Danach: nächste Session am", "Next: next session on", "Poi: prossima sessione il"],
+  ["Entre-temps, le panda reste en libre-service.", "In der Zwischenzeit bleibt der Panda frei zugänglich.", "In the meantime, the panda stays in self-service.", "Nel frattempo, il panda resta in libero accesso."],
+  ["Ensuite : fin du projet, les tablettes retournent au parc.", "Danach: Projektende, die Tablets gehen zurück in den Pool.", "Next: end of the project, the tablets go back to the pool.", "Poi: fine del progetto, i tablet tornano al parco."],
   ["← Retour à la séance", "← Zurück zur Session", "← Back to the session", "← Torna alla sessione"],
 ];
 // Textes avec des nombres ou des noms : [motif français, de, en, it] (fonctions qui reçoivent les groupes capturés)
@@ -2844,11 +2867,11 @@ function applyProjectState(cfg) {
   if (lang && lang !== currentLang && TRANSLATIONS[lang]) { currentLang = lang; try { localStorage.setItem('pandafit_lang', lang); } catch (e) {} applyStaticI18n(); }
 }
 let lastIndexSessionId = null;
-// Code personnel + QR d'historique : masqués pour l'instant (décision Dan 05.11.2026, ça surcharge l'écran).
-// Le code reste créé en arrière-plan (comptage des participants) ; à réactiver pour le Mois de l'équilibre (progression avant / après).
+// Code personnel + QR d'historique : désactivés PARTOUT pour l'instant (décision Dan 05-06.11.2026, ça surcharge l'écran),
+// y compris Mois / Campagne : ni saisie avant le test, ni code / QR à la fin. Un code reste créé en arrière-plan
+// (comptage des participants), jamais montré. Pour réactiver (ex. progression lancement → clôture du Mois) : passer à true.
 const SHOW_PERSONAL_CODE = false;
-// … sauf pendant un Mois de l'équilibre / une Campagne annuelle : le code relie la mesure de lancement à celle de clôture.
-function showPersonalCode() { return SHOW_PERSONAL_CODE || ['mois_equilibre', 'campagne_annuelle'].includes(activeEvent?.offer); }
+function showPersonalCode() { return SHOW_PERSONAL_CODE; }
 
 // Mois de l'équilibre en cours chez le client de cette tablette (null sinon). En libre-service (hors séance avec coach) :
 // pas d'Index (il se mesure uniquement avec le coach), consignes de sécurité avant chaque partie, bandeau « défi de la semaine ».
@@ -3357,8 +3380,8 @@ function wireConnectScreen() {
 // Accueil en mode séance : un seul chemin, passer son Index (le Triathlon a son propre écran)
 function screenEventHome() {
   const ev = activeEvent;
-  const sub = ev.campaign_step === 't0' ? "Mesure de lancement du Mois de l'équilibre : passe ton Index et garde ton code personnel."
-    : ev.campaign_step === 't1' ? "Mesure finale du Mois de l'équilibre : passe ton Index et entre ton code pour voir ta progression."
+  const sub = ev.campaign_step === 't0' ? (showPersonalCode() ? "Mesure de lancement du Mois de l'équilibre : passe ton Index et garde ton code personnel." : "Mesure de lancement du Mois de l'équilibre : passe ton Index avec ton coach.")
+    : ev.campaign_step === 't1' ? (showPersonalCode() ? "Mesure finale du Mois de l'équilibre : passe ton Index et entre ton code pour voir ta progression." : "Mesure finale du Mois de l'équilibre : passe ton Index avec ton coach.")
     : '90 secondes pour mesurer ton équilibre, avec ton coach PandaFit.';
   const flags = [['fr', '🇫🇷'], ['de', '🇩🇪'], ['en', '🇬🇧'], ['it', '🇮🇹']]
     .map(([l, f]) => `<button class="lang-flag-btn ${currentLang === l ? 'active' : ''}" data-lang="${l}">${f}</button>`).join('');
@@ -4397,7 +4420,7 @@ function screenSettings() {
         <div class="setting-row"><span class="lbl">Code</span><span class="val">${escT(activeProject.code)}</span></div>
         <div class="setting-row"><span class="lbl">Projection</span><span class="val" style="word-break:break-all;">app.pandafit.ch/projection.html?code=${escT(activeProject.code)}</span></div>
         <div class="setting-row"><span class="lbl">Séance</span><span class="val">${activeEvent ? `<span>En cours</span> · ${escT(activeEvent.title || activeEvent.client)}` : activeProject.next_event ? `<span>Prochaine :</span> ${frDay(activeProject.next_event.starts_at)}` : '—'}</span></div>
-        ${activeEvent ? `<button class="btn-ghost" id="btnEndSession" style="width:100%;margin-top:10px;">■ Terminer la séance</button>`
+        ${activeEvent ? `<div id="liveStatsBox"></div><button class="btn-ghost" id="btnEndSession" style="width:100%;margin-top:10px;">■ Terminer la séance</button>`
           : activeProject.next_event ? `<button class="btn-primary" id="btnStartSessionSettings" style="width:100%;margin-top:10px;">▶ Démarrer la séance</button>` : ''}
         ${activeEvent && (activeEvent.offer === 'team_building' || activeEvent.teams?.length) ? `
           <div class="setting-row"><span class="lbl">Phase (pilotée par le coach)</span><span class="val">${TRI_PHASE_LABEL[activeEvent.phase] || '—'}${activeEvent.teams?.length ? ` · ${activeEvent.teams.length} équipes` : ' · équipes pas encore créées'}</span></div>` : ''}
@@ -4435,6 +4458,53 @@ function screenSettings() {
       <div class="log-box" id="logBox">${logLines.join('\n')}</div>
     </div>
   `;
+}
+/* Réglages, séance en cours : suivi en direct pour le coach (rafraîchi toutes les 10 s tant que l'écran est ouvert) */
+let liveStatsTimer = null;
+function startLiveStats() {
+  clearInterval(liveStatsTimer);
+  if (!document.getElementById('liveStatsBox')) return;
+  const tick = async () => {
+    const box = document.getElementById('liveStatsBox');
+    if (!box || currentRoute !== 'settings') { clearInterval(liveStatsTimer); return; }
+    try { box.innerHTML = liveStatsHTML(await PandaFitBackend.liveStats(enteredPin)); } catch (e) { /* hors ligne : on garde l'affichage */ }
+  };
+  tick();
+  liveStatsTimer = setInterval(tick, 10000);
+}
+function liveStatsHTML(st) {
+  if (!st) return '';
+  const target = st.registered || st.expected || 0;
+  const pct = target ? Math.min(100, Math.round(st.index_done / target * 100)) : 0;
+  const now = Date.now();
+  const slots = st.slots || [];
+  const cur = slots.find(s => new Date(s.starts_at) <= now && new Date(s.ends_at) > now);
+  const nxt = slots.find(s => new Date(s.starts_at) > now);
+  const hm = iso => new Date(iso).toLocaleTimeString(LOCALES[currentLang] || 'fr-CH', { hour: '2-digit', minute: '2-digit' });
+  const group = (label, s) => `<div style="margin-top:10px;font-size:14px;"><b><span>${label}</span> ${hm(s.starts_at)}</b> · <b>${s.registered}</b> <span>inscrits</span><br>
+    <span style="color:var(--text-dim);">${escT(s.names.join(', '))}${s.registered > s.names.length ? ` + ${s.registered - s.names.length}` : ''}</span></div>`;
+  const remaining = Math.max(0, (st.registered || 0) - st.index_done);
+  const step = st.offer === 'team_building' ? "<span>Pilote les phases du Triathlon depuis l'espace coach, puis termine la séance.</span>"
+    : !st.registered ? '<span>Quand tout le monde est passé, termine la séance.</span>'
+    : remaining ? `<span>Inscrits pas encore passés :</span> <b>${remaining}</b><br><span>S'il n'y a plus personne, tu peux terminer la séance maintenant.</span>`
+    : '<span>Tous les inscrits sont passés : tu peux terminer la séance.</span>';
+  const after = st.next_event
+    ? `<span>Ensuite : prochaine séance le</span> <b>${frDay(st.next_event.starts_at)}</b>.${['mois_equilibre', 'campagne_annuelle', 'abonnement'].includes(st.offer) ? ' <span>Entre-temps, le panda reste en libre-service.</span>' : ''}`
+    : '<span>Ensuite : fin du projet, les tablettes retournent au parc.</span>';
+  return `
+    <div style="background:var(--panel-hi);border-radius:14px;padding:14px 16px;margin-top:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+        <b><span>En direct</span></b>
+        <span style="font-size:12.5px;color:var(--text-dim);">${st.last_play_at ? `<span>Dernier passage :</span> ${hm(st.last_play_at)}` : '<span>Aucun passage pour l\'instant</span>'}</span>
+      </div>
+      <div style="font-size:32px;font-weight:800;margin:6px 0 4px;">${st.index_done}<span style="font-size:15px;font-weight:600;color:var(--text-dim);"> <span>Index passés</span>${target ? ` / ${target} <span>${st.registered ? 'inscrits' : 'attendus'}</span>` : ''}</span></div>
+      ${target ? `<div style="height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--primary);"></div></div>` : ''}
+      ${cur ? group('Groupe en cours', cur) : ''}
+      ${nxt ? group('Prochain groupe', nxt) : ''}
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);font-size:14px;">
+        <b><span>Étape suivante</span></b><br>${step}<br><span style="font-size:12.5px;color:var(--text-dim);">${after}</span>
+      </div>
+    </div>`;
 }
 function wireSettingsScreen() {
   const box = document.getElementById('logBox');
@@ -4485,6 +4555,7 @@ function wireSettingsScreen() {
   document.getElementById('btnLeaveProject')?.addEventListener('click', () => {
     if (confirm('Retirer cette tablette du projet ? Elle retourne au parc PandaFit.')) coachProjectAction('leave');
   });
+  startLiveStats();
   document.getElementById('btnRecalibrate')?.addEventListener('click', () => navigate('calibrate'));
   document.getElementById('btnDisconnect')?.addEventListener('click', () => { PandaFitSensor.disconnect(); navigate('home'); });
   document.getElementById('btnReconfigure')?.addEventListener('click', () => {
@@ -5771,7 +5842,7 @@ function screenIndexIntro() {
     <div class="centered-page" style="text-align:center;">
     <h1 class="page-title" style="display:flex;align-items:center;justify-content:center;gap:10px;"><i data-lucide="activity"></i> ${t('index_title')}</h1>
     <p class="page-sub">${t('index_intro_sub')}</p>
-    ${activeEvent?.campaign_step === 't1' ? `<div class="card" style="border:2px solid var(--primary);">
+    ${showPersonalCode() && activeEvent?.campaign_step === 't1' ? `<div class="card" style="border:2px solid var(--primary);">
       <h2>Mesure finale du Mois de l'équilibre</h2>
       <p class="page-sub" style="margin:0;">Tu as passé l'Index au lancement ? Entre ton code personnel plus bas pour voir ta progression.</p>
     </div>` : ''}
@@ -5783,7 +5854,7 @@ function screenIndexIntro() {
       <h2>${t('index_step2_title')}</h2>
       <p class="page-sub" style="margin-bottom:0;">${t('index_step2_desc')}</p>
     </div>
-    <div class="card">
+    ${showPersonalCode() ? `<div class="card">
       <h2>${t('index_code_title')}</h2>
       <p class="page-sub" style="margin-bottom:10px;">${t('index_code_sub')}</p>
       <div class="row" style="gap:8px;">
@@ -5791,7 +5862,7 @@ function screenIndexIntro() {
         <button class="btn-ghost" id="btnCheckCode" style="width:auto;">${t('index_code_validate')}</button>
       </div>
       <p id="employeeCodeMsg" class="page-sub" style="margin:8px 0 0;"></p>
-    </div>
+    </div>` : ''}
     <button class="btn-primary" id="btnIndexStart" style="width:100%;">${t('index_start_btn')}</button>
     <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
   </div>

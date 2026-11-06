@@ -207,6 +207,8 @@ function recommendations(d) {
   return r;
 }
 
+// Code personnel désactivé pour l'instant (décision Dan 06.11.2026) : pas de progression appariée ni de mention du code.
+const PERSONAL_CODE = false;
 // Bloc « Mois de l'équilibre » : engagement des 4 semaines + progression appariée (clôture)
 function campaignHTML(d) {
   const c = d.campaign, L = R();
@@ -216,7 +218,7 @@ function campaignHTML(d) {
   const total = c.weeks.reduce((s, w) => s + w.plays, 0);
   const p = c.pairs;
   let prog = '';
-  if (c.step === 't1') {
+  if (PERSONAL_CODE && c.step === 't1') {
     prog = p?.n >= 5 ? `
       <h2>${L.progTitle}</h2>
       <div class="kpis">
@@ -241,7 +243,7 @@ function campaignHTML(d) {
         <table style="width:100%;border-collapse:collapse;font-size:9pt;">
           ${c.defis.map((x, i) => `<tr style="border-bottom:1px solid var(--border);"><td style="padding:1.6mm 0;">${esc(L.defiName(i + 1, x.game_id))}</td><td style="color:var(--dim);">${esc(GAME_NAMES[x.game_id] || x.game_id)}</td><td style="text-align:right;font-weight:800;">${L.scores(x.entries)}</td></tr>`).join('')}
         </table>
-        ${c.step === 't0' && c.t0?.participants ? `<p style="font-size:8.5pt;color:var(--dim);margin:2mm 0 0;">${L.t0note(short(c.ends_on))}</p>` : ''}
+        ${PERSONAL_CODE && c.step === 't0' && c.t0?.participants ? `<p style="font-size:8.5pt;color:var(--dim);margin:2mm 0 0;">${L.t0note(short(c.ends_on))}</p>` : ''}
       </div>
     </div>`;
 }
