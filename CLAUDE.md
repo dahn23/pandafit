@@ -40,7 +40,7 @@ PandaFit = application web pour **tablette**, autour d'un **capteur d'équilibre
 - Console : onglet **Projets** (liste, fiche projet à onglets, « Parc de tablettes » pour le superadmin). Les anciens onglets client (jeux, pubs, défis…) sont réutilisés dans la fiche projet (`currentProject`, `selectedProjectId`, `loadProjectDetail()`).
 - Coach : fiche mission = code projet + PIN + carte « Séance et tablettes » (`coach_project`, `coach_set_poste`, `coach_remove_device`), avec bloc **En direct** pendant la séance (`live_stats` = `pf_event_live_stats` : Index passés / inscrits, groupe en cours et suivant avec prénoms, étape suivante, terminer même s'il reste des inscrits). Console : onglet **Résultats** de la fiche projet.
 - Espace RH : réglages de l'écran de la borne = ceux du projet libre-service en cours (`pf_hr_project()`), sinon masqués.
-- Projets de test : PANDA-3MA8 (Mois, Ipad Dan jusqu'au 19.11), PANDA-MIGR (Découverte), PANDA-TEAM (Team building), PANDA-PAST (terminé), SUVA « Abonnement (démo) » (tablette Yann). Tablette Test = au parc.
+- Projets de test : PANDA-3MA8 (Mois, Ipad Dan jusqu'au 19.11), PANDA-MIGR (Découverte), PANDA-TEAM (Team building), PANDA-PAST (terminé), SUVA « Abonnement (démo) » (tablette Yann). Tablette Test = au parc. **PANDA-PMVG** = client interne « PandaFit Démo », projet Démo VIP « Tablette de démo » : séance « Démo en continu » démarrée en permanence (démos : poste Index ou Jeux libres, classement cumulé) — ne pas la terminer (sinon le projet se ferme).
 
 ## Fonctionnalités construites (2026-08)
 
