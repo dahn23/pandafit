@@ -73,6 +73,7 @@
   input, textarea, select, [contenteditable] { -webkit-user-select: text; user-select: text; }
   #topbarBack:empty { display: none; }
   .topbar.has-back .brand { display: none; }
+  .topbar.has-back { position: sticky; top: 0; z-index: 60; background: var(--bg); }
   #topbarBack .back-top { margin: 0; padding: 11px 20px; font-size: 16px; }
   .game-setup { display: flex; flex-direction: column; justify-content: center; gap: 26px; text-align: center; }
   .game-setup > * { margin: 0 !important; }
@@ -91,6 +92,10 @@
   .game-info .gi-t { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--cat); font-weight: 800; margin-bottom: 5px; }
   .game-info p { margin: 0; font-size: 17px; line-height: 1.5; color: #d9d4ea; }
   .game-info p.gi-note { background: color-mix(in srgb, var(--cat) 14%, transparent); border-left: 4px solid var(--cat); border-radius: 10px; padding: 10px 14px; margin: 0 0 16px; font-weight: 600; color: var(--text); }
+  .game-info .gi-science { background: color-mix(in srgb, var(--cat) 14%, transparent); border-left: 4px solid var(--cat); border-radius: 10px; padding: 12px 14px; margin: 0 0 16px; }
+  .game-info .gi-science .gi-t { display: flex; align-items: center; gap: 7px; }
+  .game-info .gi-science .gi-t svg { width: 17px; height: 17px; }
+  .game-info .gi-science p { color: var(--text); font-weight: 600; }
   .panda-watcher {
     position: fixed; top: 68px; left: 16px; width: 46vw; height: 46vw; max-width: 230px; max-height: 230px; z-index: 50;
     border-radius: 28px; background: #fdfaf3; border: 3px solid var(--primary);
@@ -2550,7 +2555,14 @@ function setLang(lang) {
    Pour ajouter une phrase : une ligne [fr, de, en, it]. */
 const UI_DICT_ROWS = [
   ["Entraînement à la carte : règle la difficulté, la durée et les vies.", "Training nach Mass: Stelle Schwierigkeit, Dauer und Leben selbst ein.", "Training your way: set the difficulty, duration and lives.", "Allenamento su misura: scegli difficoltà, durata e vite."],
-  ["Base scientifique : respiration lente à 6 cycles par minute (cohérence cardiaque). Une méta-analyse de 2022 montre qu'elle active le système nerveux de la détente (Laborde et al.).", "Wissenschaftliche Grundlage: langsames Atmen mit 6 Zügen pro Minute (Herzkohärenz). Eine Meta-Analyse von 2022 zeigt, dass es das Entspannungsnervensystem aktiviert (Laborde et al.).", "Scientific basis: slow breathing at 6 breaths per minute (heart coherence). A 2022 meta-analysis shows it activates the relaxation nervous system (Laborde et al.).", "Base scientifica: respirazione lenta a 6 cicli al minuto (coerenza cardiaca). Una meta-analisi del 2022 mostra che attiva il sistema nervoso del rilassamento (Laborde et al.)."],
+  ["Ce que dit la science", "Was die Wissenschaft sagt", "What science says", "Cosa dice la scienza"],
+  ["Les exercices d'équilibre réduisent d'environ un tiers le risque d'entorse de la cheville (méta-analyse, Hübscher et al., 2010).", "Gleichgewichtsübungen senken das Risiko einer Verstauchung des Fussgelenks um etwa ein Drittel (Meta-Analyse, Hübscher et al., 2010).", "Balance exercises cut the risk of ankle sprains by about a third (meta-analysis, Hübscher et al., 2010).", "Gli esercizi di equilibrio riducono di circa un terzo il rischio di distorsione della caviglia (meta-analisi, Hübscher et al., 2010)."],
+  ["Faire deux choses à la fois perturbe l'équilibre : c'est la « double tâche », un facteur de chute bien connu (Lundin-Olsson et al., The Lancet, 1997).", "Zwei Dinge gleichzeitig zu tun stört das Gleichgewicht: die sogenannte «Doppelaufgabe», ein bekannter Sturzfaktor (Lundin-Olsson et al., The Lancet, 1997).", "Doing two things at once disturbs balance: this is \"dual tasking\", a well-known cause of falls (Lundin-Olsson et al., The Lancet, 1997).", "Fare due cose insieme disturba l'equilibrio: è il «doppio compito», un noto fattore di caduta (Lundin-Olsson et al., The Lancet, 1997)."],
+  ["Plus on mange de fruits et légumes, plus le risque de maladies cardiovasculaires baisse, avec un optimum autour de 800 g par jour (méta-analyse, Aune et al., 2017).", "Je mehr Obst und Gemüse man isst, desto geringer das Risiko für Herz-Kreislauf-Erkrankungen, mit einem Optimum um 800 g pro Tag (Meta-Analyse, Aune et al., 2017).", "The more fruit and vegetables you eat, the lower the risk of cardiovascular disease, with an optimum around 800 g a day (meta-analysis, Aune et al., 2017).", "Più frutta e verdura si mangia, più si riduce il rischio di malattie cardiovascolari, con un optimum intorno agli 800 g al giorno (meta-analisi, Aune et al., 2017)."],
+  ["Les entraînements d'équilibre et d'appuis réduisent d'environ moitié les ruptures du ligament croisé du genou, blessure typique du ski (Webster & Hewett, 2018).", "Gleichgewichts- und Stütztraining halbiert etwa die Kreuzbandrisse im Knie, eine typische Skiverletzung (Webster & Hewett, 2018).", "Balance and footwork training roughly halves knee ACL tears, a typical skiing injury (Webster & Hewett, 2018).", "Gli allenamenti di equilibrio e di appoggio dimezzano circa le rotture del legamento crociato del ginocchio, infortunio tipico dello sci (Webster & Hewett, 2018)."],
+  ["Les échauffements d'équilibre et de stabilité de type « FIFA 11+ » réduisent d'environ un tiers les blessures des footballeurs (méta-analyse, Thorborg et al., 2017).", "Aufwärmprogramme für Gleichgewicht und Stabilität wie «FIFA 11+» senken die Verletzungen von Fussballern um etwa ein Drittel (Meta-Analyse, Thorborg et al., 2017).", "Balance and stability warm-ups such as \"FIFA 11+\" cut injuries in footballers by about a third (meta-analysis, Thorborg et al., 2017).", "I riscaldamenti di equilibrio e stabilità come «FIFA 11+» riducono di circa un terzo gli infortuni dei calciatori (meta-analisi, Thorborg et al., 2017)."],
+  ["Un court effort physique améliore ensuite légèrement les performances mentales (méta-analyse, Chang et al., 2012).", "Eine kurze körperliche Anstrengung verbessert danach leicht die geistige Leistung (Meta-Analyse, Chang et al., 2012).", "A short burst of exercise slightly improves mental performance afterwards (meta-analysis, Chang et al., 2012).", "Un breve sforzo fisico migliora poi leggermente le prestazioni mentali (meta-analisi, Chang et al., 2012)."],
+  ["Respirer lentement, à 6 cycles par minute (cohérence cardiaque), active le système nerveux de la détente (méta-analyse, Laborde et al., 2022).", "Langsames Atmen mit 6 Zügen pro Minute (Herzkohärenz) aktiviert das Entspannungsnervensystem (Meta-Analyse, Laborde et al., 2022).", "Breathing slowly, at 6 breaths per minute (heart coherence), activates the relaxation nervous system (meta-analysis, Laborde et al., 2022).", "Respirare lentamente, a 6 cicli al minuto (coerenza cardiaca), attiva il sistema nervoso del rilassamento (meta-analisi, Laborde et al., 2022)."],
   // Écrans de fin : boîtes de stats
   ["Terminé !", "Fertig!", "Finished!", "Finito!"],
   ["Coups de jus", "Stromschläge", "Shocks", "Scosse"],
@@ -4076,38 +4088,44 @@ const GAME_CATEGORIES = {
 const GAME_INFO = {
   thezone: {
     cat: 'precision',
+    science: 'Les exercices d\'équilibre réduisent d\'environ un tiers le risque d\'entorse de la cheville (méta-analyse, Hübscher et al., 2010).',
     note: 'Entraînement à la carte : règle la difficulté, la durée et les vies.',
     why: 'Tu dois garder ton centre de gravité dans un petit cercle : c\'est de la précision pure.',
     benefits: 'Renforce les petits muscles qui stabilisent les chevilles et améliore la posture. Moins de faux pas et d\'entorses.',
   },
   base: {
     cat: 'precision',
+    science: 'Faire deux choses à la fois perturbe l\'équilibre : c\'est la « double tâche », un facteur de chute bien connu (Lundin-Olsson et al., The Lancet, 1997).',
     why: 'Ton doigt doit rester sur le fil pendant que tes pieds le font bouger : précision de la main et du corps en même temps.',
     benefits: 'Entraîne à garder l\'équilibre en faisant autre chose (porter, téléphoner, regarder ailleurs) : la situation typique des chutes au quotidien.',
   },
   migros: {
     cat: 'precision',
+    science: 'Plus on mange de fruits et légumes, plus le risque de maladies cardiovasculaires baisse, avec un optimum autour de 800 g par jour (méta-analyse, Aune et al., 2017).',
     why: 'Tu restes stable dans la zone tout en visant les bons aliments du doigt : équilibre et coordination œil-main.',
     benefits: 'Améliore la stabilité quand l\'attention est prise ailleurs, et rappelle les bons choix alimentaires.',
   },
   skiprev: {
     cat: 'mouvement',
+    science: 'Les entraînements d\'équilibre et d\'appuis réduisent d\'environ moitié les ruptures du ligament croisé du genou, blessure typique du ski (Webster & Hewett, 2018).',
     why: 'Tu te balances à gauche et à droite, de façon ample et régulière : c\'est de l\'équilibre en mouvement.',
     benefits: 'Travaille les transferts de poids, le gainage et le rythme : utile pour le ski, la marche et les changements de direction.',
   },
   distance: {
     cat: 'mouvement',
+    science: 'Les échauffements d\'équilibre et de stabilité de type « FIFA 11+ » réduisent d\'environ un tiers les blessures des footballeurs (méta-analyse, Thorborg et al., 2017).',
     why: 'Tu cours d\'abord (balancement avant-arrière), puis tu dois vite te stabiliser pour tirer : l\'effort, puis le contrôle.',
     benefits: 'Améliore la récupération de l\'équilibre après un effort, comme après un saut, une course ou un escalier.',
   },
   cross: {
     cat: 'calme',
-    note: 'Base scientifique : respiration lente à 6 cycles par minute (cohérence cardiaque). Une méta-analyse de 2022 montre qu\x27elle active le système nerveux de la détente (Laborde et al.).',
+    science: 'Respirer lentement, à 6 cycles par minute (cohérence cardiaque), active le système nerveux de la détente (méta-analyse, Laborde et al., 2022).',
     why: 'La respiration guidée calme le corps, et ton équilibre montre si tu restes vraiment posé.',
     benefits: 'La cohérence cardiaque baisse le stress et le rythme cardiaque, et aide à se concentrer avant un moment important.',
   },
   tempo: {
     cat: 'calme',
+    science: 'Un court effort physique améliore ensuite légèrement les performances mentales (méta-analyse, Chang et al., 2012).',
     why: 'Après l\'effort, tu dois revenir au calme pour pouvoir calculer : le corps et la tête doivent se poser ensemble.',
     benefits: 'Entraîne la concentration malgré la fatigue et la capacité à se calmer vite : utile face au stress.',
   },
@@ -4123,6 +4141,7 @@ function gameInfoHTML(gameId) {
     <div class="game-info" style="--cat:${c.color};">
       ${gameCatHeadHTML(c)}
       ${g.note ? `<p class="gi-note">${g.note}</p>` : ''}
+      ${g.science ? `<div class="gi-science"><div class="gi-t"><i data-lucide="flask-conical"></i> Ce que dit la science</div><p>${g.science}</p></div>` : ''}
       <div class="gi-row"><div class="gi-t">Pourquoi ce jeu ?</div><p>${g.why}</p></div>
       <div class="gi-row"><div class="gi-t">Bienfaits</div><p>${g.benefits}</p></div>
     </div>`;
