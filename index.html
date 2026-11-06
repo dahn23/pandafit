@@ -1446,16 +1446,16 @@ const ZoneGame = (() => {
    juste un % de temps passé en équilibre, dans un esprit détente plutôt que performance.
    ===================================================================================== */
 /* =====================================================================================
-   JEU : TEMPO — alterne effort physique (10 passages de barre, axe Y) et calcul mental
-   (10 calculs, un par un, à répondre seulement en zone calme). Chrono général 60s.
+   JEU : TEMPO — alterne effort physique (7 passages de barre, axe Y) et calcul mental
+   (7 calculs, un par un, à répondre seulement en zone calme). Chrono général 60s.
    Score = bonnes réponses - mauvaises réponses (comme Panier Malin).
    ===================================================================================== */
 const TempoGame = (() => {
   const TOTAL_DURATION = 60;
-  const CROSSINGS_NEEDED = 10;
+  const CROSSINGS_NEEDED = 7;
   const CROSS_THRESHOLD_CM = 1.2; // simple seuil à toucher (légèrement assoupli)
   const CALM_RADIUS_CM = 1.875;  // zone statique requise pour pouvoir répondre (réduite de 25%)
-  const QUESTIONS_PER_ROUND = 10;
+  const QUESTIONS_PER_ROUND = 7;
 
   let latest = { x: 0, y: 0 };
   function onSensorData(d) { latest = { x: d.x / 200, y: d.y / 200 }; }
@@ -2805,7 +2805,7 @@ const UI_DICT_ROWS = [
   ["Prends un instant de plus si tu en as besoin, ou repars l'esprit un peu plus léger.", "Nimm dir noch einen Moment, wenn du ihn brauchst, oder geh mit etwas leichterem Kopf weiter.", "Take a moment longer if you need it, or head off with a lighter mind.", "Prenditi ancora un istante se ne hai bisogno, o riparti con la mente più leggera."],
   ["Refaire une session", "Nochmals eine Session", "Do another session", "Rifai una sessione"],
   // MindFit
-  ["Passe la barre 10 fois en te balançant d'avant en arrière, puis reviens bien au calme pour répondre à 10 calculs — impossible de répondre en bougeant ! Enchaîne les manches pendant 1 minute.", "Überquere die Linie 10-mal, indem du vor und zurück schwingst, und komm dann zur Ruhe, um 10 Rechnungen zu lösen — in Bewegung kannst du nicht antworten! Spiel 1 Minute lang Runde um Runde.", "Cross the bar 10 times by swaying back and forth, then calm down to answer 10 sums — you can't answer while moving! Play round after round for 1 minute.", "Supera la barra 10 volte oscillando avanti e indietro, poi torna calmo per rispondere a 10 calcoli — impossibile rispondere muovendoti! Concatena i turni per 1 minuto."],
+  ["Passe la barre 7 fois en te balançant d'avant en arrière, puis reviens bien au calme pour répondre à 7 calculs — impossible de répondre en bougeant ! Enchaîne les manches pendant 1 minute.", "Überquere die Linie 7-mal, indem du vor und zurück schwingst, und komm dann zur Ruhe, um 7 Rechnungen zu lösen — in Bewegung kannst du nicht antworten! Spiel 1 Minute lang Runde um Runde.", "Cross the bar 7 times by swaying back and forth, then calm down to answer 7 sums — you can't answer while moving! Play round after round for 1 minute.", "Supera la barra 7 volte oscillando avanti e indietro, poi torna calmo per rispondere a 7 calcoli — impossibile rispondere muovendoti! Concatena i turni per 1 minuto."],
   ["Passe la barre", "Überquere die Linie", "Cross the bar", "Supera la barra"],
   ["Balance-toi d'avant en arrière pour passer au-dessus de la ligne.", "Schwing vor und zurück, um über die Linie zu kommen.", "Sway back and forth to get over the line.", "Oscilla avanti e indietro per superare la linea."],
   ["Calcul", "Rechnung", "Sum", "Calcolo"],
@@ -5889,7 +5889,7 @@ function screenTempoSetup() {
     <div class="centered-page game-setup">
     <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="brain"></i> MindFit</h1>
     ${gameVideoBigHTML(MINDFUL_WELCOME_VIDEO_B64)}
-    <p class="page-sub">Passe la barre 10 fois en te balançant d'avant en arrière, puis reviens bien au calme pour répondre à 10 calculs — impossible de répondre en bougeant ! Enchaîne les manches pendant 1 minute.</p>
+    <p class="page-sub">Passe la barre 7 fois en te balançant d'avant en arrière, puis reviens bien au calme pour répondre à 7 calculs — impossible de répondre en bougeant ! Enchaîne les manches pendant 1 minute.</p>
     <button class="btn-primary" id="btnTempoStart" style="width:100%;">${t('game_start_btn')}</button>
     <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
     ${gameInfoHTML('tempo')}
@@ -5960,7 +5960,7 @@ function screenTempoPlaying() {
 }
 function tempoEffortHTML() {
   return `
-    <div style="text-align:center;margin-bottom:10px;font-weight:700;font-size:16px;">Passe la barre <span id="tempoCrossCount">0</span>/10</div>
+    <div style="text-align:center;margin-bottom:10px;font-weight:700;font-size:16px;">Passe la barre <span id="tempoCrossCount">0</span>/7</div>
     <div style="display:flex;justify-content:center;">
       <div class="tempo-vgauge" id="tempoVgauge">
         <div class="tempo-vgauge-bar"></div>
@@ -5972,7 +5972,7 @@ function tempoEffortHTML() {
 }
 function tempoQuestionHTML() {
   return `
-    <div style="text-align:center;margin-bottom:6px;font-weight:700;font-size:14px;color:var(--text-dim);">Calcul <span id="tempoQIndex">1</span>/10</div>
+    <div style="text-align:center;margin-bottom:6px;font-weight:700;font-size:14px;color:var(--text-dim);">Calcul <span id="tempoQIndex">1</span>/7</div>
     <div style="display:flex;justify-content:center;">
       <canvas id="tempoCalmCanvas" width="140" height="140"></canvas>
     </div>
