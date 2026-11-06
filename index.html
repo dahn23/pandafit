@@ -215,7 +215,7 @@
   .tri-team span { display: block; font-size: 13.5px; color: var(--text-dim); margin-left: 8px; }
   .tri-team.full span { color: #ffb44d; }
   /* Mode séance (code de session saisi) : plus de menus, seulement le déroulé de la séance */
-  body.event-kiosk .bottomnav, body.event-kiosk #adsBanner, body.event-kiosk #adsLabel,
+  body.event-kiosk .bottomnav, body.event-kiosk:not(.poste-jeux) #adsBanner, body.event-kiosk:not(.poste-jeux) #adsLabel,
   body.event-kiosk:not(.poste-jeux) #btnZoneBackHome, body.event-kiosk:not(.poste-jeux) #btnMigrosBack, body.event-kiosk:not(.poste-jeux) #btnSkiBack, body.event-kiosk:not(.poste-jeux) #btnElectroBackHome,
   body.event-kiosk:not(.poste-jeux) #btnFootballBack, body.event-kiosk:not(.poste-jeux) #btnRelaxBack, body.event-kiosk:not(.poste-jeux) #btnTempoBack { display: none !important; }
   .kiosk-gear { position: fixed; right: 12px; bottom: 12px; width: 40px; height: 40px; border-radius: 50%; border: none; background: rgba(255,255,255,.05); color: var(--text-dim); opacity: .45; display: none; align-items: center; justify-content: center; z-index: 60; cursor: pointer; padding: 0; }
@@ -2859,6 +2859,10 @@ function tabletMode() {
   return activeProject.libre ? 'libre' : 'attente';
 }
 function isKiosk() { return ['parc', 'seance', 'attente'].includes(tabletMode()); }
+// Écran « jeux en accès libre » : libre-service, ou tablette au poste « Jeux libres » pendant une séance.
+// C'est là (et seulement là) que s'appliquent les encadrés / vignettes / pubs / satisfaction réglés dans la console.
+function postejeuxSeance() { return tabletMode() === 'seance' && devicePoste === 'jeux' && !triathlonStation(); }
+function freePlayScreen() { return tabletMode() === 'libre' || postejeuxSeance(); }
 function applyProjectState(cfg) {
   activeProject = cfg?.project || null;
   devicePoste = cfg?.poste || null;
@@ -3071,7 +3075,12 @@ function navigate(route) {
   if (isKiosk()) {
     const allowed = ['home', 'settings', 'calibrate', 'initiation'];
     if (tabletMode() === 'seance' && devicePoste !== 'jeux') allowed.push('indextest');
-    if (!allowed.includes(route)) route = 'home'; // poste « jeux » : l'accueil EST la grille des jeux
+    // Poste « Jeux libres » : même écran qu'en libre-service (encadrés et vignettes selon la console)
+    if (postejeuxSeance()) {
+      allowed.push('games', 'benefits');
+      if (clientConfig?.showIndexBanner) allowed.push('indextest');
+    }
+    if (!allowed.includes(route)) route = 'home';
     if (route === 'home' && rhUnlocked) { rhUnlocked = false; applyNavLockVisuals(); } // retour à l'accueil : le code PIN est redemandé
   }
   if (isRouteLocked(route) && !rhUnlocked) {
@@ -3245,7 +3254,7 @@ function updateAdsBanner() {
   const label = document.getElementById('adsLabel');
   if (!banner || !label) return;
   const connected = PandaFitSensor.isConnected();
-  const onHome = currentRoute === 'home' && connected && tabletMode() === 'libre'; // bannière seulement en libre-service (jamais en séance, au parc ou en attente)
+  const onHome = currentRoute === 'home' && connected && freePlayScreen(); // bannière seulement en accès libre (libre-service ou poste « Jeux libres » en séance)
   const eff = onHome ? resolveHomeMode() : 'none';
   const wantsSatisfaction = eff === 'satisfaction';
   const wantsAds = eff === 'ads';
@@ -3516,8 +3525,8 @@ function screenHome() {
   if (mode === 'attente') return screenWaitingHome();
   const tri = triathlonStation();
   if (tri) return screenTriathlon(tri);
-  if (activeEvent && devicePoste === 'jeux') return screenEventGames();
-  if (activeEvent) return screenEventHome();
+  if (activeEvent && !postejeuxSeance()) return screenEventHome();
+  // Libre-service, ou poste « Jeux libres » en séance : même accueil (encadrés, vignettes, jeux, pubs / satisfaction)
   const benefitsImg = infoPagesCatalog?.benefits?.image_url;
   const initiationImg = infoPagesCatalog?.initiation?.image_url;
   return `
@@ -3547,7 +3556,7 @@ function screenHome() {
       </div>
     </div>
 
-    ${activeEvent ? `
+    ${activeEvent && !postejeuxSeance() ? `
       <div class="hero-play" style="border:2px solid var(--primary);">
         <p style="margin:0 0 4px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--primary);font-weight:800;">Séance PandaFit · ${activeEvent.client}</p>
         <h3>${activeEvent.title || 'Passe ton PandaFit Index'}</h3>
@@ -3588,8 +3597,7 @@ function wireHomeScreen() {
   if (mode === 'attente') return wireWaitingHome();
   const tri = triathlonStation();
   if (tri) { eventPlayCtx = null; return wireTriathlon(tri); }
-  if (activeEvent && devicePoste === 'jeux') return wireEventGames();
-  if (activeEvent) return wireEventHome();
+  if (activeEvent && !postejeuxSeance()) return wireEventHome();
   document.getElementById('btnGoGames')?.addEventListener('click', () => navigate('games'));
   document.getElementById('btnEventIndex')?.addEventListener('click', () => navigate('indextest'));
   document.getElementById('btnCampaignDefi')?.addEventListener('click', () => launchGame(activeCampaign.defi.game_id));
@@ -4050,6 +4058,7 @@ function screenGames() {
     ? clientConfig.enabledGameIds.map(id => GAMES.find(g => g.id === id)).filter(Boolean)
     : GAMES;
   return `
+    ${postejeuxSeance() && currentRoute === 'games' ? `<button class="btn-ghost" id="btnGamesBackHome" style="margin-bottom:14px;">← ${t('back_home')}</button>` : ''}
     <h1 class="page-title">${t('games_title')}</h1>
     <p class="page-sub">${clientConfig ? `${t('games_sub_client')} ${clientConfig.clientName}.` : t('games_sub_generic')}</p>
     ${visibleGames.length ? `<div class="games-grid">${visibleGames.map(g => {
@@ -4067,6 +4076,7 @@ function screenGames() {
   `;
 }
 function wireGamesScreen() {
+  document.getElementById('btnGamesBackHome')?.addEventListener('click', () => navigate('home'));
   document.querySelectorAll('.game-thumb-card').forEach(card => {
     card.addEventListener('click', () => {
       const gameId = card.dataset.game;
@@ -4437,7 +4447,7 @@ function screenSettings() {
         <button class="btn-primary" id="btnJoinProjectSettings" style="width:100%;">Rejoindre le projet</button>
       `}
     </div>
-    ${tabletMode() === 'libre' ? homeDisplayCard() : ''}
+    ${freePlayScreen() ? homeDisplayCard() : ''}
     <div class="card">
       <h2>Tablette</h2>
       <div class="setting-row"><span class="lbl">Nom de la tablette</span><span class="val">${clientConfig ? escT(clientConfig.deviceName) : '—'}</span></div>

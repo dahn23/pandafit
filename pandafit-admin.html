@@ -1793,22 +1793,18 @@ async function renderChallengesView() {
   });
 }
 
-/* ---------------- Onglet Jeux : écran en libre-service (encadrés, vignettes, verrou) ---------------- */
-// Ces options ne concernent que l'écran en accès libre (Mois, Campagne, Abonnement, entre les séances).
-// En séance, la tablette au poste « Jeux libres » n'affiche que la grille des jeux ci-dessous.
+/* ---------------- Onglet Jeux : écran des jeux en accès libre (encadrés, vignettes, verrou) ---------------- */
+// Ces options s'appliquent à l'écran en accès libre : libre-service (Mois, Campagne, Abonnement, hors séance)
+// et, pendant une séance, aux tablettes au poste « Jeux libres ». Jamais au poste Index ni aux stations du Triathlon.
 function addGamesScreenCard() {
   const el = document.getElementById('tabContent');
   const p = currentProject;
   if (!el || !p) return;
-  if (!isLibreProject(p)) {
-    el.insertAdjacentHTML('afterbegin', `<div class="card"><p style="font-size:12.5px;color:var(--text-dim);margin:0;">Pendant une séance, une tablette au poste <b>Jeux libres</b> affiche simplement la grille des jeux choisis ci-dessous (pas d'encadrés, de pubs ni de satisfaction : c'est réservé au libre-service des offres Mois, Campagne et Abonnement).</p></div>`);
-    return;
-  }
   const cb = (id, on, label, mb) => `<label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:${mb}px;"><input type="checkbox" id="${id}" ${on ? 'checked' : ''}>${label}</label>`;
   el.insertAdjacentHTML('afterbegin', `
     <div class="card">
-      <h3>Écran en libre-service</h3>
-      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 12px;">Ce que voit le public quand le panda est en accès libre (hors séance). Les pubs et la satisfaction se règlent dans l'onglet « Pubs & satisfaction ».</p>
+      <h3>Écran des jeux en accès libre</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 12px;">${isLibreProject(p) ? 'Ce que voit le public quand le panda est en libre-service, et pendant une séance sur les tablettes au poste <b>Jeux libres</b>.' : 'S\'applique seulement aux tablettes au poste <b>Jeux libres</b> pendant une séance (pas au poste Index ni aux stations du Triathlon).'} Les pubs, la satisfaction, les défis et les annonces suivent la même règle (onglets plus loin).</p>
       ${cb('cfgReadyToPlay', p.show_ready_to_play, 'Afficher l\'encadré "Prêt à jouer ?"', 10)}
       ${cb('cfgIndexBanner', p.show_index_banner, 'Afficher l\'encadré "PandaFit Index"', 10)}
       ${cb('cfgBenefitsPage', p.show_benefits_page, 'Afficher la vignette "Les bienfaits du PandaFit"', 10)}
@@ -3475,15 +3471,15 @@ function coachName(id) { const c = coachList.find(x => x.id === id); return c ? 
    Un projet contient une ou plusieurs séances : c'est le coach qui démarre / termine chaque séance, les dates sont indicatives. */
 const PARC_CLIENT_ID = '00000000-0000-0000-0000-0000000000aa';
 const PROJECT_STATUS_LABELS = { actif: 'Actif', termine: 'Terminé', annule: 'Annulé' };
-// Onglets de la fiche projet. Ceux du libre-service (écran d'accueil, menu, pubs, satisfaction, défis, annonces)
-// n'existent que pour les offres où le panda reste en accès libre entre les séances : Mois, Campagne, Abonnement.
-// En séance, la tablette n'affiche que l'Index ou la grille des jeux selon son poste.
+// Onglets de la fiche projet (tous les formats). L'écran des jeux, le menu, les pubs, la satisfaction, les défis et
+// les annonces s'appliquent à l'écran en accès libre : libre-service (Mois, Campagne, Abonnement, hors séance)
+// et, pendant une séance, aux tablettes au poste « Jeux libres » (décision Dan 06.11.2026).
 const LIBRE_OFFERS = ['mois_equilibre', 'campagne_annuelle', 'abonnement'];
 const isLibreProject = p => LIBRE_OFFERS.includes(p?.offer);
 function projectTabs(p) {
   return [
     ['general', 'Projet'], ['events', 'Séances'], ['results', 'Résultats'], ['devices', 'Tablettes'], ['games', 'Jeux'],
-    ...(isLibreProject(p) ? [['tabletmenu', 'Menu tablette'], ['ads', 'Pubs & satisfaction'], ['defis', 'Défis'], ['annonces', 'Annonces']] : []),
+    ['tabletmenu', 'Menu tablette'], ['ads', 'Pubs & satisfaction'], ['defis', 'Défis'], ['annonces', 'Annonces'],
   ];
 }
 const DEFAULT_PROJECT_GAMES = ['distance', 'base', 'thezone', 'cross', 'skiprev', 'tempo'];

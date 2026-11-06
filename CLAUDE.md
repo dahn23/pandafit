@@ -68,7 +68,7 @@ PandaFit = application web pour **tablette**, autour d'un **capteur d'équilibre
 Ni saisie avant l'Index, ni code / QR à la fin, y compris Mois et Campagne. Interrupteurs : `SHOW_PERSONAL_CODE` (`index.html`) et `PERSONAL_CODE` (`rapport.html`, progression appariée lancement → clôture). Un employé anonyme reste créé en arrière-plan pour compter les participants. À réactiver seulement si Dan le demande.
 
 ### Mode séance (séance en cours dans le projet)
-- Au parc, en attente et en séance : plus de menus (`isKiosk()`). Séance : accueil selon le poste (Index, grille des jeux, station Triathlon). Pas de bannière pub / satisfaction hors libre-service. Coach : roue discrète en bas à droite → Réglages (PIN redemandé à chaque retour).
+- Au parc, en attente et en séance : plus de menus (`isKiosk()`). Séance : accueil selon le poste (Index, jeux libres, station Triathlon). **Écran en accès libre** (`freePlayScreen()`) = libre-service OU poste « Jeux libres » en séance (`postejeuxSeance()`) : même accueil que le libre-service, avec encadrés / vignettes / menu / défis / annonces / pubs / satisfaction du projet. Jamais au poste Index ni aux stations. Console : tous les onglets pour tous les formats ; options d'écran en haut de l'onglet Jeux ; PIN dans l'onglet Projet. Coach : roue discrète en bas à droite → Réglages (PIN redemandé à chaque retour).
 
 ### PWA
 - App installable en plein écran. Manifest **externe** `manifest.webmanifest` (⚠️ un manifest data-URI ne permet PAS l'install WebAPK Android). `sw.js` en **network-first** (jamais de code périmé). Icônes 192 + 512.
