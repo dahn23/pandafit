@@ -3865,7 +3865,8 @@ async function renderProjectDevicesTab() {
   const el = document.getElementById('tabContent');
   const p = currentProject;
   const { data: parc } = currentAdmin?.is_superadmin ? await sb.from('devices').select('id, name').is('project_id', null).order('name') : { data: [] };
-  const postes = ['index', 'jeux', ...(p.offer === 'team_building' ? ['base', 'skiprev', 'tempo'] : [])];
+  const triEv = interventions.filter(x => x.project_id === p.id && ['en_cours', 'preparee'].includes(x.status)).sort((a, b) => (b.status === 'en_cours') - (a.status === 'en_cours') || a.starts_at.localeCompare(b.starts_at))[0];
+  const postes = ['index', 'jeux', ...(p.offer === 'team_building' ? (triEv?.triathlon_games?.length === 3 ? triEv.triathlon_games : ['base', 'skiprev', 'tempo']) : [])]; // stations = jeux du Triathlon de la séance
   el.innerHTML = `
     <div class="card">
       <h3>Tablettes du projet</h3>
@@ -3964,6 +3965,64 @@ async function renderParcView() {
   });
 }
 
+/* ---------- Team building : carte « Triathlon de l'équilibre » dans la fiche séance ----------
+   Le commercial prépare (jeux des 3 stations, jeu de la finale) ; le coach pilote sur place depuis son espace
+   (création des équipes, phases Index → Triathlon → Finale → Podium). */
+const TRI_PHASES = [['qualif', 'Index (qualification)'], ['triathlon', 'Triathlon'], ['finale', 'Finale'], ['podium', 'Podium']];
+const DEFAULT_TRI_GAMES = ['base', 'skiprev', 'tempo'];
+function triathlonCardHTML(e) {
+  const tg = (e.triathlon_games && e.triathlon_games.length === 3) ? e.triathlon_games : DEFAULT_TRI_GAMES;
+  const gName = id => (gamesForEvents.find(g => g.id === id) || games.find(g => g.id === id) || {}).name || id;
+  const pool = (gamesForEvents.length ? gamesForEvents : games).filter(g => g.id !== 'indextest');
+  const sel = (id, val) => `<select id="${id}" style="${selStyleP}">${pool.map(g => `<option value="${g.id}" ${val === g.id ? 'selected' : ''}>${escA(g.name)}</option>`).join('')}</select>`;
+  const phaseIdx = TRI_PHASES.findIndex(([k]) => k === e.phase);
+  const code = currentProject?.code || '';
+  return `
+    <div class="card" id="triCard">
+      <h3>Triathlon de l'équilibre</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Tu prépares ici les jeux. Sur place, le coach crée les équipes et fait avancer les étapes depuis son espace (les tablettes et le grand écran suivent en quelques secondes).</p>
+      <table>
+        <tr><th style="width:34px;"></th><th>Étape</th><th>Ce qui se passe</th></tr>
+        ${[
+          ['Index (qualification)', `Chaque participant passe son PandaFit Index sur la tablette au poste Index. Le coach crée les équipes (~5 personnes).`],
+          ['Triathlon', `3 stations : <b>${tg.map(gName).join(' · ')}</b>. Chaque équipe répartit ses joueurs 2-2-1 sur les 3 jeux. Par jeu, la 1ʳᵉ équipe marque autant de points qu'il y a d'équipes, la 2ᵉ un de moins, etc. (moyenne des joueurs).`],
+          ['Finale', `${e.finale_game ? `Sur <b>${gName(e.finale_game)}</b> (le coach peut encore changer)` : 'Sur un des 3 jeux, choisi par le coach au moment de la finale'} : un joueur par équipe, <b>points doubles</b>.`],
+          ['Podium', `Le classement final s'affiche sur le grand écran.`],
+        ].map(([t, d], i) => `<tr style="${i === phaseIdx && e.status === 'en_cours' ? 'background:rgba(46,194,126,.12);' : ''}"><td><b>${i + 1}</b></td><td><b>${t}</b>${i === phaseIdx && e.status === 'en_cours' ? ' <span class="badge badge-payee">en cours</span>' : ''}</td><td style="font-size:13px;">${d}</td></tr>`).join('')}
+      </table>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-top:14px;">
+        ${fieldP('Station 1', sel('triG1', tg[0]))}
+        ${fieldP('Station 2', sel('triG2', tg[1]))}
+        ${fieldP('Station 3', sel('triG3', tg[2]))}
+        ${fieldP('Jeu de la finale', `<select id="triFinaleSel" style="${selStyleP}"><option value="">À choisir par le coach</option>${tg.map(g => `<option value="${g}" ${e.finale_game === g ? 'selected' : ''}>${escA(gName(g))}</option>`).join('')}</select>`)}
+      </div>
+      <button class="btn-primary" id="btnSaveTri" style="width:auto;margin-top:10px;">Enregistrer les jeux</button>
+      <h3 style="margin-top:18px;">Équipes</h3>
+      <div id="triTeams"><p class="empty">Chargement…</p></div>
+      <h3 style="margin-top:18px;">Tablettes et écran</h3>
+      <p style="font-size:13px;margin:0;">1 tablette au poste <b>PandaFit Index</b> + 1 tablette par station (${tg.map(gName).join(', ')}), toutes avec le code <b>${escA(code)}</b>. Le coach règle les postes depuis son espace (« Séance et tablettes ») ou dans l'onglet Tablettes du projet.<br>
+      Grand écran : <a href="https://app.pandafit.ch/projection.html?code=${encodeURIComponent(code)}" target="_blank" rel="noopener" style="color:var(--primary);">app.pandafit.ch/projection.html?code=${escA(code)}</a></p>
+    </div>`;
+}
+async function wireTriathlonCard(e) {
+  document.getElementById('btnSaveTri')?.addEventListener('click', async () => {
+    const tg = ['triG1', 'triG2', 'triG3'].map(id => document.getElementById(id).value);
+    if (new Set(tg).size !== 3) { alert('Choisis 3 jeux différents pour les stations.'); return; }
+    let fin = document.getElementById('triFinaleSel').value || null;
+    if (fin && !tg.includes(fin)) fin = null;
+    const { error } = await sb.from('event_sessions').update({ triathlon_games: tg, finale_game: fin }).eq('id', e.id);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    e.triathlon_games = tg; e.finale_game = fin;
+    renderProjectEditor();
+  });
+  const box = document.getElementById('triTeams');
+  if (!box) return;
+  const { data: teams } = await sb.from('event_teams').select('*').eq('event_session_id', e.id).order('sort');
+  box.innerHTML = (teams || []).length
+    ? `<div style="display:flex;flex-wrap:wrap;gap:8px;">${teams.map(t => `<span class="badge" style="font-size:13px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${escA(t.color)};margin-right:6px;"></span>${escA(t.name)}</span>`).join('')}</div>`
+    : `<p style="font-size:13px;color:var(--text-dim);margin:0;">Pas encore créées : le coach les crée sur place dans son espace (nombre proposé selon les participants attendus, ~5 par équipe), puis peut les renommer.</p>`;
+}
+
 function renderInterventionEditor() {
   const main = document.getElementById('main');
   const e = editingInterventionId === 'new' ? null : interventions.find(x => x.id === editingInterventionId);
@@ -4003,6 +4062,7 @@ function renderInterventionEditor() {
         <button class="btn-primary" id="btnPublishReport" style="width:auto;">${e.report_published_at ? 'Retirer de l\'espace RH' : 'Publier dans l\'espace RH'}</button>
       </div>
     </div>` : ''}
+    ${e?.offer === 'team_building' ? triathlonCardHTML(e) : ''}
     ${e?.offer === 'mois_equilibre' ? `<div class="card" id="campaignCard">
       <h3>Mois de l'équilibre ${e.campaign_step ? `· <span class="badge">${e.campaign_step === 't0' ? 'lancement (T0)' : 'clôture (T1)'}</span>` : ''}</h3>
       ${(e.campaign_step || interventions.some(x => x.project_id === e.project_id && x.campaign_step === 't1')) ? '<p class="empty">Chargement…</p>' : `
@@ -4092,6 +4152,7 @@ function renderInterventionEditor() {
     if (error) { alert('Erreur : ' + error.message); return; }
     renderInterventionsView();
   });
+  if (e?.offer === 'team_building') wireTriathlonCard(e);
   if (e?.offer === 'mois_equilibre' && document.getElementById('campaignCard')?.querySelector('.empty')) {
     const box = document.getElementById('campaignCard');
     const other = interventions.find(x => x.project_id === e.project_id && x.campaign_step && x.campaign_step !== e.campaign_step && x.id !== e.id);

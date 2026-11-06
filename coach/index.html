@@ -402,7 +402,7 @@ function drawTriathlon() {
       <input id="triNbTeams" type="number" inputmode="numeric" min="2" max="10" value="${suggested}">
       <button class="btn-primary" id="triCreateTeams">Créer les équipes</button>
     `}
-    <p class="hint">Sur chaque tablette : Réglages → Mode événement → <b>Station</b> (${games.map(g => esc(GAME_NAMES[g] || g)).join(' / ')}). Chaque équipe répartit ses joueurs 2-2-1 sur les 3 jeux.</p>
+    <p class="hint">Postes des tablettes (carte « Séance et tablettes » ci-dessus) : 1 tablette <b>PandaFit Index</b> + 1 par station (${games.map(g => esc(GAME_NAMES[g] || g)).join(' / ')}). Chaque équipe répartit ses joueurs 2-2-1 sur les 3 jeux.</p>
     ${teams.length ? `
       <h3 style="margin-top:14px;">Classement <span class="hint" style="font-weight:500;">(points par jeu, mis à jour toutes les 10 s)</span></h3>
       <table class="tri"><thead><tr><th>Équipe</th>${games.map(g => `<th>${esc(GAME_NAMES[g] || g)}</th>`).join('')}<th>Finale</th><th>Total</th></tr></thead>
