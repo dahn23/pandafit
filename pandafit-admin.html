@@ -388,8 +388,13 @@ async function loadChallenges() {
     .order('start_date', { ascending: false });
   challenges = data || [];
 }
+// Nom de fichier accepté par le stockage Supabase : sans accents, espaces ni symboles (©, ', etc.)
+function safeFileName(name) {
+  return String(name || 'fichier').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').slice(-80) || 'fichier';
+}
 async function uploadBanner(file) {
-  const path = `${crypto.randomUUID()}-${file.name}`;
+  const path = `${crypto.randomUUID()}-${safeFileName(file.name)}`;
   const { error } = await sb.storage.from('banners').upload(path, file);
   if (error) throw error;
   const { data } = sb.storage.from('banners').getPublicUrl(path);
@@ -2762,7 +2767,7 @@ async function renderCrmDetail() {
   document.getElementById('crmFileInput').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const path = `${contact.id}/${crypto.randomUUID()}-${file.name}`;
+    const path = `${contact.id}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
     const { error: upErr } = await sb.storage.from('crm-files').upload(path, file);
     if (upErr) { alert("Erreur d'upload : " + upErr.message); return; }
     await sb.from('crm_files').insert({ contact_id: contact.id, file_name: file.name, file_url: path });
