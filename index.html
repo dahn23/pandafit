@@ -438,6 +438,8 @@
     font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums;
   }
   .zone-canvas-wrap { display: flex; justify-content: center; margin: 10px 0 20px; }
+  /* Electro : consigne en haut, à droite de l'encadré du panda (sinon elle cache la fin du parcours) */
+  .electro-hint { margin: 0 0 6px calc(min(46vw, 230px) + 4px); min-height: 48px; font-size: 18px; line-height: 1.35; color: #c7c2db; text-align: left; }
   #zoneCanvas { background: #14101f; border-radius: 20px; }
   .result-stat { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-hi); gap: 12px; }
   .result-stat:last-child { border-bottom: none; }
@@ -5268,6 +5270,7 @@ function screenElectroPlaying() {
       <div class="hearts" id="electroHearts"></div>
       <div class="timer" id="electroTimer">0:00.0</div>
     </div>
+    <p id="electroHint" class="electro-hint">Fais glisser le doigt le long du fil, du vert au orange.</p>
     <div class="zone-canvas-wrap" style="height:68vh;">
       <svg id="electroScene" style="display:block;height:100%;width:auto;aspect-ratio:300/500;touch-action:none;" viewBox="0 0 300 500" preserveAspectRatio="xMidYMid meet">
         <g id="electroTrack">
@@ -5280,7 +5283,6 @@ function screenElectroPlaying() {
         <g id="electroSpark" opacity="0"></g>
       </svg>
     </div>
-    <p class="page-sub" style="text-align:center;" id="electroHint">Fais glisser le doigt le long du fil, du vert au orange.</p>
   `;
 }
 
@@ -5328,9 +5330,7 @@ function fitElectroScene() {
   const top = wrap.getBoundingClientRect().top;
   const nav = document.querySelector('.bottomnav');
   const bottomLimit = (nav && getComputedStyle(nav).display !== 'none') ? nav.getBoundingClientRect().top : window.innerHeight;
-  const hint = document.getElementById('electroHint');
-  const hintH = hint ? hint.offsetHeight + 40 : 40;
-  const h = Math.max(260, Math.floor(bottomLimit - top - hintH - 20));
+  const h = Math.max(260, Math.floor(bottomLimit - top - 24)); // la consigne est en haut, à côté du panda
   const maxW = wrap.clientWidth || window.innerWidth;
   wrap.style.height = Math.min(h, Math.floor(maxW * 500 / 300)) + 'px';
 }
@@ -5365,7 +5365,7 @@ function electroPathD(uptoIdx) {
 function renderElectroPlaying(snap) {
   const heartsEl = document.getElementById('electroHearts');
   const timerEl = document.getElementById('electroTimer');
-  setHeartsIfChanged(heartsEl, snap.livesRemaining, electroSetupCfg.lives);
+  if (electroSetupCfg.lives !== Infinity) setHeartsIfChanged(heartsEl, snap.livesRemaining, electroSetupCfg.lives); // vies illimitées : pas de signe ∞
   if (timerEl) {
     const s = snap.elapsedMs / 1000;
     timerEl.textContent = `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
