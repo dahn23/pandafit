@@ -3490,7 +3490,7 @@ function coachName(id) { const c = coachList.find(x => x.id === id); return c ? 
 const PARC_CLIENT_ID = '00000000-0000-0000-0000-0000000000aa';
 const PROJECT_STATUS_LABELS = { actif: 'Actif', termine: 'Terminé', annule: 'Annulé' };
 const PROJECT_TABS = [
-  ['general', 'Projet'], ['events', 'Séances'], ['devices', 'Tablettes'], ['games', 'Jeux'], ['tabletmenu', 'Menu tablette'],
+  ['general', 'Projet'], ['events', 'Séances'], ['results', 'Résultats'], ['devices', 'Tablettes'], ['games', 'Jeux'], ['tabletmenu', 'Menu tablette'],
   ['clientsettings', 'Accueil & PIN'], ['ads', 'Pubs & satisfaction'], ['defis', 'Défis'], ['annonces', 'Annonces'],
 ];
 const DEFAULT_PROJECT_GAMES = ['distance', 'base', 'thezone', 'cross', 'skiprev', 'tempo'];
@@ -3604,6 +3604,7 @@ async function renderProjectEditor() {
   main.querySelectorAll('[data-ptab]').forEach(t => t.addEventListener('click', () => { projectTab = t.dataset.ptab; editingInterventionId = null; renderProjectEditor(); }));
   if (projectTab === 'general') renderProjectGeneralTab();
   else if (projectTab === 'events') renderProjectEventsTab();
+  else if (projectTab === 'results') await renderProjectResultsTab();
   else if (projectTab === 'devices') await renderProjectDevicesTab();
   else if (projectTab === 'games') await renderGamesTab();
   else if (projectTab === 'tabletmenu') await renderTabletMenuTab();
@@ -3749,6 +3750,56 @@ function renderProjectEventsTab() {
     </div>`;
   document.getElementById('btnNewEvent').addEventListener('click', () => { editingInterventionId = 'new'; renderProjectEditor(); });
   el.querySelectorAll('[data-open-event]').forEach(tr => tr.addEventListener('click', () => { editingInterventionId = tr.dataset.openEvent; renderProjectEditor(); }));
+}
+
+/* Résultats du projet : bilan par séance + toutes les parties jouées dans le projet */
+async function renderProjectResultsTab() {
+  const el = document.getElementById('tabContent');
+  const p = currentProject;
+  el.innerHTML = '<p class="empty">Chargement...</p>';
+  const { data, error } = await sb.from('sessions').select('*, devices(name)').eq('project_id', p.id).order('played_at', { ascending: false }).limit(2000);
+  if (error) { el.innerHTML = `<p class="empty">Erreur : ${escA(error.message)}</p>`; return; }
+  const plays = data || [];
+  const gName = id => (games.find(g => g.id === id) || {}).name || (id === 'indextest' ? 'PandaFit Index' : id);
+  const evs = interventions.filter(e => e.project_id === p.id).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+  const summary = (list) => {
+    const idx = list.filter(s => s.game_id === 'indextest');
+    const people = new Set(list.map(s => s.employee_id).filter(Boolean));
+    const avg = idx.length ? Math.round(idx.reduce((t, s) => t + (s.score || 0), 0) / idx.length) : null;
+    return { n: list.length, idx: idx.length, people: people.size, avg };
+  };
+  const rows = evs.map(e => {
+    const s = summary(plays.filter(x => x.event_session_id === e.id));
+    return `<tr>
+      <td>${new Date(e.starts_at).toLocaleDateString('fr-CH')}</td>
+      <td><b>${escA(e.title || OFFER_LABELS[e.offer] || '')}</b><br><span style="font-size:11.5px;color:var(--text-dim);">${EVENT_STATUS_LABELS[e.status] || e.status}</span></td>
+      <td>${s.n}</td><td>${s.people}</td><td>${s.idx}</td><td>${s.avg ?? '—'}</td>
+      <td style="white-space:nowrap;">${s.n ? `<a href="/rapport.html?e=${e.id}" target="_blank" rel="noopener" style="color:var(--primary);">Rapport</a>` : ''}</td>
+    </tr>`;
+  }).join('');
+  const free = plays.filter(x => !x.event_session_id);
+  const fs = summary(free);
+  el.innerHTML = `
+    <div class="card">
+      <h3>Bilan par séance</h3>
+      <table><tr><th>Date</th><th>Séance</th><th>Parties</th><th>Personnes</th><th>Index</th><th>Index moyen</th><th></th></tr>
+        ${rows || ''}
+        ${free.length ? `<tr><td>—</td><td><b>Hors séance</b><br><span style="font-size:11.5px;color:var(--text-dim);">libre-service</span></td><td>${fs.n}</td><td>${fs.people}</td><td>${fs.idx}</td><td>${fs.avg ?? '—'}</td><td></td></tr>` : ''}
+      </table>
+      ${!evs.length && !free.length ? '<p class="empty">Aucune séance.</p>' : ''}
+      <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Classement en direct : <a href="https://app.pandafit.ch/projection.html?code=${encodeURIComponent(p.code)}" target="_blank" rel="noopener" style="color:var(--primary);">projection</a>. « Personnes » = joueurs identifiés par leur code personnel.</p>
+    </div>
+    <div class="card">
+      <h3>Parties jouées (${plays.length})</h3>
+      ${plays.length ? `<table><tr><th>Date</th><th>Jeu</th><th>Score</th><th>Joueur</th><th>Tablette</th></tr>
+        ${plays.slice(0, 300).map(s => `<tr>
+          <td>${new Date(s.played_at).toLocaleString('fr-CH', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+          <td>${escA(gName(s.game_id))}${s.round ? ` <span class="badge">${escA(s.round)}</span>` : ''}</td>
+          <td><b>${s.score}</b></td>
+          <td>${s.pseudo ? escA(s.pseudo) : s.employee_id ? '<span style="color:var(--text-dim);">code perso</span>' : '<span style="color:var(--text-dim);">anonyme</span>'}</td>
+          <td>${escA(s.devices?.name || '—')}</td>
+        </tr>`).join('')}</table>${plays.length > 300 ? '<p style="font-size:12px;color:var(--text-dim);">300 plus récentes affichées.</p>' : ''}` : '<p class="empty">Aucune partie jouée dans ce projet pour l\'instant.</p>'}
+    </div>`;
 }
 
 const POSTE_LABELS = { index: 'PandaFit Index', jeux: 'Jeux libres' };
