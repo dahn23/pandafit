@@ -450,6 +450,15 @@
   .detail-row .lbl { font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
   .detail-row .val { font-size: 14px; line-height: 1.4; }
   .result-score { text-align: center; margin: 10px 0 20px; }
+  /* Écrans de fin des jeux : titre en grand, score en avant, stats en petites boîtes */
+  .game-result h1.page-title { font-size: 42px; font-weight: 800; text-align: center; justify-content: center; margin: 0 0 18px; }
+  .game-result .result-score .num { font-size: 64px; line-height: 1.1; }
+  .result-boxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0 0 20px; }
+  .result-box { background: linear-gradient(160deg, var(--panel-hi), var(--panel)); border: 1px solid rgba(255,255,255,.07); border-radius: 18px; padding: 16px 12px 14px; text-align: center; }
+  .result-box .rb-ic { width: 40px; height: 40px; margin: 0 auto 8px; border-radius: 12px; background: rgba(67,206,162,.14); color: var(--primary); display: flex; align-items: center; justify-content: center; }
+  .result-box .rb-ic svg { width: 22px; height: 22px; }
+  .result-box .rb-val { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .result-box .rb-lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-dim); font-weight: 700; margin-top: 4px; }
   .result-score .num { font-size: 44px; font-weight: 800; background: var(--grad-main); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .result-score .lbl { font-size: 12.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
 
@@ -2539,6 +2548,15 @@ function setLang(lang) {
    clé = texte français exact) + quelques textes avec des nombres (règles). Un texte absent du dictionnaire reste en français.
    Pour ajouter une phrase : une ligne [fr, de, en, it]. */
 const UI_DICT_ROWS = [
+  // Écrans de fin : boîtes de stats
+  ["Terminé !", "Fertig!", "Finished!", "Finito!"],
+  ["Coups de jus", "Stromschläge", "Shocks", "Scosse"],
+  ["Bons aliments", "Gesunde Lebensmittel", "Healthy foods", "Cibi sani"],
+  ["Sucreries", "Süssigkeiten", "Sweets", "Dolciumi"],
+  ["Buts", "Tore", "Goals", "Gol"],
+  ["Tirs ratés", "Fehlschüsse", "Missed shots", "Tiri sbagliati"],
+  ["Temps de tir", "Schusszeit", "Shooting time", "Tempo di tiro"],
+  ["Erreurs", "Fehler", "Mistakes", "Errori"],
   // Encadré « catégorie, bienfaits, score » des écrans d'avant-jeu
   ["Précision", "Präzision", "Precision", "Precisione"],
   ["Calme & mental", "Ruhe & Mentales", "Calm & mind", "Calma & mente"],
@@ -4114,6 +4132,12 @@ function gameBenefitsHTML(gameId) {
       <div class="gi-row"><div class="gi-t">Bienfaits</div><p>${g.benefits}</p></div>
     </div>`;
 }
+/** Écran de fin : petites boîtes de stats (plus discrètes que le score). items = [{ icon, label, value }] */
+function resultStatsHTML(items) {
+  return `<div class="result-boxes">${items.map(it => `
+    <div class="result-box"><div class="rb-ic"><i data-lucide="${it.icon}"></i></div><div class="rb-val">${it.value}</div><div class="rb-lbl">${it.label}</div></div>`).join('')}
+  </div>`;
+}
 function gameVideoBigHTML(videoB64) {
   return `
     <div class="game-video-frame-big">
@@ -4485,19 +4509,17 @@ function renderZonePlaying(snap) {
 function screenZoneResult(snap, score, reason) {
   const played = zoneSetupCfg.duration - snap.timeLeft;
   return `
-    <div class="centered-page">
+    <div class="centered-page game-result">
     <h1 class="page-title">${reason === 'lives' ? 'Terminé — plus de vies' : 'Terminé — temps écoulé'}</h1>
     ${gameVideoBigHTML(ZONE_END_VIDEO_B64)}
     <div class="result-score">
       <div class="num">${score}</div>
       <div class="lbl">Score</div>
     </div>
-    <div class="card">
-      <div class="result-stat"><span>Temps joué</span><span>${played}s / ${zoneSetupCfg.duration}s</span></div>
-      <div class="result-stat"><span>Difficulté</span><span>${{easy:'Facile',medium:'Moyen',hard:'Difficile'}[snap.difficulty]}</span></div>
-      <div class="result-stat"><span>Type de zone</span><span>${snap.zoneMode === 'shrink' ? 'Diminue' : 'Fixe'}</span></div>
-      <div class="result-stat"><span>Vies perdues</span><span>${snap.livesLost}</span></div>
-    </div>
+    ${resultStatsHTML([
+      { icon: 'timer', label: 'Temps joué', value: `${played} s` },
+      { icon: 'heart-crack', label: 'Vies perdues', value: snap.livesLost },
+    ])}
     <div class="row">
       <button class="btn-primary" id="btnZoneReplay">Rejouer</button>
       <button class="btn-ghost" id="btnZoneBackHome">Retour à l'accueil</button>
@@ -4923,15 +4945,14 @@ function renderMigrosPlaying(snap) {
 }
 function screenMigrosResult(snap, score, reason) {
   return `
-    <div class="centered-page">
+    <div class="centered-page game-result">
     <h1 class="page-title">Terminé — temps écoulé</h1>
     ${gameVideoBigHTML(MIGROS_END_VIDEO_B64)}
     <div class="result-score"><div class="num">${score}</div><div class="lbl">Score</div></div>
-    <div class="card">
-      <div class="result-stat"><span>Nombre de bons aliments</span><span>${snap.goodCount}</span></div>
-      <div class="result-stat"><span>Nombre de sucreries</span><span>${snap.junkCount}</span></div>
-      <div class="result-stat"><span>Score</span><span>${snap.goodCount} - ${snap.junkCount} = ${score}</span></div>
-    </div>
+    ${resultStatsHTML([
+      { icon: 'apple', label: 'Bons aliments', value: snap.goodCount },
+      { icon: 'candy', label: 'Sucreries', value: snap.junkCount },
+    ])}
     <div class="row">
       <button class="btn-primary" id="btnMigrosReplay">Rejouer</button>
       <button class="btn-ghost" id="btnMigrosBack">Retour à l'accueil</button>
@@ -5179,14 +5200,14 @@ function screenSkiResult(snap, score) {
   const secs = snap.elapsedMs / 1000;
   const timeStr = `${Math.floor(secs / 60)}:${(secs % 60).toFixed(1).padStart(4, '0')}`;
   return `
-    <div class="centered-page">
+    <div class="centered-page game-result">
     <h1 class="page-title">Ligne franchie !</h1>
     ${gameVideoBigHTML(SKI_END_VIDEO_B64)}
     <div class="result-score"><div class="num">${score}</div><div class="lbl">Score</div></div>
-    <div class="card">
-      <div class="result-stat"><span>Distance</span><span>${snap.totalDist} m</span></div>
-      <div class="result-stat"><span>Temps</span><span>${timeStr}</span></div>
-    </div>
+    ${resultStatsHTML([
+      { icon: 'timer', label: 'Temps', value: timeStr },
+      { icon: 'flag', label: 'Distance', value: `${snap.totalDist} m` },
+    ])}
     <div class="card">
       <h2>Conseils de prévention</h2>
       ${SKI_TIPS.map(t => `<div class="ski-tip"><div class="ic"><i data-lucide="${t.ic}"></i></div><div class="txt">${t.txt}</div></div>`).join('')}
@@ -5393,18 +5414,17 @@ function screenElectroResult(snap, score, reason) {
   const s = snap.elapsedMs / 1000;
   const timeStr = `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
   return `
-    <div class="centered-page">
+    <div class="centered-page game-result">
     <h1 class="page-title">${reason === 'complete' ? 'Terminé !' : 'Terminé — plus de vies'}</h1>
     ${gameVideoBigHTML(ELECTRO_END_VIDEO_B64)}
     <div class="result-score">
       <div class="num">${score}</div>
       <div class="lbl">Score</div>
     </div>
-    <div class="card">
-      <div class="result-stat"><span>Temps</span><span>${timeStr}</span></div>
-      <div class="result-stat"><span>Sensibilité</span><span>${snap.sensitivity === 'hard' ? 'Difficile' : 'Facile'}</span></div>
-      <div class="result-stat"><span>Vies perdues</span><span>${snap.livesLost}</span></div>
-    </div>
+    ${resultStatsHTML([
+      { icon: 'timer', label: 'Temps', value: timeStr },
+      { icon: 'zap', label: 'Coups de jus', value: snap.livesLost },
+    ])}
     <div class="row">
       <button class="btn-primary" id="btnElectroReplay">Rejouer</button>
       <button class="btn-ghost" id="btnElectroBackHome">Retour à l'accueil</button>
@@ -5625,15 +5645,15 @@ function renderFootballPlaying(snap) {
 
 function screenFootballResult(snap, score) {
   return `
-    <div class="centered-page">
+    <div class="centered-page game-result">
     <h1 class="page-title">Match terminé !</h1>
     ${gameVideoBigHTML(FOOTBALL_END_VIDEO_B64)}
-    <div class="result-score"><div class="num">${snap.goals}</div><div class="lbl">But${snap.goals > 1 ? 's' : ''} marqué${snap.goals > 1 ? 's' : ''}</div></div>
-    <div class="card">
-      <div class="result-stat"><span>Score</span><span>${score}</span></div>
-      <div class="result-stat"><span>Tentatives ratées</span><span>${snap.misses}</span></div>
-      <div class="result-stat"><span>Temps de tir gagné</span><span>${snap.shootSeconds}s</span></div>
-    </div>
+    <div class="result-score"><div class="num">${score}</div><div class="lbl">Score</div></div>
+    ${resultStatsHTML([
+      { icon: 'goal', label: 'Buts', value: snap.goals },
+      { icon: 'circle-x', label: 'Tirs ratés', value: snap.misses },
+      { icon: 'timer', label: 'Temps de tir', value: `${snap.shootSeconds} s` },
+    ])}
     <div class="row">
       <button class="btn-primary" id="btnFootballReplay">Rejouer</button>
       <button class="btn-ghost" id="btnFootballBack">Retour à l'accueil</button>
@@ -5799,7 +5819,7 @@ function renderRelaxPlaying(snap) {
 }
 function screenRelaxResult(snap, score) {
   return `
-    <div class="centered-page">
+    <div class="centered-page game-result">
     <h1 class="page-title">Bien joué</h1>
     ${gameVideoBigHTML(ZEN_END_VIDEO_B64)}
     <div class="result-score"><div class="num">${snap.percentInZone}%</div><div class="lbl">du temps en équilibre</div></div>
@@ -6010,14 +6030,14 @@ function renderTempoPlaying(snap) {
 }
 function screenTempoResult(snap, score) {
   return `
-    <div class="centered-page">
+    <div class="centered-page game-result">
     <h1 class="page-title">Bien joué</h1>
     ${gameVideoBigHTML(MINDFUL_END_VIDEO_B64)}
     <div class="result-score"><div class="num">${score}</div><div class="lbl">points</div></div>
-    <div class="card">
-      <div class="result-stat"><span>Bonnes réponses</span><span>${snap.correct}</span></div>
-      <div class="result-stat"><span>Mauvaises réponses</span><span>${snap.wrong}</span></div>
-    </div>
+    ${resultStatsHTML([
+      { icon: 'circle-check', label: 'Bonnes réponses', value: snap.correct },
+      { icon: 'circle-x', label: 'Erreurs', value: snap.wrong },
+    ])}
     <div class="row">
       <button class="btn-primary" id="btnTempoReplay">Rejouer</button>
       <button class="btn-ghost" id="btnTempoBack">Retour à l'accueil</button>
