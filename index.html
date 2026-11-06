@@ -2367,6 +2367,8 @@ const content = document.getElementById('content');
     if (!records.some(r => r.addedNodes.length)) return; // ignore le simple retrait (dont notre propre déplacement)
     const btn = content.querySelector('.back-top');
     if (btn) slot.replaceChildren(btn); else if (slot.firstChild) slot.replaceChildren();
+    // L'accueil en accès libre réserve un espace en haut pour son en-tête fixe : à retirer sur tout autre écran
+    if (!content.querySelector('.home-top-row')) content.style.paddingTop = '';
     if (content.querySelector('.game-setup, .game-result')) window.scrollTo(0, 0); // lancement / fin de jeu : la page part du haut
     const btnR = content.querySelector('.back-top-right');
     if (btnR) slotR.replaceChildren(btnR); else if (slotR.firstChild) slotR.replaceChildren();
