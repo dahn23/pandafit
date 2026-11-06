@@ -90,6 +90,7 @@
   .game-info .gi-row + .gi-row { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.08); }
   .game-info .gi-t { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--cat); font-weight: 800; margin-bottom: 5px; }
   .game-info p { margin: 0; font-size: 17px; line-height: 1.5; color: #d9d4ea; }
+  .game-info p.gi-note { background: color-mix(in srgb, var(--cat) 14%, transparent); border-left: 4px solid var(--cat); border-radius: 10px; padding: 10px 14px; margin: 0 0 16px; font-weight: 600; color: var(--text); }
   .panda-watcher {
     position: fixed; top: 68px; left: 16px; width: 46vw; height: 46vw; max-width: 230px; max-height: 230px; z-index: 50;
     border-radius: 28px; background: #fdfaf3; border: 3px solid var(--primary);
@@ -2548,6 +2549,8 @@ function setLang(lang) {
    clé = texte français exact) + quelques textes avec des nombres (règles). Un texte absent du dictionnaire reste en français.
    Pour ajouter une phrase : une ligne [fr, de, en, it]. */
 const UI_DICT_ROWS = [
+  ["Entraînement à la carte : règle la difficulté, la durée et les vies.", "Training nach Mass: Stelle Schwierigkeit, Dauer und Leben selbst ein.", "Training your way: set the difficulty, duration and lives.", "Allenamento su misura: scegli difficoltà, durata e vite."],
+  ["Base scientifique : respiration lente à 6 cycles par minute (cohérence cardiaque). Une méta-analyse de 2022 montre qu'elle active le système nerveux de la détente (Laborde et al.).", "Wissenschaftliche Grundlage: langsames Atmen mit 6 Zügen pro Minute (Herzkohärenz). Eine Meta-Analyse von 2022 zeigt, dass es das Entspannungsnervensystem aktiviert (Laborde et al.).", "Scientific basis: slow breathing at 6 breaths per minute (heart coherence). A 2022 meta-analysis shows it activates the relaxation nervous system (Laborde et al.).", "Base scientifica: respirazione lenta a 6 cicli al minuto (coerenza cardiaca). Una meta-analisi del 2022 mostra che attiva il sistema nervoso del rilassamento (Laborde et al.)."],
   // Écrans de fin : boîtes de stats
   ["Terminé !", "Fertig!", "Finished!", "Finito!"],
   ["Coups de jus", "Stromschläge", "Shocks", "Scosse"],
@@ -4073,6 +4076,7 @@ const GAME_CATEGORIES = {
 const GAME_INFO = {
   thezone: {
     cat: 'precision',
+    note: 'Entraînement à la carte : règle la difficulté, la durée et les vies.',
     why: 'Tu dois garder ton centre de gravité dans un petit cercle : c\'est de la précision pure.',
     benefits: 'Renforce les petits muscles qui stabilisent les chevilles et améliore la posture. Moins de faux pas et d\'entorses.',
   },
@@ -4098,6 +4102,7 @@ const GAME_INFO = {
   },
   cross: {
     cat: 'calme',
+    note: 'Base scientifique : respiration lente à 6 cycles par minute (cohérence cardiaque). Une méta-analyse de 2022 montre qu\x27elle active le système nerveux de la détente (Laborde et al.).',
     why: 'La respiration guidée calme le corps, et ton équilibre montre si tu restes vraiment posé.',
     benefits: 'La cohérence cardiaque baisse le stress et le rythme cardiaque, et aide à se concentrer avant un moment important.',
   },
@@ -4117,6 +4122,7 @@ function gameInfoHTML(gameId) {
   return `
     <div class="game-info" style="--cat:${c.color};">
       ${gameCatHeadHTML(c)}
+      ${g.note ? `<p class="gi-note">${g.note}</p>` : ''}
       <div class="gi-row"><div class="gi-t">Pourquoi ce jeu ?</div><p>${g.why}</p></div>
       <div class="gi-row"><div class="gi-t">Bienfaits</div><p>${g.benefits}</p></div>
     </div>`;
