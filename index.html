@@ -80,7 +80,8 @@
   .topbar.has-back-right { position: sticky; top: 0; z-index: 60; background: var(--bg); }
   .topbar.has-back-right .status-pill { display: none; }
   .topbar.has-back-right #topbarBackRight { margin-left: auto; }
-  .game-setup { display: flex; flex-direction: column; justify-content: center; gap: 26px; text-align: center; }
+  .game-setup { display: flex; flex-direction: column; justify-content: flex-start; gap: 26px; text-align: center; }
+  .centered-page.game-setup, .centered-page:has(> .game-setup) { justify-content: flex-start; min-height: 0; padding-top: 4px; } /* écran de lancement : tout en haut */
   .game-setup > * { margin: 0 !important; }
   .game-setup h1.page-title { justify-content: center; font-size: 30px; }
   .game-setup .game-video-frame-big { width: 320px; height: 320px; max-width: 80vw; max-height: 80vw; margin: 0 auto !important; }
@@ -2366,6 +2367,7 @@ const content = document.getElementById('content');
     if (!records.some(r => r.addedNodes.length)) return; // ignore le simple retrait (dont notre propre déplacement)
     const btn = content.querySelector('.back-top');
     if (btn) slot.replaceChildren(btn); else if (slot.firstChild) slot.replaceChildren();
+    if (content.querySelector('.game-setup, .game-result')) window.scrollTo(0, 0); // lancement / fin de jeu : la page part du haut
     const btnR = content.querySelector('.back-top-right');
     if (btnR) slotR.replaceChildren(btnR); else if (slotR.firstChild) slotR.replaceChildren();
     bar.classList.toggle('has-back', !!btn);
