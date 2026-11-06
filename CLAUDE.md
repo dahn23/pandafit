@@ -64,6 +64,9 @@ PandaFit = application web pour **tablette**, autour d'un **capteur d'équilibre
 - Tablette : les écrans sont écrits en français et traduits à l'affichage par `UI_DICT_ROWS` (lignes `[fr, de, en, it]`, clé = texte français exact) + `UI_RULES` (textes avec nombres). **Toute nouvelle phrase affichée sur la tablette = ajouter sa ligne dans `UI_DICT_ROWS`.** Éviter de couper une phrase par des `<b>` / dates : mettre les valeurs dans leur propre élément.
 - Projection, inscription, rapport : dictionnaires propres à chaque page, langue = `event_sessions.language`.
 
+### Code personnel : DÉSACTIVÉ PARTOUT (décision Dan 06.11.2026)
+Ni saisie avant l'Index, ni code / QR à la fin, y compris Mois et Campagne. Interrupteurs : `SHOW_PERSONAL_CODE` (`index.html`) et `PERSONAL_CODE` (`rapport.html`, progression appariée lancement → clôture). Un employé anonyme reste créé en arrière-plan pour compter les participants. À réactiver seulement si Dan le demande.
+
 ### Mode séance (séance en cours dans le projet)
 - Au parc, en attente et en séance : plus de menus (`isKiosk()`). Séance : accueil selon le poste (Index, grille des jeux, station Triathlon). Pas de bannière pub / satisfaction hors libre-service. Coach : roue discrète en bas à droite → Réglages (PIN redemandé à chaque retour).
 
