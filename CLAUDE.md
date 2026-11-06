@@ -64,6 +64,9 @@ PandaFit = application web pour **tablette**, autour d'un **capteur d'équilibre
 - Tablette : les écrans sont écrits en français et traduits à l'affichage par `UI_DICT_ROWS` (lignes `[fr, de, en, it]`, clé = texte français exact) + `UI_RULES` (textes avec nombres). **Toute nouvelle phrase affichée sur la tablette = ajouter sa ligne dans `UI_DICT_ROWS`.** Éviter de couper une phrase par des `<b>` / dates : mettre les valeurs dans leur propre élément.
 - Projection, inscription, rapport : dictionnaires propres à chaque page, langue = `event_sessions.language`.
 
+### Challenges inter-entreprises (par projet, depuis le 06.11.2026)
+Console → Challenges : on coche des **projets** en cours ou à venir (`challenge_participants.project_id`, client déduit par trigger), un jeu, une période (bouton « période commune » ou une partie seulement). Classement = total des scores du jeu par projet sur la période (`tablet_challenge_totals`). Affiché automatiquement sur l'écran en accès libre des tablettes des projets participants, sauf si le projet décoche « Afficher le challenge inter-entreprises » (onglet Jeux, `projects.show_challenges`, défaut oui ; l'œil du Menu tablette agit sur ce même réglage).
+
 ### Code personnel : DÉSACTIVÉ PARTOUT (décision Dan 06.11.2026)
 Ni saisie avant l'Index, ni code / QR à la fin, y compris Mois et Campagne. Interrupteurs : `SHOW_PERSONAL_CODE` (`index.html`) et `PERSONAL_CODE` (`rapport.html`, progression appariée lancement → clôture). Un employé anonyme reste créé en arrière-plan pour compter les participants. À réactiver seulement si Dan le demande.
 
