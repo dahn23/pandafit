@@ -677,6 +677,7 @@ const PandaFitBackend = (() => {
     const clientName = device.clients ? device.clients.name : '—';
     const showReadyToPlay = device.clients ? device.clients.show_ready_to_play : true;
     const showIndexBanner = device.clients ? device.clients.show_index_banner : true;
+    const showChallenges = device.clients ? device.clients.show_challenges !== false : true; // challenge inter-entreprises (onglet Jeux de la console)
     const rhPin = device.clients ? device.clients.rh_pin : '0000';
     const lockGames = device.clients ? device.clients.lock_games : false;
     const indexSortOrder = device.clients ? (device.clients.index_sort_order ?? -1000) : -1000;
@@ -703,7 +704,7 @@ const PandaFitBackend = (() => {
     rows.forEach(r => { gameSortOrders[r.game_id] = r.sort_order || 0; gameImages[r.game_id] = r.image_url || null; gameQuestionnaires[r.game_id] = r.questionnaire_id || null; gameShowOnHome[r.game_id] = r.show_on_home !== false; });
 
     return { project: boot.project || null, live: boot.live || null, poste: boot.device.poste || null, projectId: boot.device.project_id || null,
-      deviceId: device.id, deviceName: device.name, deviceNames, clientId, clientName, enabledGameIds, gameSortOrders, gameImages, gameQuestionnaires, gameShowOnHome, showReadyToPlay, showIndexBanner, rhPin, lockGames, indexSortOrder, indexQuestionnaireId, indexImageUrl, adsEnabled, showBenefitsPage, showInitiationPage, satisfactionEnabled, homeDisplayMode, satisfactionQuestion: device.clients?.satisfaction_question || null, refreshToken, reloadToken, nightlyReloadEnabled, nightlyReloadHour };
+      deviceId: device.id, deviceName: device.name, deviceNames, clientId, clientName, enabledGameIds, gameSortOrders, gameImages, gameQuestionnaires, gameShowOnHome, showReadyToPlay, showIndexBanner, showChallenges, rhPin, lockGames, indexSortOrder, indexQuestionnaireId, indexImageUrl, adsEnabled, showBenefitsPage, showInitiationPage, satisfactionEnabled, homeDisplayMode, satisfactionQuestion: device.clients?.satisfaction_question || null, refreshToken, reloadToken, nightlyReloadEnabled, nightlyReloadHour };
   }
 
   /** Enregistre le score d'une partie terminée. */
@@ -836,9 +837,9 @@ const PandaFitBackend = (() => {
       // Les noms des entreprises participantes viennent de la fonction sécurisée (affichage « A vs B »).
       challenge.challenge_participants = rows.map(r => ({ client_id: r.client_id, clients: { name: r.name } }));
       const standings = rows
-        .map(r => ({ clientId: r.client_id, name: r.name || '—', total: Number(r.total) || 0 }))
+        .map(r => ({ projectId: r.project_id, clientId: r.client_id, name: r.name || '—', total: Number(r.total) || 0 }))
         .sort((a, b) => b.total - a.total);
-      const yours = standings.find(s => s.clientId === config.clientId)?.total || 0;
+      const yours = standings.find(s => s.projectId === config.projectId)?.total || 0;
       const leader = standings[0];
       return { mode: 'company_vs_company', yours, yoursLabel: 'Tes points', leaderName: leader?.name, leaderPoints: leader?.total || 0, fullRanking: standings };
     } catch (e) { return null; }
@@ -850,7 +851,7 @@ const PandaFitBackend = (() => {
     try {
       const [defisRes, participRes, eventsRes] = await Promise.all([
         fetch(`${REST}/defis?project_id=eq.${config.projectId}&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*,games(name)`, { headers: headers(), cache: 'no-store' }),
-        fetch(`${REST}/challenge_participants?client_id=eq.${config.clientId}&select=challenge_id`, { headers: headers(), cache: 'no-store' }),
+        fetch(`${REST}/challenge_participants?project_id=eq.${config.projectId}&select=challenge_id`, { headers: headers(), cache: 'no-store' }),
         fetch(`${REST}/events?project_id=eq.${config.projectId}&end_date=gte.${today}&is_active=eq.true&select=*,event_devices(device_id)`, { headers: headers(), cache: 'no-store' }),
       ]);
       const defisActive = defisRes.ok ? await defisRes.json() : [];
@@ -860,7 +861,7 @@ const PandaFitBackend = (() => {
 
       let challengesActive = [];
       const challengeIds = participations.map(p => p.challenge_id);
-      if (challengeIds.length) {
+      if (challengeIds.length && config.showChallenges !== false) {
         const idsFilter = challengeIds.join(',');
         const chRes = await fetch(
           `${REST}/challenges?id=in.(${idsFilter})&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*,games(name)`,

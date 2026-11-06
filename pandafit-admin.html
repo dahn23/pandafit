@@ -384,7 +384,7 @@ async function loadClientDetail(clientId) {
 }
 async function loadChallenges() {
   const { data } = await sb.from('challenges')
-    .select('*, challenge_participants(client_id, clients(id, name))')
+    .select('*, challenge_participants(client_id, project_id, clients(id, name), projects(id, title, offer, starts_on, ends_on, code))')
     .order('start_date', { ascending: false });
   challenges = data || [];
 }
@@ -1664,47 +1664,76 @@ function renderDefisTab() {
   });
 }
 
-/* ---------------- Challenges (inter-clients, vue globale) ---------------- */
+/* ---------------- Challenges inter-clients (vue globale) ----------------
+   Un challenge oppose des PROJETS en cours ou à venir (le nom affiché est celui du client).
+   Il se joue sur un jeu, pendant une période libre (toute la durée commune des projets ou seulement une partie).
+   Il s'affiche sur l'écran en accès libre des tablettes de chaque projet participant
+   (libre-service ou poste « Jeux libres »), sauf si le projet a décoché « Challenge inter-entreprises » (onglet Jeux). */
 async function fetchChallengeTotals(challenge) {
-  const participantIds = (challenge.challenge_participants || []).map(p => p.client_id);
-  if (!participantIds.length) return [];
+  const parts = challenge.challenge_participants || [];
+  const projectIds = parts.map(p => p.project_id);
+  if (!projectIds.length) return [];
   const { data } = await sb.from('sessions')
-    .select('client_id, score, played_at')
-    .in('client_id', participantIds)
+    .select('project_id, score')
+    .in('project_id', projectIds)
     .eq('game_id', challenge.game_id)
     .gte('played_at', challenge.start_date)
     .lte('played_at', challenge.end_date + 'T23:59:59');
   const totals = {};
-  (data || []).forEach(s => { totals[s.client_id] = (totals[s.client_id] || 0) + (s.score || 0); });
-  return participantIds
-    .map(cid => ({ name: challenge.challenge_participants.find(p => p.client_id === cid)?.clients?.name || '—', total: totals[cid] || 0 }))
+  (data || []).forEach(s => { totals[s.project_id] = (totals[s.project_id] || 0) + (s.score || 0); });
+  return parts
+    .map(p => ({ name: (p.clients?.name || '—') + (p.projects?.title ? ' · ' + p.projects.title : ''), total: totals[p.project_id] || 0 }))
     .sort((a, b) => b.total - a.total);
 }
+const fmtD = iso => iso ? new Date(iso + 'T12:00:00').toLocaleDateString('fr-CH') : '…';
 
 let editingChallengeId = null;
 let showingScoresChallengeId = null;
 async function renderChallengesView() {
   const main = document.getElementById('main');
-  await loadChallenges();
+  const today = new Date().toISOString().slice(0, 10);
+  const [, projRes, gamesRes] = await Promise.all([
+    loadChallenges(),
+    sb.from('projects').select('id, title, offer, code, starts_on, ends_on, status, client_id, show_challenges, clients(name)').eq('status', 'actif').order('starts_on'),
+    games.length ? Promise.resolve({ data: games }) : sb.from('games').select('*').order('name'),
+  ]);
+  if (!games.length) games = gamesRes.data || [];
   const editing = challenges.find(c => c.id === editingChallengeId);
-  const editingParticipantIds = editing ? (editing.challenge_participants || []).map(p => p.client_id) : [];
+  const editingIds = editing ? (editing.challenge_participants || []).map(p => p.project_id) : [];
+  // Projets en cours ou à venir (+ ceux déjà dans le challenge modifié, même terminés)
+  const projs = (projRes.data || []).filter(p => p.client_id !== PARC_CLIENT_ID && (!p.ends_on || p.ends_on >= today));
+  (editing?.challenge_participants || []).forEach(cp => {
+    if (cp.projects && !projs.some(p => p.id === cp.project_id)) projs.push({ ...cp.projects, client_id: cp.client_id, clients: cp.clients });
+  });
+  projs.sort((a, b) => (a.clients?.name || '').localeCompare(b.clients?.name || '') || (a.starts_on || '').localeCompare(b.starts_on || ''));
+  const period = p => `${fmtD(p.starts_on)} → ${p.ends_on ? fmtD(p.ends_on) : 'sans fin'}`;
   main.innerHTML = `
     <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="trophy"></i> Challenges inter-clients</div>
-    <div class="section-sub">Un jeu, une période, plusieurs clients qui s'affrontent en total par entreprise.</div>
+    <div class="section-sub">Des projets en cours ou à venir s'affrontent sur un jeu : total des points de chaque projet pendant la période choisie. Le challenge s'affiche automatiquement sur l'écran en accès libre de leurs tablettes (libre-service ou poste Jeux libres).</div>
     <div class="card">
       <h3>${editing ? 'Modifier le challenge' : 'Nouveau challenge'}</h3>
-      <div class="form-grid">
-        <input id="chStart" type="date" value="${editing ? editing.start_date : new Date().toISOString().slice(0, 10)}">
-        <input id="chEnd" type="date" value="${editing ? editing.end_date : new Date().toISOString().slice(0, 10)}">
+      <div style="margin-bottom:12px;">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">1. Projets participants (2 minimum)</div>
+        ${projs.length ? projs.map(p => `
+          <label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:13.5px;">
+            <input type="checkbox" value="${p.id}" class="chParticipant" data-start="${p.starts_on || ''}" data-end="${p.ends_on || ''}" ${editingIds.includes(p.id) ? 'checked' : ''}>
+            <span><b>${escA(p.clients?.name || '')}</b> · ${escA(p.title || OFFER_LABELS[p.offer] || '')} <span style="color:var(--text-dim);">(${OFFER_LABELS[p.offer] || p.offer} · ${period(p)}${p.starts_on && p.starts_on > today ? ' · à venir' : ''}${p.show_challenges === false ? ' · affichage du challenge désactivé dans ce projet' : ''})</span></span>
+          </label>`).join('') : '<p class="empty">Aucun projet en cours ou à venir.</p>'}
       </div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">2. Période du challenge</div>
+      <div class="form-grid">
+        <input id="chStart" type="date" value="${editing ? editing.start_date : today}">
+        <input id="chEnd" type="date" value="${editing ? editing.end_date : today}">
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-2px 0 12px;">
+        <button class="btn-ghost" id="btnChCommon" style="width:auto;">Caler sur la période commune des projets</button>
+        <span id="chCommonInfo" style="font-size:12px;color:var(--text-dim);"></span>
+      </div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">3. Jeu et présentation</div>
       ${i18nFieldGroup('title', 'title', 'Titre (ex: Challenge Vaud 2026)', editing, false)}
       <select id="chGame" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);margin-bottom:10px;">
-        ${games.map(g => `<option value="${g.id}" ${editing && editing.game_id === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
+        ${games.filter(g => g.id !== 'indextest').map(g => `<option value="${g.id}" ${editing && editing.game_id === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
       </select>
-      <div style="margin-bottom:10px;">
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">Clients participants (2 minimum)</div>
-        ${clients.map(c => `<label style="display:inline-flex;align-items:center;gap:6px;margin:0 14px 8px 0;font-size:13.5px;"><input type="checkbox" value="${c.id}" class="chParticipant" ${editingParticipantIds.includes(c.id) ? 'checked' : ''}> ${c.name}</label>`).join('')}
-      </div>
       <input id="chImage" type="file" accept="image/*" style="margin-bottom:10px;">
       <div class="row" style="gap:8px;">
         <button class="btn-primary" id="btnAddChallenge" style="width:auto;">${editing ? 'Enregistrer les modifications' : 'Créer le challenge'}</button>
@@ -1712,56 +1741,83 @@ async function renderChallengesView() {
       </div>
     </div>
     <div class="card">
-      <h3>Challenges en cours</h3>
+      <h3>Challenges</h3>
       <div id="challengesList">Chargement...</div>
     </div>
   `;
+  // Période commune = du plus tard des débuts au plus tôt des fins des projets cochés
+  const commonPeriod = () => {
+    const sel = [...document.querySelectorAll('.chParticipant:checked')];
+    if (!sel.length) return null;
+    const starts = sel.map(i => i.dataset.start).filter(Boolean).sort();
+    const ends = sel.map(i => i.dataset.end).filter(Boolean).sort();
+    return { start: starts.length ? starts[starts.length - 1] : today, end: ends.length ? ends[0] : null };
+  };
+  const showCommon = () => {
+    const c = commonPeriod();
+    const info = document.getElementById('chCommonInfo');
+    if (!c) { info.textContent = 'Coche des projets pour voir leur période commune.'; return; }
+    info.textContent = c.end && c.end < c.start ? '⚠️ Ces projets ne se chevauchent pas.' : `Période commune : ${fmtD(c.start)} → ${c.end ? fmtD(c.end) : 'sans fin'}`;
+  };
+  document.querySelectorAll('.chParticipant').forEach(i => i.addEventListener('change', showCommon));
+  showCommon();
+  document.getElementById('btnChCommon').addEventListener('click', () => {
+    const c = commonPeriod();
+    if (!c) return;
+    if (c.end && c.end < c.start) { alert('Ces projets ne se chevauchent pas : pas de période commune.'); return; }
+    document.getElementById('chStart').value = c.start;
+    if (c.end) document.getElementById('chEnd').value = c.end;
+  });
   document.getElementById('btnCancelEditChallenge')?.addEventListener('click', () => { editingChallengeId = null; renderChallengesView(); });
   document.getElementById('btnAddChallenge').addEventListener('click', async () => {
     const start_date = document.getElementById('chStart').value;
     const end_date = document.getElementById('chEnd').value;
     const game_id = document.getElementById('chGame').value;
-    const participantIds = [...document.querySelectorAll('.chParticipant:checked')].map(i => i.value);
+    const projectIds = [...document.querySelectorAll('.chParticipant:checked')].map(i => i.value);
     const file = document.getElementById('chImage').files[0];
     const titleFields = readI18nField('title', 'title');
-    if (!titleFields.title || participantIds.length < 2) { alert('Choisis au moins 2 clients participants.'); return; }
+    if (!titleFields.title) { alert('Donne un titre au challenge.'); return; }
+    if (projectIds.length < 2) { alert('Choisis au moins 2 projets participants.'); return; }
+    if (!start_date || !end_date || end_date < start_date) { alert('Vérifie les dates du challenge.'); return; }
     const payload = { ...titleFields, start_date, end_date, game_id };
     try {
       if (file) payload.image_url = await uploadBanner(file);
     } catch (e) { alert("Erreur d'upload de l'image : " + e.message); return; }
-
-    if (editingChallengeId) {
-      const { error } = await sb.from('challenges').update(payload).eq('id', editingChallengeId);
+    let chId = editingChallengeId;
+    if (chId) {
+      const { error } = await sb.from('challenges').update(payload).eq('id', chId);
       if (error) { alert('Erreur : ' + error.message); return; }
-      await sb.from('challenge_participants').delete().eq('challenge_id', editingChallengeId);
-      await sb.from('challenge_participants').insert(participantIds.map(cid => ({ challenge_id: editingChallengeId, client_id: cid })));
-      editingChallengeId = null;
+      await sb.from('challenge_participants').delete().eq('challenge_id', chId);
     } else {
       const { data: ch, error } = await sb.from('challenges').insert(payload).select().single();
       if (error) { alert('Erreur : ' + error.message); return; }
-      await sb.from('challenge_participants').insert(participantIds.map(cid => ({ challenge_id: ch.id, client_id: cid })));
+      chId = ch.id;
     }
-    await loadChallenges();
+    const projById = Object.fromEntries(projs.map(p => [p.id, p]));
+    const { error: e2 } = await sb.from('challenge_participants').insert(projectIds.map(pid => ({ challenge_id: chId, project_id: pid, client_id: projById[pid]?.client_id })));
+    if (e2) { alert('Erreur (participants) : ' + e2.message); return; }
+    editingChallengeId = null;
     renderChallengesView();
   });
 
   const listEl = document.getElementById('challengesList');
-  if (!challenges.length) { listEl.innerHTML = '<div class="empty">Aucun challenge en cours.</div>'; return; }
+  if (!challenges.length) { listEl.innerHTML = '<div class="empty">Aucun challenge pour l\'instant.</div>'; return; }
   const rows = await Promise.all(challenges.map(async c => {
     const standings = await fetchChallengeTotals(c);
+    const state = c.end_date < today ? 'Terminé' : c.start_date > today ? 'À venir' : 'En cours';
     return `
       <div class="event-item" style="${c.is_active ? '' : 'opacity:0.5;'}">
         <div class="title-row">
-          <b>${c.title} ${c.is_active ? '' : '<span class="badge">Suspendu</span>'}</b>
+          <b>${escA(c.title)} <span class="badge">${c.is_active ? state : 'Suspendu'}</span></b>
           <span style="display:flex;gap:6px;">
-            <button class="btn-ghost" data-show-ch-scores="${c.id}">${showingScoresChallengeId === c.id ? 'Masquer' : 'Afficher'}</button>
+            <button class="btn-ghost" data-show-ch-scores="${c.id}">${showingScoresChallengeId === c.id ? 'Masquer' : 'Classement'}</button>
             <button class="btn-ghost" data-edit-challenge="${c.id}">Modifier</button>
             <button class="btn-ghost" data-toggle-challenge="${c.id}">${c.is_active ? 'Suspendre' : 'Réactiver'}</button>
             <button class="btn-destructive" data-del-challenge="${c.id}">Supprimer</button>
           </span>
         </div>
-        <div class="dates">${games.find(g => g.id === c.game_id)?.name || c.game_id} · ${new Date(c.start_date).toLocaleDateString('fr-CH')} → ${new Date(c.end_date).toLocaleDateString('fr-CH')}</div>
-        <div class="desc" style="margin-top:8px;"><b>Classement actuel :</b> ${standings.map((s, i) => `${i + 1}. ${s.name} (${s.total} pts)`).join(' — ') || 'aucun participant'}</div>
+        <div class="dates">${games.find(g => g.id === c.game_id)?.name || c.game_id} · ${fmtD(c.start_date)} → ${fmtD(c.end_date)}</div>
+        <div class="desc" style="margin-top:8px;"><b>Classement :</b> ${standings.map((s, i) => `${i + 1}. ${escA(s.name)} (${s.total} pts)`).join(' — ') || 'aucun participant'}</div>
         ${showingScoresChallengeId === c.id ? `
           <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
             ${leaderboardTableHTML(standings.map((s, i) => ({ id: 'ch_' + i, name: s.name, score: s.total })), false)}
@@ -1778,13 +1834,12 @@ async function renderChallengesView() {
     });
   });
   listEl.querySelectorAll('[data-edit-challenge]').forEach(btn => {
-    btn.addEventListener('click', () => { editingChallengeId = btn.dataset.editChallenge; renderChallengesView(); });
+    btn.addEventListener('click', () => { editingChallengeId = btn.dataset.editChallenge; renderChallengesView(); window.scrollTo(0, 0); });
   });
   listEl.querySelectorAll('[data-toggle-challenge]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const c = challenges.find(x => x.id === btn.dataset.toggleChallenge);
       await sb.from('challenges').update({ is_active: !c.is_active }).eq('id', c.id);
-      await loadChallenges();
       renderChallengesView();
     });
   });
@@ -1792,10 +1847,10 @@ async function renderChallengesView() {
     btn.addEventListener('click', async () => {
       if (!confirm('Supprimer ce challenge ?')) return;
       await sb.from('challenges').delete().eq('id', btn.dataset.delChallenge);
-      await loadChallenges();
       renderChallengesView();
     });
   });
+  if (window.lucide) lucide.createIcons();
 }
 
 /* ---------------- Onglet Jeux : écran des jeux en accès libre (encadrés, vignettes, verrou) ---------------- */
@@ -1813,14 +1868,15 @@ function addGamesScreenCard() {
       ${cb('cfgReadyToPlay', p.show_ready_to_play, 'Afficher l\'encadré "Prêt à jouer ?"', 10)}
       ${cb('cfgIndexBanner', p.show_index_banner, 'Afficher l\'encadré "PandaFit Index"', 10)}
       ${cb('cfgBenefitsPage', p.show_benefits_page, 'Afficher la vignette "Les bienfaits du PandaFit"', 10)}
-      ${cb('cfgInitiationPage', p.show_initiation_page, 'Afficher la vignette "Initiation au PandaFit"', 14)}
+      ${cb('cfgInitiationPage', p.show_initiation_page, 'Afficher la vignette "Initiation au PandaFit"', 10)}
+      ${cb('cfgChallenges', p.show_challenges !== false, 'Afficher le challenge inter-entreprises (si ce projet participe à un challenge en cours)', 14)}
       <button class="btn-primary" id="btnSaveScreenSettings" style="width:auto;">Enregistrer l'écran</button>
     </div>`);
   document.getElementById('btnSaveScreenSettings').addEventListener('click', async () => {
     const v = id => document.getElementById(id).checked;
     const { error } = await sb.from('projects').update({
       show_ready_to_play: v('cfgReadyToPlay'), show_index_banner: v('cfgIndexBanner'),
-      show_benefits_page: v('cfgBenefitsPage'), show_initiation_page: v('cfgInitiationPage'), // verrou des jeux retiré (décision Dan 06.11.2026 : tout se règle avec Menu tablette)
+      show_benefits_page: v('cfgBenefitsPage'), show_initiation_page: v('cfgInitiationPage'), show_challenges: v('cfgChallenges'), // verrou des jeux retiré (décision Dan 06.11.2026 : tout se règle avec Menu tablette)
     }).eq('id', selectedProjectId);
     if (error) { alert('Erreur : ' + error.message); return; }
     await loadProjectDetail();
@@ -1846,7 +1902,7 @@ async function loadActiveTabletMenuItems(clientId) {
   const today = new Date().toISOString().slice(0, 10);
   const [defisRes, chPartRes, eventsRes] = await Promise.all([
     sb.from('defis').select('*').eq('project_id', selectedProjectId).lte('start_date', today).gte('end_date', today).order('sort_order'),
-    sb.from('challenge_participants').select('challenge_id').eq('client_id', clientId),
+    sb.from('challenge_participants').select('challenge_id').eq('project_id', selectedProjectId),
     sb.from('events').select('*').eq('project_id', selectedProjectId).lte('start_date', today).gte('end_date', today).order('sort_order'),
   ]);
   const activeDefis = defisRes.data || [];
@@ -1929,7 +1985,7 @@ async function renderTabletMenuTab() {
   let stack = [
     { type: 'index', sort_order: client.index_sort_order ?? -1000, id: 'index', visible: client.show_index_banner, data: { image_url: client.index_image_url || indexCatalogRow?.image_url } },
     ...activeDefis.map(d => ({ type: 'defi', sort_order: d.sort_order || 0, data: d, id: d.id, visible: d.is_active })),
-    ...activeChallenges.map(c => ({ type: 'challenge', sort_order: c.sort_order || 0, data: c, id: c.id, visible: c.is_active })),
+    ...activeChallenges.map(c => ({ type: 'challenge', sort_order: c.sort_order || 0, data: c, id: c.id, visible: c.is_active && currentProject?.show_challenges !== false })),
     ...activeEvents.map(ev => ({ type: 'event', sort_order: ev.sort_order || 0, data: ev, id: ev.id, visible: ev.is_active })),
     ...allGames,
   ].sort((a, b) => a.sort_order - b.sort_order);
@@ -1957,7 +2013,7 @@ async function renderTabletMenuTab() {
     if (type === 'index') await sb.from('projects').update({ show_index_banner: newVisible }).eq('id', selectedProjectId);
     else if (type === 'game') await sb.from('project_games').update({ show_on_home: newVisible }).eq('project_id', selectedProjectId).eq('game_id', id);
     else if (type === 'defi') await sb.from('defis').update({ is_active: newVisible }).eq('id', id);
-    else if (type === 'challenge') await sb.from('challenges').update({ is_active: newVisible }).eq('id', id);
+    else if (type === 'challenge') { await sb.from('projects').update({ show_challenges: newVisible }).eq('id', selectedProjectId); if (currentProject) currentProject.show_challenges = newVisible; } // œil = affichage dans CE projet (pas le challenge des autres)
     else if (type === 'event') await sb.from('events').update({ is_active: newVisible }).eq('id', id);
     await loadProjectDetail();
     await loadClients();
