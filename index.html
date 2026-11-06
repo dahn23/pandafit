@@ -470,6 +470,15 @@
   .highlights-wrap { position: relative; margin-bottom: 16px; touch-action: pan-y; }
   .main-stack { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
   .main-stack .stack-item { cursor: pointer; }
+  /* Défis, challenges et annonces : mis en avant par une bande jaune d'un bord à l'autre de l'écran */
+  .main-stack .stack-item.feature {
+    margin: 6px -20px; padding: 16px 20px;
+    background: linear-gradient(135deg, #ffcc1a 0%, #ffa600 100%);
+  }
+  .main-stack .stack-item.feature .highlight-card { box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+  .main-stack .stack-item.feature .hc-badge { background: #1a1300; color: #ffcc1a; backdrop-filter: none; }
+  .main-stack .stack-item.feature .highlight-dots .d { background: rgba(26,19,0,.3); }
+  .main-stack .stack-item.feature .highlight-dots .d.active { background: #1a1300; }
   .main-stack .stack-item .highlight-card { margin-bottom: 0; }
   .highlight-row { display: flex; gap: 8px; margin-bottom: 16px; }
   .main-stack .stack-item .highlight-row { margin-bottom: 0; }
@@ -3780,9 +3789,10 @@ function renderMainStack() {
       ${groups.map((g, gi) => {
         if (g.type === 'event-group') {
           const dots = g.events.length > 1 ? `<div class="highlight-dots">${g.events.map((_, i) => `<div class="d ${i === 0 ? 'active' : ''}"></div>`).join('')}</div>` : '';
-          return `<div class="stack-item" data-gi="${gi}">${highlightCardHTML(g.events[0])}${dots}</div>`;
+          return `<div class="stack-item feature" data-gi="${gi}">${highlightCardHTML(g.events[0])}${dots}</div>`;
         }
-        return `<div class="stack-item" data-gi="${gi}">${highlightCardHTML(g)}</div>`;
+        const feature = ['defi', 'challenge', 'event'].includes(g.type) ? ' feature' : '';
+        return `<div class="stack-item${feature}" data-gi="${gi}">${highlightCardHTML(g)}</div>`;
       }).join('')}
     </div>
   `;
