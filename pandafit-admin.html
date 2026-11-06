@@ -1793,52 +1793,38 @@ async function renderChallengesView() {
   });
 }
 
-/* ---------------- Réglages du client ---------------- */
-function renderClientSettingsTab() {
+/* ---------------- Onglet Jeux : écran en libre-service (encadrés, vignettes, verrou) ---------------- */
+// Ces options ne concernent que l'écran en accès libre (Mois, Campagne, Abonnement, entre les séances).
+// En séance, la tablette au poste « Jeux libres » n'affiche que la grille des jeux ci-dessous.
+function addGamesScreenCard() {
   const el = document.getElementById('tabContent');
-  const client = currentProject;
-  el.innerHTML = `
+  const p = currentProject;
+  if (!el || !p) return;
+  if (!isLibreProject(p)) {
+    el.insertAdjacentHTML('afterbegin', `<div class="card"><p style="font-size:12.5px;color:var(--text-dim);margin:0;">Pendant une séance, une tablette au poste <b>Jeux libres</b> affiche simplement la grille des jeux choisis ci-dessous (pas d'encadrés, de pubs ni de satisfaction : c'est réservé au libre-service des offres Mois, Campagne et Abonnement).</p></div>`);
+    return;
+  }
+  const cb = (id, on, label, mb) => `<label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:${mb}px;"><input type="checkbox" id="${id}" ${on ? 'checked' : ''}>${label}</label>`;
+  el.insertAdjacentHTML('afterbegin', `
     <div class="card">
-      <h3>Écran d'accueil de la tablette</h3>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:12px;">
-        <input type="checkbox" id="cfgReadyToPlay" ${client.show_ready_to_play ? 'checked' : ''}>
-        Afficher l'encadré "Prêt à jouer ?"
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:16px;">
-        <input type="checkbox" id="cfgIndexBanner" ${client.show_index_banner ? 'checked' : ''}>
-        Afficher l'encadré "PandaFit Index"
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:8px;">
-        <input type="checkbox" id="cfgBenefitsPage" ${client.show_benefits_page ? 'checked' : ''}>
-        Afficher la vignette "Les bienfaits du PandaFit"
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;">
-        <input type="checkbox" id="cfgInitiationPage" ${client.show_initiation_page ? 'checked' : ''}>
-        Afficher la vignette "Initiation au PandaFit"
-      </label>
-    </div>
-    <div class="card">
-      <h3>Accès RH (Calibrer / Réglages sur la tablette)</h3>
-      <p style="font-size:12.5px;color:var(--text-dim);margin-bottom:10px;">Ce code est demandé sur la tablette pour accéder à la calibration et aux réglages capteur — réservé au RH/responsable.</p>
-      <input id="cfgRhPin" value="${client.pin || ''}" placeholder="Code RH (4 chiffres, ex: 1234)" maxlength="4" inputmode="numeric" style="max-width:220px;margin-bottom:14px;">
-      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;">
-        <input type="checkbox" id="cfgLockGames" ${client.lock_games ? 'checked' : ''}>
-        Réserver aussi l'onglet "Jeux" au RH (même code)
-      </label>
-    </div>
-    <button class="btn-primary" id="btnSaveClientSettings" style="width:auto;">Enregistrer</button>
-  `;
-  document.getElementById('btnSaveClientSettings').addEventListener('click', async () => {
-    const show_ready_to_play = document.getElementById('cfgReadyToPlay').checked;
-    const show_index_banner = document.getElementById('cfgIndexBanner').checked;
-    const show_benefits_page = document.getElementById('cfgBenefitsPage').checked;
-    const show_initiation_page = document.getElementById('cfgInitiationPage').checked;
-    const pin = document.getElementById('cfgRhPin').value.trim() || '0000';
-    const lock_games = document.getElementById('cfgLockGames').checked;
-    const { error } = await sb.from('projects').update({ show_ready_to_play, show_index_banner, show_benefits_page, show_initiation_page, pin, lock_games }).eq('id', selectedProjectId);
+      <h3>Écran en libre-service</h3>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 12px;">Ce que voit le public quand le panda est en accès libre (hors séance). Les pubs et la satisfaction se règlent dans l'onglet « Pubs & satisfaction ».</p>
+      ${cb('cfgReadyToPlay', p.show_ready_to_play, 'Afficher l\'encadré "Prêt à jouer ?"', 10)}
+      ${cb('cfgIndexBanner', p.show_index_banner, 'Afficher l\'encadré "PandaFit Index"', 10)}
+      ${cb('cfgBenefitsPage', p.show_benefits_page, 'Afficher la vignette "Les bienfaits du PandaFit"', 10)}
+      ${cb('cfgInitiationPage', p.show_initiation_page, 'Afficher la vignette "Initiation au PandaFit"', 10)}
+      ${cb('cfgLockGames', p.lock_games, 'Verrouiller l\'onglet "Jeux" avec le PIN des Réglages', 14)}
+      <button class="btn-primary" id="btnSaveScreenSettings" style="width:auto;">Enregistrer l'écran</button>
+    </div>`);
+  document.getElementById('btnSaveScreenSettings').addEventListener('click', async () => {
+    const v = id => document.getElementById(id).checked;
+    const { error } = await sb.from('projects').update({
+      show_ready_to_play: v('cfgReadyToPlay'), show_index_banner: v('cfgIndexBanner'),
+      show_benefits_page: v('cfgBenefitsPage'), show_initiation_page: v('cfgInitiationPage'), lock_games: v('cfgLockGames'),
+    }).eq('id', selectedProjectId);
     if (error) { alert('Erreur : ' + error.message); return; }
     await loadProjectDetail();
-    renderClientSettingsTab();
+    const b = document.getElementById('btnSaveScreenSettings'); if (b) { b.textContent = 'Enregistré ✓'; setTimeout(() => { b.textContent = "Enregistrer l'écran"; }, 1500); }
   });
 }
 
@@ -3489,10 +3475,17 @@ function coachName(id) { const c = coachList.find(x => x.id === id); return c ? 
    Un projet contient une ou plusieurs séances : c'est le coach qui démarre / termine chaque séance, les dates sont indicatives. */
 const PARC_CLIENT_ID = '00000000-0000-0000-0000-0000000000aa';
 const PROJECT_STATUS_LABELS = { actif: 'Actif', termine: 'Terminé', annule: 'Annulé' };
-const PROJECT_TABS = [
-  ['general', 'Projet'], ['events', 'Séances'], ['results', 'Résultats'], ['devices', 'Tablettes'], ['games', 'Jeux'], ['tabletmenu', 'Menu tablette'],
-  ['clientsettings', 'Accueil & PIN'], ['ads', 'Pubs & satisfaction'], ['defis', 'Défis'], ['annonces', 'Annonces'],
-];
+// Onglets de la fiche projet. Ceux du libre-service (écran d'accueil, menu, pubs, satisfaction, défis, annonces)
+// n'existent que pour les offres où le panda reste en accès libre entre les séances : Mois, Campagne, Abonnement.
+// En séance, la tablette n'affiche que l'Index ou la grille des jeux selon son poste.
+const LIBRE_OFFERS = ['mois_equilibre', 'campagne_annuelle', 'abonnement'];
+const isLibreProject = p => LIBRE_OFFERS.includes(p?.offer);
+function projectTabs(p) {
+  return [
+    ['general', 'Projet'], ['events', 'Séances'], ['results', 'Résultats'], ['devices', 'Tablettes'], ['games', 'Jeux'],
+    ...(isLibreProject(p) ? [['tabletmenu', 'Menu tablette'], ['ads', 'Pubs & satisfaction'], ['defis', 'Défis'], ['annonces', 'Annonces']] : []),
+  ];
+}
 const DEFAULT_PROJECT_GAMES = ['distance', 'base', 'thezone', 'cross', 'skiprev', 'tempo'];
 let projectsList = [];
 let editingProjectId = null;   // null = liste, 'new' = création, 'parc' = parc de tablettes, sinon id
@@ -3598,17 +3591,17 @@ async function renderProjectEditor() {
     <button class="btn-ghost" id="btnBackProjects" style="margin-bottom:14px;">← Tous les projets</button>
     <div class="section-title">${escA(p.clients?.name || '')} · ${escA(p.title || OFFER_LABELS[p.offer] || '')}</div>
     <div class="section-sub">${OFFER_LABELS[p.offer] || p.offer} · code <span class="badge" style="font-size:13px;">${p.code}</span> · PIN des Réglages <b>${escA(p.pin)}</b> · ${PROJECT_STATUS_LABELS[p.status] || p.status}</div>
-    <div class="tabs">${PROJECT_TABS.map(([k, l]) => `<div class="tab ${projectTab === k ? 'active' : ''}" data-ptab="${k}">${l}</div>`).join('')}</div>
+    <div class="tabs">${projectTabs(p).map(([k, l]) => `<div class="tab ${projectTab === k ? 'active' : ''}" data-ptab="${k}">${l}</div>`).join('')}</div>
     <div id="tabContent"></div>`;
+  if (!projectTabs(p).some(([k]) => k === projectTab)) { projectTab = 'general'; return renderProjectEditor(); }
   document.getElementById('btnBackProjects').addEventListener('click', () => { editingProjectId = null; selectedProjectId = null; currentProject = null; renderProjectsView(); });
   main.querySelectorAll('[data-ptab]').forEach(t => t.addEventListener('click', () => { projectTab = t.dataset.ptab; editingInterventionId = null; renderProjectEditor(); }));
   if (projectTab === 'general') renderProjectGeneralTab();
   else if (projectTab === 'events') renderProjectEventsTab();
   else if (projectTab === 'results') await renderProjectResultsTab();
   else if (projectTab === 'devices') await renderProjectDevicesTab();
-  else if (projectTab === 'games') await renderGamesTab();
+  else if (projectTab === 'games') { await renderGamesTab(); addGamesScreenCard(); }
   else if (projectTab === 'tabletmenu') await renderTabletMenuTab();
-  else if (projectTab === 'clientsettings') renderClientSettingsTab();
   else if (projectTab === 'ads') renderAdsTab();
   else if (projectTab === 'defis') renderDefisTab();
   else if (projectTab === 'annonces') renderEventsTab();
@@ -3676,7 +3669,7 @@ function renderProjectGeneralTab() {
       <h3>Codes pour les tablettes</h3>
       <table>
         <tr><td style="width:40%;">Code du projet (à entrer sur la tablette)</td><td><span class="badge" style="font-size:15px;">${p.code}</span></td></tr>
-        <tr><td>Code PIN des Réglages (coach, responsable sur place)</td><td><b style="font-size:15px;">${escA(p.pin)}</b> <span style="font-size:12px;color:var(--text-dim);">(modifiable dans « Accueil & PIN »)</span></td></tr>
+        <tr><td>Code PIN des Réglages de la tablette (coach, responsable sur place) : séance, poste, calibration</td><td><input id="pgPin" value="${escA(p.pin)}" maxlength="4" inputmode="numeric" style="max-width:120px;font-size:15px;font-weight:700;"> <span style="font-size:12px;color:var(--text-dim);">enregistré avec « Enregistrer » plus bas</span>${p.pin === '0000' ? ' <span style="font-size:12px;color:var(--destructive);">PIN par défaut, à changer</span>' : ''}</td></tr>
         <tr><td>Classement à projeter</td><td><a href="https://app.pandafit.ch/projection.html?code=${encodeURIComponent(p.code)}" target="_blank" rel="noopener" style="color:var(--primary);">app.pandafit.ch/projection.html?code=${p.code}</a></td></tr>
       </table>
       <p style="font-size:12.5px;color:var(--text-dim);margin:10px 0 0;">Le coach retrouve ces codes dans sa fiche de mission. Une tablette du parc qui entre le code rejoint le projet ; elle revient seule au parc quand le projet est terminé.</p>
@@ -3706,7 +3699,9 @@ function renderProjectGeneralTab() {
       language: document.getElementById('pgLanguage').value, ambiance: document.getElementById('pgAmbiance').value,
       starts_on: document.getElementById('pgStart').value || null, ends_on: document.getElementById('pgEnd').value || null,
       notes: document.getElementById('pgNotes').value.trim() || null,
+      pin: document.getElementById('pgPin').value.trim() || p.pin,
     };
+    if (!/^\d{4}$/.test(upd.pin)) { alert('Le PIN doit faire 4 chiffres.'); return; }
     const { error } = await sb.from('projects').update(upd).eq('id', p.id);
     if (error) { alert('Erreur : ' + error.message); return; }
     // La langue et l'ambiance suivent le projet sur toutes ses séances
