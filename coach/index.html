@@ -477,7 +477,9 @@ function drawProject() {
     ${!proj.open ? '<p class="hint">Projet terminé : les tablettes sont retournées au parc.</p>' : ''}
     ${proj.events.map(e => `<div class="row"><span class="k">${esc(new Date(e.starts_at).toLocaleDateString('fr-CH'))} · ${esc(stepName(e))}${e.id === openMissionId ? ' <span class="hint">(cette mission)</span>' : ''}</span>
       <span class="v">${e.status === 'en_cours' ? '<span class="badge live">En cours</span>' : esc(STATUS_LABELS[e.status] || e.status)}</span></div>`).join('')}
-    ${live && live.mine ? `<button class="btn-ghost" data-pend="${live.id}" style="width:100%;margin-top:10px;">■ Terminer la séance (${esc(stepName(live))})</button>` : ''}
+    ${live ? liveProgressHTML(live, stepName) : ''}
+    ${live && live.mine ? `<button class="${liveAllDone() ? 'btn-primary' : 'btn-ghost'}" data-pend="${live.id}" style="width:100%;margin-top:10px;">■ Terminer la séance (${esc(stepName(live))})</button>` : ''}
+    ${!live ? afterStepHTML(next, stepName) : ''}
     ${!live && next && next.mine && proj.open ? `<button class="btn-primary" data-pstart="${next.id}" style="margin-top:10px;">▶ Démarrer la séance (${esc(stepName(next))})</button>
       <p class="hint">Les dates sont indicatives : tu démarres quand tu es prêt. Toutes les tablettes du projet passent en mode séance en quelques secondes.</p>` : ''}
     <h3 style="margin-top:16px;">Tablettes du projet</h3>
@@ -507,6 +509,55 @@ function drawProject() {
     if (error) return alert('Erreur : ' + error.message);
     loadProject(proj.id);
   }));
+}
+/* En direct : où en est la séance, qui est le prochain groupe, quelle est l'étape suivante */
+const LIBRE_OFFERS = ['mois_equilibre', 'campagne_annuelle', 'abonnement'];
+function liveAllDone() {
+  const st = proj?.live_stats;
+  return !!(st && st.registered && st.index_done >= st.registered);
+}
+function liveProgressHTML(live, stepName) {
+  const st = proj.live_stats;
+  if (!st) return '';
+  const target = st.registered || st.expected || 0;
+  const pct = target ? Math.min(100, Math.round(st.index_done / target * 100)) : 0;
+  const ago = st.last_play_at ? Math.round((Date.now() - new Date(st.last_play_at).getTime()) / 60000) : null;
+  const now = Date.now();
+  const slots = st.slots || [];
+  const cur = slots.find(s => new Date(s.starts_at) <= now && new Date(s.ends_at) > now);
+  const nxt = slots.find(s => new Date(s.starts_at) > now);
+  const names = s => s.names.length ? esc(s.names.join(', ')) + (s.registered > s.names.length ? ` <span class="hint">+ ${s.registered - s.names.length} sans nom</span>` : '') : `<span class="hint">${s.registered} inscrit${s.registered > 1 ? 's' : ''} sans nom</span>`;
+  const remaining = Math.max(0, (st.registered || 0) - st.index_done);
+  const nextEv = proj.events.find(e => e.status === 'preparee' && e.id !== live.id);
+  let step;
+  if (proj.offer === 'team_building') step = "Pilote les phases du Triathlon plus bas (essais → triathlon → finale → podium), puis termine la séance.";
+  else if (!st.registered) step = 'Quand tout le monde est passé, termine la séance.';
+  else if (remaining) step = `Encore environ <b>${remaining}</b> inscrit${remaining > 1 ? 's' : ''} à passer. S'il n'y a plus personne, tu peux terminer maintenant, même si d'autres étaient inscrits.`;
+  else step = '<b>Tous les inscrits sont passés</b> : tu peux terminer la séance.';
+  const after = nextEv
+    ? `Ensuite : ${esc(stepName(nextEv))} (prévue le ${new Date(nextEv.starts_at).toLocaleDateString('fr-CH')}), que tu démarreras sur place.${LIBRE_OFFERS.includes(proj.offer) ? ' Entre-temps, le panda reste en libre-service.' : ''}`
+    : `Ensuite : fin du projet, les tablettes retournent au parc. Il ne te restera que le compte-rendu.`;
+  return `
+    <div style="background:var(--panel-hi);border-radius:12px;padding:12px 14px;margin-top:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;">
+        <b style="font-size:13px;">En direct</b>
+        <span class="hint" style="margin:0;">${ago == null ? 'aucun passage encore' : ago < 1 ? "dernier passage à l'instant" : `dernier passage il y a ${ago < 60 ? ago + ' min' : Math.round(ago / 60) + ' h'}`}</span>
+      </div>
+      <div style="font-size:30px;font-weight:800;margin:6px 0 2px;">${st.index_done}<span style="font-size:15px;font-weight:600;color:var(--text-dim);"> Index passé${st.index_done > 1 ? 's' : ''}${target ? ` / ${target} ${st.registered ? 'inscrits' : 'attendus'}` : ''}</span></div>
+      ${target ? `<div style="height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--primary);"></div></div>` : ''}
+      <div class="hint" style="margin:4px 0 0;">${st.plays} partie${st.plays > 1 ? 's' : ''} jouée${st.plays > 1 ? 's' : ''} au total${st.registered && st.expected ? ` · ${st.expected} attendus` : ''}</div>
+      ${cur ? `<div style="margin-top:10px;font-size:13px;"><b>Groupe en cours ${fmtTime(cur.starts_at)}</b> · ${cur.registered} inscrit${cur.registered > 1 ? 's' : ''}<br>${names(cur)}</div>` : ''}
+      ${nxt ? `<div style="margin-top:8px;font-size:13px;"><b>Prochain groupe ${fmtTime(nxt.starts_at)}</b> · ${nxt.registered} inscrit${nxt.registered > 1 ? 's' : ''}<br>${names(nxt)}</div>` : slots.length ? '<div class="hint" style="margin-top:8px;">Plus de groupe prévu après celui-ci.</div>' : ''}
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);font-size:13px;">
+        <b>Étape suivante</b><br>${step}<br><span class="hint">${after}</span>
+      </div>
+    </div>`;
+}
+function afterStepHTML(next, stepName) {
+  const m = missions.find(x => x.id === openMissionId);
+  if (m && m.status === 'cloturee' && !m.report_done) return '<div class="ok" style="margin-top:10px;">Séance terminée. <b>Étape suivante :</b> remplis le compte-rendu plus bas.</div>';
+  if (next && !next.mine) return `<p class="hint" style="margin-top:10px;">Prochaine séance : ${esc(stepName(next))} le ${new Date(next.starts_at).toLocaleDateString('fr-CH')} (un autre coach).</p>`;
+  return '';
 }
 function startProjectPolling(projectId) {
   clearInterval(projTimer);
