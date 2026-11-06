@@ -3634,7 +3634,8 @@ function renderNewProjectForm() {
       title: document.getElementById('npTitle').value.trim() || null,
       language: document.getElementById('npLanguage').value,
       starts_on: date || null, ends_on: document.getElementById('npEnd').value || null,
-      show_ready_to_play: ['mois_equilibre', 'campagne_annuelle', 'abonnement'].includes(offer),
+      // Écran des jeux par défaut (décision Dan 06.11.2026) : vignettes Bienfaits + Initiation, sans « Prêt à jouer » ni Index
+      show_ready_to_play: false, show_index_banner: false, show_benefits_page: true, show_initiation_page: true,
       created_by: currentAdmin?.id,
     };
     const { data: p, error } = await sb.from('projects').insert(payload).select().single();
