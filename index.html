@@ -33,6 +33,7 @@
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; /* pas de sélection de texte ni de « Rechercher avec Google » au doigt */
     margin: 0; padding: 0; height: 100%;
     background: var(--bg); color: var(--text);
     font-family: 'Montserrat', -apple-system, sans-serif;
@@ -69,6 +70,7 @@
   p.page-sub { color: #c7c2db; font-size: 21px; margin: 0 0 22px; line-height: 1.45; }
   .centered-page { display: flex; flex-direction: column; justify-content: center; min-height: 75vh; }
   /* Écran d'avant-jeu : Retour dans la barre du haut, contenu aéré */
+  input, textarea, select, [contenteditable] { -webkit-user-select: text; user-select: text; }
   #topbarBack:empty { display: none; }
   .topbar.has-back .brand { display: none; }
   #topbarBack .back-top { margin: 0; padding: 11px 20px; font-size: 16px; }
@@ -1782,39 +1784,59 @@ const FootballGame = (() => {
 })();
 
 const ElectroGame = (() => {
-  const SENS = { easy: 0.7, hard: 2.4 }; // influence du capteur sur le tremblement du fil
-  const TOLERANCE = 55; // tolérance du doigt, en unités du viewBox SVG (bien plus généreuse)
-  const N = 70;
+  const SENS = { easy: 0.7, hard: 2.4 }; // influence du capteur sur le déplacement du fil
+  const TOLERANCE = 30;      // écart max doigt ↔ fil (unités du viewBox) avant la décharge — le fil fait 18 de large
+  const ADVANCE_TOL = 22;    // le doigt doit être aussi près que ça d'un point du fil pour avancer
+  const LOOK_BACK = 20;      // points du fil derrière la progression (~80 unités) : reculer sur le fil n'est pas une faute
+  const LOOK_AHEAD = 8;      // points devant (~32 unités) : impossible de sauter d'un rang du serpentin à l'autre
+  const STEP = 4;            // un point du fil toutes les 4 unités
   const FREEZE_MS = 2000;
   const PREPARE_SECONDS = 3;
-  const Y_TOP = 40, Y_BOTTOM = 460;
+  const VIEW_W = 300, VIEW_H = 500;
 
   let cfg = { sensitivity: 'easy', lives: 3 };
   let state = null;
   let latest = { x: 0, y: 0 };
   function onSensorData(d) { latest = { x: d.x / 200, y: d.y / 200 }; }
 
+  /** Parcours fixe (toujours le même, pour que les scores soient comparables) :
+   *  un serpentin de 7 rangs qui descend, avec des ondulations de plus en plus fortes.
+   *  Départ en haut à droite (le coin haut-gauche est sous l'encadré du panda). */
   function generatePath() {
-    // Chemin fixe (toujours le même) — évite volontairement le coin haut-gauche
-    // (masqué par l'encadré panda-watcher : ~16-166px en X, ~68-298px en Y).
-    // Double harmonique => plus de virages, tracé plus long et plus complexe à suivre.
+    const rows = [35, 105, 175, 245, 315, 385, 455];
+    const amp = [4, 7, 9, 11, 12, 13, 14];   // ondulation verticale de chaque rang (les rangs ne se touchent jamais)
+    const waves = [2, 3, 3, 4, 4, 5, 5];     // nombre de bosses par rang
+    const X_LEFT = 48, X_RIGHT = 252, X_LEFT_FIRST = 100;
     const pts = [];
-    const seedA1 = 0.16, amp1 = 90, phase1 = 1.4;
-    const seedA2 = 0.37, amp2 = 38, phase2 = 0.6;
-    for (let i = 0; i <= N; i++) {
-      const y = Y_TOP + ((Y_BOTTOM - Y_TOP) * i) / N;
-      let baseX = 150 + Math.sin(i * seedA1 + phase1) * amp1 + Math.sin(i * seedA2 + phase2) * amp2;
-      baseX = Math.max(25, Math.min(275, baseX));
-      if (y < 300 && baseX < 175) baseX = 175; // pousse le tracé hors du coin haut-gauche
-      pts.push({ y, baseX });
-    }
+    const push = (x, y) => {
+      const last = pts[pts.length - 1];
+      if (!last || Math.hypot(x - last.x, y - last.y) >= STEP) pts.push({ x, y });
+    };
+    rows.forEach((y0, r) => {
+      const rightToLeft = r % 2 === 0;
+      const xl = r <= 1 ? X_LEFT_FIRST : X_LEFT; // rangs 1 et 2 : virage gauche loin de l'encadré du panda
+      const xa = rightToLeft ? X_RIGHT : xl, xb = rightToLeft ? xl : X_RIGHT;
+      for (let k = 0; k <= 400; k++) {
+        const t = k / 400;
+        push(xa + (xb - xa) * t, y0 + Math.sin(Math.PI * waves[r] * t) * amp[r]);
+      }
+      if (r < rows.length - 1) { // demi-tour arrondi vers le rang suivant
+        const R = (rows[r + 1] - y0) / 2, cy = y0 + R;
+        for (let k = 1; k <= 200; k++) {
+          const a = -Math.PI / 2 + Math.PI * (k / 200);
+          push(rightToLeft ? xb - Math.cos(a) * R : xb + Math.cos(a) * R, cy + Math.sin(a) * R);
+        }
+      }
+    });
     return pts;
   }
+  const PATH = generatePath();
+  const LAST = PATH.length - 1;
 
   function reset() {
     state = {
-      running: false, pts: generatePath(), progressIdx: 0,
-      wobbleX: 0, wobbleV: 0, livesLost: 0, frozen: false,
+      running: false, pts: PATH, progressIdx: 0,
+      wobbleX: 0, wobbleY: 0, vX: 0, vY: 0, livesLost: 0, frozen: false,
       elapsedMs: 0, startedAt: 0,
     };
   }
@@ -1828,45 +1850,47 @@ const ElectroGame = (() => {
     state.running = true; state.startedAt = performance.now();
     PandaFitSensor.off('data', onSensorData);
     PandaFitSensor.on('data', onSensorData);
-    tickHandle = setInterval(tick, 60);
+    tickHandle = setInterval(tick, 50);
   }
 
   function tick() {
     if (!state || !state.running) return;
     state.elapsedMs = performance.now() - state.startedAt;
     if (!state.frozen) {
-      const target = latest.x * SENS[cfg.sensitivity] * 12;
-      state.wobbleV += (target - state.wobbleX) * 0.08 - state.wobbleV * 0.25;
-      state.wobbleX += state.wobbleV;
+      // Le fil suit le déséquilibre, à gauche/droite ET en haut/bas (ressort amorti)
+      const k = SENS[cfg.sensitivity] * 12;
+      state.vX += (latest.x * k - state.wobbleX) * 0.08 - state.vX * 0.25;
+      state.vY += (-latest.y * k * 0.8 - state.wobbleY) * 0.08 - state.vY * 0.25;
+      state.wobbleX += state.vX;
+      state.wobbleY += state.vY;
     }
     onTickCb && onTickCb(snapshot());
   }
 
-  function expectedXAt(idx) { return state.pts[idx].baseX + state.wobbleX; }
-  function idxFromY(y) {
-    const ratio = (y - Y_TOP) / (Y_BOTTOM - Y_TOP);
-    return Math.max(0, Math.min(N, Math.round(ratio * N)));
+  function distToSeg(px, py, a, b) {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / len2));
+    return Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy));
   }
 
   /** À appeler à chaque déplacement du doigt (coordonnées dans le viewBox SVG). */
   function handleTouch(x, y) {
     if (!state || !state.running || state.frozen) return;
-    const idx = idxFromY(y);
-    const expectedX = expectedXAt(idx);
-    if (Math.abs(x - expectedX) > TOLERANCE) {
-      miss(x, y);
-      return;
+    // Coordonnées du doigt ramenées dans le repère du fil (qui se déplace avec l'équilibre)
+    const fx = x - state.wobbleX, fy = y - state.wobbleY;
+    const p = state.progressIdx;
+    const from = Math.max(0, p - LOOK_BACK), to = Math.min(LAST, p + LOOK_AHEAD);
+    // Écart au fil, mesuré seulement autour de l'endroit où on en est
+    let d = Infinity;
+    for (let i = from; i < to; i++) d = Math.min(d, distToSeg(fx, fy, PATH[i], PATH[i + 1]));
+    if (to === from) d = Math.hypot(fx - PATH[from].x, fy - PATH[from].y);
+    if (d > TOLERANCE) { miss(x, y); return; }
+    // Avance jusqu'au point le plus loin (dans la fenêtre) que le doigt touche vraiment
+    for (let j = to; j > p; j--) {
+      if (Math.hypot(fx - PATH[j].x, fy - PATH[j].y) <= ADVANCE_TOL) { state.progressIdx = j; break; }
     }
-    // Empêche de "gagner" en tapant/restant sur l'arrivée : on ne crédite qu'un seul cran
-    // à la fois, et uniquement si le doigt est aussi proche du tracé à CE cran précis
-    // (pas juste à la position où le doigt se trouve) — impossible de sauter des crans.
-    if (idx > state.progressIdx) {
-      const nextIdx = state.progressIdx + 1;
-      if (Math.abs(x - expectedXAt(nextIdx)) <= TOLERANCE) {
-        state.progressIdx = nextIdx;
-      }
-    }
-    if (state.progressIdx >= N) finish('complete');
+    if (state.progressIdx >= LAST) finish('complete');
   }
 
   function miss(x, y) {
@@ -1899,21 +1923,21 @@ const ElectroGame = (() => {
 
   function snapshot() {
     return {
-      pts: state.pts, progressIdx: state.progressIdx, wobbleX: state.wobbleX,
+      pts: state.pts, progressIdx: state.progressIdx, wobbleX: state.wobbleX, wobbleY: state.wobbleY,
       livesLost: state.livesLost, livesRemaining: livesRemaining(), frozen: state.frozen,
       elapsedMs: state.elapsedMs, sensitivity: cfg.sensitivity, lives: cfg.lives,
     };
   }
 
-  /** Contre-la-montre : plus c'est rapide, plus le score est élevé. */
+  /** Contre-la-montre : plus c'est rapide, plus le score est élevé (parcours ~3× plus long qu'avant). */
   function computeScore(snap) {
     const seconds = snap.elapsedMs / 1000;
     const mult = { easy: 1, hard: 2 }[snap.sensitivity] || 1;
-    const raw = 1800 - seconds * 8 * mult - snap.livesLost * 60;
+    const raw = 2400 - seconds * 4 * mult - snap.livesLost * 60;
     return Math.max(0, Math.round(raw));
   }
 
-  return { start, finish, abort, snapshot, computeScore, handleTouch, PREPARE_SECONDS, N, Y_TOP, Y_BOTTOM };
+  return { start, finish, abort, snapshot, computeScore, handleTouch, PREPARE_SECONDS, VIEW_W, VIEW_H, PATH };
 })();
 
 /* =====================================================================================
@@ -2305,6 +2329,8 @@ const content = document.getElementById('content');
     else if (slot.firstChild) { slot.replaceChildren(); bar.classList.remove('has-back'); }
   }).observe(content, { childList: true });
 })();
+/* Appui long : pas de menu contextuel (sauf dans les champs de saisie) */
+document.addEventListener('contextmenu', (e) => { if (!e.target.closest('input, textarea, [contenteditable]')) e.preventDefault(); });
 const statusPill = document.getElementById('statusPill');
 const statusPillText = document.getElementById('statusPillText');
 const FOOTBALL_GOAL_B64 = 'data:image/png;base64,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';
@@ -2665,8 +2691,8 @@ const UI_DICT_ROWS = [
   ["Renforce les quadriceps et ischio-jambiers en pré-saison pour mieux protéger les genoux.", "Stärke vor der Saison Oberschenkelvorder- und -rückseite, um die Knie besser zu schützen.", "Strengthen your quads and hamstrings before the season to better protect your knees.", "Rinforza quadricipiti e femorali prima della stagione per proteggere meglio le ginocchia."],
   ["Arrête-toi quand tu es fatigué : la plupart des blessures arrivent en fin de journée.", "Hör auf, wenn du müde bist: Die meisten Verletzungen passieren am Ende des Tages.", "Stop when you're tired: most injuries happen at the end of the day.", "Fermati quando sei stanco: la maggior parte degli infortuni avviene a fine giornata."],
   // Electro
-  ["Suis le fil du doigt du haut vers le bas, sans le lâcher. Ton équilibre le fait trembler — reste stable. Le plus rapide gagne.", "Folge dem Draht mit dem Finger von oben nach unten, ohne loszulassen. Dein Gleichgewicht lässt ihn zittern — bleib stabil. Wer am schnellsten ist, gewinnt.", "Follow the wire with your finger from top to bottom without letting go. Your balance makes it shake — stay steady. The fastest wins.", "Segui il filo con il dito dall'alto in basso, senza staccarlo. Il tuo equilibrio lo fa tremare — resta stabile. Vince il più veloce."],
-  ["Pose le doigt en haut du fil, ça démarre dans...", "Leg den Finger oben auf den Draht, es geht los in...", "Put your finger at the top of the wire, starting in...", "Metti il dito in cima al filo, si parte tra..."],
+  ["Suis le long fil du doigt, du rond vert au rond orange, sans t'en écarter. Ton équilibre fait bouger le fil — reste stable. Le plus rapide gagne.", "Folge dem Draht mit dem Finger von oben nach unten, ohne loszulassen. Dein Gleichgewicht lässt ihn zittern — bleib stabil. Wer am schnellsten ist, gewinnt.", "Follow the wire with your finger from top to bottom without letting go. Your balance makes it shake — stay steady. The fastest wins.", "Segui il filo con il dito dall'alto in basso, senza staccarlo. Il tuo equilibrio lo fa tremare — resta stabile. Vince il più veloce."],
+  ["Pose le doigt sur le rond vert, en haut à droite, ça démarre dans...", "Leg den Finger auf den grünen Kreis oben rechts, es geht los in...", "Put your finger on the green circle, top right, starting in...", "Metti il dito sul cerchio verde, in alto a destra, si parte tra..."],
   ["Fais glisser le doigt le long du fil, du vert au orange.", "Fahr mit dem Finger dem Draht entlang, von Grün zu Orange.", "Slide your finger along the wire, from green to orange.", "Fai scorrere il dito lungo il filo, dal verde all'arancione."],
   ["Figé ! Une vie perdue — reprends dès que ça repart.", "Eingefroren! Ein Leben verloren — mach weiter, sobald es wieder läuft.", "Frozen! One life lost — carry on as soon as it restarts.", "Bloccato! Una vita persa — riprendi appena riparte."],
   // Tir au but
@@ -5074,7 +5100,7 @@ function screenElectroSetup() {
     <div class="centered-page game-setup">
     <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="zap"></i> Electro</h1>
     ${gameVideoBigHTML(ELECTRO_WELCOME_VIDEO_B64)}
-    <p class="page-sub">Suis le fil du doigt du haut vers le bas, sans le lâcher. Ton équilibre le fait trembler — reste stable. Le plus rapide gagne.</p>
+    <p class="page-sub">Suis le long fil du doigt, du rond vert au rond orange, sans t'en écarter. Ton équilibre fait bouger le fil — reste stable. Le plus rapide gagne.</p>
     <button class="btn-primary" id="btnElectroStart" style="width:100%;">${t('game_start_btn')}</button>
 <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
   </div>
@@ -5089,7 +5115,7 @@ function wireElectroSetup() {
 
 function electroPrepareThenStart() {
   let remaining = ElectroGame.PREPARE_SECONDS;
-  content.innerHTML = screenGenericPrepare(remaining, 'zap', 'Pose le doigt en haut du fil, ça démarre dans...');
+  content.innerHTML = screenGenericPrepare(remaining, 'zap', 'Pose le doigt sur le rond vert, en haut à droite, ça démarre dans...');
   SoundFx.ready();
   const timer = setInterval(() => {
     remaining--;
@@ -5105,6 +5131,7 @@ function electroPrepareThenStart() {
 }
 
 function startElectroGame() {
+  electroDrawnIdx = -1;
   content.innerHTML = screenElectroPlaying();
   wireElectroPlaying();
   activeGameModule = ElectroGame;
@@ -5136,13 +5163,15 @@ function screenElectroPlaying() {
       <div class="hearts" id="electroHearts"></div>
       <div class="timer" id="electroTimer">0:00.0</div>
     </div>
-    <div class="zone-canvas-wrap" style="height:62vh;">
+    <div class="zone-canvas-wrap" style="height:68vh;">
       <svg id="electroScene" style="display:block;height:100%;width:auto;aspect-ratio:300/500;touch-action:none;" viewBox="0 0 300 500" preserveAspectRatio="xMidYMid meet">
-        <path id="electroDim" d="" fill="none" stroke="#3a3355" stroke-width="28" stroke-linecap="round"/>
-        <path id="electroDone" d="" fill="none" stroke="#7f77dd" stroke-width="28" stroke-linecap="round"/>
-        <circle id="electroStartRing" r="15" fill="none" stroke="#43cea2" stroke-width="3"/>
-        <circle id="electroEndRing" r="15" fill="none" stroke="#e0a83e" stroke-width="3"/>
-        <circle id="electroFinger" r="10" fill="#fefefe"/>
+        <g id="electroTrack">
+          <path id="electroDim" d="${electroPathD(ElectroGame.PATH.length - 1)}" fill="none" stroke="#3a3355" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+          <path id="electroDone" d="" fill="none" stroke="#7f77dd" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="${ElectroGame.PATH[0].x}" cy="${ElectroGame.PATH[0].y}" r="13" fill="none" stroke="#43cea2" stroke-width="3"/>
+          <circle cx="${ElectroGame.PATH[ElectroGame.PATH.length - 1].x}" cy="${ElectroGame.PATH[ElectroGame.PATH.length - 1].y}" r="13" fill="none" stroke="#e0a83e" stroke-width="3"/>
+          <circle id="electroFinger" r="8" fill="#fefefe"/>
+        </g>
         <g id="electroSpark" opacity="0"></g>
       </svg>
     </div>
@@ -5199,10 +5228,18 @@ function wireElectroPlaying() {
   }
   svg.addEventListener('mousedown', (e) => move(e.clientX, e.clientY));
   svg.addEventListener('mousemove', (e) => { if (e.buttons === 1) move(e.clientX, e.clientY); });
-  svg.addEventListener('touchstart', (e) => { move(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
-  svg.addEventListener('touchmove', (e) => { move(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+  // Non passif + preventDefault : un doigt posé longtemps ne déclenche ni sélection, ni menu, ni défilement
+  svg.addEventListener('touchstart', (e) => { e.preventDefault(); move(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+  svg.addEventListener('touchmove', (e) => { e.preventDefault(); move(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
 }
 
+let electroDrawnIdx = -1;
+function electroPathD(uptoIdx) {
+  const P = ElectroGame.PATH;
+  let d = `M${P[0].x.toFixed(1)} ${P[0].y.toFixed(1)}`;
+  for (let i = 1; i <= uptoIdx; i++) d += ` L${P[i].x.toFixed(1)} ${P[i].y.toFixed(1)}`;
+  return d;
+}
 function renderElectroPlaying(snap) {
   const heartsEl = document.getElementById('electroHearts');
   const timerEl = document.getElementById('electroTimer');
@@ -5211,22 +5248,16 @@ function renderElectroPlaying(snap) {
     const s = snap.elapsedMs / 1000;
     timerEl.textContent = `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
   }
-  const dim = document.getElementById('electroDim');
-  const done = document.getElementById('electroDone');
-  const finger = document.getElementById('electroFinger');
-  const startRing = document.getElementById('electroStartRing');
-  const endRing = document.getElementById('electroEndRing');
-  if (!dim || !snap.pts) return;
-  const xAt = (i) => snap.pts[i].baseX + snap.wobbleX;
-  let dFull = `M${xAt(0)} ${snap.pts[0].y}`;
-  for (let i = 1; i < snap.pts.length; i++) dFull += ` L${xAt(i)} ${snap.pts[i].y}`;
-  dim.setAttribute('d', dFull);
-  let dDone = `M${xAt(0)} ${snap.pts[0].y}`;
-  for (let i = 1; i <= snap.progressIdx; i++) dDone += ` L${xAt(i)} ${snap.pts[i].y}`;
-  done.setAttribute('d', dDone);
-  startRing.setAttribute('cx', xAt(0)); startRing.setAttribute('cy', snap.pts[0].y);
-  endRing.setAttribute('cx', xAt(snap.pts.length - 1)); endRing.setAttribute('cy', snap.pts[snap.pts.length - 1].y);
-  finger.setAttribute('cx', xAt(snap.progressIdx)); finger.setAttribute('cy', snap.pts[snap.progressIdx].y);
+  const track = document.getElementById('electroTrack');
+  if (!track || !snap.pts) return;
+  // Tout le fil se déplace d'un bloc avec l'équilibre (plus besoin de redessiner le tracé)
+  track.setAttribute('transform', `translate(${snap.wobbleX.toFixed(1)} ${snap.wobbleY.toFixed(1)})`);
+  if (snap.progressIdx !== electroDrawnIdx) {
+    electroDrawnIdx = snap.progressIdx;
+    document.getElementById('electroDone').setAttribute('d', electroPathD(snap.progressIdx));
+    const f = document.getElementById('electroFinger'), pt = snap.pts[snap.progressIdx];
+    f.setAttribute('cx', pt.x); f.setAttribute('cy', pt.y);
+  }
 }
 
 function screenElectroResult(snap, score, reason) {
