@@ -1807,8 +1807,14 @@ const ElectroGame = (() => {
 
   let cfg = { sensitivity: 'easy', lives: 3 };
   let state = null;
+  const MAX_SHIFT = 30;      // déplacement max du fil (unités) : il reste toujours dans le cadre (marge de 30 autour)
   let latest = { x: 0, y: 0 };
-  function onSensorData(d) { latest = { x: d.x / 200, y: d.y / 200 }; }
+  let base = null;           // position du joueur au départ = le « zéro » (on n'est jamais pile au centre)
+  function onSensorData(d) {
+    const p = { x: d.x / 200, y: d.y / 200 };
+    if (!base) base = p;
+    latest = { x: p.x - base.x, y: p.y - base.y };
+  }
 
   /** Parcours fixe (toujours le même, pour que les scores soient comparables) :
    *  un serpentin de 7 rangs qui descend, avec des ondulations de plus en plus fortes.
@@ -1859,6 +1865,7 @@ const ElectroGame = (() => {
     cfg = config; onTickCb = onTick; onFinishCb = onFinish; onMissCb = onMiss;
     reset();
     state.running = true; state.startedAt = performance.now();
+    base = null; latest = { x: 0, y: 0 };
     PandaFitSensor.off('data', onSensorData);
     PandaFitSensor.on('data', onSensorData);
     tickHandle = setInterval(tick, 50);
@@ -1872,8 +1879,8 @@ const ElectroGame = (() => {
       const k = SENS[cfg.sensitivity] * 12;
       state.vX += (latest.x * k - state.wobbleX) * 0.08 - state.vX * 0.25;
       state.vY += (-latest.y * k * 0.8 - state.wobbleY) * 0.08 - state.vY * 0.25;
-      state.wobbleX += state.vX;
-      state.wobbleY += state.vY;
+      state.wobbleX = Math.max(-MAX_SHIFT, Math.min(MAX_SHIFT, state.wobbleX + state.vX));
+      state.wobbleY = Math.max(-MAX_SHIFT, Math.min(MAX_SHIFT, state.wobbleY + state.vY));
     }
     onTickCb && onTickCb(snapshot());
   }
@@ -1948,7 +1955,7 @@ const ElectroGame = (() => {
     return Math.max(0, Math.round(raw));
   }
 
-  return { start, finish, abort, snapshot, computeScore, handleTouch, PREPARE_SECONDS, VIEW_W, VIEW_H, PATH };
+  return { start, finish, abort, snapshot, computeScore, handleTouch, PREPARE_SECONDS, VIEW_W, VIEW_H, PATH, MAX_SHIFT };
 })();
 
 /* =====================================================================================
@@ -5272,7 +5279,7 @@ function screenElectroPlaying() {
     </div>
     <p id="electroHint" class="electro-hint">Fais glisser le doigt le long du fil, du vert au orange.</p>
     <div class="zone-canvas-wrap" style="height:68vh;">
-      <svg id="electroScene" style="display:block;height:100%;width:auto;aspect-ratio:300/500;touch-action:none;" viewBox="0 0 300 500" preserveAspectRatio="xMidYMid meet">
+      <svg id="electroScene" style="display:block;height:100%;width:auto;aspect-ratio:360/560;touch-action:none;" viewBox="-30 -30 360 560" preserveAspectRatio="xMidYMid meet">
         <g id="electroTrack">
           <path id="electroDim" d="${electroPathD(ElectroGame.PATH.length - 1)}" fill="none" stroke="#3a3355" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
           <path id="electroDone" d="" fill="none" stroke="#7f77dd" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
@@ -5332,7 +5339,7 @@ function fitElectroScene() {
   const bottomLimit = (nav && getComputedStyle(nav).display !== 'none') ? nav.getBoundingClientRect().top : window.innerHeight;
   const h = Math.max(260, Math.floor(bottomLimit - top - 24)); // la consigne est en haut, à côté du panda
   const maxW = wrap.clientWidth || window.innerWidth;
-  wrap.style.height = Math.min(h, Math.floor(maxW * 500 / 300)) + 'px';
+  wrap.style.height = Math.min(h, Math.floor(maxW * 560 / 360)) + 'px';
 }
 function wireElectroPlaying() {
   fitElectroScene();
@@ -5342,7 +5349,7 @@ function wireElectroPlaying() {
   if (!svg) return;
   function toSvgCoords(clientX, clientY) {
     const r = svg.getBoundingClientRect();
-    return { x: (clientX - r.left) / r.width * 300, y: (clientY - r.top) / r.height * 500 };
+    return { x: (clientX - r.left) / r.width * 360 - 30, y: (clientY - r.top) / r.height * 560 - 30 }; // viewBox -30 -30 360 560
   }
   function move(clientX, clientY) {
     const { x, y } = toSvgCoords(clientX, clientY);
