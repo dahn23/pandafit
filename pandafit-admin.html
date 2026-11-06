@@ -1808,15 +1808,14 @@ function addGamesScreenCard() {
       ${cb('cfgReadyToPlay', p.show_ready_to_play, 'Afficher l\'encadré "Prêt à jouer ?"', 10)}
       ${cb('cfgIndexBanner', p.show_index_banner, 'Afficher l\'encadré "PandaFit Index"', 10)}
       ${cb('cfgBenefitsPage', p.show_benefits_page, 'Afficher la vignette "Les bienfaits du PandaFit"', 10)}
-      ${cb('cfgInitiationPage', p.show_initiation_page, 'Afficher la vignette "Initiation au PandaFit"', 10)}
-      ${cb('cfgLockGames', p.lock_games, 'Verrouiller l\'onglet "Jeux" avec le PIN des Réglages', 14)}
+      ${cb('cfgInitiationPage', p.show_initiation_page, 'Afficher la vignette "Initiation au PandaFit"', 14)}
       <button class="btn-primary" id="btnSaveScreenSettings" style="width:auto;">Enregistrer l'écran</button>
     </div>`);
   document.getElementById('btnSaveScreenSettings').addEventListener('click', async () => {
     const v = id => document.getElementById(id).checked;
     const { error } = await sb.from('projects').update({
       show_ready_to_play: v('cfgReadyToPlay'), show_index_banner: v('cfgIndexBanner'),
-      show_benefits_page: v('cfgBenefitsPage'), show_initiation_page: v('cfgInitiationPage'), lock_games: v('cfgLockGames'),
+      show_benefits_page: v('cfgBenefitsPage'), show_initiation_page: v('cfgInitiationPage'), // verrou des jeux retiré (décision Dan 06.11.2026 : tout se règle avec Menu tablette)
     }).eq('id', selectedProjectId);
     if (error) { alert('Erreur : ' + error.message); return; }
     await loadProjectDetail();
