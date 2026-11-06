@@ -77,10 +77,18 @@
   .game-setup { display: flex; flex-direction: column; justify-content: center; gap: 26px; text-align: center; }
   .game-setup > * { margin: 0 !important; }
   .game-setup h1.page-title { justify-content: center; font-size: 30px; }
-  .game-setup .game-video-frame-big { width: 400px; height: 400px; max-width: 80vw; max-height: 80vw; margin: 0 auto !important; }
+  .game-setup .game-video-frame-big { width: 320px; height: 320px; max-width: 80vw; max-height: 80vw; margin: 0 auto !important; }
   .game-setup p.page-sub { max-width: 620px; margin: 0 auto !important; }
   .game-setup .btn-primary, .game-setup #btnDoInitiationFirst { padding: 19px 20px; font-size: 16px; }
   .game-setup #btnDoInitiationFirst { margin-top: -14px !important; }
+  .game-info { background: var(--panel); border-radius: 20px; padding: 20px 22px; text-align: left; border-top: 5px solid var(--cat); }
+  .game-info .gi-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; color: var(--cat); }
+  .game-info .gi-head svg { width: 26px; height: 26px; }
+  .game-info .gi-cat-lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); font-weight: 700; }
+  .game-info .gi-cat { font-size: 21px; font-weight: 800; }
+  .game-info .gi-row + .gi-row { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.08); }
+  .game-info .gi-t { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--cat); font-weight: 800; margin-bottom: 5px; }
+  .game-info p { margin: 0; font-size: 17px; line-height: 1.5; color: #d9d4ea; }
   .panda-watcher {
     position: fixed; top: 68px; left: 16px; width: 46vw; height: 46vw; max-width: 230px; max-height: 230px; z-index: 50;
     border-radius: 28px; background: #fdfaf3; border: 3px solid var(--primary);
@@ -1784,9 +1792,9 @@ const FootballGame = (() => {
 })();
 
 const ElectroGame = (() => {
-  const SENS = { easy: 0.7, hard: 2.4 }; // influence du capteur sur le déplacement du fil
-  const TOLERANCE = 30;      // écart max doigt ↔ fil (unités du viewBox) avant la décharge — le fil fait 18 de large
-  const ADVANCE_TOL = 22;    // le doigt doit être aussi près que ça d'un point du fil pour avancer
+  const SENS = { easy: 0.7, hard: 3.3 }; // influence du capteur sur le déplacement du fil
+  const TOLERANCE = 23;      // écart max doigt ↔ fil (unités du viewBox) avant la décharge — le fil fait 16 de large
+  const ADVANCE_TOL = 17;    // le doigt doit être aussi près que ça d'un point du fil pour avancer
   const LOOK_BACK = 20;      // points du fil derrière la progression (~80 unités) : reculer sur le fil n'est pas une faute
   const LOOK_AHEAD = 8;      // points devant (~32 unités) : impossible de sauter d'un rang du serpentin à l'autre
   const STEP = 4;            // un point du fil toutes les 4 unités
@@ -1804,7 +1812,7 @@ const ElectroGame = (() => {
    *  Départ en haut à droite (le coin haut-gauche est sous l'encadré du panda). */
   function generatePath() {
     const rows = [35, 105, 175, 245, 315, 385, 455];
-    const amp = [4, 7, 9, 11, 12, 13, 14];   // ondulation verticale de chaque rang (les rangs ne se touchent jamais)
+    const amp = [6, 9, 12, 14, 15, 16, 17];   // ondulation verticale de chaque rang (les rangs ne se touchent jamais)
     const waves = [2, 3, 3, 4, 4, 5, 5];     // nombre de bosses par rang
     const X_LEFT = 48, X_RIGHT = 252, X_LEFT_FIRST = 100;
     const pts = [];
@@ -2521,6 +2529,34 @@ function setLang(lang) {
    clé = texte français exact) + quelques textes avec des nombres (règles). Un texte absent du dictionnaire reste en français.
    Pour ajouter une phrase : une ligne [fr, de, en, it]. */
 const UI_DICT_ROWS = [
+  // Encadré « catégorie, bienfaits, score » des écrans d'avant-jeu
+  ["Précision", "Präzision", "Precision", "Precisione"],
+  ["Calme & mental", "Ruhe & Mentales", "Calm & mind", "Calma & mente"],
+  ["Catégorie", "Kategorie", "Category", "Categoria"],
+  ["Pourquoi ce jeu ?", "Warum dieses Spiel?", "Why this game?", "Perché questo gioco?"],
+  ["Bienfaits", "Wirkung", "Benefits", "Benefici"],
+  ["Comment le score est calculé", "So wird gezählt", "How the score works", "Come si calcola il punteggio"],
+  ["Tu dois garder ton centre de gravité dans un petit cercle : c'est de la précision pure.", "Du musst deinen Schwerpunkt in einem kleinen Kreis halten: reine Präzision.", "You have to keep your centre of gravity inside a small circle: pure precision.", "Devi tenere il baricentro in un piccolo cerchio: precisione pura."],
+  ["Renforce les petits muscles qui stabilisent les chevilles et améliore la posture. Moins de faux pas et d'entorses.", "Stärkt die kleinen Muskeln, die die Fussgelenke stabilisieren, und verbessert die Haltung. Weniger Fehltritte und Verstauchungen.", "Strengthens the small muscles that stabilise the ankles and improves posture. Fewer missteps and sprains.", "Rafforza i piccoli muscoli che stabilizzano le caviglie e migliora la postura. Meno passi falsi e distorsioni."],
+  ["Secondes tenues × 10 × niveau (1 facile, 2 moyen, 3 difficile), moins 40 points par sortie de zone.", "Gehaltene Sekunden × 10 × Stufe (1 leicht, 2 mittel, 3 schwer), minus 40 Punkte pro Verlassen der Zone.", "Seconds held × 10 × level (1 easy, 2 medium, 3 hard), minus 40 points each time you leave the zone.", "Secondi tenuti × 10 × livello (1 facile, 2 medio, 3 difficile), meno 40 punti per ogni uscita dalla zona."],
+  ["Ton doigt doit rester sur le fil pendant que tes pieds le font bouger : précision de la main et du corps en même temps.", "Dein Finger muss auf dem Draht bleiben, während deine Füsse ihn bewegen: Präzision von Hand und Körper gleichzeitig.", "Your finger has to stay on the wire while your feet make it move: precision of hand and body at the same time.", "Il dito deve restare sul filo mentre i piedi lo fanno muovere: precisione della mano e del corpo insieme."],
+  ["Entraîne à garder l'équilibre en faisant autre chose (porter, téléphoner, regarder ailleurs) : la situation typique des chutes au quotidien.", "Trainiert, das Gleichgewicht zu halten, während man etwas anderes tut (tragen, telefonieren, wegschauen): die typische Situation von Stürzen im Alltag.", "Trains you to keep your balance while doing something else (carrying, phoning, looking away): the typical situation behind everyday falls.", "Allena a mantenere l'equilibrio mentre si fa altro (portare, telefonare, guardare altrove): la situazione tipica delle cadute quotidiane."],
+  ["2400 points au départ, moins 8 points par seconde et 60 points par décharge. Plus tu es rapide et précis, plus tu marques.", "2400 Punkte zu Beginn, minus 8 Punkte pro Sekunde und 60 Punkte pro Stromschlag. Je schneller und genauer, desto mehr Punkte.", "2400 points to start, minus 8 points per second and 60 points per shock. The faster and more precise you are, the more you score.", "2400 punti all'inizio, meno 8 punti al secondo e 60 punti per scossa. Più sei veloce e preciso, più punti fai."],
+  ["Tu restes stable dans la zone tout en visant les bons aliments du doigt : équilibre et coordination œil-main.", "Du bleibst stabil in der Zone und tippst dabei die richtigen Lebensmittel an: Gleichgewicht und Auge-Hand-Koordination.", "You stay steady in the zone while tapping the right foods: balance and hand-eye coordination.", "Resti stabile nella zona mentre tocchi i cibi giusti: equilibrio e coordinazione occhio-mano."],
+  ["Améliore la stabilité quand l'attention est prise ailleurs, et rappelle les bons choix alimentaires.", "Verbessert die Stabilität, wenn die Aufmerksamkeit woanders ist, und erinnert an gute Ernährung.", "Improves stability when your attention is elsewhere, and is a reminder of healthy food choices.", "Migliora la stabilità quando l'attenzione è altrove e ricorda le scelte alimentari giuste."],
+  ["+1 par bon aliment attrapé, −1 par sucrerie. Si tu sors de la zone, le panier est bloqué 2 secondes.", "+1 pro gutem Lebensmittel, −1 pro Süssigkeit. Verlässt du die Zone, ist der Korb 2 Sekunden gesperrt.", "+1 per healthy food caught, −1 per sweet. If you leave the zone, the basket is locked for 2 seconds.", "+1 per ogni cibo sano preso, −1 per ogni dolciume. Se esci dalla zona, il cestino si blocca per 2 secondi."],
+  ["Tu te balances à gauche et à droite, de façon ample et régulière : c'est de l'équilibre en mouvement.", "Du schwingst weit und gleichmässig nach links und rechts: Gleichgewicht in Bewegung.", "You sway left and right, wide and steady: this is balance in motion.", "Ti dondoli a sinistra e a destra, in modo ampio e regolare: è equilibrio in movimento."],
+  ["Travaille les transferts de poids, le gainage et le rythme : utile pour le ski, la marche et les changements de direction.", "Trainiert Gewichtsverlagerung, Rumpfstabilität und Rhythmus: nützlich beim Skifahren, Gehen und bei Richtungswechseln.", "Works on weight shifts, core strength and rhythm: useful for skiing, walking and changes of direction.", "Allena i trasferimenti di peso, il core e il ritmo: utile per lo sci, la camminata e i cambi di direzione."],
+  ["2400 points moins 8 points par seconde : plus tu descends vite, plus tu marques.", "2400 Punkte minus 8 Punkte pro Sekunde: je schneller du fährst, desto mehr Punkte.", "2400 points minus 8 points per second: the faster you go down, the more you score.", "2400 punti meno 8 punti al secondo: più scendi veloce, più punti fai."],
+  ["Tu cours d'abord (balancement avant-arrière), puis tu dois vite te stabiliser pour tirer : l'effort, puis le contrôle.", "Zuerst läufst du (vor und zurück schwingen), dann musst du dich schnell stabilisieren, um zu schiessen: erst Anstrengung, dann Kontrolle.", "First you run (swaying forwards and back), then you have to steady yourself quickly to shoot: effort, then control.", "Prima corri (dondolando avanti e indietro), poi devi stabilizzarti in fretta per tirare: prima lo sforzo, poi il controllo."],
+  ["Améliore la récupération de l'équilibre après un effort, comme après un saut, une course ou un escalier.", "Verbessert das Wiederfinden des Gleichgewichts nach einer Anstrengung, etwa nach einem Sprung, einem Sprint oder einer Treppe.", "Improves how quickly you regain balance after effort, like after a jump, a sprint or a flight of stairs.", "Migliora il recupero dell'equilibrio dopo uno sforzo, come dopo un salto, una corsa o una scala."],
+  ["100 points par but, moins 10 points par tir raté.", "100 Punkte pro Tor, minus 10 Punkte pro Fehlschuss.", "100 points per goal, minus 10 points per missed shot.", "100 punti per gol, meno 10 punti per tiro sbagliato."],
+  ["La respiration guidée calme le corps, et ton équilibre montre si tu restes vraiment posé.", "Die geführte Atmung beruhigt den Körper, und dein Gleichgewicht zeigt, ob du wirklich ruhig bleibst.", "Guided breathing calms the body, and your balance shows whether you really stay settled.", "La respirazione guidata calma il corpo e il tuo equilibrio mostra se resti davvero calmo."],
+  ["La cohérence cardiaque baisse le stress et le rythme cardiaque, et aide à se concentrer avant un moment important.", "Die Herzkohärenz senkt Stress und Puls und hilft, sich vor einem wichtigen Moment zu konzentrieren.", "Heart coherence lowers stress and heart rate, and helps you focus before an important moment.", "La coerenza cardiaca riduce lo stress e il battito e aiuta a concentrarsi prima di un momento importante."],
+  ["Pourcentage du temps passé dans la zone, de 0 à 100.", "Anteil der Zeit in der Zone, von 0 bis 100.", "Percentage of time spent in the zone, from 0 to 100.", "Percentuale del tempo passato nella zona, da 0 a 100."],
+  ["Après l'effort, tu dois revenir au calme pour pouvoir calculer : le corps et la tête doivent se poser ensemble.", "Nach der Anstrengung musst du zur Ruhe kommen, um rechnen zu können: Körper und Kopf müssen gemeinsam ruhig werden.", "After the effort, you have to calm down to be able to calculate: body and mind must settle together.", "Dopo lo sforzo devi tornare calmo per poter calcolare: corpo e testa devono calmarsi insieme."],
+  ["Entraîne la concentration malgré la fatigue et la capacité à se calmer vite : utile face au stress.", "Trainiert die Konzentration trotz Müdigkeit und die Fähigkeit, schnell ruhig zu werden: hilfreich bei Stress.", "Trains focus despite fatigue and the ability to calm down quickly: useful under stress.", "Allena la concentrazione nonostante la fatica e la capacità di calmarsi in fretta: utile contro lo stress."],
+  ["+1 par bon calcul, −1 par erreur.", "+1 pro richtiger Rechnung, −1 pro Fehler.", "+1 per correct sum, −1 per mistake.", "+1 per ogni calcolo giusto, −1 per ogni errore."],
   // Navigation / commun
   ["← Retour", "← Zurück", "← Back", "← Indietro"],
   ["Rejouer", "Nochmals spielen", "Play again", "Gioca ancora"],
@@ -4007,6 +4043,69 @@ function openHighlightDetail(item) {
 }
 /** Beau tableau de classement (top 10, médailles pour le podium) — version tablette, lecture seule. */
 /** Grande vidéo panda centrée avec encadré — utilisée sur les écrans de description et de résultat de chaque jeu. */
+/* ---------- Encadré « catégorie, bienfaits, score » des écrans d'avant-jeu ---------- */
+// Les 3 catégories de jeux (décision 28.10.2026) : Précision · Mouvement · Calme & mental
+const GAME_CATEGORIES = {
+  precision: { label: 'Précision', icon: 'crosshair', color: '#43cea2' },
+  mouvement: { label: 'Mouvement', icon: 'move', color: '#5aa9ff' },
+  calme: { label: 'Calme & mental', icon: 'leaf', color: '#b69cff' },
+};
+const GAME_INFO = {
+  thezone: {
+    cat: 'precision',
+    why: 'Tu dois garder ton centre de gravité dans un petit cercle : c\'est de la précision pure.',
+    benefits: 'Renforce les petits muscles qui stabilisent les chevilles et améliore la posture. Moins de faux pas et d\'entorses.',
+    score: 'Secondes tenues × 10 × niveau (1 facile, 2 moyen, 3 difficile), moins 40 points par sortie de zone.',
+  },
+  base: {
+    cat: 'precision',
+    why: 'Ton doigt doit rester sur le fil pendant que tes pieds le font bouger : précision de la main et du corps en même temps.',
+    benefits: 'Entraîne à garder l\'équilibre en faisant autre chose (porter, téléphoner, regarder ailleurs) : la situation typique des chutes au quotidien.',
+    score: '2400 points au départ, moins 8 points par seconde et 60 points par décharge. Plus tu es rapide et précis, plus tu marques.',
+  },
+  migros: {
+    cat: 'precision',
+    why: 'Tu restes stable dans la zone tout en visant les bons aliments du doigt : équilibre et coordination œil-main.',
+    benefits: 'Améliore la stabilité quand l\'attention est prise ailleurs, et rappelle les bons choix alimentaires.',
+    score: '+1 par bon aliment attrapé, −1 par sucrerie. Si tu sors de la zone, le panier est bloqué 2 secondes.',
+  },
+  skiprev: {
+    cat: 'mouvement',
+    why: 'Tu te balances à gauche et à droite, de façon ample et régulière : c\'est de l\'équilibre en mouvement.',
+    benefits: 'Travaille les transferts de poids, le gainage et le rythme : utile pour le ski, la marche et les changements de direction.',
+    score: '2400 points moins 8 points par seconde : plus tu descends vite, plus tu marques.',
+  },
+  distance: {
+    cat: 'mouvement',
+    why: 'Tu cours d\'abord (balancement avant-arrière), puis tu dois vite te stabiliser pour tirer : l\'effort, puis le contrôle.',
+    benefits: 'Améliore la récupération de l\'équilibre après un effort, comme après un saut, une course ou un escalier.',
+    score: '100 points par but, moins 10 points par tir raté.',
+  },
+  cross: {
+    cat: 'calme',
+    why: 'La respiration guidée calme le corps, et ton équilibre montre si tu restes vraiment posé.',
+    benefits: 'La cohérence cardiaque baisse le stress et le rythme cardiaque, et aide à se concentrer avant un moment important.',
+    score: 'Pourcentage du temps passé dans la zone, de 0 à 100.',
+  },
+  tempo: {
+    cat: 'calme',
+    why: 'Après l\'effort, tu dois revenir au calme pour pouvoir calculer : le corps et la tête doivent se poser ensemble.',
+    benefits: 'Entraîne la concentration malgré la fatigue et la capacité à se calmer vite : utile face au stress.',
+    score: '+1 par bon calcul, −1 par erreur.',
+  },
+};
+function gameInfoHTML(gameId) {
+  const g = GAME_INFO[gameId];
+  if (!g) return '';
+  const c = GAME_CATEGORIES[g.cat];
+  return `
+    <div class="game-info" style="--cat:${c.color};">
+      <div class="gi-head"><i data-lucide="${c.icon}"></i><span class="gi-cat-lbl">Catégorie</span><span class="gi-cat">${c.label}</span></div>
+      <div class="gi-row"><div class="gi-t">Pourquoi ce jeu ?</div><p>${g.why}</p></div>
+      <div class="gi-row"><div class="gi-t">Bienfaits</div><p>${g.benefits}</p></div>
+      <div class="gi-row"><div class="gi-t">Comment le score est calculé</div><p>${g.score}</p></div>
+    </div>`;
+}
 function gameVideoBigHTML(videoB64) {
   return `
     <div class="game-video-frame-big">
@@ -4213,6 +4312,7 @@ function screenZoneSetup() {
     </div>
     <button class="btn-primary" id="btnZoneStart" style="width:100%;">${t('game_start_btn')}</button>
 <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
+    ${gameInfoHTML('thezone')}
   </div>
   `;
 }
@@ -4392,14 +4492,14 @@ function screenZoneResult(snap, score, reason) {
     </div>
     <div class="row">
       <button class="btn-primary" id="btnZoneReplay">Rejouer</button>
-      ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnZoneBackHome">Retour aux jeux</button>` : ''}
+      <button class="btn-ghost" id="btnZoneBackHome">Retour à l'accueil</button>
     </div>
   </div>
   `;
 }
 function wireZoneResult() {
   document.getElementById('btnZoneReplay')?.addEventListener('click', () => launchGameWithQuestionnaire('thezone'));
-  document.getElementById('btnZoneBackHome')?.addEventListener('click', () => navigate('games'));
+  document.getElementById('btnZoneBackHome')?.addEventListener('click', () => navigate('home'));
 }
 
 /* ---------- Écran : calibration ---------- */
@@ -4683,6 +4783,7 @@ function screenMigrosSetup() {
       <p class="page-sub">Reste dans la zone en bas sans en sortir, et tape sur les bons aliments qui tombent — évite les sucreries.</p>
       <button class="btn-primary" id="btnMigrosStart" style="width:100%;">${t('game_start_btn')}</button>
 <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
+    ${gameInfoHTML('migros')}
     </div>
   </div>
   `;
@@ -4824,14 +4925,14 @@ function screenMigrosResult(snap, score, reason) {
     </div>
     <div class="row">
       <button class="btn-primary" id="btnMigrosReplay">Rejouer</button>
-      ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnMigrosBack">Retour aux jeux</button>` : ''}
+      <button class="btn-ghost" id="btnMigrosBack">Retour à l'accueil</button>
     </div>
   </div>
   `;
 }
 function wireMigrosResult() {
   document.getElementById('btnMigrosReplay')?.addEventListener('click', () => launchGameWithQuestionnaire('migros'));
-  document.getElementById('btnMigrosBack')?.addEventListener('click', () => navigate('games'));
+  document.getElementById('btnMigrosBack')?.addEventListener('click', () => navigate('home'));
 }
 
 /* ============================ Jeu : Slalom Réflexe (prévention ski) ============================ */
@@ -4853,6 +4954,7 @@ function screenSkiSetup() {
       <p class="page-sub">400m de piste. Balance-toi gauche/droite de façon régulière et ample pour prendre de la vitesse — jusqu'à 70 km/h si c'est parfait. Franchis la ligne le plus vite possible.</p>
       <button class="btn-primary" id="btnSkiStart" style="width:100%;">${t('game_start_btn')}</button>
 <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
+    ${gameInfoHTML('skiprev')}
     </div>
   </div>
   `;
@@ -5081,14 +5183,14 @@ function screenSkiResult(snap, score) {
     </div>
     <div class="row">
       <button class="btn-primary" id="btnSkiReplay">Rejouer</button>
-      ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnSkiBack">Retour aux jeux</button>` : ''}
+      <button class="btn-ghost" id="btnSkiBack">Retour à l'accueil</button>
     </div>
   </div>
   `;
 }
 function wireSkiResult() {
   document.getElementById('btnSkiReplay')?.addEventListener('click', () => launchGameWithQuestionnaire('skiprev'));
-  document.getElementById('btnSkiBack')?.addEventListener('click', () => navigate('games'));
+  document.getElementById('btnSkiBack')?.addEventListener('click', () => navigate('home'));
 }
 
 /* ---------- Jeu : Electro ---------- */
@@ -5103,6 +5205,7 @@ function screenElectroSetup() {
     <p class="page-sub">Suis le long fil du doigt, du rond vert au rond orange, sans t'en écarter. Ton équilibre fait bouger le fil — reste stable. Le plus rapide gagne.</p>
     <button class="btn-primary" id="btnElectroStart" style="width:100%;">${t('game_start_btn')}</button>
 <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
+    ${gameInfoHTML('base')}
   </div>
   `;
 }
@@ -5166,8 +5269,8 @@ function screenElectroPlaying() {
     <div class="zone-canvas-wrap" style="height:68vh;">
       <svg id="electroScene" style="display:block;height:100%;width:auto;aspect-ratio:300/500;touch-action:none;" viewBox="0 0 300 500" preserveAspectRatio="xMidYMid meet">
         <g id="electroTrack">
-          <path id="electroDim" d="${electroPathD(ElectroGame.PATH.length - 1)}" fill="none" stroke="#3a3355" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
-          <path id="electroDone" d="" fill="none" stroke="#7f77dd" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+          <path id="electroDim" d="${electroPathD(ElectroGame.PATH.length - 1)}" fill="none" stroke="#3a3355" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+          <path id="electroDone" d="" fill="none" stroke="#7f77dd" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
           <circle cx="${ElectroGame.PATH[0].x}" cy="${ElectroGame.PATH[0].y}" r="13" fill="none" stroke="#43cea2" stroke-width="3"/>
           <circle cx="${ElectroGame.PATH[ElectroGame.PATH.length - 1].x}" cy="${ElectroGame.PATH[ElectroGame.PATH.length - 1].y}" r="13" fill="none" stroke="#e0a83e" stroke-width="3"/>
           <circle id="electroFinger" r="8" fill="#fefefe"/>
@@ -5278,14 +5381,14 @@ function screenElectroResult(snap, score, reason) {
     </div>
     <div class="row">
       <button class="btn-primary" id="btnElectroReplay">Rejouer</button>
-      ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnElectroBackHome">Retour aux jeux</button>` : ''}
+      <button class="btn-ghost" id="btnElectroBackHome">Retour à l'accueil</button>
     </div>
   </div>
   `;
 }
 function wireElectroResult() {
   document.getElementById('btnElectroReplay')?.addEventListener('click', () => launchGameWithQuestionnaire('base'));
-  document.getElementById('btnElectroBackHome')?.addEventListener('click', () => navigate('games'));
+  document.getElementById('btnElectroBackHome')?.addEventListener('click', () => navigate('home'));
 }
 
 /* ---------- Jeu : Tir au but ---------- */
@@ -5298,6 +5401,7 @@ function screenFootballSetup() {
     <p class="page-sub">Cours 20 secondes (balance-toi d'avant en arrière), reviens au calme, puis marque un maximum de buts — le but bouge selon ta stabilité !</p>
     <button class="btn-primary" id="btnFootballStart" style="width:100%;">${t('game_start_btn')}</button>
 <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
+    ${gameInfoHTML('distance')}
   </div>
   `;
 }
@@ -5505,14 +5609,14 @@ function screenFootballResult(snap, score) {
     </div>
     <div class="row">
       <button class="btn-primary" id="btnFootballReplay">Rejouer</button>
-      ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnFootballBack">Retour aux jeux</button>` : ''}
+      <button class="btn-ghost" id="btnFootballBack">Retour à l'accueil</button>
     </div>
   </div>
   `;
 }
 function wireFootballResult() {
   document.getElementById('btnFootballReplay')?.addEventListener('click', () => launchGameWithQuestionnaire('distance'));
-  document.getElementById('btnFootballBack')?.addEventListener('click', () => navigate('games'));
+  document.getElementById('btnFootballBack')?.addEventListener('click', () => navigate('home'));
 }
 
 /* ---------- Jeu : Zen (respiration guidée) ---------- */
@@ -5531,6 +5635,7 @@ function screenRelaxSetup() {
     ${segmented('relaxMode', [{ value: 'long', label: '1 min 30' }, { value: 'sport', label: 'Mode sport (30s)' }], relaxSetupCfg.mode)}
     <button class="btn-primary" id="btnRelaxStart" style="width:100%;margin-top:18px;">${t('game_start_btn')}</button>
     <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
+    ${gameInfoHTML('cross')}
   </div>
   </div>
   `;
@@ -5673,14 +5778,14 @@ function screenRelaxResult(snap, score) {
     <p class="page-sub" style="text-align:center;">Prends un instant de plus si tu en as besoin, ou repars l'esprit un peu plus léger.</p>
     <div class="row">
       <button class="btn-primary" id="btnRelaxReplay">Refaire une session</button>
-      ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnRelaxBack">Retour aux jeux</button>` : ''}
+      <button class="btn-ghost" id="btnRelaxBack">Retour à l'accueil</button>
     </div>
   </div>
   `;
 }
 function wireRelaxResult() {
   document.getElementById('btnRelaxReplay')?.addEventListener('click', () => launchGameWithQuestionnaire('cross'));
-  document.getElementById('btnRelaxBack')?.addEventListener('click', () => navigate('games'));
+  document.getElementById('btnRelaxBack')?.addEventListener('click', () => navigate('home'));
 }
 
 /* ---------- Jeu : Tempo (effort physique + calcul mental) ---------- */
@@ -5693,6 +5798,7 @@ function screenTempoSetup() {
     <p class="page-sub">Passe la barre 10 fois en te balançant d'avant en arrière, puis reviens bien au calme pour répondre à 10 calculs — impossible de répondre en bougeant ! Enchaîne les manches pendant 1 minute.</p>
     <button class="btn-primary" id="btnTempoStart" style="width:100%;">${t('game_start_btn')}</button>
     <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
+    ${gameInfoHTML('tempo')}
   </div>
   `;
 }
@@ -5885,14 +5991,14 @@ function screenTempoResult(snap, score) {
     </div>
     <div class="row">
       <button class="btn-primary" id="btnTempoReplay">Rejouer</button>
-      ${!clientConfig?.lockGames ? `<button class="btn-ghost" id="btnTempoBack">Retour aux jeux</button>` : ''}
+      <button class="btn-ghost" id="btnTempoBack">Retour à l'accueil</button>
     </div>
   </div>
   `;
 }
 function wireTempoResult() {
   document.getElementById('btnTempoReplay')?.addEventListener('click', () => launchGameWithQuestionnaire('tempo'));
-  document.getElementById('btnTempoBack')?.addEventListener('click', () => navigate('games'));
+  document.getElementById('btnTempoBack')?.addEventListener('click', () => navigate('home'));
 }
 
 /* ---------- Écran générique de préparation (réutilisé par les jeux brandés) ---------- */
