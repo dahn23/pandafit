@@ -75,6 +75,11 @@
   .topbar.has-back .brand { display: none; }
   .topbar.has-back { position: sticky; top: 0; z-index: 60; background: var(--bg); }
   #topbarBack .back-top { margin: 0; padding: 11px 20px; font-size: 16px; }
+  #topbarBackRight:empty { display: none; }
+  #topbarBackRight .back-top-right { margin: 0 0 0 auto; padding: 11px 20px; font-size: 16px; }
+  .topbar.has-back-right { position: sticky; top: 0; z-index: 60; background: var(--bg); }
+  .topbar.has-back-right .status-pill { display: none; }
+  .topbar.has-back-right #topbarBackRight { margin-left: auto; }
   .game-setup { display: flex; flex-direction: column; justify-content: center; gap: 26px; text-align: center; }
   .game-setup > * { margin: 0 !important; }
   .game-setup h1.page-title { justify-content: center; font-size: 30px; }
@@ -617,6 +622,7 @@
       <div class="dot"></div>
       <span id="statusPillText">Non connecté</span>
     </div>
+    <div id="topbarBackRight"></div>
     <button id="btnFullscreen" title="Plein écran" style="background:var(--panel-hi);color:var(--text-dim);border-radius:100px;width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;margin-left:8px;"><i data-lucide="maximize"></i></button>
   </div>
 
@@ -2353,14 +2359,22 @@ const content = document.getElementById('content');
 /* Bouton Retour des écrans d'avant-jeu : déplacé dans la barre du haut (vidé à chaque changement d'écran) */
 (function () {
   const slot = document.getElementById('topbarBack');
+  const slotR = document.getElementById('topbarBackRight'); // pendant une partie : Retour en haut à droite
   const bar = slot && slot.parentElement;
-  if (!slot || !content) return;
+  if (!slot || !slotR || !content) return;
   new MutationObserver((records) => {
     if (!records.some(r => r.addedNodes.length)) return; // ignore le simple retrait (dont notre propre déplacement)
     const btn = content.querySelector('.back-top');
-    if (btn) { slot.replaceChildren(btn); bar.classList.add('has-back'); }
-    else if (slot.firstChild) { slot.replaceChildren(); bar.classList.remove('has-back'); }
+    if (btn) slot.replaceChildren(btn); else if (slot.firstChild) slot.replaceChildren();
+    const btnR = content.querySelector('.back-top-right');
+    if (btnR) slotR.replaceChildren(btnR); else if (slotR.firstChild) slotR.replaceChildren();
+    bar.classList.toggle('has-back', !!btn);
+    bar.classList.toggle('has-back-right', !!btnR);
   }).observe(content, { childList: true });
+})();
+/* Retour pendant une partie : arrête le jeu (navigate l'interrompt) et revient à l'accueil */
+document.addEventListener('click', (e) => { if (e.target.closest('.game-quit')) navigate('home'); });
+(function () {
 })();
 /* Appui long : pas de menu contextuel (sauf dans les champs de saisie) */
 document.addEventListener('contextmenu', (e) => { if (!e.target.closest('input, textarea, [contenteditable]')) e.preventDefault(); });
@@ -4470,6 +4484,7 @@ function setHeartsIfChanged(el, filled, total) {
 
 function screenZonePlaying() {
   return `
+    <button class="btn-ghost back-top-right game-quit">← Retour</button>
     <div class="panda-watcher" id="zonePandaWatcher">
       <video id="zonePandaCalm" class="panda-watcher-face active" autoplay loop muted playsinline>
         <source src="${ZONE_HAPPY_VIDEO_B64}" type="video/mp4">
@@ -4881,6 +4896,7 @@ function startMigrosGame() {
 }
 function screenMigrosPlaying() {
   return `
+    <button class="btn-ghost back-top-right game-quit">← Retour</button>
     <div class="panda-watcher" id="migrosPandaWatcher">
       <video id="migrosPandaHappy" class="panda-watcher-face active" autoplay loop muted playsinline>
         <source src="${MIGROS_HAPPY_VIDEO_B64}" type="video/mp4">
@@ -5051,6 +5067,7 @@ function startSkiGame() {
 }
 function screenSkiPlaying() {
   return `
+    <button class="btn-ghost back-top-right game-quit">← Retour</button>
     <div class="panda-watcher" id="skiPandaWatcher">
       <video id="skiPandaBof" class="panda-watcher-face active" autoplay loop muted playsinline>
         <source src="${SKI_BOF_VIDEO_B64}" type="video/mp4">
@@ -5311,6 +5328,7 @@ function startElectroGame() {
 
 function screenElectroPlaying() {
   return `
+    <button class="btn-ghost back-top-right game-quit">← Retour</button>
     <div class="panda-watcher" id="electroPandaWatcher">
       <video id="electroPandaHappy" class="panda-watcher-face active" autoplay loop muted playsinline>
         <source src="${ELECTRO_HAPPY_VIDEO_B64}" type="video/mp4">
@@ -5517,6 +5535,7 @@ function startFootballGame() {
 
 function screenFootballPlaying() {
   return `
+    <button class="btn-ghost back-top-right game-quit">← Retour</button>
     <div class="panda-watcher" id="footballPandaWatcher">
       <video id="footballCheer1" class="panda-watcher-face active" muted playsinline>
         <source src="${FOOTBALL_CHEERING1_VIDEO_B64}" type="video/mp4">
@@ -5758,6 +5777,7 @@ function startRelaxGame() {
 }
 function screenRelaxPlaying() {
   return `
+    <button class="btn-ghost back-top-right game-quit">← Retour</button>
     <div class="panda-watcher" id="relaxPandaWatcher">
       <video id="relaxPandaHappy" class="panda-watcher-face active" autoplay loop muted playsinline>
         <source src="${ZEN_HAPPY_VIDEO_B64}" type="video/mp4">
@@ -5918,6 +5938,7 @@ function startTempoGame() {
 }
 function screenTempoPlaying() {
   return `
+    <button class="btn-ghost back-top-right game-quit">← Retour</button>
     <div class="panda-watcher" id="tempoPandaWatcher">
       <video id="tempoPandaEffort" class="panda-watcher-face active" autoplay loop muted playsinline>
         <source src="${MINDFUL_1ST_PART_VIDEO_B64}" type="video/mp4">
