@@ -120,6 +120,9 @@
   /* Gazon + but = une seule scène qui grandit d'un bloc : le pied du but reste toujours sur la même ligne du gazon. Le panda est hors de la scène. */
   .football-scene { position: absolute; inset: 0; transform-origin: 50% 6%; background: repeating-linear-gradient(180deg, #2e8b4e 0 3.75%, #34974f 3.75% 7.5%); }
   .football-goal-distant { position: absolute; left: 50%; top: 15%; width: 8%; transform: translate(-50%, -100%); }
+  /* Lignes de la surface : le haut du dessin = la ligne de but, au pied du but */
+  .football-lines { position: absolute; left: 0; top: 15%; width: 100%; aspect-ratio: 1; overflow: visible; fill: none; stroke: rgba(255,255,255,.85); stroke-width: .32; stroke-linejoin: miter; }
+  .football-lines .spot { fill: rgba(255,255,255,.85); stroke: none; }
   /* Compteurs à droite de l'encadré du panda (sinon il les cache) */
   .football-hud { margin-left: calc(min(46vw, 230px) + 4px); }
   /* 2e partie : le but démarre sous l'encadré du panda */
@@ -136,7 +139,7 @@
 
   .football-goalzone-wrap { display: flex; justify-content: center; margin: 10px 0; }
   .football-goalzone {
-    position: relative; width: 100%; aspect-ratio: 512/346; /* proportions de l'image : le but occupe toute la largeur */
+    position: relative; width: 82%; aspect-ratio: 512/346; /* proportions de l'image */
     background-size: contain; background-repeat: no-repeat; background-position: center;
     border-radius: 14px; overflow: hidden;
   }
@@ -5589,6 +5592,32 @@ function wireFootballPandaWatcher() {
   c1.play().catch(() => {});
 }
 
+/** Surface de réparation en perspective, partant du pied du but. Unité du dessin = % de la largeur du gazon. Vraies cotes en mètres. */
+function footballBoxLinesSVG() {
+  const UNITS_PER_M = 8 / 7.32; // le but : 8 % de large pour 7,32 m
+  const CAMERA = 40, FLATTEN = 17.8; // réglages de la perspective (recul de la caméra, écrasement de la profondeur)
+  const at = (x, d) => {
+    const p = CAMERA / (CAMERA - d);
+    return [50 + x * UNITS_PER_M * p, FLATTEN * (p - 1)];
+  };
+  const pts = list => list.map(([x, d]) => at(x, d).map(n => n.toFixed(2)).join(',')).join(' ');
+  const box = (half, depth) => pts([[-half, 0], [-half, depth], [half, depth], [half, 0]]);
+  const arc = [];
+  const ARC_MAX = Math.acos(5.5 / 9.15); // l'arc commence là où le cercle de 9,15 m sort de la surface
+  for (let i = -12; i <= 12; i++) {
+    const a = ARC_MAX * i / 12;
+    arc.push([9.15 * Math.sin(a), 11 + 9.15 * Math.cos(a)]);
+  }
+  const [spotX, spotY] = at(0, 11);
+  return `<svg class="football-lines" viewBox="0 0 100 100" aria-hidden="true">
+    <line x1="-5" y1="0" x2="105" y2="0"/>
+    <polyline points="${box(20.16, 16.5)}"/>
+    <polyline points="${box(9.16, 5.5)}"/>
+    <polyline points="${pts(arc)}"/>
+    <ellipse class="spot" cx="${spotX.toFixed(2)}" cy="${spotY.toFixed(2)}" rx=".62" ry=".3"/>
+  </svg>`;
+}
+
 function footballRunHTML() {
   return `
     <div class="centered-page">
@@ -5597,7 +5626,7 @@ function footballRunHTML() {
         <div class="timer" id="fbUpCount">0 <i data-lucide="trending-up"></i></div>
       </div>
       <div class="football-pitch">
-        <div class="football-scene" id="fbScene"><img class="football-goal-distant" src="${FOOTBALL_GOAL_B64}" alt=""></div>
+        <div class="football-scene" id="fbScene">${footballBoxLinesSVG()}<img class="football-goal-distant" src="${FOOTBALL_GOAL_B64}" alt=""></div>
         <div class="football-runner" id="fbRunner">
           <img src="${PANDA_RUN_1_B64}" class="active" alt="">
           <img src="${PANDA_RUN_2_B64}" alt="">
