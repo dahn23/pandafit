@@ -120,6 +120,22 @@
   .game-hud .timer { font-size: 26px; color: #fff; background: rgba(10,14,50,.5); padding: 4px 14px; border-radius: 999px; display: flex; align-items: center; gap: 6px; line-height: 1.2; }
   .game-hud .timer svg { width: 22px; height: 22px; }
   .game-hud, .game-hint { pointer-events: none; }
+  .ski-warn { position: absolute; left: 0; right: 0; top: 33%; text-align: center; pointer-events: none; opacity: 0; transform: skewY(-3deg); }
+  .ski-warn.show { opacity: 1; animation: skiWarnIn .25s ease-out, skiWarnPulse .5s ease-in-out .25s infinite alternate; }
+  .ski-warn-box { display: inline-block; min-width: 76%; padding: 16px 28px 18px; background: rgba(12,12,22,.9); border-top: 8px solid; border-bottom: 8px solid; border-image: repeating-linear-gradient(-45deg, #ffc400 0 22px, #14141f 22px 44px) 8; }
+  .ski-warn-t { font-size: 76px; font-weight: 900; font-style: italic; line-height: 1.02; letter-spacing: .01em; color: #ffc400; text-shadow: 0 0 22px rgba(255,180,0,.65); }
+  .ski-warn-s { font-size: 32px; font-weight: 800; color: #fff; margin-top: 6px; }
+  .ski-warn-bar { height: 12px; border-radius: 6px; background: rgba(255,255,255,.2); margin-top: 12px; overflow: hidden; }
+  .ski-warn-bar div { height: 100%; width: 100%; background: linear-gradient(90deg, #ff3b30, #ffc400); }
+  @keyframes skiWarnIn { from { opacity: 0; transform: skewY(-3deg) scale(1.5); } to { opacity: 1; transform: skewY(-3deg) scale(1); } }
+  @keyframes skiWarnPulse { from { transform: skewY(-3deg) scale(1); } to { transform: skewY(-3deg) scale(1.05); } }
+  .ski-penalty { position: absolute; left: 0; right: 0; top: 29%; text-align: center; pointer-events: none; opacity: 0; }
+  .ski-penalty.show { animation: skiSlam 1.5s cubic-bezier(.2,1.4,.4,1) forwards; }
+  .ski-penalty .n { font-size: 176px; font-weight: 900; font-style: italic; line-height: 1; color: #ff2d3f; -webkit-text-stroke: 7px #fff; paint-order: stroke fill; text-shadow: 0 10px 34px rgba(60,0,10,.75); }
+  .ski-penalty .l { display: inline-block; margin-top: 6px; padding: 6px 26px; font-size: 38px; font-weight: 900; font-style: italic; letter-spacing: .08em; color: #fff; background: #d0142a; transform: skewX(-10deg); }
+  @keyframes skiSlam { 0% { opacity: 0; transform: scale(3) rotate(-10deg); } 22% { opacity: 1; transform: scale(1) rotate(-4deg); } 82% { opacity: 1; transform: scale(1.03) rotate(-4deg); } 100% { opacity: 0; transform: scale(.9) rotate(-4deg); } }
+  .ski-shake { animation: skiShake .45s linear; }
+  @keyframes skiShake { 0%,100% { transform: translate(0,0); } 15% { transform: translate(-12px,5px); } 30% { transform: translate(11px,-6px); } 45% { transform: translate(-8px,-3px); } 60% { transform: translate(7px,4px); } 80% { transform: translate(-3px,2px); } }
   .ski-reg { position: absolute; top: 134px; left: calc(min(46vw, 230px) + 12px); right: 14px; display: flex; align-items: center; gap: 10px; color: #fff; background: rgba(10,14,50,.62); padding: 8px 14px; border-radius: 14px; pointer-events: none; box-sizing: border-box; }
   .ski-reg svg { width: 24px; height: 24px; flex: none; }
   .ski-reg-bar { position: relative; flex: 1; height: 12px; border-radius: 6px; background: rgba(255,255,255,.26); overflow: hidden; }
@@ -2317,7 +2333,7 @@ const SlalomGame = (() => {
       }
     }
     return {
-      elapsedMs: s.elapsedMs + s.penaltyS * 1000, penaltyS: s.penaltyS, warned: !!s.warnAt, penaltyNow: now < s.penaltyUntil,
+      elapsedMs: s.elapsedMs + s.penaltyS * 1000, penaltyS: s.penaltyS, warned: !!s.warnAt, warnLeft: s.warnAt ? Math.max(0, 1 - (now - s.warnAt) / (WARN_S * 1000)) : 0, penaltyNow: now < s.penaltyUntil,
       world, distance: DISTANCE, gatesView, peakSeq: s.peakSeq, lastSide: s.lastSide,
       reg: s.reg, regPct: s.regCount ? Math.round(s.regSum / s.regCount * 100) : 0,
       speedKmh: idle ? 12 : Math.round(25 + s.reg * 45), idle, finished: s.finished, warming: s.swings < WARM_SWINGS,
@@ -2895,13 +2911,15 @@ const UI_DICT_ROWS = [
   ["Prépare-toi, ça démarre dans...", "Mach dich bereit, es geht los in...", "Get ready, starting in...", "Preparati, si parte tra..."],
   // Slalom
   ["Balance le plateau de gauche à droite, à ton rythme : chaque balancement fait passer une porte. Plus tu es régulier, plus le panda va vite, mais les balancements trop petits coûtent 3 secondes.", "Schwinge die Plattform in deinem Rhythmus von links nach rechts: Jeder Schwung bringt dich durch ein Tor. Je regelmässiger du bist, desto schneller fährt der Panda, aber zu kleine Schwünge kosten 3 Sekunden.", "Swing the platform from left to right at your own pace: each swing takes you through a gate. The steadier you are, the faster the panda goes, but swings that are too small cost 3 seconds.", "Fai oscillare la piattaforma da sinistra a destra, al tuo ritmo: ogni oscillazione ti fa passare una porta. Più sei regolare, più il panda va veloce, ma le oscillazioni troppo piccole costano 3 secondi."],
-  ["Trop petit : balance le plateau plus largement !", "Zu klein: Schwinge die Plattform weiter!", "Too small: swing the platform wider!", "Troppo piccolo: fai oscillare la piattaforma di più!"],
+  ["TROP PETIT !", "ZU KLEIN!", "TOO SMALL!", "TROPPO PICCOLO!"],
+  ["Balance plus large !", "Schwinge weiter!", "Swing wider!", "Oscilla di più!"],
+  ["PÉNALITÉ", "STRAFE", "PENALTY", "PENALITÀ"],
   ["Pénalités", "Strafen", "Penalties", "Penalità"],
   ["Balance le plateau de gauche à droite, à ton rythme.", "Schwinge die Plattform in deinem Rhythmus von links nach rechts.", "Swing the platform from left to right at your own pace.", "Fai oscillare la piattaforma da sinistra a destra, al tuo ritmo."],
   ["Reste régulier : plus tu es régulier, plus tu vas vite.", "Bleib regelmässig: Je regelmässiger, desto schneller.", "Stay steady: the steadier you are, the faster you go.", "Resta regolare: più sei regolare, più vai veloce."],
   ["Régularité", "Regelmässigkeit", "Steadiness", "Regolarità"],
   ["Balance le plateau un peu plus franchement.", "Schwinge die Plattform etwas deutlicher.", "Swing the platform a little more firmly.", "Fai oscillare la piattaforma con più decisione."],
-  ["Bravo, tu y es presque !", "Bravo, du bist fast da!", "Well done, you're almost there!", "Bravo, ci sei quasi!"],
+  ["Bravo !", "Bravo!", "Well done!", "Bravo!"],
   ["Arrivée !", "Ziel!", "Finish!", "Arrivo!"],
   ["Prépare-toi, la descente démarre dans...", "Mach dich bereit, die Abfahrt startet in...", "Get ready, the run starts in...", "Preparati, la discesa parte tra..."],
   ["zone d'arrivée", "Zielbereich", "finish area", "zona d'arrivo"],
@@ -5188,6 +5206,7 @@ const SkiScene = (() => {
   const TURN = 30;                                 // ampleur du virage à l'écran (en % de la largeur) pour un balancement normal
   const EDGE = 50;
   const BODY_UNITS = 340;                          // hauteur du dessin du panda (casque et bras levés compris)
+  const FINISH_DEPTH = 6;                          // profondeur de l'aire d'arrivée, fermée par la grande tribune
   const POLE = 13;                                 // écart du piquet : toujours à l'intérieur du virage du panda
   let st = null, snap = null, lastSeq = 0;
 
@@ -5510,7 +5529,12 @@ const SkiScene = (() => {
     // filets de sécurité au bord de la piste
     [-1, 1].forEach(side => {
       const pts = [];
-      for (let k = 0; k < 44; k++) { const p = project(st.s - 1.1 + k * .32, side * EDGE); if (p) pts.push(p); }
+      for (let k = 0; k < 44; k++) {
+        const sn = st.s - 1.1 + k * .32;
+        if (snap && sn > snap.distance + .1) break; // l'aire d'arrivée est bordée par les tribunes
+        const p = project(sn, side * EDGE);
+        if (p) pts.push(p);
+      }
       ctx.fillStyle = 'rgba(232,96,40,.72)';
       ctx.beginPath();
       pts.forEach((p, i) => ctx[i ? 'lineTo' : 'moveTo'](p.x, p.y - U * 7 * p.P));
@@ -5581,6 +5605,62 @@ const SkiScene = (() => {
     ctx.closePath(); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,.3)';
     ctx.fillRect(Math.min(base.x, base.x + g.side * fw), top + fh * .42 + wave * .3, fw, fh * .14);
+  }
+
+  /** Le sol de l'aire d'arrivée : neige marquée de bandes rouges */
+  function paintFinishFloor() {
+    if (!snap) return;
+    const { ctx, U } = st;
+    const end = snap.distance + FINISH_DEPTH;
+    const start = Math.max(snap.distance, st.s - 1.1);
+    const band = (a, b, color) => {
+      const la = project(a, -EDGE), ra = project(a, EDGE), lb = project(b, -EDGE), rb = project(b, EDGE);
+      if (!la || !lb) return;
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.moveTo(la.x, la.y); ctx.lineTo(ra.x, ra.y); ctx.lineTo(rb.x, rb.y); ctx.lineTo(lb.x, lb.y); ctx.closePath(); ctx.fill();
+    };
+    band(start, end, 'rgba(236,240,246,.9)');
+    for (let k = 0; k * .9 < FINISH_DEPTH; k++) {
+      const a = snap.distance + .35 + k * .9;
+      if (a + .3 < start) continue;
+      band(Math.max(a, start), a + .3, 'rgba(213,43,30,.5)');
+    }
+    const c = project(Math.max(snap.distance + 2.8, start + .2), 0);
+    if (c) {
+      ctx.fillStyle = 'rgba(213,43,30,.75)';
+      ctx.font = `800 ${Math.round(U * 9 * c.P)}px Montserrat, system-ui, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.save(); ctx.translate(c.x, c.y); ctx.scale(1, .42); ctx.fillText('PANDAFIT', 0, 0); ctx.restore();
+    }
+  }
+
+  /** Le fond de l'aire d'arrivée : grande tribune, tableau du chrono, drapeaux */
+  function drawFinishWall(t) {
+    const { ctx, U } = st;
+    const s = snap.distance + FINISH_DEPTH;
+    const mid = project(s, 0);
+    if (!mid) return;
+    const tile = U * 112 * mid.P, h = tile * 260 / 460;
+    for (let k = -4; k <= 3; k++) ctx.drawImage(st.crowd, mid.x + k * (tile - 1), mid.y - h, tile, h);
+    for (let k = -6; k <= 6; k++) {
+      if (!k) continue;
+      const fx = mid.x + k * U * 27 * mid.P, size = U * 13 * mid.P;
+      ctx.strokeStyle = '#dfe3e8'; ctx.lineWidth = Math.max(1, U * .45 * mid.P);
+      ctx.beginPath(); ctx.moveTo(fx, mid.y - h + U * 4 * mid.P); ctx.lineTo(fx, mid.y - h - size * 1.2); ctx.stroke();
+      swissFlagAt(ctx, fx, mid.y - h - size * 1.2, size, t, k + 9, k % 2 ? 1 : -1);
+    }
+    // tableau d'affichage avec le chrono
+    const bw = U * 66 * mid.P, bh = U * 26 * mid.P, bx = mid.x - bw / 2, by = mid.y - h - bh * .42;
+    ctx.strokeStyle = '#5b6474'; ctx.lineWidth = Math.max(2, U * 1.3 * mid.P);
+    ctx.beginPath(); ctx.moveTo(bx + bw * .2, by + bh); ctx.lineTo(bx + bw * .2, mid.y - h * .4); ctx.moveTo(bx + bw * .8, by + bh); ctx.lineTo(bx + bw * .8, mid.y - h * .4); ctx.stroke();
+    ctx.fillStyle = '#0d1016';
+    roundedRect(ctx, bx, by, bw, bh, U * 1.6 * mid.P); ctx.fill();
+    ctx.strokeStyle = '#d52b1e'; ctx.lineWidth = Math.max(1.5, U * .6 * mid.P); ctx.stroke();
+    const secs = (snap.elapsedMs || 0) / 1000;
+    ctx.fillStyle = '#ffd24a';
+    ctx.font = `800 ${Math.round(bh * .66)}px Montserrat, system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(`${Math.floor(secs / 60)}:${(secs % 60).toFixed(1).padStart(4, '0')}`, mid.x, by + bh * .54);
   }
 
   function drawFinish(sf) {
@@ -5684,6 +5764,7 @@ const SkiScene = (() => {
 
     ctx.drawImage(st.sky, 0, 0);
     paintGround(t);
+    paintFinishFloor();
     paintTrail();
 
     // du plus loin au plus près : sapins, public, portes
@@ -5692,12 +5773,13 @@ const SkiScene = (() => {
     for (let k = -3; k < 26; k++) {
       const sk = Math.floor(st.s / .7) * .7 + k * .7;
       const n = Math.round(sk / .7);
+      if (sk > snap.distance - .7) continue; // plus de forêt dans l'aire d'arrivée
       items.push([sk, () => {
         drawTree(sk, EDGE + 10 + pfHash(n + 1) * 34, .8 + pfHash(n + 2) * .6, n);
         drawTree(sk + .3, -(EDGE + 10 + pfHash(n + 3) * 34), .8 + pfHash(n + 4) * .6, n + 1);
       }]);
     }
-    for (let k = 0; k < 26; k++) {
+    for (let k = 0; k < 29; k++) {
       const sc = snap.distance - 8 + k * .5;
       if (sc < st.s - 1.2) continue;
       items.push([sc + .01, () => {
@@ -5719,11 +5801,14 @@ const SkiScene = (() => {
     }
     snap.gatesView.forEach(g => items.push([g.world, () => drawGate(g, t)]));
     if (finishS >= st.s) items.push([finishS, () => drawFinish(finishS)]);
+    items.push([snap.distance + FINISH_DEPTH, () => drawFinishWall(t)]);
     items.sort((a, b) => b[0] - a[0]).forEach(([, draw]) => draw());
 
     paintSpray(step);
     paintPanda(pandaX, t);
     if (finishS < st.s) drawFinish(finishS);
+    if (snap.penaltyNow) paintVignette(ctx, W, st.H, '225,20,45', .62);
+    else if (snap.warned) paintVignette(ctx, W, st.H, '255,170,0', .3 + Math.sin(t * 12) * .1);
   }
 
   function start() {
@@ -5767,7 +5852,12 @@ function screenSkiPlaying() {
       <div class="game-hint" id="skiHint">Balance le plateau de gauche à droite, à ton rythme.</div>
       <div class="ski-reg"><i data-lucide="activity"></i><div class="ski-reg-bar"><div id="skiRegFill"></div></div></div>
       <div class="stadium-flash" id="skiFlash"></div>
-      <div class="stadium-flash" id="skiPenalty"></div>
+      <div class="ski-warn" id="skiWarn"><div class="ski-warn-box">
+        <div class="ski-warn-t">TROP PETIT !</div>
+        <div class="ski-warn-s">Balance plus large !</div>
+        <div class="ski-warn-bar"><div id="skiWarnBar"></div></div>
+      </div></div>
+      <div class="ski-penalty" id="skiPenalty"><div class="n">+3 s</div><div class="l">PÉNALITÉ</div></div>
     </div>
   `;
 }
@@ -5794,11 +5884,13 @@ function renderSkiPlaying(snap) {
   const penalty = document.getElementById('skiPenalty');
   if (penalty && penalty.dataset.on !== String(snap.penaltyNow)) {
     penalty.dataset.on = String(snap.penaltyNow);
-    penalty.textContent = snap.penaltyNow ? '+3 s' : '';
-    penalty.className = 'stadium-flash' + (snap.penaltyNow ? ' show miss' : '');
+    penalty.classList.toggle('show', snap.penaltyNow);
+    document.getElementById('skiStage')?.classList.toggle('ski-shake', snap.penaltyNow);
   }
-  if (snap.finished) setSkiHint('Bravo, tu y es presque !');
-  else if (snap.warned) setSkiHint('Trop petit : balance le plateau plus largement !');
+  document.getElementById('skiWarn')?.classList.toggle('show', snap.warned);
+  const warnBar = document.getElementById('skiWarnBar');
+  if (warnBar) warnBar.style.width = `${Math.round(snap.warnLeft * 100)}%`;
+  if (snap.finished) setSkiHint('Bravo !');
   else if (snap.idle) setSkiHint('Balance le plateau un peu plus franchement.');
   else if (snap.warming) setSkiHint('Balance le plateau de gauche à droite, à ton rythme.');
   else setSkiHint('Reste régulier : plus tu es régulier, plus tu vas vite.');
