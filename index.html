@@ -506,21 +506,60 @@
   .ski-tip .txt { font-size: 13.5px; color: var(--text-dim); line-height: 1.4; }
 
   /* --- Test PandaFit Index --- */
-  .index-canvas-wrap { display: flex; justify-content: center; margin: 10px 0 16px; }
-  #indexCanvas { background: #14101f; border-radius: 20px; }
-  .index-score-big {
-    text-align: center; margin: 8px 0 20px;
+  .index-sheet {
+    --text: #17324d; --text-dim: #5d7085; --panel: #ffffff; --panel-hi: #eceee8; --primary: #1c9a7c;
+    background: #f7f6f1; color: var(--text); border-radius: 24px; padding: 24px 24px 28px;
+    min-height: calc(100dvh - 190px); box-sizing: border-box;
   }
-  .index-score-big .num {
-    font-size: 64px; font-weight: 800;
-    background: linear-gradient(120deg, var(--primary), var(--accent));
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
-  .index-score-big .lbl { font-size: 13px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
-  .index-breakdown { display: flex; gap: 12px; }
-  .index-breakdown > div { flex: 1; background: var(--panel-hi); border-radius: 14px; padding: 14px; text-align: center; }
-  .index-breakdown .n { font-size: 26px; font-weight: 800; }
-  .index-breakdown .l { font-size: 11.5px; color: var(--text-dim); margin-top: 2px; }
+  .idx-brand { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; margin-bottom: 20px; border-bottom: 2px solid #1c9a7c; }
+  .idx-brand img { width: 46px; height: 52px; object-fit: contain; }
+  .idx-brand-name { font-size: 26px; font-weight: 800; letter-spacing: -.01em; }
+  .idx-brand-right { margin-left: auto; text-align: right; font-size: 15px; font-weight: 600; color: var(--text-dim); line-height: 1.35; }
+  .idx-lead { font-size: 21px; line-height: 1.5; color: var(--text-dim); margin: 0 0 22px; }
+  .idx-step { display: flex; gap: 16px; align-items: flex-start; background: #fff; border: 1px solid #e3e6df; border-radius: 18px; padding: 24px 22px; margin-bottom: 16px; }
+  .idx-step-ic { flex: none; width: 54px; height: 54px; border-radius: 15px; background: #e2f3ee; color: #1c9a7c; display: flex; align-items: center; justify-content: center; }
+  .idx-step-ic svg { width: 28px; height: 28px; }
+  .idx-step-body { flex: 1; min-width: 0; }
+  .idx-step-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 5px; }
+  .idx-step h2 { margin: 0; font-size: 24px; font-weight: 800; color: var(--text); }
+  .idx-step-time { flex: none; font-size: 15px; font-weight: 700; color: #1c9a7c; background: #e2f3ee; padding: 3px 11px; border-radius: 999px; }
+  .idx-step p { margin: 0; font-size: 19px; line-height: 1.45; color: var(--text-dim); }
+  .index-sheet .idx-actions { margin-top: 22px; }
+  .idx-prepare { display: flex; flex-direction: column; text-align: center; }
+  .idx-prepare .idx-brand { text-align: left; }
+  .idx-prepare-icon { width: 96px; height: 96px; margin: 8vh auto 22px; border-radius: 28px; background: #e2f3ee; color: #1c9a7c; display: flex; align-items: center; justify-content: center; }
+  .idx-prepare-icon svg { width: 50px; height: 50px; }
+  .idx-prepare h2 { font-size: 34px; font-weight: 800; margin: 0 0 10px; }
+  .idx-prepare p { font-size: 21px; color: var(--text-dim); margin: 0; }
+  .idx-prepare-num { font-size: 120px; font-weight: 800; line-height: 1.2; color: #1c9a7c; font-variant-numeric: tabular-nums; margin-top: 14px; }
+  .index-stage { background: #f7f6f1; color: #17324d; }
+  .idx-head { position: absolute; top: 0; left: 0; right: 0; height: 88px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-sizing: border-box; }
+  .idx-head-title { font-size: 24px; font-weight: 800; line-height: 1.15; }
+  .idx-head-right { flex: none; display: flex; align-items: center; gap: 14px; }
+  .idx-head .timer { font-size: 32px; font-weight: 800; font-variant-numeric: tabular-nums; color: #17324d; }
+  .idx-head .hearts { flex: none; display: flex; gap: 3px; font-size: 0; }
+  .idx-head .hearts svg { width: 34px; height: 34px; }
+  .idx-head .hearts .heart-empty { color: #cdd3cc; }
+  .idx-bar { position: absolute; top: 88px; left: 20px; right: 20px; height: 7px; border-radius: 4px; background: #e3e6df; overflow: hidden; }
+  .idx-bar div { width: 0; height: 100%; background: #1c9a7c; border-radius: 4px; }
+  .idx-foot { position: absolute; left: 20px; right: 20px; bottom: 0; height: 72px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 21px; font-weight: 600; pointer-events: none; }
+  .idx-result h1.idx-result-title { font-size: 26px; font-weight: 800; text-align: center; margin: 0 0 4px; color: var(--text); }
+  .idx-gauge { position: relative; width: min(82%, 460px); margin: 4px auto 14px; }
+  .idx-gauge svg { display: block; width: 100%; height: auto; }
+  .idx-gauge .val { stroke-dasharray: var(--v) 100; animation: idxGauge 1.1s ease-out; }
+  @keyframes idxGauge { from { stroke-dasharray: 0 100; } }
+  .idx-gauge-num { position: absolute; left: 0; right: 0; bottom: 2%; text-align: center; line-height: 1; }
+  .idx-gauge-num .num { font-size: 104px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .idx-gauge-num .lbl { display: block; font-size: 19px; font-weight: 700; color: var(--text-dim); margin-top: 2px; }
+  .index-breakdown { display: flex; gap: 14px; }
+  .index-breakdown > div { flex: 1; background: #fff; border: 1px solid #e3e6df; border-radius: 18px; padding: 16px 18px; }
+  .index-breakdown .l { font-size: 15.5px; font-weight: 700; color: var(--text-dim); }
+  .index-breakdown .n { font-size: 40px; font-weight: 800; line-height: 1.2; color: var(--text); font-variant-numeric: tabular-nums; }
+  .index-breakdown .m { height: 8px; border-radius: 4px; background: #e3e6df; overflow: hidden; margin-top: 6px; }
+  .index-breakdown .m i { display: block; height: 100%; background: #1c9a7c; border-radius: 4px; }
+  .index-sheet .card { border: 1px solid #e3e6df; box-shadow: none; }
+  .index-sheet .page-sub { color: var(--text-dim); }
+  .index-sheet .card h2 { color: var(--text-dim); }
 
   /* --- Carrousel Défis/Challenges/Événements --- */
   .highlights-wrap { position: relative; margin-bottom: 16px; touch-action: pan-y; }
@@ -7308,20 +7347,26 @@ let currentEmployee = null; // employé reconnu pour cette session de test (ou n
 function screenIndexIntro() {
   return `
     <button class="btn-ghost back-top" id="btnIndexBackTop">← Retour</button>
-    <div class="centered-page" style="text-align:center;">
-    <h1 class="page-title" style="display:flex;align-items:center;justify-content:center;gap:10px;"><i data-lucide="activity"></i> ${t('index_title')}</h1>
-    <p class="page-sub">${t('index_intro_sub')}</p>
+    <div class="index-sheet">
+    ${indexBrandHTML()}
+    <p class="idx-lead">${t('index_intro_sub')}</p>
     ${showPersonalCode() && activeEvent?.campaign_step === 't1' ? `<div class="card" style="border:2px solid var(--primary);">
       <h2>Mesure finale du Mois de l'équilibre</h2>
       <p class="page-sub" style="margin:0;">Tu as passé l'Index au lancement ? Entre ton code personnel plus bas pour voir ta progression.</p>
     </div>` : ''}
-    <div class="card">
-      <h2>${t('index_step1_title')}</h2>
-      <p class="page-sub" style="margin-bottom:0;">${t('index_step1_desc')}</p>
+    <div class="idx-step">
+      <div class="idx-step-ic"><i data-lucide="circle-dot"></i></div>
+      <div class="idx-step-body">
+        <div class="idx-step-top"><h2>${t('index_step1_title')}</h2><span class="idx-step-time">20 s</span></div>
+        <p>${t('index_step1_desc')}</p>
+      </div>
     </div>
-    <div class="card">
-      <h2>${t('index_step2_title')}</h2>
-      <p class="page-sub" style="margin-bottom:0;">${t('index_step2_desc')}</p>
+    <div class="idx-step">
+      <div class="idx-step-ic"><i data-lucide="move-vertical"></i></div>
+      <div class="idx-step-body">
+        <div class="idx-step-top"><h2>${t('index_step2_title')}</h2><span class="idx-step-time">20 s</span></div>
+        <p>${t('index_step2_desc')}</p>
+      </div>
     </div>
     ${showPersonalCode() ? `<div class="card">
       <h2>${t('index_code_title')}</h2>
@@ -7332,7 +7377,7 @@ function screenIndexIntro() {
       </div>
       <p id="employeeCodeMsg" class="page-sub" style="margin:8px 0 0;"></p>
     </div>` : ''}
-    <button class="btn-primary" id="btnIndexStart" style="width:100%;">${t('index_start_btn')}</button>
+    <button class="btn-primary idx-actions" id="btnIndexStart" style="width:100%;">${t('index_start_btn')}</button>
     <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
   </div>
   `;
@@ -7360,7 +7405,7 @@ function wireIndexIntro() {
 
 function indexPrepareStatic() {
   let remaining = 3;
-  content.innerHTML = screenGenericPrepare(remaining, 'circle-dot', "Test 1 : reste centré, ça démarre dans...");
+  content.innerHTML = screenIndexPrepare('circle-dot', 'Prépare-toi', "Test 1 : reste centré, ça démarre dans...", remaining);
   const timer = setInterval(() => {
     remaining--;
     const el = document.getElementById('genericPrepareNum');
@@ -7368,37 +7413,226 @@ function indexPrepareStatic() {
     else if (el) el.textContent = remaining;
   }, 1000);
 }
-function screenIndexStaticPlaying() {
+/** PandaFit Index : affichage de mesure, sobre et clair, comme un tracé d'appareil. N'influence pas le calcul du score. */
+const IndexScene = (() => {
+  const INK = '23,50,77', ACC = '28,154,124', AMBER = '217,140,40';
+  const HEAD_CSS = 104, FOOT_CSS = 72;   // place pour le titre en haut et la consigne en bas
+  const MOVE_WINDOW_S = 6;               // durée visible du tracé
+  const MOVE_RANGE_CM = 4.6;
+  let st = null, snap = null, hist = [];
+
+  function paintStaticPaper(c, w, h) {
+    const { cx, cy, ppc, U } = st;
+    c.fillStyle = '#f7f6f1'; c.fillRect(0, 0, w, h);
+    c.strokeStyle = `rgba(${INK},.055)`; c.lineWidth = 1;
+    c.beginPath();
+    for (let cm = -14; cm <= 14; cm++) {
+      c.moveTo(cx + cm * ppc, st.top); c.lineTo(cx + cm * ppc, st.bottom);
+      const y = cy + cm * ppc;
+      if (y >= st.top && y <= st.bottom) { c.moveTo(0, y); c.lineTo(w, y); }
+    }
+    c.stroke();
+    c.strokeStyle = `rgba(${INK},.2)`;
+    c.beginPath(); c.moveTo(cx, st.top); c.lineTo(cx, st.bottom); c.moveTo(0, cy); c.lineTo(w, cy); c.stroke();
+    c.font = `600 ${Math.round(U * 1.9)}px Montserrat, system-ui, sans-serif`;
+    c.textAlign = 'left'; c.textBaseline = 'bottom';
+    [2, 4, 6, 8].forEach(cm => {
+      c.strokeStyle = `rgba(${INK},.15)`;
+      c.lineWidth = Math.max(1, U * .13);
+      c.beginPath(); c.arc(cx, cy, cm * ppc, 0, Math.PI * 2); c.stroke();
+      c.fillStyle = `rgba(${INK},.5)`;
+      c.fillText(`${cm} cm`, cx + cm * ppc * .7071 + U * .5, cy - cm * ppc * .7071 - U * .2);
+    });
+  }
+
+  function paintMovePaper(c, w, h) {
+    const { midY, yScale, U } = st;
+    c.fillStyle = '#f7f6f1'; c.fillRect(0, 0, w, h);
+    c.font = `600 ${Math.round(U * 1.9)}px Montserrat, system-ui, sans-serif`;
+    c.textAlign = 'left'; c.textBaseline = 'middle';
+    c.lineWidth = 1;
+    for (let cm = -4; cm <= 4; cm++) {
+      const y = midY - cm * yScale;
+      c.strokeStyle = `rgba(${INK},${cm === 0 ? .26 : .07})`;
+      c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke();
+      if (cm && !(Math.abs(cm) === 1)) { c.fillStyle = `rgba(${INK},.42)`; c.fillText(`${cm > 0 ? '+' : ''}${cm} cm`, U * 1.5, y - U * 1.3); }
+    }
+  }
+
+  function dot(px, py) {
+    const { ctx, U } = st;
+    const halo = ctx.createRadialGradient(px, py, 0, px, py, U * 5);
+    halo.addColorStop(0, `rgba(${ACC},.42)`); halo.addColorStop(1, `rgba(${ACC},0)`);
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(px, py, U * 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(px, py, U * 2.1, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = `rgb(${INK})`;
+    ctx.beginPath(); ctx.arc(px, py, U * 1.35, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function paintStatic(step) {
+    const { ctx, U, cx, cy, ppc, bg } = st;
+    ctx.drawImage(bg, 0, 0);
+    if (!snap) return;
+    st.r += (snap.radius - st.r) * (1 - Math.exp(-step * 8));
+    const out = Math.hypot(snap.x, snap.y) > snap.radius;
+    const col = out ? AMBER : ACC;
+    const r = st.r * ppc;
+    ctx.fillStyle = `rgba(${col},.08)`;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = `rgb(${col})`; ctx.lineWidth = U * .42;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    if (hist.length > 1) {
+      ctx.strokeStyle = `rgba(${INK},.62)`;
+      ctx.lineWidth = Math.max(1, U * .2);
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      hist.forEach(([x, y], i) => ctx[i ? 'lineTo' : 'moveTo'](cx + x * ppc, cy - y * ppc));
+      ctx.stroke();
+    }
+    st.x += (snap.x - st.x) * .5;
+    st.y += (snap.y - st.y) * .5;
+    dot(cx + st.x * ppc, cy - st.y * ppc);
+  }
+
+  function paintMove(step, t, now) {
+    const { ctx, W, U, bg, midY, yScale, top, bottom, cursorX } = st;
+    ctx.drawImage(bg, 0, 0);
+    // quadrillage qui défile avec le temps
+    ctx.strokeStyle = `rgba(${INK},.07)`; ctx.lineWidth = 1;
+    ctx.beginPath();
+    const perSecond = cursorX / MOVE_WINDOW_S;
+    const shift = (now / 1000 % 1) * perSecond;
+    for (let x = cursorX - shift; x > -perSecond; x -= perSecond) { ctx.moveTo(x, top); ctx.lineTo(x, bottom); }
+    ctx.stroke();
+
+    const toY = cm => midY - pfClamp(cm, -MOVE_RANGE_CM, MOVE_RANGE_CM) * yScale;
+    const flash = snap ? snap.crossFlashLine : null;
+    [['top', IndexTest.MOVE_LINE_CM], ['bottom', -IndexTest.MOVE_LINE_CM]].forEach(([name, cm]) => {
+      const y = toY(cm), on = flash === name;
+      if (on) { ctx.fillStyle = `rgba(${ACC},.16)`; ctx.fillRect(0, y - U * 1.6, W, U * 3.2); }
+      ctx.strokeStyle = `rgb(${ACC})`;
+      ctx.lineWidth = U * (on ? .75 : .42);
+      ctx.setLineDash(on ? [] : [U * 1.7, U * 1.2]);
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = `rgb(${ACC})`;
+      ctx.font = `700 ${Math.round(U * 2)}px Montserrat, system-ui, sans-serif`;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(`${cm > 0 ? '+' : '−'}${Math.abs(cm)} cm`, U * 1.5, y - U * 1.9);
+    });
+
+    const xOf = at => cursorX - (now - at) / 1000 * perSecond;
+    const visible = hist.filter(([at]) => xOf(at) > -U * 2);
+    if (visible.length > 1) {
+      ctx.fillStyle = `rgba(${ACC},.09)`;
+      ctx.beginPath();
+      ctx.moveTo(xOf(visible[0][0]), midY);
+      visible.forEach(([at, y]) => ctx.lineTo(xOf(at), toY(y)));
+      ctx.lineTo(xOf(visible[visible.length - 1][0]), midY);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = `rgb(${INK})`;
+      ctx.lineWidth = U * .46;
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.beginPath();
+      visible.forEach(([at, y], i) => ctx[i ? 'lineTo' : 'moveTo'](xOf(at), toY(y)));
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+    }
+    ctx.strokeStyle = `rgba(${INK},.22)`; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cursorX, top); ctx.lineTo(cursorX, bottom); ctx.stroke();
+    const lastY = hist.length ? hist[hist.length - 1][1] : 0;
+    dot(cursorX, toY(lastY));
+  }
+
+  function start(mode) {
+    const canvas = document.getElementById('indexCanvas');
+    const stage = document.getElementById('idxStage');
+    if (!canvas || !stage) return;
+    const g = sizeGameCanvas(canvas, stage);
+    const top = HEAD_CSS * g.dpr, bottom = g.H - FOOT_CSS * g.dpr;
+    snap = null; hist = [];
+    st = { ...g, mode, top, bottom, x: 0, y: 0, r: 8 };
+    if (mode === 'static') {
+      st.cx = g.W / 2; st.cy = (top + bottom) / 2;
+      st.ppc = Math.min((g.W / 2 - g.U * 5), (bottom - top) / 2) / 8.5;
+      st.bg = layerCanvas(g.W, g.H, paintStaticPaper);
+      runGameCanvas(canvas, paintStatic);
+    } else {
+      st.midY = (top + bottom) / 2;
+      st.yScale = (bottom - top) / 2 / (MOVE_RANGE_CM + .4);
+      st.cursorX = g.W * .86;
+      st.bg = layerCanvas(g.W, g.H, paintMovePaper);
+      runGameCanvas(canvas, paintMove);
+    }
+  }
+  function update(s) {
+    snap = s;
+    if (!st) return;
+    if (st.mode === 'static') hist.push([s.x, s.y]);
+    else {
+      const now = performance.now();
+      hist.push([now, s.y]);
+      while (hist.length && now - hist[0][0] > (MOVE_WINDOW_S + 1) * 1000) hist.shift();
+    }
+  }
+  return { start, update };
+})();
+
+/** Petit en-tête commun des écrans de l'Index */
+function indexBrandHTML(right) {
+  return `<div class="idx-brand">
+    <img src="${PANDA_ICON_B64}" alt="">
+    <div class="idx-brand-name">${t('index_title')}</div>
+    ${right ? `<div class="idx-brand-right">${right}</div>` : ''}
+  </div>`;
+}
+function screenIndexPrepare(icon, title, text, seconds) {
   return `
-    <div class="centered-page">
-    <h1 class="page-title" style="text-align:center;">Test 1/2 — Équilibre statique</h1>
-    <div class="zone-hud">
-      <div class="hearts" id="idxStaticHearts"></div>
-      <div class="timer" id="idxStaticTimer">20s</div>
+    <div class="index-sheet idx-prepare">
+      ${indexBrandHTML()}
+      <div class="idx-prepare-icon"><i data-lucide="${icon}"></i></div>
+      <h2>${title}</h2>
+      <p>${text}</p>
+      <div class="idx-prepare-num" id="genericPrepareNum">${seconds}</div>
     </div>
-    <div class="index-canvas-wrap"><canvas id="indexCanvas" width="300" height="300"></canvas></div>
-    <p class="page-sub" style="text-align:center;">Reste bien centré, sans forcer.</p>
-  </div>
   `;
+}
+function indexMeasureStageHTML(title, right, hint) {
+  return `
+    <div class="game-stage index-stage" id="idxStage">
+      <canvas id="indexCanvas"></canvas>
+      <div class="idx-head">
+        <div class="idx-head-title">${title}</div>
+        <div class="idx-head-right">${right}</div>
+      </div>
+      <div class="idx-bar"><div id="idxProgress"></div></div>
+      <div class="idx-foot">${hint}</div>
+    </div>
+  `;
+}
+function setIndexProgress(elapsed, total) {
+  const bar = document.getElementById('idxProgress');
+  if (bar) bar.style.width = `${Math.min(100, elapsed / total * 100).toFixed(1)}%`;
+}
+
+function screenIndexStaticPlaying() {
+  return indexMeasureStageHTML('Test 1/2 — Équilibre statique',
+    `<div class="hearts" id="idxStaticHearts"></div><div class="timer" id="idxStaticTimer">20s</div>`,
+    'Reste bien centré, sans forcer.');
 }
 function runStaticTest() {
   content.innerHTML = screenIndexStaticPlaying();
+  requestAnimationFrame(() => IndexScene.start('static'));
   IndexTest.startStaticTest(
     (snap) => {
       const hearts = document.getElementById('idxStaticHearts');
       const timer = document.getElementById('idxStaticTimer');
       if (hearts) setHeartsIfChanged(hearts, Math.max(0, IndexTest.STATIC_LIVES - snap.livesLost), IndexTest.STATIC_LIVES);
       if (timer) timer.textContent = `${Math.max(0, Math.round(IndexTest.STATIC_DURATION_S - snap.elapsed))}s`;
-      const canvas = document.getElementById('indexCanvas');
-      if (canvas) {
-        const ctx = canvas.getContext('2d'), w = canvas.width, h = canvas.height, cx = w / 2, cy = h / 2, pxPerCm = 26;
-        ctx.clearRect(0, 0, w, h);
-        ctx.beginPath(); ctx.arc(cx, cy, snap.radius * pxPerCm, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(67,206,162,0.15)'; ctx.fill();
-        ctx.strokeStyle = '#43cea2'; ctx.lineWidth = 2; ctx.stroke();
-        ctx.beginPath(); ctx.arc(cx + snap.x * pxPerCm, cy - snap.y * pxPerCm, 9, 0, Math.PI * 2);
-        ctx.fillStyle = '#c86dd7'; ctx.fill();
-      }
+      setIndexProgress(snap.elapsed, IndexTest.STATIC_DURATION_S);
+      IndexScene.update(snap);
     },
     (staticResult) => { indexStaticResult = staticResult; indexPrepareMovement(); }
   );
@@ -7407,14 +7641,7 @@ let indexStaticResult = null;
 
 function indexPrepareMovement() {
   let remaining = 3;
-  content.innerHTML = `
-    <div class="connect-hero">
-      <div class="icon"><i data-lucide="check-circle"></i></div>
-      <h2>Test 1 terminé</h2>
-      <p>Passons au test 2 : mouvement haut/bas, ça démarre dans...</p>
-      <div style="font-size:64px;font-weight:800;" id="genericPrepareNum">${remaining}</div>
-    </div>
-  `;
+  content.innerHTML = screenIndexPrepare('check-circle', 'Test 1 terminé', 'Passons au test 2 : mouvement haut/bas, ça démarre dans...', remaining);
   const timer = setInterval(() => {
     remaining--;
     const el = document.getElementById('genericPrepareNum');
@@ -7423,56 +7650,21 @@ function indexPrepareMovement() {
   }, 1000);
 }
 function screenIndexMovementPlaying() {
-  return `
-    <div class="centered-page">
-    <h1 class="page-title" style="text-align:center;">Test 2/2 — Équilibre en mouvement</h1>
-    <div class="zone-hud">
-      <div class="timer" id="idxMovePoints">0 pts</div>
-      <div class="timer" id="idxMoveTimer">20s</div>
-    </div>
-    <div class="index-canvas-wrap"><canvas id="indexCanvas" width="300" height="300"></canvas></div>
-    <p class="page-sub" style="text-align:center;">Franchis les deux lignes en haut/bas, garde un rythme régulier.</p>
-  </div>
-  `;
+  return indexMeasureStageHTML('Test 2/2 — Équilibre en mouvement',
+    `<div class="timer" id="idxMovePoints">0 pts</div><div class="timer" id="idxMoveTimer">20s</div>`,
+    'Franchis les deux lignes en haut/bas, garde un rythme régulier.');
 }
 function runMovementTest() {
   content.innerHTML = screenIndexMovementPlaying();
+  requestAnimationFrame(() => IndexScene.start('move'));
   IndexTest.startMovementTest(
     (snap) => {
       const pts = document.getElementById('idxMovePoints');
       const timer = document.getElementById('idxMoveTimer');
       if (pts) pts.textContent = `${snap.points} pts`;
       if (timer) timer.textContent = `${Math.max(0, Math.round(IndexTest.MOVE_DURATION_S - snap.elapsed))}s`;
-      const canvas = document.getElementById('indexCanvas');
-      if (canvas) {
-        const ctx = canvas.getContext('2d'), w = canvas.width, h = canvas.height, cx = w / 2, cy = h / 2, pxPerCm = 22;
-        ctx.clearRect(0, 0, w, h);
-        const lineY1 = cy - IndexTest.MOVE_LINE_CM * pxPerCm, lineY2 = cy + IndexTest.MOVE_LINE_CM * pxPerCm;
-        // Ligne du haut ('top')
-        if (snap.crossFlashLine === 'top') {
-          ctx.save();
-          ctx.strokeStyle = 'rgba(67,206,162,0.55)'; ctx.lineWidth = 12; ctx.shadowColor = '#43cea2'; ctx.shadowBlur = 18;
-          ctx.beginPath(); ctx.moveTo(0, lineY1); ctx.lineTo(w, lineY1); ctx.stroke();
-          ctx.restore();
-          ctx.strokeStyle = '#43cea2'; ctx.lineWidth = 3;
-        } else {
-          ctx.strokeStyle = '#0a3d91'; ctx.lineWidth = 3;
-        }
-        ctx.beginPath(); ctx.moveTo(0, lineY1); ctx.lineTo(w, lineY1); ctx.stroke();
-        // Ligne du bas ('bottom')
-        if (snap.crossFlashLine === 'bottom') {
-          ctx.save();
-          ctx.strokeStyle = 'rgba(67,206,162,0.55)'; ctx.lineWidth = 12; ctx.shadowColor = '#43cea2'; ctx.shadowBlur = 18;
-          ctx.beginPath(); ctx.moveTo(0, lineY2); ctx.lineTo(w, lineY2); ctx.stroke();
-          ctx.restore();
-          ctx.strokeStyle = '#43cea2'; ctx.lineWidth = 3;
-        } else {
-          ctx.strokeStyle = '#0a3d91'; ctx.lineWidth = 3;
-        }
-        ctx.beginPath(); ctx.moveTo(0, lineY2); ctx.lineTo(w, lineY2); ctx.stroke();
-        ctx.beginPath(); ctx.arc(cx, cy - snap.y * pxPerCm, 10, 0, Math.PI * 2);
-        ctx.fillStyle = '#c86dd7'; ctx.fill();
-      }
+      setIndexProgress(snap.elapsed, IndexTest.MOVE_DURATION_S);
+      IndexScene.update(snap);
     },
     (movementResult) => {
       const overall = IndexTest.computeOverallIndex(indexStaticResult.score, movementResult.score);
@@ -7491,6 +7683,7 @@ async function finishIndexTest(overall, staticResult, movementResult) {
     regularityScore: movementResult.regularityScore, cycles: movementResult.cycles,
   }, currentEmployee?.id).then(id => { lastIndexSessionId = id; submitPendingAnswersIfAny(id); return id; });
   content.innerHTML = screenIndexResult(overall, staticResult, movementResult);
+  window.scrollTo(0, 0);
   wireIndexResult(recorded);
   if (activeEvent) {
     // Position dans le groupe, calculée après l'enregistrement (affichée dès 5 participants)
@@ -7530,12 +7723,20 @@ function eventResultCardHTML() {
 }
 function screenIndexResult(overall, staticResult, movementResult) {
   return `
-    <div class="centered-page">
-    <h1 class="page-title">${t('index_result_title')}</h1>
-    <div class="index-score-big"><div class="num">${overall}</div><div class="lbl">/ 100</div></div>
+    <div class="index-sheet idx-result">
+    ${indexBrandHTML(`${new Date().toLocaleDateString({ fr: 'fr-CH', de: 'de-CH', en: 'en-GB', it: 'it-CH' }[currentLang] || 'fr-CH', { day: 'numeric', month: 'long', year: 'numeric' })}${activeEvent?.client ? `<br>${activeEvent.client}` : ''}`)}
+    <h1 class="idx-result-title">${t('index_result_title')}</h1>
+    <div class="idx-gauge" style="--v:${overall};">
+      <svg viewBox="0 0 260 150" aria-hidden="true">
+        <defs><linearGradient id="idxGaugeGrad" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#3a7fc0"/><stop offset="1" stop-color="#1c9a7c"/></linearGradient></defs>
+        <path d="M18 135 A112 112 0 0 1 242 135" fill="none" stroke="#e3e6df" stroke-width="16" stroke-linecap="round"/>
+        <path class="val" d="M18 135 A112 112 0 0 1 242 135" pathLength="100" fill="none" stroke="url(#idxGaugeGrad)" stroke-width="16" stroke-linecap="round"/>
+      </svg>
+      <div class="idx-gauge-num"><span class="num">${overall}</span><span class="lbl">/ 100</span></div>
+    </div>
     <div class="index-breakdown">
-      <div><div class="n">${staticResult.score}</div><div class="l">Équilibre statique</div></div>
-      <div><div class="n">${movementResult.score}</div><div class="l">Mouvement</div></div>
+      <div><div class="l">Équilibre statique</div><div class="n">${staticResult.score}</div><div class="m"><i style="width:${staticResult.score}%"></i></div></div>
+      <div><div class="l">Mouvement</div><div class="n">${movementResult.score}</div><div class="m"><i style="width:${movementResult.score}%"></i></div></div>
     </div>
     ${eventResultCardHTML()}
     <div class="card" style="margin-top:16px;">
