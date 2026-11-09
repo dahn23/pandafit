@@ -463,8 +463,8 @@
   /* Zen : le lac au lever du soleil */
   .lake-stage { position: relative; width: 100%; height: 70vh; border-radius: 22px; overflow: hidden; background: #0f1440; }
   .lake-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-  .lake-timer { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); font-size: 22px; color: #fff; background: rgba(10,14,50,.32); padding: 4px 16px; border-radius: 999px; }
-  .lake-label { position: absolute; top: 62px; left: 16px; right: 16px; text-align: center; font-size: 44px; font-weight: 800; line-height: 1.12; color: #fff; text-shadow: 0 2px 16px rgba(10,14,50,.55); }
+  .lake-timer { position: absolute; top: 14px; right: 14px; font-size: 26px; color: #fff; background: rgba(10,14,50,.32); padding: 4px 16px; border-radius: 999px; }
+  .lake-label { position: absolute; top: 72px; left: calc(min(46vw, 230px) + 12px); right: 14px; text-align: center; font-size: 44px; font-weight: 800; line-height: 1.12; color: #fff; text-shadow: 0 2px 16px rgba(10,14,50,.55); }
   .lake-panda { position: absolute; left: 50%; bottom: 2.5%; width: 25%; max-width: 230px; transform: translateX(-50%); transform-origin: 50% 100%; }
   /* Electro : consigne en haut, à droite de l'encadré du panda (sinon elle cache la fin du parcours) */
   .electro-hint { margin: 0 0 6px calc(min(46vw, 230px) + 4px); min-height: 48px; font-size: 18px; line-height: 1.35; color: #c7c2db; text-align: left; }
@@ -5803,8 +5803,12 @@ function relaxPrepareThenStart() {
     else if (el) el.textContent = remaining;
   }, 1000);
 }
+let relaxFailUntil = 0;
 function startRelaxGame() {
+  relaxFailUntil = 0;
   content.innerHTML = `<div style="${RELAX_THEME}">${screenRelaxPlaying()}</div>`;
+  document.getElementById('relaxPandaHappy')?.play().catch(() => {});
+  document.getElementById('relaxPandaFail')?.play().catch(() => {});
   requestAnimationFrame(() => LakeScene.start());
   activeGameModule = RelaxGame;
   RelaxGame.start(relaxSetupCfg,
@@ -6084,6 +6088,14 @@ const LakeScene = (() => {
 function screenRelaxPlaying() {
   return `
     <button class="btn-ghost back-top-right game-quit">← Retour</button>
+    <div class="panda-watcher" id="relaxPandaWatcher">
+      <video id="relaxPandaHappy" class="panda-watcher-face active" autoplay loop muted playsinline>
+        <source src="${ZEN_HAPPY_VIDEO_B64}" type="video/mp4">
+      </video>
+      <video id="relaxPandaFail" class="panda-watcher-face" autoplay loop muted playsinline>
+        <source src="${ZEN_FAIL_VIDEO_B64}" type="video/mp4">
+      </video>
+    </div>
     <div class="lake-stage" id="lakeStage">
       <canvas id="lakeCanvas"></canvas>
       <div class="timer lake-timer" id="relaxTimer">--</div>
@@ -6115,6 +6127,12 @@ function renderRelaxPlaying(snap) {
     else labelEl.textContent = 'Expire...';
   }
   LakeScene.update(snap);
+
+  const inside = (snap.xCm * snap.xCm + snap.yCm * snap.yCm) <= (snap.radiusCm * snap.radiusCm);
+  if (!inside) relaxFailUntil = performance.now() + 3000;
+  const showFail = !inside || performance.now() < relaxFailUntil;
+  document.getElementById('relaxPandaHappy')?.classList.toggle('active', !showFail);
+  document.getElementById('relaxPandaFail')?.classList.toggle('active', showFail);
 }
 function screenRelaxResult(snap, score) {
   return `
