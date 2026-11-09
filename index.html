@@ -113,13 +113,27 @@
   @keyframes pandaHappyBounce { 0%,100% { transform: scale(1); } 30% { transform: scale(1.18) rotate(-4deg); } 60% { transform: scale(1.1) rotate(4deg); } }
 
   /* Tir au but : le stade (dessiné dans fbCanvas), les éléments du jeu posés par-dessus */
-  .stadium-stage { position: relative; width: 100%; height: 70vh; border-radius: 22px; overflow: hidden; background: #26356f; }
-  .stadium-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .game-stage { position: relative; width: 100%; height: 70vh; border-radius: 22px; overflow: hidden; background: #26356f; }
+  .game-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   #footballPhaseArea { position: absolute; inset: 0; }
-  .stadium-hud { position: absolute; top: 12px; right: 12px; display: flex; gap: 10px; align-items: center; }
-  .stadium-hud .timer { font-size: 26px; color: #fff; background: rgba(10,14,50,.5); padding: 4px 14px; border-radius: 999px; display: flex; align-items: center; gap: 6px; line-height: 1.2; }
-  .stadium-hud .timer svg { width: 22px; height: 22px; }
-  .stadium-hint { position: absolute; top: 68px; left: calc(min(46vw, 230px) + 12px); right: 14px; text-align: center; font-size: 21px; font-weight: 800; line-height: 1.2; color: #fff; background: rgba(10,14,50,.62); padding: 10px 14px; border-radius: 16px; }
+  .game-hud { position: absolute; top: 12px; right: 12px; display: flex; gap: 10px; align-items: center; }
+  .game-hud .timer { font-size: 26px; color: #fff; background: rgba(10,14,50,.5); padding: 4px 14px; border-radius: 999px; display: flex; align-items: center; gap: 6px; line-height: 1.2; }
+  .game-hud .timer svg { width: 22px; height: 22px; }
+  .game-hud, .game-hint { pointer-events: none; }
+  .game-hud .hearts { flex: none; font-size: 22px; letter-spacing: 2px; line-height: 1.2; background: rgba(10,14,50,.5); padding: 7px 12px; border-radius: 999px; }
+  .game-hud .hearts:empty { display: none; }
+  .game-hud .hearts svg { width: 22px; height: 22px; }
+  /* MindFit */
+  .mind-count { font-size: 25px; font-weight: 800; }
+  .mind-foot { position: absolute; left: 7%; right: 7%; bottom: 16px; text-align: center; font-size: 20px; font-weight: 700; color: #fff; background: rgba(10,8,44,.62); padding: 10px 16px; border-radius: 16px; }
+  .mind-card { position: absolute; left: 5%; right: 5%; top: 47%; padding: 22px 20px 26px; background: rgba(16,10,60,.74); border-color: rgba(201,162,255,.45); border-radius: 26px; }
+  .mind-card .tempo-question-text { font-size: 88px; line-height: 1.1; margin: 0 0 24px; color: #fff; text-shadow: 0 0 26px rgba(150,120,255,.75); }
+  .mind-card .tempo-choices { gap: 16px; }
+  .mind-card .tempo-choice-btn { max-width: none; padding: 40px 8px; font-size: 44px; border-radius: 22px; background: linear-gradient(160deg, #5a3fd0, #33208f); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.28); }
+  .mind-card .tempo-choice-btn.correct { background: #43cea2; color: #06170f; }
+  .mind-card .tempo-choice-btn.wrong { background: #e6374e; color: #fff; }
+  .mind-card .tempo-choice-btn:disabled { opacity: .55; }
+  .game-hint { position: absolute; top: 68px; left: calc(min(46vw, 230px) + 12px); right: 14px; text-align: center; font-size: 21px; font-weight: 800; line-height: 1.2; color: #fff; background: rgba(10,14,50,.62); padding: 10px 14px; border-radius: 16px; }
   .football-runner { position: absolute; left: 50%; bottom: 7%; width: 300px; height: 300px; margin-left: -150px; transition: transform .08s linear; }
   .football-runner img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; }
   .football-runner img.active { opacity: 1; }
@@ -359,22 +373,6 @@
     letter-spacing: 0.1em; box-sizing: border-box;
   }
   .arcade-modal-saved { font-size: 18px; font-weight: 700; color: var(--primary); padding: 10px 0; }
-  .tempo-vgauge {
-    position: relative; width: 70px; height: 46vh; max-height: 320px; border-radius: 35px;
-    background: linear-gradient(180deg, rgba(67,206,162,0.25), rgba(255,255,255,0.04) 40%);
-    border: 2px solid var(--panel-hi); transition: background 0.15s;
-  }
-  .tempo-vgauge.flash { background: #43cea2; }
-  .tempo-vgauge-bar {
-    position: absolute; left: -6px; right: -6px; top: 37.5%; height: 4px; background: #ff9a3c; border-radius: 2px;
-  }
-  .tempo-vgauge-bar::after {
-    content: 'ligne'; position: absolute; right: -46px; top: -9px; font-size: 11px; color: #ff9a3c; font-weight: 700;
-  }
-  .tempo-vgauge-marker {
-    position: absolute; left: 50%; width: 34px; height: 34px; border-radius: 50%; background: #fff;
-    transform: translate(-50%, -50%); box-shadow: 0 0 0 4px var(--primary);
-  }
   .tempo-question-text { text-align: center; font-size: 40px; font-weight: 800; margin: 14px 0 18px; }
   .tempo-question-frame { border-radius: 18px; border: 3px solid transparent; padding: 10px; transition: border-color 0.2s, opacity 0.2s; }
   .tempo-question-frame.locked { border-color: #e6374e; opacity: 0.45; }
@@ -463,7 +461,6 @@
   .lake-label { position: absolute; top: 72px; left: calc(min(46vw, 230px) + 12px); right: 14px; text-align: center; font-size: 44px; font-weight: 800; line-height: 1.12; color: #fff; text-shadow: 0 2px 16px rgba(10,14,50,.55); }
   .lake-panda { position: absolute; left: 50%; bottom: 2.5%; width: 25%; max-width: 230px; transform: translateX(-50%); transform-origin: 50% 100%; }
   /* Electro : consigne en haut, à droite de l'encadré du panda (sinon elle cache la fin du parcours) */
-  .electro-hint { margin: 0 0 6px calc(min(46vw, 230px) + 4px); min-height: 48px; font-size: 18px; line-height: 1.35; color: #c7c2db; text-align: left; }
   #zoneCanvas { background: #14101f; border-radius: 20px; }
   .result-stat { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--panel-hi); gap: 12px; }
   .result-stat:last-child { border-bottom: none; }
@@ -4463,6 +4460,7 @@ function screenZonePrepare(seconds) {
 
 function startZoneGame() {
   content.innerHTML = screenZonePlaying();
+  requestAnimationFrame(() => ZoneScene.start());
   document.getElementById('zonePandaCalm')?.play().catch(() => {});
   document.getElementById('zonePandaScared')?.play().catch(() => {});
   activeGameModule = ZoneGame;
@@ -4517,16 +4515,14 @@ function screenZonePlaying() {
         <source src="${ZONE_FAIL_VIDEO_B64}" type="video/mp4">
       </video>
     </div>
-    <div class="centered-page">
-    <div class="zone-hud">
-      <div class="hearts" id="zoneHearts"></div>
-      <div class="timer" id="zoneTimer">--</div>
+    <div class="game-stage" id="zoneStage">
+      <canvas id="zoneCanvas"></canvas>
+      <div class="game-hud">
+        <div class="hearts" id="zoneHearts"></div>
+        <div class="timer" id="zoneTimer">--</div>
+      </div>
+      <div class="game-hint">Reste dans le cercle vert.</div>
     </div>
-    <div class="zone-canvas-wrap">
-      <canvas id="zoneCanvas" width="300" height="300"></canvas>
-    </div>
-    <p class="page-sub" style="text-align:center;">Reste dans le cercle vert.</p>
-  </div>
   `;
 }
 
@@ -4538,13 +4534,6 @@ function renderZonePlaying(snap) {
     const m = Math.floor(Math.max(0, snap.timeLeft) / 60), s = Math.max(0, snap.timeLeft) % 60;
     timerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
   }
-  const canvas = document.getElementById('zoneCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width, h = canvas.height, cx = w / 2, cy = h / 2;
-  const pxPerCm = 26;
-  ctx.clearRect(0, 0, w, h);
-  // zone circle
   const inside = !snap.outside;
   const scaredEl = document.getElementById('zonePandaScared');
   const wasScaredActive = scaredEl?.classList.contains('active');
@@ -4554,20 +4543,7 @@ function renderZonePlaying(snap) {
     scaredEl.currentTime = 0; // relance la vidéo depuis le début à chaque nouvelle perte de vie
     scaredEl.play().catch(() => {});
   }
-  ctx.beginPath();
-  ctx.arc(cx, cy, snap.radiusCm * pxPerCm, 0, Math.PI * 2);
-  ctx.fillStyle = inside ? 'rgba(67,206,162,0.15)' : 'rgba(230,55,78,0.12)';
-  ctx.fill();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = inside ? '#43cea2' : '#e6374e';
-  ctx.stroke();
-  // dot (pied)
-  const px = cx + snap.xCm * pxPerCm;
-  const py = cy - snap.yCm * pxPerCm;
-  ctx.beginPath();
-  ctx.arc(px, py, 10, 0, Math.PI * 2);
-  ctx.fillStyle = inside ? '#43cea2' : '#e6374e';
-  ctx.fill();
+  ZoneScene.update(snap);
 }
 
 function screenZoneResult(snap, score, reason) {
@@ -5332,7 +5308,6 @@ function electroPrepareThenStart() {
 }
 
 function startElectroGame() {
-  electroDrawnIdx = -1;
   content.innerHTML = screenElectroPlaying();
   wireElectroPlaying();
   activeGameModule = ElectroGame;
@@ -5361,102 +5336,48 @@ function screenElectroPlaying() {
         <source src="${ELECTRO_THUNDER_VIDEO_B64}" type="video/mp4">
       </video>
     </div>
-    <div class="zone-hud">
-      <div class="hearts" id="electroHearts"></div>
-      <div class="timer" id="electroTimer">0:00.0</div>
-    </div>
-    <p id="electroHint" class="electro-hint">Fais glisser le doigt le long du fil, du vert au orange.</p>
-    <div class="zone-canvas-wrap" style="height:68vh;">
-      <svg id="electroScene" style="display:block;height:100%;width:auto;aspect-ratio:360/560;touch-action:none;" viewBox="-30 -30 360 560" preserveAspectRatio="xMidYMid meet">
-        <g id="electroTrack">
-          <path id="electroDim" d="${electroPathD(ElectroGame.PATH.length - 1)}" fill="none" stroke="#3a3355" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-          <path id="electroDone" d="" fill="none" stroke="#7f77dd" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="${ElectroGame.PATH[0].x}" cy="${ElectroGame.PATH[0].y}" r="13" fill="none" stroke="#43cea2" stroke-width="3"/>
-          <circle cx="${ElectroGame.PATH[ElectroGame.PATH.length - 1].x}" cy="${ElectroGame.PATH[ElectroGame.PATH.length - 1].y}" r="13" fill="none" stroke="#e0a83e" stroke-width="3"/>
-          <circle id="electroFinger" r="8" fill="#fefefe"/>
-        </g>
-        <g id="electroSpark" opacity="0"></g>
-      </svg>
+    <div class="game-stage" id="electroStage">
+      <canvas id="electroCanvas" style="touch-action:none;"></canvas>
+      <div class="game-hud">
+        <div class="hearts" id="electroHearts"></div>
+        <div class="timer" id="electroTimer">0:00.0</div>
+      </div>
+      <div class="game-hint" id="electroHint">Fais glisser le doigt le long du fil, du vert au orange.</div>
     </div>
   `;
 }
 
-let electroSparkInterval = null;
 function electroSpawnSpark(x, y) {
-  const spark = document.getElementById('electroSpark');
-  if (!spark) return;
+  ElectroScene.shock(x, y);
   const hint = document.getElementById('electroHint');
   if (hint) hint.textContent = 'Figé ! Une vie perdue — reprends dès que ça repart.';
   document.getElementById('electroPandaThunder')?.classList.add('active');
   document.getElementById('electroPandaHappy')?.classList.remove('active');
-
-  function drawBurst() {
-    let html = '';
-    const nLines = 14;
-    for (let i = 0; i < nLines; i++) {
-      const ang = (Math.PI * 2 * i) / nLines + (Math.random() - 0.5) * 0.4;
-      const len = 30 + Math.random() * 25;
-      html += `<line x1="${x}" y1="${y}" x2="${x + Math.cos(ang) * len}" y2="${y + Math.sin(ang) * len}" stroke="#e0a83e" stroke-width="4" stroke-linecap="round"/>`;
-    }
-    spark.innerHTML = html;
-  }
-
-  clearInterval(electroSparkInterval);
-  drawBurst();
-  spark.setAttribute('opacity', 1);
-  electroSparkInterval = setInterval(drawBurst, 130); // scintillement pendant tout le freeze
-
   setTimeout(() => {
-    clearInterval(electroSparkInterval);
-    spark.setAttribute('opacity', 0);
-    if (hint) hint.textContent = 'Fais glisser le doigt le long du fil, du vert au orange.';
+    const h = document.getElementById('electroHint');
+    if (h) h.textContent = 'Fais glisser le doigt le long du fil, du vert au orange.';
     document.getElementById('electroPandaHappy')?.classList.add('active');
     document.getElementById('electroPandaThunder')?.classList.remove('active');
   }, 2000);
 }
 
-/** Taille le cadre du parcours pour qu'il tienne en entier entre le haut et la barre du bas
- *  (100vh dépasse sur certaines tablettes à cause de la barre d'adresse). */
-function fitElectroScene() {
-  const svg = document.getElementById('electroScene');
-  const wrap = svg?.parentElement;
-  if (!wrap) return;
-  window.scrollTo(0, 0);
-  const top = wrap.getBoundingClientRect().top;
-  const nav = document.querySelector('.bottomnav');
-  const bottomLimit = (nav && getComputedStyle(nav).display !== 'none') ? nav.getBoundingClientRect().top : window.innerHeight;
-  const h = Math.max(260, Math.floor(bottomLimit - top - 24)); // la consigne est en haut, à côté du panda
-  const maxW = wrap.clientWidth || window.innerWidth;
-  wrap.style.height = Math.min(h, Math.floor(maxW * 560 / 360)) + 'px';
-}
 function wireElectroPlaying() {
-  fitElectroScene();
   document.getElementById('electroPandaHappy')?.play().catch(() => {});
   document.getElementById('electroPandaThunder')?.play().catch(() => {});
-  const svg = document.getElementById('electroScene');
-  if (!svg) return;
-  function toSvgCoords(clientX, clientY) {
-    const r = svg.getBoundingClientRect();
-    return { x: (clientX - r.left) / r.width * 360 - 30, y: (clientY - r.top) / r.height * 560 - 30 }; // viewBox -30 -30 360 560
-  }
+  const canvas = document.getElementById('electroCanvas');
+  if (!canvas) return;
+  requestAnimationFrame(() => ElectroScene.start());
   function move(clientX, clientY) {
-    const { x, y } = toSvgCoords(clientX, clientY);
-    ElectroGame.handleTouch(x, y);
+    const p = ElectroScene.toPath(canvas, clientX, clientY);
+    if (p) ElectroGame.handleTouch(p.x, p.y);
   }
-  svg.addEventListener('mousedown', (e) => move(e.clientX, e.clientY));
-  svg.addEventListener('mousemove', (e) => { if (e.buttons === 1) move(e.clientX, e.clientY); });
+  canvas.addEventListener('mousedown', (e) => move(e.clientX, e.clientY));
+  canvas.addEventListener('mousemove', (e) => { if (e.buttons === 1) move(e.clientX, e.clientY); });
   // Non passif + preventDefault : un doigt posé longtemps ne déclenche ni sélection, ni menu, ni défilement
-  svg.addEventListener('touchstart', (e) => { e.preventDefault(); move(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
-  svg.addEventListener('touchmove', (e) => { e.preventDefault(); move(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+  canvas.addEventListener('touchstart', (e) => { e.preventDefault(); move(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+  canvas.addEventListener('touchmove', (e) => { e.preventDefault(); move(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
 }
 
-let electroDrawnIdx = -1;
-function electroPathD(uptoIdx) {
-  const P = ElectroGame.PATH;
-  let d = `M${P[0].x.toFixed(1)} ${P[0].y.toFixed(1)}`;
-  for (let i = 1; i <= uptoIdx; i++) d += ` L${P[i].x.toFixed(1)} ${P[i].y.toFixed(1)}`;
-  return d;
-}
 function renderElectroPlaying(snap) {
   const heartsEl = document.getElementById('electroHearts');
   const timerEl = document.getElementById('electroTimer');
@@ -5465,16 +5386,7 @@ function renderElectroPlaying(snap) {
     const s = snap.elapsedMs / 1000;
     timerEl.textContent = `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
   }
-  const track = document.getElementById('electroTrack');
-  if (!track || !snap.pts) return;
-  // Tout le fil se déplace d'un bloc avec l'équilibre (plus besoin de redessiner le tracé)
-  track.setAttribute('transform', `translate(${snap.wobbleX.toFixed(1)} ${snap.wobbleY.toFixed(1)})`);
-  if (snap.progressIdx !== electroDrawnIdx) {
-    electroDrawnIdx = snap.progressIdx;
-    document.getElementById('electroDone').setAttribute('d', electroPathD(snap.progressIdx));
-    const f = document.getElementById('electroFinger'), pt = snap.pts[snap.progressIdx];
-    f.setAttribute('cx', pt.x); f.setAttribute('cy', pt.y);
-  }
+  ElectroScene.update(snap);
 }
 
 function screenElectroResult(snap, score, reason) {
@@ -5577,7 +5489,7 @@ function screenFootballPlaying() {
         <source src="${FOOTBALL_MISS_VIDEO_B64}" type="video/mp4">
       </video>
     </div>
-    <div class="stadium-stage" id="fbStage">
+    <div class="game-stage" id="fbStage">
       <canvas id="fbCanvas"></canvas>
       <div id="footballPhaseArea"></div>
     </div>
@@ -6023,11 +5935,11 @@ function footballBallSVG() {
 
 function footballRunHTML() {
   return `
-    <div class="stadium-hud">
+    <div class="game-hud">
       <div class="timer" id="fbRunTimer">10s</div>
       <div class="timer"><span id="fbUpCount">0</span> <i data-lucide="trending-up"></i></div>
     </div>
-    <div class="stadium-hint">Cours ! Balance-toi d'avant en arrière, régulièrement.</div>
+    <div class="game-hint">Cours ! Balance-toi d'avant en arrière, régulièrement.</div>
     <div class="football-runner" id="fbRunner">
       <img src="${PANDA_RUN_1_B64}" class="active" alt="">
       <img src="${PANDA_RUN_2_B64}" alt="">
@@ -6051,11 +5963,11 @@ function footballTransitionHTML(snap) {
 }
 function footballShootHTML() {
   return `
-    <div class="stadium-hud">
+    <div class="game-hud">
       <div class="timer" id="fbGoalsCount">0 but</div>
       <div class="timer" id="fbShootTimer">--</div>
     </div>
-    <div class="stadium-hint" id="fbShootHint">Touche le ballon pour marquer — reste stable, il bouge avec toi !</div>
+    <div class="game-hint" id="fbShootHint">Touche le ballon pour marquer — reste stable, il bouge avec toi !</div>
     <div class="football-goalzone" id="fbGoalZone">
       <div class="football-target" id="fbTarget">${footballBallSVG()}</div>
     </div>
@@ -6226,6 +6138,646 @@ function startRelaxGame() {
     }
   );
 }
+/* Outils communs aux décors de jeux dessinés par le code */
+const pfHash = n => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
+const pfClamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function layerCanvas(w, h, paint) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  paint(c.getContext('2d'), w, h);
+  return c;
+}
+/** Cale l'image sur l'écran et renvoie ses dimensions (W/H en pixels du dessin, U = 1 % de la largeur) */
+function sizeGameCanvas(canvas, stage) {
+  fitGameStage(stage);
+  const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+  const W = canvas.width = Math.round(stage.clientWidth * dpr);
+  const H = canvas.height = Math.round(stage.clientHeight * dpr);
+  return { W, H, U: W / 100, dpr, ctx: canvas.getContext('2d'), canvas };
+}
+/** Boucle d'animation : environ 30 images/s, s'arrête seule quand le jeu quitte l'écran */
+function runGameCanvas(canvas, paint) {
+  let last = performance.now();
+  function loop(now) {
+    if (!canvas.isConnected) return;
+    requestAnimationFrame(loop);
+    const dt = (now - last) / 1000;
+    if (dt < .03) return;
+    last = now;
+    paint(Math.min(dt, .1), now / 1000, now);
+  }
+  requestAnimationFrame(loop);
+}
+function roundedRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+/** Vignette colorée sur les bords (alerte) */
+function paintVignette(ctx, W, H, rgb, alpha) {
+  if (alpha <= .01) return;
+  const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .36, W / 2, H / 2, Math.max(W, H) * .68);
+  g.addColorStop(0, `rgba(${rgb},0)`);
+  g.addColorStop(1, `rgba(${rgb},${alpha.toFixed(3)})`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+}
+
+/** The Zone : mission spatiale. Le bouclier vert = la zone ; la soucoupe du panda = ton pied. */
+const ZoneScene = (() => {
+  let st = null, snap = null;
+
+  function paintSpace(c, w, h) {
+    const g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#060a22'); g.addColorStop(.55, '#12133f'); g.addColorStop(1, '#0a1c3d');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    [[.2, .28, .55, '131,56,236'], [.82, .46, .5, '26,163,196'], [.35, .82, .6, '214,51,132'], [.75, .12, .32, '67,97,238']].forEach(([x, y, r, col]) => {
+      const n = c.createRadialGradient(x * w, y * h, 0, x * w, y * h, r * w);
+      n.addColorStop(0, `rgba(${col},.42)`); n.addColorStop(1, `rgba(${col},0)`);
+      c.fillStyle = n; c.fillRect(0, 0, w, h);
+    });
+    for (let i = 0; i < 300; i++) {
+      c.fillStyle = `rgba(255,255,255,${(.25 + pfHash(i + .5) * .7).toFixed(2)})`;
+      c.beginPath(); c.arc(pfHash(i + 1) * w, pfHash(i + 2) * h, .5 + pfHash(i + 3) * 1.5, 0, Math.PI * 2); c.fill();
+    }
+    // planète à anneaux
+    const px = w * .84, py = h * .9, pr = w * .17;
+    const ringPath = (front) => { c.beginPath(); c.ellipse(px, py, pr * 1.75, pr * .42, -.28, front ? 0 : Math.PI, front ? Math.PI : Math.PI * 2); c.stroke(); };
+    c.strokeStyle = 'rgba(255,214,150,.55)'; c.lineWidth = pr * .13; ringPath(false);
+    const body = c.createRadialGradient(px - pr * .4, py - pr * .4, pr * .1, px, py, pr);
+    body.addColorStop(0, '#ffb26b'); body.addColorStop(.6, '#d9607a'); body.addColorStop(1, '#4b1f66');
+    c.fillStyle = body; c.beginPath(); c.arc(px, py, pr, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = 'rgba(255,214,150,.75)'; ringPath(true);
+    // lune
+    const mx = w * .13, my = h * .74, mr = w * .055;
+    const moon = c.createRadialGradient(mx - mr * .3, my - mr * .3, 1, mx, my, mr);
+    moon.addColorStop(0, '#e7ecf7'); moon.addColorStop(1, '#6d7696');
+    c.fillStyle = moon; c.beginPath(); c.arc(mx, my, mr, 0, Math.PI * 2); c.fill();
+  }
+  function paintRock(seed) {
+    return (c, w, h) => {
+      c.translate(w / 2, h / 2);
+      const g = c.createRadialGradient(-w * .12, -h * .12, 2, 0, 0, w * .5);
+      g.addColorStop(0, '#a79a93'); g.addColorStop(1, '#3f3a4a');
+      c.fillStyle = g;
+      c.beginPath();
+      for (let i = 0; i < 9; i++) {
+        const a = i / 9 * Math.PI * 2, r = w * (.32 + pfHash(seed + i) * .16);
+        c[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r);
+      }
+      c.closePath(); c.fill();
+      c.fillStyle = 'rgba(30,26,40,.45)';
+      [[-.1, -.08, .08], [.14, .1, .06], [-.04, .18, .045]].forEach(([x, y, r]) => { c.beginPath(); c.arc(x * w, y * h, r * w, 0, Math.PI * 2); c.fill(); });
+    };
+  }
+
+  function paintShip(px, py, out, t) {
+    const { ctx, U } = st;
+    const r = U * 5;
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(pfClamp(st.x * .06, -.35, .35) + (out ? Math.sin(t * 30) * .08 : 0));
+    const glow = ctx.createRadialGradient(0, r * .7, 0, 0, r * .7, r * 1.25);
+    glow.addColorStop(0, out ? 'rgba(255,90,90,.75)' : 'rgba(90,240,200,.7)');
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow; ctx.fillRect(-r * 1.4, -r * .3, r * 2.8, r * 2.2);
+    const hull = ctx.createLinearGradient(0, 0, 0, r * .9);
+    hull.addColorStop(0, '#e6edfa'); hull.addColorStop(1, '#5d6c96');
+    ctx.fillStyle = hull;
+    ctx.beginPath(); ctx.ellipse(0, r * .4, r * 1.3, r * .48, 0, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 5; i++) {
+      const on = Math.floor(t * 5 + i) % 2 === 0;
+      ctx.fillStyle = out ? (on ? '#ff5b6e' : '#6e1f2c') : (on ? '#ffe28a' : '#7b6a30');
+      ctx.beginPath(); ctx.arc((i - 2) * r * .48, r * (.56 - Math.abs(i - 2) * .05), r * .09, 0, Math.PI * 2); ctx.fill();
+    }
+    // le panda sous sa bulle
+    ctx.fillStyle = '#1c1c22';
+    [-1, 1].forEach(s => { ctx.beginPath(); ctx.arc(s * r * .44, -r * .42, r * .19, 0, Math.PI * 2); ctx.fill(); });
+    ctx.fillStyle = '#fbf8f1';
+    ctx.beginPath(); ctx.arc(0, -r * .08, r * .58, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1c1c22';
+    [-1, 1].forEach(s => { ctx.beginPath(); ctx.ellipse(s * r * .23, -r * .13, r * .15, r * .19, s * .4, 0, Math.PI * 2); ctx.fill(); });
+    ctx.fillStyle = '#fff';
+    [-1, 1].forEach(s => { ctx.beginPath(); ctx.arc(s * r * .22, -r * .15, r * .06, 0, Math.PI * 2); ctx.fill(); });
+    ctx.fillStyle = '#1c1c22';
+    ctx.beginPath(); ctx.ellipse(0, r * .08, r * .08, r * .055, 0, 0, Math.PI * 2); ctx.fill();
+    const dome = ctx.createRadialGradient(-r * .3, -r * .5, r * .1, 0, -r * .1, r * .95);
+    dome.addColorStop(0, 'rgba(255,255,255,.42)'); dome.addColorStop(.6, 'rgba(150,215,255,.1)'); dome.addColorStop(1, 'rgba(150,215,255,.32)');
+    ctx.fillStyle = dome;
+    ctx.beginPath(); ctx.arc(0, -r * .08, r * .92, Math.PI * 1.02, Math.PI * 1.98); ctx.quadraticCurveTo(0, r * .36, -r * .92, -r * .05); ctx.fill();
+    ctx.restore();
+  }
+
+  function paint(step, t) {
+    const { ctx, W, H, U, cx, cy, ppc, bg, rocks } = st;
+    const wanted = (snap ? snap.radiusCm : 2) * ppc;
+    st.r += (wanted - st.r) * (1 - Math.exp(-step * 6));
+    const follow = 1 - Math.exp(-step * 18);
+    st.x += ((snap ? snap.xCm : 0) - st.x) * follow;
+    st.y += ((snap ? snap.yCm : 0) - st.y) * follow;
+    const out = !!(snap && snap.outside);
+    if (out && !st.wasOut) st.alarm = 1;
+    st.wasOut = out;
+    st.alarm = Math.max(out ? .55 : 0, st.alarm - step * 1.4);
+
+    ctx.save();
+    if (st.alarm > .6) ctx.translate((Math.random() - .5) * U * 1.6, (Math.random() - .5) * U * 1.6);
+    ctx.drawImage(bg, -W * .05 - st.x * U * .35, -H * .05 + st.y * U * .35);
+    for (let i = 0; i < 34; i++) {
+      const px = ((pfHash(i + 40) * W - st.x * U * (1 + pfHash(i) * 2) + t * U * .4) % W + W) % W;
+      const py = ((pfHash(i + 60) * H + st.y * U * (1 + pfHash(i) * 2)) % H + H) % H;
+      ctx.fillStyle = `rgba(255,255,255,${(.5 + .45 * Math.sin(t * 2 + i)).toFixed(2)})`;
+      ctx.beginPath(); ctx.arc(px, py, U * .22, 0, Math.PI * 2); ctx.fill();
+    }
+
+    const col = out ? '230,55,78' : '67,206,162';
+    const r = st.r;
+    const field = ctx.createRadialGradient(cx, cy, r * .55, cx, cy, r);
+    field.addColorStop(0, `rgba(${col},.03)`); field.addColorStop(1, `rgba(${col},.3)`);
+    ctx.fillStyle = field;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    const ripple = (t * .5) % 1;
+    ctx.strokeStyle = `rgba(${col},${((1 - ripple) * .3).toFixed(3)})`;
+    ctx.lineWidth = U * .35;
+    ctx.beginPath(); ctx.arc(cx, cy, r * ripple, 0, Math.PI * 2); ctx.stroke();
+    const flick = out ? .6 + Math.random() * .4 : 1;
+    ctx.strokeStyle = `rgba(${col},${(.26 * flick).toFixed(3)})`;
+    ctx.lineWidth = U * 2;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = `rgba(${col},${flick.toFixed(3)})`;
+    ctx.lineWidth = U * .55;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = `rgba(${col},.6)`;
+    ctx.lineWidth = U * .3;
+    ctx.setLineDash([U * 2, U * 3.2]);
+    ctx.lineDashOffset = -t * U * 6;
+    ctx.beginPath(); ctx.arc(cx, cy, r + U * 1.7, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+
+    for (let i = 0; i < 14; i++) {
+      const a = i / 14 * Math.PI * 2 + t * (.1 + pfHash(i) * .04);
+      const orbit = r + U * (7 + pfHash(i + 7) * 8);
+      const size = U * (3 + pfHash(i + 3) * 3.6);
+      ctx.save();
+      ctx.translate(cx + Math.cos(a) * orbit, cy + Math.sin(a) * orbit);
+      ctx.rotate(t * (.3 + pfHash(i) * .8) + i);
+      ctx.drawImage(rocks[i % rocks.length], -size / 2, -size / 2, size, size);
+      ctx.restore();
+    }
+
+    const px = pfClamp(cx + st.x * ppc, U * 6, W - U * 6);
+    const py = pfClamp(cy - st.y * ppc, U * 6, H - U * 6);
+    st.trail.push([px, py]);
+    if (st.trail.length > 16) st.trail.shift();
+    st.trail.forEach(([x, y], i) => {
+      ctx.fillStyle = `rgba(${col},${(i / 16 * .32).toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(x, y, U * (.6 + i / 16 * 1.8), 0, Math.PI * 2); ctx.fill();
+    });
+    paintShip(px, py, out, t);
+    ctx.restore();
+    paintVignette(ctx, W, H, '230,40,60', st.alarm * .62);
+  }
+
+  function start() {
+    const canvas = document.getElementById('zoneCanvas');
+    const stage = document.getElementById('zoneStage');
+    if (!canvas || !stage) return;
+    const g = sizeGameCanvas(canvas, stage);
+    snap = null;
+    st = {
+      ...g, cx: g.W / 2, cy: g.H * .57, ppc: g.U * 8.5, r: g.U * 17, x: 0, y: 0, trail: [], alarm: 0, wasOut: false,
+      bg: layerCanvas(Math.round(g.W * 1.1), Math.round(g.H * 1.1), paintSpace),
+      rocks: [11, 23, 37].map(s => layerCanvas(96, 96, paintRock(s))),
+    };
+    runGameCanvas(canvas, paint);
+  }
+  return { start, update(s) { snap = s; } };
+})();
+
+/** Electro : le fil haute tension sur une carte électronique. Le courant remplit le fil et allume l'ampoule d'arrivée. */
+const ElectroScene = (() => {
+  const VB_W = 360, VB_H = 560, VB_MARGIN = 30;
+  const HEAD_CSS = 110; // place réservée au-dessus du parcours (temps, consigne), le fil reste sous l'encadré du panda
+  let st = null, snap = null;
+
+  const vx = v => st.offX + (v + VB_MARGIN) * st.k;
+  const vy = v => st.offY + (v + VB_MARGIN) * st.k;
+
+  function paintBoard(c, w, h, traces) {
+    const g = c.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, '#071a2e'); g.addColorStop(.5, '#0a2a3c'); g.addColorStop(1, '#101a42');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    const unit = w / 100;
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    for (let i = 0; i < 46; i++) {
+      const x = pfHash(i + 1) * w, y = pfHash(i + 2) * h;
+      const horizontal = pfHash(i + 3) < .5;
+      const l1 = unit * (8 + pfHash(i + 4) * 24), l2 = unit * (5 + pfHash(i + 5) * 16);
+      const sign = pfHash(i + 6) < .5 ? 1 : -1;
+      const p1 = horizontal ? [x + l1, y] : [x, y + l1];
+      const p2 = horizontal ? [p1[0] + l2 * .7, p1[1] + sign * l2 * .7] : [p1[0] + sign * l2 * .7, p1[1] + l2 * .7];
+      traces.push([[x, y], p1, p2]);
+      c.strokeStyle = 'rgba(232,190,110,.2)';
+      c.lineWidth = unit * .32;
+      c.beginPath(); c.moveTo(x, y); c.lineTo(...p1); c.lineTo(...p2); c.stroke();
+      c.fillStyle = 'rgba(232,190,110,.42)';
+      [[x, y], p2].forEach(([a, b]) => { c.beginPath(); c.arc(a, b, unit * .6, 0, Math.PI * 2); c.fill(); });
+      c.fillStyle = '#071a2e';
+      [[x, y], p2].forEach(([a, b]) => { c.beginPath(); c.arc(a, b, unit * .26, 0, Math.PI * 2); c.fill(); });
+    }
+    for (let i = 0; i < 9; i++) {
+      const cw = unit * (8 + pfHash(i + 70) * 8), ch = unit * (6 + pfHash(i + 71) * 6);
+      const x = pfHash(i + 72) * (w - cw), y = pfHash(i + 73) * (h - ch);
+      c.fillStyle = 'rgba(232,190,110,.32)';
+      for (let p = 0; p < 6; p++) {
+        c.fillRect(x + (p + .5) / 6 * cw - unit * .25, y - unit * .7, unit * .5, ch + unit * 1.4);
+      }
+      c.fillStyle = 'rgba(8,12,30,.92)';
+      roundedRect(c, x, y, cw, ch, unit * .6); c.fill();
+      c.strokeStyle = 'rgba(255,255,255,.12)'; c.lineWidth = 1; c.stroke();
+    }
+    c.fillStyle = 'rgba(4,10,28,.26)';
+    c.fillRect(0, 0, w, h);
+  }
+
+  function strokePath(c, upto, width, style) {
+    const P = ElectroGame.PATH;
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    c.strokeStyle = style; c.lineWidth = width;
+    c.beginPath();
+    c.moveTo(vx(P[0].x), vy(P[0].y));
+    for (let i = 1; i <= upto; i++) c.lineTo(vx(P[i].x), vy(P[i].y));
+    c.stroke();
+  }
+  function paintWire(c) {
+    const P = ElectroGame.PATH, last = P.length - 1, k = st.k;
+    c.save(); c.translate(0, 2 * k); strokePath(c, last, 18 * k, 'rgba(0,0,0,.42)'); c.restore();
+    strokePath(c, last, 17 * k, '#5b3218');
+    strokePath(c, last, 13.5 * k, '#c0793c');
+    c.save(); c.translate(0, -2.4 * k); strokePath(c, last, 4.4 * k, '#f6cf9c'); c.restore();
+  }
+  function paintDone(upto) {
+    const c = st.done.getContext('2d'), k = st.k;
+    c.clearRect(0, 0, st.W, st.H);
+    if (upto < 1) return;
+    strokePath(c, upto, 30 * k, 'rgba(50,225,255,.14)');
+    strokePath(c, upto, 22 * k, 'rgba(50,225,255,.26)');
+    strokePath(c, upto, 14 * k, '#17b4e0');
+    strokePath(c, upto, 5.5 * k, '#eafdff');
+  }
+
+  /** Un éclair en zigzag entre deux points */
+  function bolt(x1, y1, x2, y2, rough, width, color) {
+    const { ctx } = st;
+    const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len;
+    ctx.strokeStyle = color; ctx.lineWidth = width;
+    ctx.beginPath(); ctx.moveTo(x1, y1);
+    for (let i = 1; i < 7; i++) {
+      const f = i / 7, o = (Math.random() - .5) * rough;
+      ctx.lineTo(x1 + dx * f + nx * o, y1 + dy * f + ny * o);
+    }
+    ctx.lineTo(x2, y2); ctx.stroke();
+  }
+
+  function paintNodes(wx, wy, t, progress) {
+    const { ctx, k } = st;
+    const P = ElectroGame.PATH, a = P[0], b = P[P.length - 1];
+    const ax = vx(a.x) + wx, ay = vy(a.y) + wy, bx = vx(b.x) + wx, by = vy(b.y) + wy;
+    ctx.fillStyle = '#10382e';
+    ctx.strokeStyle = '#43cea2'; ctx.lineWidth = 3.2 * k;
+    ctx.beginPath(); ctx.arc(ax, ay, 13.5 * k, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#7dffd8';
+    ctx.beginPath(); ctx.arc(ax, ay, (5 + Math.sin(t * 5) * 1.2) * k, 0, Math.PI * 2); ctx.fill();
+
+    const lit = Math.pow(progress, 1.5);
+    const halo = ctx.createRadialGradient(bx, by, 0, bx, by, (30 + 62 * lit) * k);
+    halo.addColorStop(0, `rgba(255,214,120,${(.25 + .7 * lit).toFixed(3)})`);
+    halo.addColorStop(1, 'rgba(255,214,120,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(bx, by, (30 + 62 * lit) * k, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = `rgb(${Math.round(90 + 165 * lit)},${Math.round(70 + 150 * lit)},${Math.round(40 + 90 * lit)})`;
+    ctx.strokeStyle = '#e0a83e'; ctx.lineWidth = 3.2 * k;
+    ctx.beginPath(); ctx.arc(bx, by, 14 * k, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = lit > .4 ? '#fffbe6' : '#a4762d'; ctx.lineWidth = 1.8 * k;
+    ctx.beginPath(); ctx.moveTo(bx - 6 * k, by + 3 * k); ctx.lineTo(bx - 3 * k, by - 4 * k); ctx.lineTo(bx, by + 3 * k); ctx.lineTo(bx + 3 * k, by - 4 * k); ctx.lineTo(bx + 6 * k, by + 3 * k); ctx.stroke();
+  }
+
+  function paint(step, t, now) {
+    const { ctx, W, H, U, k } = st;
+    const P = ElectroGame.PATH, last = P.length - 1;
+    const idx = snap ? snap.progressIdx : 0;
+    if (idx !== st.drawn) { st.drawn = idx; paintDone(idx); }
+    const shock = st.shock && now < st.shock.until ? st.shock : null;
+    const sinceShock = shock ? now - shock.at : Infinity;
+
+    ctx.save();
+    if (sinceShock < 500) ctx.translate((Math.random() - .5) * U * 2, (Math.random() - .5) * U * 2);
+    ctx.drawImage(st.bg, 0, 0);
+
+    // impulsions qui courent sur les pistes de la carte
+    ctx.fillStyle = 'rgba(255,225,150,.85)';
+    st.traces.slice(0, 18).forEach((tr, i) => {
+      const f = (t * (.18 + pfHash(i) * .22) + pfHash(i + 9)) % 1;
+      const seg = f < .6 ? 0 : 1, sf = seg ? (f - .6) / .4 : f / .6;
+      ctx.beginPath();
+      ctx.arc(tr[seg][0] + (tr[seg + 1][0] - tr[seg][0]) * sf, tr[seg][1] + (tr[seg + 1][1] - tr[seg][1]) * sf, U * .28, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    const wx = (snap ? snap.wobbleX : 0) * k, wy = (snap ? snap.wobbleY : 0) * k;
+    ctx.drawImage(st.wire, wx, wy);
+    ctx.drawImage(st.done, wx, wy);
+
+    // le courant court dans la partie déjà suivie
+    if (idx > 12) {
+      const n = Math.min(10, Math.floor(idx / 14));
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < n; i++) {
+        const p = P[Math.floor(((t * .28 + i / n) % 1) * idx)];
+        ctx.beginPath(); ctx.arc(vx(p.x) + wx, vy(p.y) + wy, 3.4 * k, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    paintNodes(wx, wy, t, idx / last);
+
+    // l'anneau du doigt, qui crépite sur le fil
+    const f = P[idx];
+    const fx = vx(f.x) + wx, fy = vy(f.y) + wy;
+    if (!shock) {
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 3; i++) {
+        const a = Math.random() * Math.PI * 2, r = (16 + Math.random() * 14) * k;
+        bolt(fx, fy, fx + Math.cos(a) * r, fy + Math.sin(a) * r, 6 * k, Math.max(1, 1.4 * k), 'rgba(170,240,255,.9)');
+      }
+    }
+    const ring = ctx.createRadialGradient(fx, fy, 8 * k, fx, fy, 24 * k);
+    ring.addColorStop(0, 'rgba(120,235,255,.55)'); ring.addColorStop(1, 'rgba(120,235,255,0)');
+    ctx.fillStyle = ring;
+    ctx.beginPath(); ctx.arc(fx, fy, 24 * k, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3.6 * k;
+    ctx.beginPath(); ctx.arc(fx, fy, 11.5 * k, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#eafdff';
+    ctx.beginPath(); ctx.arc(fx, fy, 4.5 * k, 0, Math.PI * 2); ctx.fill();
+
+    if (shock) {
+      const sx = vx(shock.x), sy = vy(shock.y);
+      ctx.lineCap = 'round';
+      if (now - st.lastBolts > 70) {
+        st.lastBolts = now;
+        st.bolts = Array.from({ length: 12 }, (_, i) => {
+          const a = i / 12 * Math.PI * 2 + (Math.random() - .5) * .5, r = (40 + Math.random() * 62) * k;
+          return [sx + Math.cos(a) * r, sy + Math.sin(a) * r, Math.random() * 1e9];
+        });
+      }
+      st.bolts.forEach(([x, y]) => {
+        bolt(sx, sy, x, y, 26 * k, 6 * k, 'rgba(255,190,70,.4)');
+        bolt(sx, sy, x, y, 26 * k, 2.4 * k, '#fff6d6');
+      });
+      const core = ctx.createRadialGradient(sx, sy, 0, sx, sy, 58 * k);
+      core.addColorStop(0, 'rgba(255,255,255,.95)'); core.addColorStop(.3, 'rgba(255,205,90,.55)'); core.addColorStop(1, 'rgba(255,205,90,0)');
+      ctx.fillStyle = core;
+      ctx.beginPath(); ctx.arc(sx, sy, 58 * k, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+    if (shock) {
+      paintVignette(ctx, W, H, '255,170,40', .5);
+      if (sinceShock < 130) { ctx.fillStyle = `rgba(255,255,255,${(.75 * (1 - sinceShock / 130)).toFixed(3)})`; ctx.fillRect(0, 0, W, H); }
+    }
+  }
+
+  function start() {
+    const canvas = document.getElementById('electroCanvas');
+    const stage = document.getElementById('electroStage');
+    if (!canvas || !stage) return;
+    const g = sizeGameCanvas(canvas, stage);
+    const offY = HEAD_CSS * g.dpr;
+    const k = Math.min(g.W / VB_W, (g.H - offY - 10 * g.dpr) / VB_H);
+    snap = null;
+    st = { ...g, k, offX: (g.W - VB_W * k) / 2, offY, drawn: -1, shock: null, lastBolts: 0, bolts: [], traces: [] };
+    st.bg = layerCanvas(g.W, g.H, (c, w, h) => paintBoard(c, w, h, st.traces));
+    st.wire = layerCanvas(g.W, g.H, paintWire);
+    st.done = layerCanvas(g.W, g.H, () => {});
+    runGameCanvas(canvas, paint);
+  }
+  /** Position du doigt à l'écran → repère du parcours */
+  function toPath(canvas, clientX, clientY) {
+    if (!st) return null;
+    const r = canvas.getBoundingClientRect();
+    const ratio = st.W / r.width;
+    return { x: ((clientX - r.left) * ratio - st.offX) / st.k - VB_MARGIN, y: ((clientY - r.top) * ratio - st.offY) / st.k - VB_MARGIN };
+  }
+  return {
+    start, toPath,
+    update(s) { snap = s; },
+    shock(x, y) { if (st) { const now = performance.now(); st.shock = { x, y, at: now, until: now + 2000 }; st.lastBolts = 0; } },
+  };
+})();
+
+/** MindFit : un cerveau de lumière. Effort = la tour de force de fête foraine ; calcul = rester calme dans le radar. */
+const MindScene = (() => {
+  const RANGE_CM = 3.5, LINE_CM = 1.2, CROSSINGS = 7;
+  let st = null, snap = null, lastCorrect = 0, lastWrong = 0;
+
+  function paintBrain(c, w, h, nodes) {
+    const g = c.createRadialGradient(w / 2, h * .42, 0, w / 2, h * .42, h * .8);
+    g.addColorStop(0, '#2b1a6e'); g.addColorStop(.55, '#170f49'); g.addColorStop(1, '#0a0827');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 64; i++) nodes.push({ x: pfHash(i + 1) * w, y: pfHash(i + 2) * h, links: [] });
+    const maxD = w * .22;
+    c.strokeStyle = 'rgba(160,140,255,.17)';
+    c.lineWidth = Math.max(1, w * .0016);
+    nodes.forEach((a, i) => {
+      nodes.forEach((b, j) => {
+        if (j <= i || a.links.length >= 3) return;
+        if (Math.hypot(a.x - b.x, a.y - b.y) > maxD) return;
+        a.links.push(j);
+        c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+      });
+    });
+  }
+
+  function paintNetwork(t, step) {
+    const { ctx, U, nodes } = st;
+    st.glow = Math.max(0, st.glow - step * 1.1);
+    st.bad = Math.max(0, st.bad - step * 1.4);
+    const lit = Math.ceil((snap ? snap.correct || 0 : 0) * 3);
+    nodes.forEach((n, i) => {
+      const on = i < lit;
+      const pulse = .35 + .35 * Math.sin(t * 1.6 + i);
+      ctx.fillStyle = on ? `rgba(255,214,120,${(.6 + pulse * .4).toFixed(3)})` : `rgba(180,165,255,${(pulse * .7 + .1 + st.glow * .4).toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(n.x, n.y, U * (on ? .62 : .36 + st.glow * .3), 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 16; i++) {
+      const a = nodes[(i * 3) % nodes.length];
+      if (!a.links.length) continue;
+      const b = nodes[a.links[i % a.links.length]];
+      const f = (t * (.25 + pfHash(i) * .35) + pfHash(i + 5)) % 1;
+      ctx.fillStyle = 'rgba(130,240,255,.9)';
+      ctx.beginPath(); ctx.arc(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, U * .3, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  function paintTower(t, now) {
+    const { ctx, W, H, U } = st;
+    const cx = W / 2, yTop = H * .3, yBot = H * .86, mid = (yTop + yBot) / 2, half = (yBot - yTop) / 2;
+    const tw = U * 9;
+    const toY = cm => mid - pfClamp(cm / RANGE_CM, -1, 1) * half;
+    const lineY = toY(LINE_CM);
+    const flash = snap && now < snap.crossFlashUntil;
+    st.flash = flash ? 1 : Math.max(0, st.flash - .08);
+
+    const panel = ctx.createLinearGradient(0, yTop, 0, yBot);
+    panel.addColorStop(0, 'rgba(255,190,80,.26)'); panel.addColorStop((lineY - yTop) / (yBot - yTop), 'rgba(255,190,80,.14)');
+    panel.addColorStop(Math.min(1, (lineY - yTop) / (yBot - yTop) + .001), 'rgba(24,18,76,.86)'); panel.addColorStop(1, 'rgba(14,10,52,.92)');
+    roundedRect(ctx, cx - tw, yTop, tw * 2, yBot - yTop, U * 3);
+    ctx.fillStyle = panel; ctx.fill();
+    ctx.strokeStyle = 'rgba(190,120,255,.3)'; ctx.lineWidth = U * 1.8; ctx.stroke();
+    ctx.strokeStyle = st.flash ? '#ffe9a8' : '#c9a2ff'; ctx.lineWidth = U * .55; ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255,255,255,.32)'; ctx.lineWidth = Math.max(1, U * .22);
+    for (let i = 1; i < 14; i++) {
+      const y = yTop + (yBot - yTop) * i / 14;
+      [-1, 1].forEach(s => { ctx.beginPath(); ctx.moveTo(cx + s * tw * .62, y); ctx.lineTo(cx + s * tw * .86, y); ctx.stroke(); });
+    }
+
+    // la cloche
+    const bellX = cx, bellY = yTop - U * 5.5, swing = Math.sin(t * 28) * st.flash * .34;
+    ctx.save();
+    ctx.translate(bellX, bellY - U * 3); ctx.rotate(swing); ctx.translate(0, U * 3);
+    const bell = ctx.createLinearGradient(-U * 5, 0, U * 5, 0);
+    bell.addColorStop(0, '#d98a1e'); bell.addColorStop(.5, '#ffe08a'); bell.addColorStop(1, '#c97a14');
+    ctx.fillStyle = bell;
+    ctx.beginPath();
+    ctx.moveTo(-U * 5, U * 3.2);
+    ctx.quadraticCurveTo(-U * 3.8, U * 1.8, -U * 3.5, -U * .8);
+    ctx.quadraticCurveTo(-U * 3.1, -U * 4.2, 0, -U * 4.2);
+    ctx.quadraticCurveTo(U * 3.1, -U * 4.2, U * 3.5, -U * .8);
+    ctx.quadraticCurveTo(U * 3.8, U * 1.8, U * 5, U * 3.2);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+    if (st.flash > 0) {
+      const ring = 1 - st.flash;
+      ctx.strokeStyle = `rgba(255,224,140,${(st.flash * .8).toFixed(3)})`;
+      ctx.lineWidth = U * .6;
+      ctx.beginPath(); ctx.arc(bellX, bellY, U * (7 + ring * 22), 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // la barre à passer
+    ctx.strokeStyle = 'rgba(255,190,80,.35)'; ctx.lineWidth = U * 2;
+    ctx.beginPath(); ctx.moveTo(cx - tw * 1.3, lineY); ctx.lineTo(cx + tw * 1.3, lineY); ctx.stroke();
+    ctx.strokeStyle = '#ffc14d'; ctx.lineWidth = U * .85;
+    ctx.beginPath(); ctx.moveTo(cx - tw * 1.3, lineY); ctx.lineTo(cx + tw * 1.3, lineY); ctx.stroke();
+
+    // le palet
+    const cmNow = snap ? snap.yCm : 0;
+    st.y += (cmNow - st.y) * .45;
+    const py = toY(st.y);
+    st.trail.push(py);
+    if (st.trail.length > 12) st.trail.shift();
+    st.trail.forEach((y, i) => {
+      ctx.fillStyle = `rgba(110,235,255,${(i / 12 * .3).toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(cx, y, U * (1.2 + i / 12 * 2.2), 0, Math.PI * 2); ctx.fill();
+    });
+    const above = st.y > LINE_CM;
+    const halo = ctx.createRadialGradient(cx, py, 0, cx, py, U * 9);
+    halo.addColorStop(0, above ? 'rgba(255,214,110,.75)' : 'rgba(110,235,255,.7)');
+    halo.addColorStop(1, 'rgba(110,235,255,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(cx, py, U * 9, 0, Math.PI * 2); ctx.fill();
+    const puck = ctx.createRadialGradient(cx - U, py - U, 1, cx, py, U * 4);
+    puck.addColorStop(0, '#ffffff'); puck.addColorStop(1, above ? '#ffc14d' : '#42d6f5');
+    ctx.fillStyle = puck;
+    ctx.beginPath(); ctx.arc(cx, py, U * 4, 0, Math.PI * 2); ctx.fill();
+
+    // sept lampes : une par passage réussi
+    const done = snap ? snap.crossings : 0;
+    for (let i = 0; i < CROSSINGS; i++) {
+      const y = yBot - (yBot - yTop) * (i + .5) / CROSSINGS;
+      const x = cx + tw + U * 7;
+      const on = i < done;
+      if (on) {
+        const g = ctx.createRadialGradient(x, y, 0, x, y, U * 6);
+        g.addColorStop(0, 'rgba(255,214,110,.75)'); g.addColorStop(1, 'rgba(255,214,110,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x, y, U * 6, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = on ? '#ffe08a' : '#2a2360';
+      ctx.strokeStyle = on ? '#fff3c8' : 'rgba(201,162,255,.55)';
+      ctx.lineWidth = U * .35;
+      ctx.beginPath(); ctx.arc(x, y, U * 2.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+  }
+
+  function paintRadar(t) {
+    const { ctx, W, H, U } = st;
+    const cx = W / 2, cy = H * .32, ppc = U * 6.6;
+    const calm = !!(snap && snap.calm);
+    const col = calm ? '67,206,162' : '230,55,78';
+    const zone = (snap ? snap.calmRadiusCm : 1.875) * ppc;
+    const outer = zone * 1.32;
+    const field = ctx.createRadialGradient(cx, cy, 0, cx, cy, outer);
+    field.addColorStop(0, `rgba(${col},.1)`); field.addColorStop(.75, `rgba(${col},.24)`); field.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = field;
+    ctx.beginPath(); ctx.arc(cx, cy, outer, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = `rgba(${col},.32)`; ctx.lineWidth = U * 1.5;
+    ctx.beginPath(); ctx.arc(cx, cy, zone, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = `rgb(${col})`; ctx.lineWidth = U * .5;
+    ctx.beginPath(); ctx.arc(cx, cy, zone, 0, Math.PI * 2); ctx.stroke();
+    if (calm) {
+      const a = t * 1.8;
+      ctx.strokeStyle = `rgba(${col},.75)`; ctx.lineWidth = U * .3;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * zone, cy + Math.sin(a) * zone); ctx.stroke();
+    }
+    st.rx += ((snap ? snap.xCm : 0) - st.rx) * .4;
+    st.ry += ((snap ? snap.yCm : 0) - st.ry) * .4;
+    const limit = outer / ppc;
+    const d = Math.hypot(st.rx, st.ry);
+    const f = d > limit ? limit / d : 1;
+    const px = cx + st.rx * f * ppc, py = cy - st.ry * f * ppc;
+    const halo = ctx.createRadialGradient(px, py, 0, px, py, U * 5);
+    halo.addColorStop(0, 'rgba(255,255,255,.8)'); halo.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(px, py, U * 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = `rgb(${col})`;
+    ctx.beginPath(); ctx.arc(px, py, U * 1.9, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = U * .4; ctx.stroke();
+  }
+
+  function paint(step, t, now) {
+    const { ctx, W, H } = st;
+    ctx.drawImage(st.bg, 0, 0);
+    paintNetwork(t, step);
+    if (!snap || snap.phase === 'effort') paintTower(t, now);
+    else paintRadar(t);
+    if (st.glow > 0) { ctx.fillStyle = `rgba(255,214,120,${(st.glow * .16).toFixed(3)})`; ctx.fillRect(0, 0, W, H); }
+    paintVignette(ctx, W, H, '230,55,78', st.bad * .55);
+  }
+
+  function start() {
+    const canvas = document.getElementById('tempoCanvas');
+    const stage = document.getElementById('tempoStage');
+    if (!canvas || !stage) return;
+    const g = sizeGameCanvas(canvas, stage);
+    snap = null; lastCorrect = 0; lastWrong = 0;
+    st = { ...g, nodes: [], y: 0, rx: 0, ry: 0, trail: [], flash: 0, glow: 0, bad: 0 };
+    st.bg = layerCanvas(g.W, g.H, (c, w, h) => paintBrain(c, w, h, st.nodes));
+    runGameCanvas(canvas, paint);
+  }
+  function update(s) {
+    snap = s;
+    if (!st) return;
+    if ((s.correct || 0) > lastCorrect) st.glow = 1;
+    if ((s.wrong || 0) > lastWrong) st.bad = 1;
+    lastCorrect = s.correct || 0; lastWrong = s.wrong || 0;
+  }
+  return { start, update };
+})();
+
 /** L'image d'un jeu remplit l'écran, sans défilement de la page */
 function fitGameStage(stage) {
   window.scrollTo(0, 0);
@@ -6600,6 +7152,7 @@ function startTempoGame() {
   tempoLastQuestionIndex = -1;
   tempoFailUntil = 0;
   content.innerHTML = screenTempoPlaying();
+  requestAnimationFrame(() => MindScene.start());
   document.getElementById('tempoPandaEffort')?.play().catch(() => {});
   document.getElementById('tempoPandaHappy')?.play().catch(() => {});
   document.getElementById('tempoPandaFail')?.play().catch(() => {});
@@ -6630,37 +7183,29 @@ function screenTempoPlaying() {
         <source src="${MINDFUL_FAIL_VIDEO_B64}" type="video/mp4">
       </video>
     </div>
-    <div class="centered-page">
-      <div class="zone-hud" style="justify-content:center;">
-        <div class="timer" id="tempoTimer">1:00</div>
-      </div>
+    <div class="game-stage" id="tempoStage">
+      <canvas id="tempoCanvas"></canvas>
+      <div class="game-hud"><div class="timer" id="tempoTimer">1:00</div></div>
       <div id="tempoPhaseArea"></div>
     </div>
   `;
 }
 function tempoEffortHTML() {
   return `
-    <div style="text-align:center;margin-bottom:10px;font-weight:700;font-size:16px;">Passe la barre <span id="tempoCrossCount">0</span>/7</div>
-    <div style="display:flex;justify-content:center;">
-      <div class="tempo-vgauge" id="tempoVgauge">
-        <div class="tempo-vgauge-bar"></div>
-        <div class="tempo-vgauge-marker" id="tempoMarker"></div>
-      </div>
-    </div>
-    <p class="page-sub" style="text-align:center;margin-top:14px;">Balance-toi d'avant en arrière pour passer au-dessus de la ligne.</p>
+    <div class="game-hint mind-count">Passe la barre <span id="tempoCrossCount">0</span>/7</div>
+    <div class="mind-foot">Balance-toi d'avant en arrière pour passer au-dessus de la ligne.</div>
   `;
 }
 function tempoQuestionHTML() {
   return `
-    <div style="text-align:center;margin-bottom:6px;font-weight:700;font-size:14px;color:var(--text-dim);">Calcul <span id="tempoQIndex">1</span>/7</div>
-    <div style="display:flex;justify-content:center;">
-      <canvas id="tempoCalmCanvas" width="140" height="140"></canvas>
+    <div class="game-hint">
+      <div class="mind-count">Calcul <span id="tempoQIndex">1</span>/7</div>
+      <div id="tempoCalmHint">Reste immobile pour pouvoir répondre.</div>
     </div>
-    <div class="tempo-question-frame" id="tempoQuestionFrame">
+    <div class="tempo-question-frame mind-card" id="tempoQuestionFrame">
       <div class="tempo-question-text" id="tempoQuestionText">--</div>
       <div class="tempo-choices" id="tempoChoices"></div>
     </div>
-    <p class="page-sub" id="tempoCalmHint" style="text-align:center;margin-top:10px;">Reste immobile pour pouvoir répondre.</p>
   `;
 }
 function renderTempoQuestionUI(snap) {
@@ -6710,6 +7255,7 @@ function renderTempoPlaying(snap) {
     area.innerHTML = snap.phase === 'effort' ? tempoEffortHTML() : tempoQuestionHTML();
     if (window.lucide) lucide.createIcons();
   }
+  MindScene.update(snap);
 
   const effortEl = document.getElementById('tempoPandaEffort');
   const happyEl = document.getElementById('tempoPandaHappy');
@@ -6718,29 +7264,11 @@ function renderTempoPlaying(snap) {
   if (snap.phase === 'effort') {
     const countEl = document.getElementById('tempoCrossCount');
     if (countEl) countEl.textContent = snap.crossings;
-    const marker = document.getElementById('tempoMarker');
-    if (marker) {
-      const pct = Math.max(2, Math.min(98, 50 - (snap.yCm / 6) * 50));
-      marker.style.top = pct + '%';
-    }
-    document.getElementById('tempoVgauge')?.classList.toggle('flash', performance.now() < snap.crossFlashUntil);
     effortEl?.classList.add('active'); happyEl?.classList.remove('active'); failEl?.classList.remove('active');
   } else {
     if (snap.questionIndex !== tempoLastQuestionIndex) {
       tempoLastQuestionIndex = snap.questionIndex;
       renderTempoQuestionUI(snap);
-    }
-    const canvas = document.getElementById('tempoCalmCanvas');
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      const w = canvas.width, h = canvas.height, cx = w / 2, cy = h / 2, pxPerCm = 14;
-      ctx.clearRect(0, 0, w, h);
-      ctx.beginPath(); ctx.arc(cx, cy, snap.calmRadiusCm * pxPerCm, 0, Math.PI * 2);
-      ctx.fillStyle = snap.calm ? 'rgba(67,206,162,0.18)' : 'rgba(230,55,78,0.10)';
-      ctx.fill();
-      ctx.lineWidth = 3; ctx.strokeStyle = snap.calm ? '#43cea2' : '#e6374e'; ctx.stroke();
-      const px = cx + snap.xCm * pxPerCm, py = cy - snap.yCm * pxPerCm;
-      ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI * 2); ctx.fillStyle = snap.calm ? '#43cea2' : '#e6374e'; ctx.fill();
     }
     const hintEl = document.getElementById('tempoCalmHint');
     if (hintEl) hintEl.textContent = snap.calm ? 'Tu peux répondre !' : 'Reste immobile pour pouvoir répondre.';
