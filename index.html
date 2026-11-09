@@ -460,6 +460,12 @@
     font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums;
   }
   .zone-canvas-wrap { display: flex; justify-content: center; margin: 10px 0 20px; }
+  /* Zen : le lac au lever du soleil */
+  .lake-stage { position: relative; width: 100%; height: 70vh; border-radius: 22px; overflow: hidden; background: #0f1440; }
+  .lake-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .lake-timer { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); font-size: 22px; color: #fff; background: rgba(10,14,50,.32); padding: 4px 16px; border-radius: 999px; }
+  .lake-label { position: absolute; top: 62px; left: 16px; right: 16px; text-align: center; font-size: 44px; font-weight: 800; line-height: 1.12; color: #fff; text-shadow: 0 2px 16px rgba(10,14,50,.55); }
+  .lake-panda { position: absolute; left: 50%; bottom: 2.5%; width: 25%; max-width: 230px; transform: translateX(-50%); transform-origin: 50% 100%; }
   /* Electro : consigne en haut, à droite de l'encadré du panda (sinon elle cache la fin du parcours) */
   .electro-hint { margin: 0 0 6px calc(min(46vw, 230px) + 4px); min-height: 48px; font-size: 18px; line-height: 1.35; color: #c7c2db; text-align: left; }
   #zoneCanvas { background: #14101f; border-radius: 20px; }
@@ -5797,12 +5803,9 @@ function relaxPrepareThenStart() {
     else if (el) el.textContent = remaining;
   }, 1000);
 }
-let relaxFailUntil = 0;
 function startRelaxGame() {
-  relaxFailUntil = 0;
   content.innerHTML = `<div style="${RELAX_THEME}">${screenRelaxPlaying()}</div>`;
-  document.getElementById('relaxPandaHappy')?.play().catch(() => {});
-  document.getElementById('relaxPandaFail')?.play().catch(() => {});
+  requestAnimationFrame(() => LakeScene.start());
   activeGameModule = RelaxGame;
   RelaxGame.start(relaxSetupCfg,
     (snap) => renderRelaxPlaying(snap),
@@ -5816,28 +5819,285 @@ function startRelaxGame() {
     }
   );
 }
+/** Zen : une seule image qui respire. Le soleil suit la respiration ; le lac est un miroir tant qu'on reste stable.
+    Le nénuphar sur l'eau = ta position, l'anneau = la zone à ne pas quitter. */
+const LakeScene = (() => {
+  const HORIZON = 0.56;          // part de la hauteur occupée par le ciel
+  const PX_PER_CM = 0.09;        // en part de la largeur de l'image
+  const RING_FLAT = 0.42;        // écrasement de l'anneau (perspective sur l'eau)
+  const MAX_DPR = 1.5, FRAME_MS = 30;
+  const SKY_DAWN = [[0, '#0f1440'], [.55, '#33306f'], [.85, '#8a4d86'], [1, '#d9767f']];
+  const SKY_DAY = [[0, '#3f86d8'], [.55, '#8fc2ec'], [.85, '#ffd9a8'], [1, '#ffc078']];
+  const RIDGE_BACK = [[0, .30], [.1, .42], [.2, .30], [.3, .46], [.4, .24], [.5, .12], [.6, .26], [.72, .52], [.82, .34], [.92, .44], [1, .30]];
+  const RIDGE_FRONT = [[0, .20], [.12, .12], [.24, .22], [.36, .10], [.5, .03], [.64, .09], [.76, .20], [.9, .11], [1, .18]];
+  const MOUNT_DAWN = { back: '#2a2a63', front: '#171a42', snow: 'rgba(190,190,235,.75)' };
+  const MOUNT_DAY = { back: '#6f86b5', front: '#3f5f78', snow: '#ffffff' };
+
+  let st = null;
+  let snapNow = null;
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const mix = (a, b, t) => a + (b - a) * t;
+  const mixColor = (a, b, t) => `rgb(${a.map((v, i) => Math.round(mix(v, b[i], t))).join(',')})`;
+
+  function layer(w, h, paint) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    paint(c.getContext('2d'), w, h);
+    return c;
+  }
+  function paintSky(ctx, w, h, stops, stars) {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    stops.forEach(([o, col]) => g.addColorStop(o, col));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    if (!stars) return;
+    let seed = 7;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    ctx.fillStyle = 'rgba(255,255,255,.8)';
+    for (let i = 0; i < 70; i++) {
+      ctx.beginPath();
+      ctx.arc(rnd() * w, rnd() * h * .65, .6 + rnd() * 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  function paintRidge(ctx, w, h, ridge, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    ridge.forEach(([x, up]) => ctx.lineTo(x * w, h - up * h));
+    ctx.lineTo(w, h);
+    ctx.closePath();
+    ctx.fill();
+  }
+  function paintSnow(ctx, w, h, ridge, color) {
+    ctx.fillStyle = color;
+    for (let i = 1; i < ridge.length - 1; i++) {
+      const [x, up] = ridge[i];
+      if (up < .38 || up < ridge[i - 1][1] || up < ridge[i + 1][1]) continue;
+      const at = ([px, pu], t) => [mix(x, px, t) * w, h - mix(up, pu, t) * h];
+      const l1 = at(ridge[i - 1], .34), r1 = at(ridge[i + 1], .34);
+      ctx.beginPath();
+      ctx.moveTo(x * w, h - up * h);
+      ctx.lineTo(...l1);
+      ctx.lineTo(mix(l1[0], x * w, .5), l1[1] - h * .025);
+      ctx.lineTo(x * w, l1[1] + h * .01);
+      ctx.lineTo(mix(r1[0], x * w, .5), r1[1] - h * .025);
+      ctx.lineTo(...r1);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  function paintMountains(ctx, w, h, pal) {
+    paintRidge(ctx, w, h, RIDGE_BACK, pal.back);
+    paintSnow(ctx, w, h, RIDGE_BACK, pal.snow);
+    paintRidge(ctx, w, h, RIDGE_FRONT, pal.front);
+  }
+
+  function start() {
+    const canvas = document.getElementById('lakeCanvas');
+    const stage = document.getElementById('lakeStage');
+    if (!canvas || !stage) return;
+    window.scrollTo(0, 0);
+    const nav = document.querySelector('.bottomnav');
+    const limit = (nav && getComputedStyle(nav).display !== 'none') ? nav.getBoundingClientRect().top : window.innerHeight;
+    stage.style.height = Math.max(420, Math.floor(limit - stage.getBoundingClientRect().top - 14)) + 'px';
+    stage.style.marginBottom = '-' + getComputedStyle(content).paddingBottom; // pas de défilement : l'image tient juste dans l'écran
+    const dpr = Math.min(MAX_DPR, window.devicePixelRatio || 1);
+    const W = canvas.width = Math.round(stage.clientWidth * dpr);
+    const H = canvas.height = Math.round(stage.clientHeight * dpr);
+    const h0 = Math.round(H * HORIZON);
+    st = {
+      canvas, stage, W, H, h0, cssW: stage.clientWidth,
+      ctx: canvas.getContext('2d'),
+      panda: document.getElementById('lakePanda'),
+      skyDawn: layer(W, h0, (c, w, h) => paintSky(c, w, h, SKY_DAWN, true)),
+      skyDay: layer(W, h0, (c, w, h) => paintSky(c, w, h, SKY_DAY, false)),
+      mountDawn: layer(W, h0, (c, w, h) => paintMountains(c, w, h, MOUNT_DAWN)),
+      mountDay: layer(W, h0, (c, w, h) => paintMountains(c, w, h, MOUNT_DAY)),
+      top: layer(W, h0, () => {}),
+      level: 0, wave: 0, x: 0, y: 0, last: performance.now(),
+    };
+    requestAnimationFrame(frame);
+  }
+
+  function breathLevel(snap) {
+    if (!snap || snap.settling) return 0;
+    if (snap.breathPhase === 'hold') return 1;
+    const eased = Math.sin(snap.breathProgress * Math.PI / 2) ** 2;
+    return snap.breathPhase === 'inhale' ? eased : 1 - eased;
+  }
+  /** Agitation voulue (0..1) : presque rien dans la zone, nettement plus dès qu'on en sort */
+  function waveTarget(snap) {
+    if (!snap) return 0;
+    const d = Math.hypot(snap.xCm, snap.yCm) / snap.radiusCm;
+    return d <= 1 ? Math.max(0, (d - .6) / .4) * .2 : Math.min(1, .55 + (d - 1) * .6);
+  }
+
+  function paintTop(level) {
+    const { top, W, H, h0, skyDawn, skyDay, mountDawn, mountDay } = st;
+    const c = top.getContext('2d');
+    c.globalAlpha = 1; c.drawImage(skyDawn, 0, 0);
+    c.globalAlpha = level; c.drawImage(skyDay, 0, 0);
+    c.globalAlpha = 1;
+    const R = W * .085;
+    const sunX = W / 2, sunY = mix(h0 + R * 1.3, H * .25, level);
+    const halo = c.createRadialGradient(sunX, sunY, R * .6, sunX, sunY, R * 4.6);
+    halo.addColorStop(0, 'rgba(255,214,140,.75)');
+    halo.addColorStop(1, 'rgba(255,214,140,0)');
+    c.fillStyle = halo;
+    c.fillRect(0, 0, W, h0);
+    c.fillStyle = mixColor([255, 150, 90], [255, 236, 170], level);
+    c.beginPath(); c.arc(sunX, sunY, R, 0, Math.PI * 2); c.fill();
+    c.drawImage(mountDawn, 0, 0);
+    c.globalAlpha = level; c.drawImage(mountDay, 0, 0);
+    c.globalAlpha = 1;
+  }
+
+  function paintWater(t, wave) {
+    const { ctx, top, W, H, h0 } = st;
+    if (wave < .012) {
+      ctx.save();
+      ctx.translate(0, 2 * h0);
+      ctx.scale(1, -1);
+      ctx.drawImage(top, 0, 0);
+      ctx.restore();
+    } else {
+      const STEP = 3, A = W * .055 * wave;
+      const stretch = A * 1.5;
+      for (let y = h0; y < H; y += STEP) {
+        const k = (y - h0) / (H - h0);
+        const amp = A * (.2 + .8 * k);
+        const dx = Math.sin(k * 26 - t * 3.2) * amp + Math.sin(k * 61 + t * 1.9) * amp * .45;
+        const sy = clamp(h0 - (y - h0) - STEP + Math.sin(k * 40 + t * 2.4) * amp * .35, 0, h0 - STEP - 1);
+        ctx.drawImage(top, 0, sy, W, STEP + 1, dx - stretch, y, W + 2 * stretch, STEP + 1);
+      }
+    }
+    const tint = ctx.createLinearGradient(0, h0, 0, H);
+    tint.addColorStop(0, 'rgba(20,40,90,.14)');
+    tint.addColorStop(1, 'rgba(14,30,76,.44)');
+    ctx.fillStyle = tint;
+    ctx.fillRect(0, h0, W, H - h0);
+    if (wave > .12) {
+      ctx.strokeStyle = `rgba(255,255,255,${(.55 * wave).toFixed(3)})`;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 18; i++) {
+        const k = (i + .5) / 18;
+        const y = h0 + k * k * (H - h0) + Math.sin(t * 1.4 + i) * 3;
+        const x = W * (.5 + .5 * Math.sin(i * 12.9 + t * .25));
+        const len = W * (.05 + .16 * k);
+        ctx.lineWidth = 1 + 2.4 * k;
+        ctx.beginPath();
+        ctx.moveTo(x - len / 2, y);
+        ctx.quadraticCurveTo(x, y - 4 - 6 * k, x + len / 2, y);
+        ctx.stroke();
+      }
+    }
+    ctx.fillStyle = 'rgba(255,255,255,.12)';
+    ctx.fillRect(0, h0 - 1, W, 2);
+  }
+
+  function paintLily(cx, cy, r, bad) {
+    const { ctx } = st;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1, .62);
+    ctx.fillStyle = '#2f9e6a';
+    ctx.beginPath(); ctx.arc(0, r * .2, r * 1.4, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 8; i++) {
+      ctx.save();
+      ctx.rotate(i * Math.PI / 4);
+      ctx.fillStyle = bad ? '#ff8d8d' : '#ffd0e4';
+      ctx.strokeStyle = bad ? '#d9505f' : '#f08cb8';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(0, -r * .62, r * .36, r * .72, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.fillStyle = '#ffd76a';
+    ctx.beginPath(); ctx.arc(0, 0, r * .32, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function paintPlayer(snap, x, y) {
+    if (!snap) return;
+    const { ctx, W, H, h0 } = st;
+    const ppc = W * PX_PER_CM;
+    const cx = W / 2, cy = h0 + (H - h0) * .42;
+    const inside = (snap.xCm * snap.xCm + snap.yCm * snap.yCm) <= snap.radiusCm * snap.radiusCm;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, snap.radiusCm * ppc, snap.radiusCm * ppc * RING_FLAT, 0, 0, Math.PI * 2);
+    ctx.lineWidth = Math.max(2, W * .004);
+    ctx.strokeStyle = inside ? 'rgba(255,255,255,.55)' : 'rgba(255,107,122,.95)';
+    ctx.stroke();
+    paintLily(cx + clamp(x, -4, 4) * ppc, cy - clamp(y, -4, 4) * ppc * RING_FLAT, W * .034, !inside);
+  }
+
+  function paintDeck(level) {
+    const { ctx, W, H } = st;
+    const yTop = H * .85;
+    const left = y => mix(W * .36, W * .2, (y - yTop) / (H - yTop));
+    ctx.fillStyle = mixColor([58, 49, 80], [154, 107, 69], level);
+    ctx.beginPath();
+    ctx.moveTo(left(yTop), yTop); ctx.lineTo(W - left(yTop), yTop); ctx.lineTo(W - left(H), H); ctx.lineTo(left(H), H);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.28)';
+    ctx.lineWidth = Math.max(1.5, W * .003);
+    [.2, .45, .72].forEach(k => {
+      const y = mix(yTop, H, k);
+      ctx.beginPath(); ctx.moveTo(left(y), y); ctx.lineTo(W - left(y), y); ctx.stroke();
+    });
+  }
+
+  function frame(now) {
+    if (!st) return;
+    if (!st.canvas.isConnected) { st = null; return; }
+    if (st.stage.clientWidth !== st.cssW) { start(); return; }
+    requestAnimationFrame(frame);
+    const dt = (now - st.last) / 1000;
+    if (dt * 1000 < FRAME_MS) return;
+    st.last = now;
+    const step = Math.min(dt, .1);
+    st.level += (breathLevel(snapNow) - st.level) * (1 - Math.exp(-step * 7));
+    const wantedWave = waveTarget(snapNow);
+    st.wave += (wantedWave - st.wave) * (1 - Math.exp(-step * (wantedWave > st.wave ? 8 : 1.1))); // s'agite vite, se calme lentement
+    if (snapNow) {
+      st.x += (snapNow.xCm - st.x) * (1 - Math.exp(-step * 14));
+      st.y += (snapNow.yCm - st.y) * (1 - Math.exp(-step * 14));
+    }
+    const t = now / 1000;
+    paintTop(st.level);
+    st.ctx.drawImage(st.top, 0, 0);
+    paintWater(t, st.wave);
+    paintPlayer(snapNow, st.x, st.y);
+    paintDeck(st.level);
+    if (st.panda) {
+      const breathe = 1 + .04 * st.level;
+      st.panda.style.transform = `translateX(-50%) rotate(${clamp(st.x * 3, -9, 9).toFixed(2)}deg) scale(${breathe.toFixed(3)})`;
+      st.panda.style.filter = `brightness(${(.72 + .28 * st.level).toFixed(3)})`;
+    }
+  }
+
+  return { start, update(snap) { snapNow = snap; } };
+})();
+
 function screenRelaxPlaying() {
   return `
     <button class="btn-ghost back-top-right game-quit">← Retour</button>
-    <div class="panda-watcher" id="relaxPandaWatcher">
-      <video id="relaxPandaHappy" class="panda-watcher-face active" autoplay loop muted playsinline>
-        <source src="${ZEN_HAPPY_VIDEO_B64}" type="video/mp4">
-      </video>
-      <video id="relaxPandaFail" class="panda-watcher-face" autoplay loop muted playsinline>
-        <source src="${ZEN_FAIL_VIDEO_B64}" type="video/mp4">
-      </video>
-    </div>
-    <div class="centered-page">
-      <div class="zone-hud" style="justify-content:center;">
-        <div class="timer" id="relaxTimer">--</div>
-      </div>
-      <div class="zone-canvas-wrap">
-        <canvas id="relaxBreathCanvas" width="300" height="300"></canvas>
-      </div>
-      <p class="page-sub" id="relaxPhaseLabel" style="text-align:center;font-size:22px;font-weight:700;color:#fff;">Installe-toi...</p>
-      <div class="zone-canvas-wrap" style="margin-top:6px;">
-        <canvas id="relaxZoneCanvas" width="180" height="180"></canvas>
-      </div>
+    <div class="lake-stage" id="lakeStage">
+      <canvas id="lakeCanvas"></canvas>
+      <div class="timer lake-timer" id="relaxTimer">--</div>
+      <div class="lake-label" id="relaxPhaseLabel">Installe-toi...</div>
+      <svg class="lake-panda" id="lakePanda" viewBox="0 0 200 190" aria-hidden="true">
+        <ellipse cx="42" cy="170" rx="34" ry="17" fill="#1c1c22"/>
+        <ellipse cx="158" cy="170" rx="34" ry="17" fill="#1c1c22"/>
+        <path d="M100 66c-44 0-70 40-70 78 0 26 30 38 70 38s70-12 70-38c0-38-26-78-70-78z" fill="#fbf8f1"/>
+        <path d="M100 64c-34 0-58 20-66 50-3 12 8 19 18 13 14-9 30-13 48-13s34 4 48 13c10 6 21-1 18-13-8-30-32-50-66-50z" fill="#1c1c22"/>
+        <ellipse cx="100" cy="168" rx="13" ry="10" fill="#e4dfd3"/>
+        <circle cx="64" cy="22" r="17" fill="#1c1c22"/>
+        <circle cx="136" cy="22" r="17" fill="#1c1c22"/>
+        <circle cx="100" cy="52" r="42" fill="#fbf8f1"/>
+      </svg>
     </div>
   `;
 }
@@ -5854,54 +6114,7 @@ function renderRelaxPlaying(snap) {
     else if (snap.breathPhase === 'hold') labelEl.textContent = 'Retiens...';
     else labelEl.textContent = 'Expire...';
   }
-
-  // anneau de respiration (visuel, ne compte pas pour l'équilibre) — au-dessus, séparé de la cible
-  const breathCanvas = document.getElementById('relaxBreathCanvas');
-  if (breathCanvas) {
-    const ctx = breathCanvas.getContext('2d');
-    const w = breathCanvas.width, h = breathCanvas.height, cx = w / 2, cy = h / 2;
-    ctx.clearRect(0, 0, w, h);
-    if (!snap.settling) {
-      const minR = 45, maxR = 130;
-      let ringR;
-      if (snap.breathPhase === 'inhale') ringR = minR + snap.breathProgress * (maxR - minR);
-      else if (snap.breathPhase === 'hold') ringR = maxR;
-      else ringR = maxR - snap.breathProgress * (maxR - minR);
-      ctx.beginPath();
-      ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(150,190,255,0.55)';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-    }
-  }
-
-  // cible d'équilibre PandaFit — séparée, en dessous du texte
-  const canvas = document.getElementById('relaxZoneCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width, h = canvas.height, cx = w / 2, cy = h / 2;
-  const pxPerCm = 26;
-  ctx.clearRect(0, 0, w, h);
-
-  const inside = (snap.xCm * snap.xCm + snap.yCm * snap.yCm) <= (snap.radiusCm * snap.radiusCm);
-  if (!inside) relaxFailUntil = performance.now() + 3000;
-  const showFail = !inside || performance.now() < relaxFailUntil;
-  document.getElementById('relaxPandaHappy')?.classList.toggle('active', !showFail);
-  document.getElementById('relaxPandaFail')?.classList.toggle('active', showFail);
-  ctx.beginPath();
-  ctx.arc(cx, cy, snap.radiusCm * pxPerCm, 0, Math.PI * 2);
-  ctx.fillStyle = inside ? 'rgba(67,206,162,0.18)' : 'rgba(230,55,78,0.10)';
-  ctx.fill();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = inside ? '#43cea2' : '#e6374e';
-  ctx.stroke();
-
-  const px = cx + snap.xCm * pxPerCm;
-  const py = cy - snap.yCm * pxPerCm;
-  ctx.beginPath();
-  ctx.arc(px, py, 10, 0, Math.PI * 2);
-  ctx.fillStyle = inside ? '#43cea2' : '#e6374e';
-  ctx.fill();
+  LakeScene.update(snap);
 }
 function screenRelaxResult(snap, score) {
   return `
