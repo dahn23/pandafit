@@ -114,10 +114,17 @@
 
   .football-pitch {
     position: relative; height: 46vh; border-radius: 20px; overflow: hidden; margin: 10px 0;
-    background: repeating-linear-gradient(180deg, #2e8b4e 0 40px, #34974f 40px 80px);
+    background: #2e8b4e;
     display: flex; align-items: center; justify-content: center;
   }
-  .football-goal-distant { position: absolute; top: 14%; width: 90px; transition: transform 0.3s linear; }
+  /* Gazon + but = une seule scène qui grandit d'un bloc : le pied du but reste toujours sur la même ligne du gazon. Le panda est hors de la scène. */
+  .football-scene { position: absolute; inset: 0; transform-origin: 50% 6%; background: repeating-linear-gradient(180deg, #2e8b4e 0 3.75%, #34974f 3.75% 7.5%); }
+  .football-goal-distant { position: absolute; left: 50%; top: 15%; width: 8%; transform: translate(-50%, -100%); }
+  /* Compteurs à droite de l'encadré du panda (sinon il les cache) */
+  .football-hud { margin-left: calc(min(46vw, 230px) + 4px); }
+  /* 2e partie : le but démarre sous l'encadré du panda */
+  .football-shoot.centered-page { justify-content: flex-start; min-height: 0; }
+  .football-shoot .zone-hud { min-height: calc(min(46vw, 230px) - 4px); align-items: flex-start; margin-bottom: 0; }
   .football-runner { position: absolute; bottom: 18%; width: 270px; height: 270px; }
   .football-runner img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; }
   .football-runner img.active { opacity: 1; }
@@ -129,13 +136,13 @@
 
   .football-goalzone-wrap { display: flex; justify-content: center; margin: 10px 0; }
   .football-goalzone {
-    position: relative; width: 100%; max-width: 480px; aspect-ratio: 900/413;
+    position: relative; width: 100%; aspect-ratio: 512/346; /* proportions de l'image : le but occupe toute la largeur */
     background-size: contain; background-repeat: no-repeat; background-position: center;
     border-radius: 14px; overflow: hidden;
   }
   .football-target {
-    position: absolute; width: 44px; height: 44px; margin-left: -22px; margin-top: -22px;
-    border-radius: 50%; background: rgba(255,255,255,0.5); border: 4px solid #e0a83e;
+    position: absolute; width: 13.5%; aspect-ratio: 1; transform: translate(-50%, -50%);
+    border-radius: 50%; background: rgba(255,255,255,0.5); border: 6px solid #e0a83e;
     transition: left 0.1s linear, top 0.1s linear, background 0.15s, border-color 0.15s;
   }
   .football-target.hit { background: rgba(67,206,162,0.7); border-color: #43cea2; }
@@ -1689,7 +1696,8 @@ const FootballGame = (() => {
   const RUN_SECONDS = 10;
   const TRANSITION_SECONDS = 3;
   const UP_THRESHOLD = 1.2; // cm, seuil pour compter un passage "en haut" (balancement avant/arrière)
-  const SHOOT_TOLERANCE = 15; // % de tolérance de tir (unités identiques à target/goalShift)
+  const SHOOT_TOLERANCE_X = 22, SHOOT_TOLERANCE_Y = 15; // tolérance de tir, en % de la largeur / hauteur du but
+  const TARGET_LIMIT_X = 42, TARGET_LIMIT_Y = 42;       // la cible reste dans le but, même quand il bouge
   const MISS_PAUSE_MS = 500;
   const PREPARE_SECONDS = 3;
 
@@ -1701,7 +1709,7 @@ const FootballGame = (() => {
   let onPhaseCb = null, onFinishCb = null;
 
   function newShootRound() {
-    s.targetRelX = (Math.random() - 0.5) * 56; // -28..28 (%)
+    s.targetRelX = (Math.random() - 0.5) * 72; // -36..36 (% de la largeur du but)
     s.targetRelY = (Math.random() - 0.5) * 30; // -15..15 (%)
     s.roundResult = null;
   }
@@ -1755,7 +1763,7 @@ const FootballGame = (() => {
         s.shootTimeLeft = s.shootSeconds;
       }
     } else if (s.phase === 'shoot') {
-      const targetShiftX = latest.x * 9;
+      const targetShiftX = latest.x * 13;
       const targetShiftY = latest.y * 9;
       s.goalShiftVX += (targetShiftX - s.goalShiftX) * 0.06 - s.goalShiftVX * 0.2;
       s.goalShiftX += s.goalShiftVX;
@@ -1773,13 +1781,14 @@ const FootballGame = (() => {
     onPhaseCb && onPhaseCb(snapshot());
   }
 
+  function clampTarget(v, limit) { return Math.max(-limit, Math.min(limit, v)); }
+  function targetX() { return clampTarget(s.targetRelX + s.goalShiftX, TARGET_LIMIT_X); }
+  function targetY() { return clampTarget(s.targetRelY + s.goalShiftY, TARGET_LIMIT_Y); }
+
   /** tapX/tapY en % relatifs au centre de la zone de but (-50..50 environ) */
   function attemptShot(tapX, tapY) {
     if (!s || s.phase !== 'shoot' || s.frozen) return;
-    const targetX = s.targetRelX + s.goalShiftX;
-    const targetY = s.targetRelY + s.goalShiftY;
-    const dist = Math.hypot(tapX - targetX, tapY - targetY);
-    const hit = dist <= SHOOT_TOLERANCE;
+    const hit = Math.hypot((tapX - targetX()) / SHOOT_TOLERANCE_X, (tapY - targetY()) / SHOOT_TOLERANCE_Y) <= 1;
     if (hit) { s.goals++; SoundFx.ready(); } else { s.misses++; SoundFx.lifeLost(); }
     s.roundResult = hit ? 'hit' : 'miss';
     s.roundResultUntil = performance.now() + MISS_PAUSE_MS;
@@ -1806,7 +1815,7 @@ const FootballGame = (() => {
       phase: s.phase, runTimeLeft: Math.max(0, s.runTimeLeft), upCount: s.upCount, pose: s.pose, runFrame: s.runFrame,
       transitionTimeLeft: Math.max(0, s.transitionTimeLeft), shootSeconds: s.shootSeconds,
       shootTimeLeft: Math.max(0, s.shootTimeLeft), goals: s.goals, misses: s.misses,
-      targetX: s.targetRelX + s.goalShiftX, targetY: s.targetRelY + s.goalShiftY,
+      targetX: targetX(), targetY: targetY(),
       roundResult: s.roundResult, frozen: s.frozen,
     };
   }
@@ -5504,7 +5513,9 @@ function wireFootballSetup() {
   document.getElementById('btnFootballStart')?.addEventListener('click', () => footballPrepareThenStart());
   document.getElementById('btnFootballBackTop')?.addEventListener('click', () => navigate('home'));
 }
+const FOOTBALL_COUNTDOWN = false; // temporaire, pour les tests de Dan : remettre à true pour retrouver le 3-2-1
 function footballPrepareThenStart() {
+  if (!FOOTBALL_COUNTDOWN) { SoundFx.go(); startFootballGame(); return; }
   let remaining = FootballGame.PREPARE_SECONDS;
   content.innerHTML = screenGenericPrepare(remaining, 'footprints', 'Prépare-toi à courir, ça démarre dans...');
   SoundFx.ready();
@@ -5581,12 +5592,12 @@ function wireFootballPandaWatcher() {
 function footballRunHTML() {
   return `
     <div class="centered-page">
-      <div class="zone-hud">
+      <div class="zone-hud football-hud">
         <div class="timer" id="fbRunTimer">10s</div>
         <div class="timer" id="fbUpCount">0 <i data-lucide="trending-up"></i></div>
       </div>
       <div class="football-pitch">
-        <img class="football-goal-distant" id="fbDistantGoal" src="${FOOTBALL_GOAL_B64}" alt="">
+        <div class="football-scene" id="fbScene"><img class="football-goal-distant" src="${FOOTBALL_GOAL_B64}" alt=""></div>
         <div class="football-runner" id="fbRunner">
           <img src="${PANDA_RUN_1_B64}" class="active" alt="">
           <img src="${PANDA_RUN_2_B64}" alt="">
@@ -5613,8 +5624,8 @@ function footballTransitionHTML(snap) {
 }
 function footballShootHTML() {
   return `
-    <div class="centered-page">
-      <div class="zone-hud">
+    <div class="centered-page football-shoot">
+      <div class="zone-hud football-hud">
         <div class="timer" id="fbGoalsCount" style="font-size:32px;">0 but</div>
         <div class="timer" id="fbShootTimer">--</div>
       </div>
@@ -5661,17 +5672,14 @@ function renderFootballPlaying(snap) {
     const timerEl = document.getElementById('fbRunTimer');
     const upEl = document.getElementById('fbUpCount');
     const runner = document.getElementById('fbRunner');
-    const distantGoal = document.getElementById('fbDistantGoal');
+    const scene = document.getElementById('fbScene');
     const marker = document.getElementById('fbVGaugeMarker');
     if (timerEl) timerEl.textContent = `${Math.ceil(snap.runTimeLeft)}s`;
     if (upEl) upEl.innerHTML = `${snap.upCount} <i data-lucide="trending-up"></i>`;
     if (runner) {
       runner.querySelectorAll('img').forEach((img, i) => img.classList.toggle('active', i === snap.runFrame));
     }
-    if (distantGoal) {
-      const scale = 0.5 + (1 - snap.runTimeLeft / 10) * 1.3;
-      distantGoal.style.transform = `scale(${scale.toFixed(2)})`;
-    }
+    if (scene) scene.style.transform = `scale(${(1 + (1 - snap.runTimeLeft / 10) * 3).toFixed(3)})`;
     if (marker) marker.style.top = `${50 - Math.max(-40, Math.min(40, (snap.pose === 'up' ? 30 : -30)))}%`;
     scoreEl?.classList.remove('active'); missEl?.classList.remove('active');
   } else if (snap.phase === 'shoot') {
