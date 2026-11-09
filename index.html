@@ -120,6 +120,20 @@
   .game-hud .timer { font-size: 26px; color: #fff; background: rgba(10,14,50,.5); padding: 4px 14px; border-radius: 999px; display: flex; align-items: center; gap: 6px; line-height: 1.2; }
   .game-hud .timer svg { width: 22px; height: 22px; }
   .game-hud, .game-hint { pointer-events: none; }
+  .ski-intro { position: absolute; left: 0; right: 0; top: 20%; text-align: center; pointer-events: none; transform: skewY(-3deg); animation: skiWarnIn .3s ease-out; }
+  .ski-intro.go { animation: skiIntroOut .75s ease-in forwards; }
+  .ski-intro-row { display: flex; align-items: center; justify-content: center; gap: 34px; }
+  .ski-intro-num { min-width: 190px; font-size: 136px; font-weight: 900; font-style: italic; line-height: 1.05; color: #fff; text-shadow: 0 0 26px rgba(255,196,0,.8); }
+  .ski-intro-num.tick { animation: skiTick .4s cubic-bezier(.2,1.5,.4,1); }
+  .ski-arrow { width: 128px; height: auto; fill: #ffc400; filter: drop-shadow(0 0 12px rgba(255,180,0,.75)); }
+  .ski-arrow.left { animation: skiArrowL .75s ease-in-out infinite alternate; }
+  .ski-arrow.right { animation: skiArrowR .75s ease-in-out infinite alternate; }
+  .ski-intro-t { font-size: 48px; white-space: nowrap; }
+  .ski-intro .ski-warn-s { font-size: 28px; white-space: nowrap; }
+  @keyframes skiTick { from { transform: scale(2.1); opacity: .2; } to { transform: scale(1); opacity: 1; } }
+  @keyframes skiArrowL { from { transform: translateX(10px); opacity: 1; } to { transform: translateX(-16px); opacity: .55; } }
+  @keyframes skiArrowR { from { transform: translateX(16px); opacity: .55; } to { transform: translateX(-10px); opacity: 1; } }
+  @keyframes skiIntroOut { 0%, 45% { opacity: 1; transform: skewY(-3deg) scale(1); } 100% { opacity: 0; transform: skewY(-3deg) scale(1.35); } }
   .ski-warn { position: absolute; left: 0; right: 0; top: 33%; text-align: center; pointer-events: none; opacity: 0; transform: skewY(-3deg); }
   .ski-warn.show { opacity: 1; animation: skiWarnIn .25s ease-out, skiWarnPulse .5s ease-in-out .25s infinite alternate; }
   .ski-warn-box { display: inline-block; min-width: 76%; padding: 16px 28px 18px; background: rgba(12,12,22,.9); border-top: 8px solid; border-bottom: 8px solid; border-image: repeating-linear-gradient(-45deg, #ffc400 0 22px, #14141f 22px 44px) 8; }
@@ -2345,7 +2359,10 @@ const SlalomGame = (() => {
     return Math.max(0, Math.round(2400 - snap.elapsedMs / 1000 * 15));
   }
 
-  return { start, finish, abort, computeScore, PREPARE_SECONDS };
+  /** La piste telle qu'elle sera au départ (pendant le décompte) */
+  function preview() { reset(); return snapshot(performance.now()); }
+
+  return { start, finish, abort, computeScore, preview, PREPARE_SECONDS };
 })();
 
 /* =====================================================================================
@@ -2911,6 +2928,8 @@ const UI_DICT_ROWS = [
   ["Prépare-toi, ça démarre dans...", "Mach dich bereit, es geht los in...", "Get ready, starting in...", "Preparati, si parte tra..."],
   // Slalom
   ["Balance le plateau de gauche à droite, à ton rythme : chaque balancement fait passer une porte. Plus tu es régulier, plus le panda va vite, mais les balancements trop petits coûtent 3 secondes.", "Schwinge die Plattform in deinem Rhythmus von links nach rechts: Jeder Schwung bringt dich durch ein Tor. Je regelmässiger du bist, desto schneller fährt der Panda, aber zu kleine Schwünge kosten 3 Sekunden.", "Swing the platform from left to right at your own pace: each swing takes you through a gate. The steadier you are, the faster the panda goes, but swings that are too small cost 3 seconds.", "Fai oscillare la piattaforma da sinistra a destra, al tuo ritmo: ogni oscillazione ti fa passare una porta. Più sei regolare, più il panda va veloce, ma le oscillazioni troppo piccole costano 3 secondi."],
+  ["GAUCHE - DROITE", "LINKS - RECHTS", "LEFT - RIGHT", "SINISTRA - DESTRA"],
+  ["Grands balancements, bien réguliers !", "Grosse, gleichmässige Schwünge!", "Big, steady swings!", "Grandi oscillazioni, ben regolari!"],
   ["TROP PETIT !", "ZU KLEIN!", "TOO SMALL!", "TROPPO PICCOLO!"],
   ["Balance plus large !", "Schwinge weiter!", "Swing wider!", "Oscilla di più!"],
   ["PÉNALITÉ", "STRAFE", "PENALTY", "PENALITÀ"],
@@ -5171,23 +5190,35 @@ function wireSkiSetup() {
   document.getElementById('btnSkiStart')?.addEventListener('click', () => skiPrepareThenStart());
   document.getElementById('btnSkiBackTop')?.addEventListener('click', () => navigate('home'));
 }
-function skiPrepareThenStart() {
-  let remaining = SlalomGame.PREPARE_SECONDS;
-  content.innerHTML = `<div style="${SKI_THEME}">${screenGenericPrepare(remaining, 'mountain-snow', 'Prépare-toi, la descente démarre dans...')}</div>`;
-  SoundFx.ready();
-  const timer = setInterval(() => {
-    remaining--;
-    const el = document.getElementById('genericPrepareNum');
-    if (remaining <= 0) { clearInterval(timer); SoundFx.go(); startSkiGame(); }
-    else if (el) el.textContent = remaining;
-  }, 1000);
-}
+function skiPrepareThenStart() { startSkiGame(); }
 function startSkiGame() {
   skiFinished = false;
   content.innerHTML = `<div style="${SKI_THEME}">${screenSkiPlaying()}</div>`;
   document.getElementById('skiPandaBof')?.play().catch(() => {});
   document.getElementById('skiPandaContent')?.play().catch(() => {});
-  requestAnimationFrame(() => SkiScene.start());
+  requestAnimationFrame(() => { SkiScene.start(); SkiScene.update(SlalomGame.preview()); });
+  // Décompte sur la piste : le chrono ne part qu'au GO
+  let remaining = SlalomGame.PREPARE_SECONDS;
+  SoundFx.ready();
+  const timer = setInterval(() => {
+    const num = document.getElementById('skiIntroNum');
+    if (!num) { clearInterval(timer); return; } // le joueur a quitté pendant le décompte
+    remaining--;
+    if (remaining > 0) {
+      num.textContent = remaining;
+      num.classList.remove('tick'); void num.offsetWidth; num.classList.add('tick');
+      SoundFx.ready();
+      return;
+    }
+    clearInterval(timer);
+    num.textContent = 'GO !';
+    num.classList.remove('tick'); void num.offsetWidth; num.classList.add('tick');
+    document.getElementById('skiIntro')?.classList.add('go');
+    SoundFx.go();
+    runSkiGame();
+  }, 1000);
+}
+function runSkiGame() {
   activeGameModule = SlalomGame;
   SlalomGame.start(
     (snap) => renderSkiPlaying(snap),
@@ -5852,6 +5883,15 @@ function screenSkiPlaying() {
       <div class="game-hint" id="skiHint">Balance le plateau de gauche à droite, à ton rythme.</div>
       <div class="ski-reg"><i data-lucide="activity"></i><div class="ski-reg-bar"><div id="skiRegFill"></div></div></div>
       <div class="stadium-flash" id="skiFlash"></div>
+      <div class="ski-intro" id="skiIntro"><div class="ski-warn-box">
+        <div class="ski-intro-row">
+          <svg class="ski-arrow left" viewBox="0 0 100 70" aria-hidden="true"><path d="M4 35 40 4v18h56v26H40v18z"/></svg>
+          <div class="ski-intro-num tick" id="skiIntroNum">3</div>
+          <svg class="ski-arrow right" viewBox="0 0 100 70" aria-hidden="true"><path d="M96 35 60 4v18H4v26h56v18z"/></svg>
+        </div>
+        <div class="ski-warn-t ski-intro-t">GAUCHE - DROITE</div>
+        <div class="ski-warn-s">Grands balancements, bien réguliers !</div>
+      </div></div>
       <div class="ski-warn" id="skiWarn"><div class="ski-warn-box">
         <div class="ski-warn-t">TROP PETIT !</div>
         <div class="ski-warn-s">Balance plus large !</div>
