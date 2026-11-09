@@ -120,6 +120,10 @@
   .game-hud .timer { font-size: 26px; color: #fff; background: rgba(10,14,50,.5); padding: 4px 14px; border-radius: 999px; display: flex; align-items: center; gap: 6px; line-height: 1.2; }
   .game-hud .timer svg { width: 22px; height: 22px; }
   .game-hud, .game-hint { pointer-events: none; }
+  .ski-reg { position: absolute; top: 134px; left: calc(min(46vw, 230px) + 12px); right: 14px; display: flex; align-items: center; gap: 10px; color: #fff; background: rgba(10,14,50,.62); padding: 8px 14px; border-radius: 14px; pointer-events: none; box-sizing: border-box; }
+  .ski-reg svg { width: 24px; height: 24px; flex: none; }
+  .ski-reg-bar { position: relative; flex: 1; height: 12px; border-radius: 6px; background: rgba(255,255,255,.26); overflow: hidden; }
+  .ski-reg-bar div { position: absolute; left: 0; top: 0; bottom: 0; width: 0; transition: width .25s ease-out; }
   .game-hud .hearts { flex: none; display: flex; align-items: center; gap: 4px; letter-spacing: 0; line-height: 0; background: rgba(6,8,30,.78); padding: 6px 12px; border-radius: 999px; }
   .game-hud .hearts:empty { display: none; }
   .game-hud .hearts svg { width: 40px; height: 40px; }
@@ -2160,21 +2164,19 @@ const MigrosGame = (() => {
 
 /* =====================================================================================
    JEU : SLALOM — échauffement au ski sur le plateau suspendu (balance in motion).
-   Chaque balancement détecté = un virage du panda et une porte, au rythme du joueur.
-   L'ampleur demandée est relative à la sienne : elle part petite, monte jusqu'à une limite,
-   et revient facile (avec recalibration) après une porte ratée.
+   Chaque balancement détecté = un virage du panda et une porte, à l'ampleur du joueur.
+   Le but : être régulier. Plus le rythme est régulier, plus on avance à chaque balancement,
+   donc plus on atteint vite l'arrivée (contre-la-montre sur une distance fixe).
    ===================================================================================== */
 const SlalomGame = (() => {
   const PREPARE_SECONDS = 3;
-  const WARM_GATES = 2, RACE_GATES = 30;      // 2 portes d'essai (calibration), puis la vraie descente
-  const PEAKS_PER_GATE = 3;                   // un piquet tous les 3 balancements : le temps de voir venir (et les côtés alternent)
-  const GATES = WARM_GATES + RACE_GATES;
+  const WARM_SWINGS = 4;                      // premiers balancements : calage de l'ampleur et du rythme
+  const DISTANCE = 42;                        // longueur de la piste
+  const STEP_SLOW = 0.42, STEP_FAST = 0.9;    // chemin parcouru par balancement : plus c'est régulier, plus on avance
   const X_SIGN = 1;                           // sens du panda : mettre -1 si le plateau et le panda vont à l'opposé
   const H_MIN = 0.3, H_MAX = 0.5, H_REL = 0.25; // retour minimal pour valider un balancement (ignore les petites secousses)
   const SWING_MIN = 0.6;                      // en dessous, ce n'est pas un balancement
-  const REF_START = 1.6, REF_MIN = 1, REF_MAX = 6; // ampleur de référence du joueur (calibrée sur ses balancements)
-  const REQ_MIN = 0.5, REQ_MAX = 2.5;         // ampleur demandée : jamais trop grande
-  const F_WARM = 0.35, F_START = 0.5, F_STEP = 0.05, F_MAX = 0.9; // part de son ampleur à atteindre : monte petit à petit
+  const REF_START = 1.6, REF_MIN = 1, REF_MAX = 6;
   const IDLE_S = 3, RUNOUT_MS = 2200, MAX_MS = 150000;
 
   let s = null, latestX = 0, tickTimer = null, onFrameCb = null, onFinishCb = null;
@@ -2185,52 +2187,48 @@ const SlalomGame = (() => {
     const a = [...list].sort((p, q) => p - q);
     return a[Math.floor(a.length / 2)];
   };
-
-  function reset() {
-    s = {
-      running: true, startedAt: performance.now(), elapsedMs: 0, base: null, v: 0, dir: 0, ext: 0, lastVal: null,
-      ref: REF_START, f: F_START, amps: [], intervals: [], lastPeakAt: 0, lastSide: -1, peakSeq: 0,
-      peakCount: 0, gateIdx: 0, passed: 0, misses: 0, streak: 0, results: [], missUntil: 0, finished: false, finishAt: 0, lastTickAt: performance.now(),
-    };
-    s.lastPeakAt = s.startedAt;
+  /** Variation relative d'une série : 0 = parfaitement constant */
+  function variation(list) {
+    const mean = list.reduce((a, b) => a + b, 0) / list.length;
+    if (!mean) return 1;
+    return Math.sqrt(list.reduce((a, b) => a + (b - mean) * (b - mean), 0) / list.length) / mean;
   }
 
-  const required = () => Math.max(REQ_MIN, Math.min(REQ_MAX, s.f * s.ref));
-  const clampRef = v => Math.max(REF_MIN, Math.min(REF_MAX, v));
+  function reset() {
+    const now = performance.now();
+    s = {
+      running: true, startedAt: now, elapsedMs: 0, base: null, v: 0, dir: 0, ext: 0, lastVal: null,
+      ref: REF_START, amps: [], intervals: [], lastPeakAt: now, lastSide: -1, peakSeq: 0, swings: 0,
+      world: 0, step: STEP_SLOW, reg: 0, regSum: 0, regCount: 0, results: [],
+      finished: false, finishAt: 0, finishWorld: 0, lastTickAt: now,
+    };
+  }
+
+  /** Régularité (0..1) sur les derniers balancements : surtout le rythme, un peu l'ampleur */
+  function regularity() {
+    if (s.intervals.length < 4) return 0;
+    return Math.max(0, Math.min(1, 1 - variation(s.intervals) / 0.45 * 0.65 - variation(s.amps) / 0.6 * 0.35));
+  }
 
   function onSwing(side, val, now) {
     const amp = s.lastVal == null ? Math.abs(val) * 2 : Math.abs(val - s.lastVal);
     s.lastVal = val;
     if (amp < SWING_MIN || s.finished) return;
-    s.intervals.push(now - s.lastPeakAt);
-    if (s.intervals.length > 6) s.intervals.shift();
+    if (s.swings > 0) { s.intervals.push(now - s.lastPeakAt); if (s.intervals.length > 6) s.intervals.shift(); }
     s.lastPeakAt = now;
     s.amps.push(amp);
     if (s.amps.length > 6) s.amps.shift();
+    s.ref = Math.max(REF_MIN, Math.min(REF_MAX, median(s.amps))); // l'ampleur à l'écran suit toujours celle du joueur
     s.lastSide = side;
     s.peakSeq++;
-    s.peakCount++;
-    if (s.peakCount < PEAKS_PER_GATE) return;
-    s.peakCount = 0;
 
-    const i = s.gateIdx;
-    if (i < WARM_GATES) {
-      s.results[i] = { pass: true, warm: true, side };
-      s.gateIdx++;
-      if (s.gateIdx === WARM_GATES) s.ref = clampRef(median(s.amps)); // calibration sur ses premiers balancements
-    } else {
-      const pass = amp >= required();
-      s.results[i] = { pass, side };
-      s.gateIdx++;
-      if (pass) { s.passed++; s.streak++; s.f = Math.min(F_MAX, s.f + F_STEP); }
-      else {
-        // Raté : on repart avec des portes faciles, recalibrées sur le mouvement du moment
-        s.misses++; s.streak = 0; s.f = F_START;
-        s.ref = clampRef(amp);
-        s.missUntil = now + 1800;
-      }
-    }
-    if (s.gateIdx >= GATES) { s.finished = true; s.finishAt = now; SoundFx.finish(); }
+    s.world += s.step;
+    s.results.push({ world: s.world, side, i: s.swings });
+    s.swings++;
+    s.reg = regularity();
+    if (s.swings > WARM_SWINGS) { s.regSum += s.reg; s.regCount++; }
+    s.step = STEP_SLOW + (STEP_FAST - STEP_SLOW) * s.reg;
+    if (s.world >= DISTANCE) { s.finished = true; s.finishAt = now; s.finishWorld = s.world; SoundFx.finish(); }
   }
 
   function detect(now) {
@@ -2264,8 +2262,8 @@ const SlalomGame = (() => {
     s.base += (latestX - s.base) * (1 - Math.exp(-dt / 5)); // le centre du balancement suit doucement la position
     s.v += ((latestX - s.base) - s.v) * 0.45;
     detect(now);
-    if (!s.finished && s.gateIdx >= WARM_GATES && now - s.lastPeakAt > IDLE_S * 1000 && (s.ref > REF_MIN || s.f > F_START)) {
-      s.ref = REF_MIN; s.f = F_START; s.streak = 0; s.lastVal = null; s.dir = 0;
+    if (!s.finished && (now - s.lastPeakAt) / 1000 > IDLE_S && s.reg > 0) {
+      s.reg = 0; s.step = STEP_SLOW; s.intervals = []; s.lastVal = null; s.dir = 0; // repart en douceur après un arrêt
     }
     if ((s.finished && now - s.finishAt > RUNOUT_MS) || s.elapsedMs > MAX_MS) { finish(); return; }
     onFrameCb && onFrameCb(snapshot(now));
@@ -2288,36 +2286,28 @@ const SlalomGame = (() => {
   function snapshot(now) {
     const idle = !s.finished && (now - s.lastPeakAt) / 1000 > IDLE_S;
     const half = Math.max(250, median(s.intervals) || 700);
-    const progress = s.finished
-      ? GATES + Math.min(1, (now - s.finishAt) / RUNOUT_MS) * 2.4
-      : s.gateIdx + Math.min(0.97, (s.peakCount + Math.min(0.92, (now - s.lastPeakAt) / half)) / PEAKS_PER_GATE);
-    let reg = 0;
-    if (s.intervals.length >= 3) {
-      const mean = s.intervals.reduce((a, b) => a + b, 0) / s.intervals.length;
-      const sd = Math.sqrt(s.intervals.reduce((a, b) => a + (b - mean) * (b - mean), 0) / s.intervals.length);
-      reg = Math.max(0, 1 - (sd / mean) / 0.5);
-    }
-    const speedKmh = idle ? 12 : Math.round(28 + Math.min(s.streak, 14) / 14 * 24 + reg * 14);
-    // Écart des prochaines portes, en part de l'ampleur du joueur (l'affichage suit l'ampleur demandée)
-    const ahead = [];
-    for (let k = 0; k < 11; k++) {
-      const idx = s.gateIdx + k;
-      if (idx < WARM_GATES) { ahead.push(F_WARM); continue; }
-      const f = Math.min(F_MAX, s.f + F_STEP * (idx - Math.max(s.gateIdx, WARM_GATES)));
-      ahead.push(Math.max(REQ_MIN, Math.min(REQ_MAX, f * s.ref)) / s.ref);
+    const world = s.finished
+      ? s.finishWorld + Math.min(1, (now - s.finishAt) / RUNOUT_MS) * 2.4
+      : s.world + Math.min(0.92, (now - s.lastPeakAt) / half) * s.step;
+    // Portes déjà passées encore visibles + prochaines portes, une par balancement
+    const gatesView = s.results.slice(-3).map(r => ({ world: r.world, side: r.side, i: r.i, warm: r.i < WARM_SWINGS }));
+    if (!s.finished) {
+      for (let k = 1; k <= 14; k++) {
+        const w = s.world + k * s.step;
+        if (w >= DISTANCE - .3) break;
+        gatesView.push({ world: w, side: k % 2 ? -s.lastSide : s.lastSide, i: s.swings + k - 1, warm: s.swings + k - 1 < WARM_SWINGS });
+      }
     }
     return {
-      elapsedMs: s.elapsedMs, progress, gateIdx: s.gateIdx, gates: GATES, warmGates: WARM_GATES, totalGates: RACE_GATES,
-      passed: s.passed, misses: s.misses, streak: s.streak, speedKmh, idle, finished: s.finished, results: s.results,
-      nextSide: (PEAKS_PER_GATE - s.peakCount) % 2 ? -s.lastSide : s.lastSide, ahead, peakSeq: s.peakSeq, lastSide: s.lastSide,
+      elapsedMs: s.elapsedMs, world, distance: DISTANCE, gatesView, peakSeq: s.peakSeq, lastSide: s.lastSide,
+      reg: s.reg, regPct: s.regCount ? Math.round(s.regSum / s.regCount * 100) : 0,
+      speedKmh: idle ? 12 : Math.round(25 + s.reg * 45), idle, finished: s.finished, warming: s.swings < WARM_SWINGS,
       lateral: X_SIGN * Math.max(-1.25, Math.min(1.25, s.v / (s.ref / 2))),
-      warming: s.gateIdx < WARM_GATES, justMissed: now < s.missUntil,
     };
   }
 
   function computeScore(snap) {
-    const seconds = snap.elapsedMs / 1000;
-    return Math.max(0, Math.round(snap.passed * 70 + Math.max(0, (120 - seconds) * 3)));
+    return Math.max(0, Math.round(2400 - snap.elapsedMs / 1000 * 15));
   }
 
   return { start, finish, abort, computeScore, PREPARE_SECONDS };
@@ -2885,14 +2875,13 @@ const UI_DICT_ROWS = [
   ["Nombre de sucreries", "Süssigkeiten", "Sweets", "Dolciumi"],
   ["Prépare-toi, ça démarre dans...", "Mach dich bereit, es geht los in...", "Get ready, starting in...", "Preparati, si parte tra..."],
   // Slalom
-  ["Balance le plateau de gauche à droite, à ton rythme : chaque balancement fait virer le panda. Les premières portes sont faciles, puis elles s'écartent peu à peu.", "Schwinge die Plattform in deinem Rhythmus von links nach rechts: Jeder Schwung lässt den Panda abbiegen. Die ersten Tore sind leicht, dann rücken sie nach und nach auseinander.", "Swing the platform from left to right at your own pace: each swing makes the panda turn. The first gates are easy, then they gradually spread out.", "Fai oscillare la piattaforma da sinistra a destra, al tuo ritmo: ogni oscillazione fa curvare il panda. Le prime porte sono facili, poi si allargano poco a poco."],
+  ["Balance le plateau de gauche à droite, à ton rythme : chaque balancement fait passer une porte. Pas besoin de grands mouvements : plus tu es régulier, plus le panda va vite.", "Schwinge die Plattform in deinem Rhythmus von links nach rechts: Jeder Schwung bringt dich durch ein Tor. Grosse Bewegungen sind nicht nötig: Je regelmässiger du bist, desto schneller fährt der Panda.", "Swing the platform from left to right at your own pace: each swing takes you through a gate. No need for big movements: the steadier you are, the faster the panda goes.", "Fai oscillare la piattaforma da sinistra a destra, al tuo ritmo: ogni oscillazione ti fa passare una porta. Non servono grandi movimenti: più sei regolare, più il panda va veloce."],
   ["Balance le plateau de gauche à droite, à ton rythme.", "Schwinge die Plattform in deinem Rhythmus von links nach rechts.", "Swing the platform from left to right at your own pace.", "Fai oscillare la piattaforma da sinistra a destra, al tuo ritmo."],
-  ["Passe à l'extérieur de chaque piquet, sur le rond jaune.", "Fahre aussen um jede Stange, über den gelben Kreis.", "Pass outside each pole, over the yellow circle.", "Passa all'esterno di ogni palo, sul cerchio giallo."],
+  ["Reste régulier : plus tu es régulier, plus tu vas vite.", "Bleib regelmässig: Je regelmässiger, desto schneller.", "Stay steady: the steadier you are, the faster you go.", "Resta regolare: più sei regolare, più vai veloce."],
+  ["Régularité", "Regelmässigkeit", "Steadiness", "Regolarità"],
   ["Balance le plateau un peu plus franchement.", "Schwinge die Plattform etwas deutlicher.", "Swing the platform a little more firmly.", "Fai oscillare la piattaforma con più decisione."],
-  ["Pas grave, on repart plus facile.", "Kein Problem, es geht leichter weiter.", "No problem, it gets easier again.", "Non importa, si riparte più facile."],
   ["Bravo, tu y es presque !", "Bravo, du bist fast da!", "Well done, you're almost there!", "Bravo, ci sei quasi!"],
   ["Arrivée !", "Ziel!", "Finish!", "Arrivo!"],
-  ["Portes", "Tore", "Gates", "Porte"],
   ["Prépare-toi, la descente démarre dans...", "Mach dich bereit, die Abfahrt startet in...", "Get ready, the run starts in...", "Preparati, la discesa parte tra..."],
   ["zone d'arrivée", "Zielbereich", "finish area", "zona d'arrivo"],
   ["Ligne franchie !", "Ziel erreicht!", "Finish line crossed!", "Traguardo tagliato!"],
@@ -5130,7 +5119,7 @@ function screenSkiSetup() {
     <div class="game-setup" style="${SKI_THEME}">
       <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="mountain-snow"></i> Slalom Réflexe</h1>
       ${gameVideoBigHTML(SKI_WELCOME_VIDEO_B64)}
-      <p class="page-sub">Balance le plateau de gauche à droite, à ton rythme : chaque balancement fait virer le panda. Les premières portes sont faciles, puis elles s'écartent peu à peu.</p>
+      <p class="page-sub">Balance le plateau de gauche à droite, à ton rythme : chaque balancement fait passer une porte. Pas besoin de grands mouvements : plus tu es régulier, plus le panda va vite.</p>
       <button class="btn-primary" id="btnSkiStart" style="width:100%;">${t('game_start_btn')}</button>
 <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
     ${gameInfoHTML('skiprev')}
@@ -5166,7 +5155,7 @@ function startSkiGame() {
     (snap) => {
       activeGameModule = null;
       const score = SlalomGame.computeScore(snap);
-      PandaFitBackend.recordSession(clientConfig, 'skiprev', score, { elapsedMs: Math.round(snap.elapsedMs), passed: snap.passed, misses: snap.misses }).then(submitPendingAnswersIfAny).then(() => refreshHighlights()); // attend l'enregistrement réel avant de rafraîchir, sinon on lit encore l'ancienne donnée
+      PandaFitBackend.recordSession(clientConfig, 'skiprev', score, { elapsedMs: Math.round(snap.elapsedMs), regPct: snap.regPct }).then(submitPendingAnswersIfAny).then(() => refreshHighlights()); // attend l'enregistrement réel avant de rafraîchir, sinon on lit encore l'ancienne donnée
       maybeShowArcadePrompt('skiprev', score);
       content.innerHTML = `<div style="${SKI_THEME}">${screenSkiResult(snap, score)}</div>`; wireSkiResult();
     }
@@ -5177,6 +5166,7 @@ const SkiScene = (() => {
   const HORIZON = 0.3, PANDA_Y = 0.66, D0 = 1.7;   // ligne d'horizon, position du panda, recul de la caméra
   const TURN = 30;                                 // ampleur du virage à l'écran (en % de la largeur) pour un balancement normal
   const EDGE = 50;
+  const POLE = 13;                                 // écart du piquet : toujours à l'intérieur du virage du panda
   let st = null, snap = null, lastSeq = 0;
 
   const mix = (a, b, t) => a + (b - a) * t;
@@ -5454,33 +5444,16 @@ const SkiScene = (() => {
     ctx.drawImage(trees[variant % trees.length], p.x - w / 2, p.y - h, w, h);
   }
 
-  /** Un piquet de slalom : on doit passer du côté extérieur, là où le fanion flotte */
-  function drawGate(i, side, f, state, t) {
+  /** Un piquet de slalom : le panda le contourne par l'extérieur à chaque balancement */
+  function drawGate(g, t) {
     const { ctx, U } = st;
-    const sg = i + 1;
-    if (sg < st.s - .3) return; // une fois dépassé, le piquet disparaît (il ne traverse pas le panda)
-    const poleX = side * Math.max(9, f * TURN - 8);
-    const base = project(sg, poleX);
+    if (g.world < st.s - .3) return; // une fois dépassé, le piquet disparaît (il ne traverse pas le panda)
+    const base = project(g.world, g.side * POLE);
     if (!base) return;
     const h = U * 27 * base.P;
-    const warm = i < snap.warmGates;
-    const raw = i % 2 ? '#1565c0' : '#d7263d';
-    const color = state === 'miss' ? '#9aa3ae' : warm ? '#8092aa' : raw;
-    const isNext = i === snap.gateIdx && !state;
-
-    if (isNext) {
-      // l'endroit où passer, à l'extérieur du piquet
-      const target = project(sg, side * (f * TURN + 5));
-      if (target) {
-        const pulse = .55 + .45 * Math.sin(t * 6);
-        ctx.strokeStyle = `rgba(255,190,40,${(.5 + pulse * .5).toFixed(3)})`;
-        ctx.lineWidth = Math.max(2, U * .55 * target.P);
-        ctx.fillStyle = `rgba(255,205,70,${(.22 + pulse * .14).toFixed(3)})`;
-        ctx.beginPath(); ctx.ellipse(target.x, target.y, U * 8 * target.P, U * 2.5 * target.P, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      }
-    }
+    const color = g.warm ? '#8092aa' : (g.i % 2 ? '#1565c0' : '#d7263d');
     ctx.fillStyle = 'rgba(70,100,140,.3)';
-    ctx.beginPath(); ctx.ellipse(base.x - side * 0, base.y, U * 1.6 * base.P, U * .5 * base.P, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(base.x, base.y, U * 1.6 * base.P, U * .5 * base.P, 0, 0, Math.PI * 2); ctx.fill();
     const pole = ctx.createLinearGradient(base.x - U * .5 * base.P, 0, base.x + U * .5 * base.P, 0);
     pole.addColorStop(0, color); pole.addColorStop(.45, '#ffffff'); pole.addColorStop(1, color);
     ctx.strokeStyle = pole;
@@ -5488,18 +5461,17 @@ const SkiScene = (() => {
     ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(base.x, base.y - h); ctx.stroke();
     ctx.lineCap = 'butt';
-    // fanion, côté extérieur
     const fw = U * 12 * base.P, fh = h * .34, top = base.y - h * .98;
-    const wave = Math.sin(t * 7 + i) * U * .9 * base.P;
-    ctx.fillStyle = state === 'ok' ? '#2fb37c' : color;
+    const wave = Math.sin(t * 7 + g.i) * U * .9 * base.P;
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(base.x, top);
-    ctx.quadraticCurveTo(base.x + side * fw * .5, top + wave, base.x + side * fw, top + wave * .4);
-    ctx.lineTo(base.x + side * fw, top + fh + wave * .4);
-    ctx.quadraticCurveTo(base.x + side * fw * .5, top + fh + wave, base.x, top + fh);
+    ctx.quadraticCurveTo(base.x + g.side * fw * .5, top + wave, base.x + g.side * fw, top + wave * .4);
+    ctx.lineTo(base.x + g.side * fw, top + fh + wave * .4);
+    ctx.quadraticCurveTo(base.x + g.side * fw * .5, top + fh + wave, base.x, top + fh);
     ctx.closePath(); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,.3)';
-    ctx.fillRect(Math.min(base.x, base.x + side * fw), top + fh * .42 + wave * .3, fw, fh * .14);
+    ctx.fillRect(Math.min(base.x, base.x + g.side * fw), top + fh * .42 + wave * .3, fw, fh * .14);
   }
 
   function drawFinish(sf) {
@@ -5586,7 +5558,7 @@ const SkiScene = (() => {
   function paint(step, t) {
     if (!snap) { st.ctx.drawImage(st.sky, 0, 0); paintGround(t); paintPanda(st.W / 2, t); return; }
     const { ctx, W, U } = st;
-    st.s += (snap.progress - st.s) * (1 - Math.exp(-step * 11));
+    st.s += (snap.world - st.s) * (1 - Math.exp(-step * 11));
     st.prevLat = st.lat;
     st.lat += (snap.lateral - st.lat) * (1 - Math.exp(-step * 15));
     const pandaXU = st.lat * TURN;
@@ -5601,7 +5573,7 @@ const SkiScene = (() => {
     paintTrail();
 
     // du plus loin au plus près : sapins, public, portes
-    const finishS = snap.gates + 2.2;
+    const finishS = snap.distance;
     const items = [];
     for (let k = -3; k < 26; k++) {
       const sk = Math.floor(st.s / .7) * .7 + k * .7;
@@ -5612,7 +5584,7 @@ const SkiScene = (() => {
       }]);
     }
     for (let k = 0; k < 24; k++) {
-      const sc = snap.gates - 5 + k * .5;
+      const sc = snap.distance - 7 + k * .5;
       if (sc > finishS - .2 || sc < st.s - 1.2) continue;
       items.push([sc + .01, () => {
         [-1, 1].forEach(side => {
@@ -5623,16 +5595,7 @@ const SkiScene = (() => {
         });
       }]);
     }
-    const from = Math.max(0, Math.floor(st.s) - 1), to = Math.min(snap.gates - 1, Math.floor(st.s) + 10);
-    for (let i = from; i <= to; i++) {
-      const done = snap.results[i];
-      const k = i - snap.gateIdx;
-      const target = done ? (st.gateF[i] ?? .5) : snap.ahead[Math.max(0, k)] ?? .5;
-      st.gateF[i] = st.gateF[i] == null ? target : st.gateF[i] + (target - st.gateF[i]) * (1 - Math.exp(-step * 10));
-      const side = done ? done.side : snap.nextSide * (k % 2 ? -1 : 1);
-      const state = done ? (done.pass ? 'ok' : 'miss') : '';
-      items.push([i + 1, () => drawGate(i, side, st.gateF[i], state, t)]);
-    }
+    snap.gatesView.forEach(g => items.push([g.world, () => drawGate(g, t)]));
     items.push([finishS, () => drawFinish(finishS)]);
     items.sort((a, b) => b[0] - a[0]).forEach(([, draw]) => draw());
 
@@ -5648,7 +5611,7 @@ const SkiScene = (() => {
     const hz = Math.round(g.H * HORIZON);
     snap = null; lastSeq = 0;
     st = {
-      ...g, hz, py: g.H * PANDA_Y, s: 0, lat: 0, prevLat: 0, trail: [], spray: [], gateF: [],
+      ...g, hz, py: g.H * PANDA_Y, s: 0, lat: 0, prevLat: 0, trail: [], spray: [],
       sky: layerCanvas(g.W, hz, paintBackdrop),
       trees: [5, 13, 27].map(v => layerCanvas(200, 300, paintTreeVariant(v))),
       crowd: layerCanvas(320, 134, paintCrowd),
@@ -5674,11 +5637,11 @@ function screenSkiPlaying() {
     <div class="game-stage" id="skiStage">
       <canvas id="skiCanvas"></canvas>
       <div class="game-hud">
-        <div class="timer"><i data-lucide="flag"></i><span id="skiGates">0/30</span></div>
         <div class="timer"><span id="skiSpeed">0</span> km/h</div>
         <div class="timer" id="skiTime">0:00.0</div>
       </div>
       <div class="game-hint" id="skiHint">Balance le plateau de gauche à droite, à ton rythme.</div>
+      <div class="ski-reg"><i data-lucide="activity"></i><div class="ski-reg-bar"><div id="skiRegFill"></div></div></div>
       <div class="stadium-flash" id="skiFlash"></div>
     </div>
   `;
@@ -5688,23 +5651,25 @@ function setSkiHint(text) {
   if (el && el.dataset.fr !== text) { el.dataset.fr = text; el.textContent = text; }
 }
 function renderSkiPlaying(snap) {
-  const gatesEl = document.getElementById('skiGates');
   const timeEl = document.getElementById('skiTime');
   const speedEl = document.getElementById('skiSpeed');
-  if (gatesEl) gatesEl.textContent = `${snap.passed}/${snap.totalGates}`;
   if (timeEl) {
     const secs = snap.elapsedMs / 1000;
     timeEl.textContent = `${Math.floor(secs / 60)}:${(secs % 60).toFixed(1).padStart(4, '0')}`;
   }
   if (speedEl) speedEl.textContent = snap.speedKmh;
-  const happy = !snap.justMissed && (snap.warming || snap.streak >= 2);
+  const regBar = document.getElementById('skiRegFill');
+  if (regBar) {
+    regBar.style.width = `${Math.round(snap.reg * 100)}%`;
+    regBar.style.background = `hsl(${Math.round(snap.reg * 130)} 80% 48%)`;
+  }
+  const happy = snap.warming || snap.reg >= 0.45;
   document.getElementById('skiPandaContent')?.classList.toggle('active', happy);
   document.getElementById('skiPandaBof')?.classList.toggle('active', !happy);
   if (snap.finished) setSkiHint('Bravo, tu y es presque !');
   else if (snap.idle) setSkiHint('Balance le plateau un peu plus franchement.');
-  else if (snap.justMissed) setSkiHint('Pas grave, on repart plus facile.');
   else if (snap.warming) setSkiHint('Balance le plateau de gauche à droite, à ton rythme.');
-  else setSkiHint("Passe à l'extérieur de chaque piquet, sur le rond jaune.");
+  else setSkiHint('Reste régulier : plus tu es régulier, plus tu vas vite.');
   const flash = document.getElementById('skiFlash');
   if (flash && snap.finished && !flash.textContent) {
     flash.textContent = 'Arrivée !';
@@ -5722,7 +5687,7 @@ function screenSkiResult(snap, score) {
     <div class="result-score"><div class="num">${score}</div><div class="lbl">Score</div></div>
     ${resultStatsHTML([
       { icon: 'timer', label: 'Temps', value: timeStr },
-      { icon: 'flag', label: 'Portes', value: `${snap.passed}/${snap.totalGates}` },
+      { icon: 'activity', label: 'Régularité', value: `${snap.regPct} %` },
     ])}
     <div class="card">
       <h2>Conseils de prévention</h2>
