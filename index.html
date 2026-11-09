@@ -7730,9 +7730,7 @@ function screenIndexResult(overall, staticResult, movementResult) {
     ${eventResultCardHTML()}
     <div class="card" style="margin-top:16px;">
       <h2>Détails</h2>
-      <div class="result-stat"><span>Oscillation moyenne (statique)</span><span>${staticResult.rmsCm} cm</span></div>
       <div class="result-stat"><span>Régularité du mouvement</span><span>${movementResult.regularityScore}/100</span></div>
-      <div class="result-stat"><span>Amplitude du mouvement</span><span>${movementResult.amplitudeCm} cm</span></div>
     </div>
     ${showPersonalCode() && currentEmployee ? `
       <div class="card" style="margin-top:16px;text-align:center;${activeEvent?.campaign_step === 't0' ? 'border:2px solid var(--primary);' : ''}">
