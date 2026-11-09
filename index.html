@@ -6187,159 +6187,141 @@ function paintVignette(ctx, W, H, rgb, alpha) {
   ctx.fillRect(0, 0, W, H);
 }
 
-/** The Zone : mission spatiale. Le bouclier vert = la zone ; la soucoupe du panda = ton pied. */
+/** The Zone : instrument de précision en orbite, sobre. Le cercle vert = la zone ; le point lumineux = ton pied. */
 const ZoneScene = (() => {
+  const GREEN = '72,214,170', RED = '232,62,84';
   let st = null, snap = null;
 
-  function paintSpace(c, w, h) {
+  function paintOrbit(c, w, h) {
     const g = c.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#060a22'); g.addColorStop(.55, '#12133f'); g.addColorStop(1, '#0a1c3d');
+    g.addColorStop(0, '#04070f'); g.addColorStop(.7, '#0a1322'); g.addColorStop(1, '#0d1a2e');
     c.fillStyle = g; c.fillRect(0, 0, w, h);
-    [[.2, .28, .55, '131,56,236'], [.82, .46, .5, '26,163,196'], [.35, .82, .6, '214,51,132'], [.75, .12, .32, '67,97,238']].forEach(([x, y, r, col]) => {
-      const n = c.createRadialGradient(x * w, y * h, 0, x * w, y * h, r * w);
-      n.addColorStop(0, `rgba(${col},.42)`); n.addColorStop(1, `rgba(${col},0)`);
-      c.fillStyle = n; c.fillRect(0, 0, w, h);
-    });
-    for (let i = 0; i < 300; i++) {
-      c.fillStyle = `rgba(255,255,255,${(.25 + pfHash(i + .5) * .7).toFixed(2)})`;
-      c.beginPath(); c.arc(pfHash(i + 1) * w, pfHash(i + 2) * h, .5 + pfHash(i + 3) * 1.5, 0, Math.PI * 2); c.fill();
+    for (let i = 0; i < 170; i++) {
+      c.fillStyle = `rgba(215,228,245,${(.12 + pfHash(i + .5) * .42).toFixed(2)})`;
+      c.beginPath(); c.arc(pfHash(i + 1) * w, pfHash(i + 2) * h * .82, .4 + pfHash(i + 3) * .8, 0, Math.PI * 2); c.fill();
     }
-    // planète à anneaux
-    const px = w * .84, py = h * .9, pr = w * .17;
-    const ringPath = (front) => { c.beginPath(); c.ellipse(px, py, pr * 1.75, pr * .42, -.28, front ? 0 : Math.PI, front ? Math.PI : Math.PI * 2); c.stroke(); };
-    c.strokeStyle = 'rgba(255,214,150,.55)'; c.lineWidth = pr * .13; ringPath(false);
-    const body = c.createRadialGradient(px - pr * .4, py - pr * .4, pr * .1, px, py, pr);
-    body.addColorStop(0, '#ffb26b'); body.addColorStop(.6, '#d9607a'); body.addColorStop(1, '#4b1f66');
-    c.fillStyle = body; c.beginPath(); c.arc(px, py, pr, 0, Math.PI * 2); c.fill();
-    c.strokeStyle = 'rgba(255,214,150,.75)'; ringPath(true);
-    // lune
-    const mx = w * .13, my = h * .74, mr = w * .055;
-    const moon = c.createRadialGradient(mx - mr * .3, my - mr * .3, 1, mx, my, mr);
-    moon.addColorStop(0, '#e7ecf7'); moon.addColorStop(1, '#6d7696');
-    c.fillStyle = moon; c.beginPath(); c.arc(mx, my, mr, 0, Math.PI * 2); c.fill();
-  }
-  function paintRock(seed) {
-    return (c, w, h) => {
-      c.translate(w / 2, h / 2);
-      const g = c.createRadialGradient(-w * .12, -h * .12, 2, 0, 0, w * .5);
-      g.addColorStop(0, '#a79a93'); g.addColorStop(1, '#3f3a4a');
-      c.fillStyle = g;
-      c.beginPath();
-      for (let i = 0; i < 9; i++) {
-        const a = i / 9 * Math.PI * 2, r = w * (.32 + pfHash(seed + i) * .16);
-        c[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r);
-      }
-      c.closePath(); c.fill();
-      c.fillStyle = 'rgba(30,26,40,.45)';
-      [[-.1, -.08, .08], [.14, .1, .06], [-.04, .18, .045]].forEach(([x, y, r]) => { c.beginPath(); c.arc(x * w, y * h, r * w, 0, Math.PI * 2); c.fill(); });
-    };
+    // la courbure de la planète, en bas de l'image
+    const R = w * 1.25, px = w * .5, py = h * 1.02 + R * .78;
+    const air = c.createRadialGradient(px, py, R * .985, px, py, R * 1.09);
+    air.addColorStop(0, 'rgba(120,195,255,.6)');
+    air.addColorStop(.2, 'rgba(70,140,230,.26)');
+    air.addColorStop(1, 'rgba(40,90,190,0)');
+    c.fillStyle = air; c.fillRect(0, 0, w, h);
+    const land = c.createRadialGradient(px, py - R * .3, R * .4, px, py, R);
+    land.addColorStop(0, '#0d1c33'); land.addColorStop(1, '#050b16');
+    c.fillStyle = land;
+    c.beginPath(); c.arc(px, py, R, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = 'rgba(190,228,255,.8)';
+    c.lineWidth = Math.max(1, w * .002);
+    c.beginPath(); c.arc(px, py, R, 0, Math.PI * 2); c.stroke();
+    // lumières des villes
+    for (let i = 0; i < 240; i++) {
+      const a = -Math.PI / 2 + (pfHash(i + 100) - .5) * 1.05;
+      const d = R * (.92 + pfHash(i + 101) * .075);
+      const x = px + Math.cos(a) * d, y = py + Math.sin(a) * d;
+      if (y > h || pfHash(Math.floor(a * 18) + 300) < .45) continue;
+      c.fillStyle = `rgba(255,214,150,${(.15 + pfHash(i + 102) * .5).toFixed(2)})`;
+      c.beginPath(); c.arc(x, y, .5 + pfHash(i + 103) * .7, 0, Math.PI * 2); c.fill();
+    }
   }
 
-  function paintShip(px, py, out, t) {
-    const { ctx, U } = st;
-    const r = U * 5;
-    ctx.save();
-    ctx.translate(px, py);
-    ctx.rotate(pfClamp(st.x * .06, -.35, .35) + (out ? Math.sin(t * 30) * .08 : 0));
-    const glow = ctx.createRadialGradient(0, r * .7, 0, 0, r * .7, r * 1.25);
-    glow.addColorStop(0, out ? 'rgba(255,90,90,.75)' : 'rgba(90,240,200,.7)');
-    glow.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = glow; ctx.fillRect(-r * 1.4, -r * .3, r * 2.8, r * 2.2);
-    const hull = ctx.createLinearGradient(0, 0, 0, r * .9);
-    hull.addColorStop(0, '#e6edfa'); hull.addColorStop(1, '#5d6c96');
-    ctx.fillStyle = hull;
-    ctx.beginPath(); ctx.ellipse(0, r * .4, r * 1.3, r * .48, 0, 0, Math.PI * 2); ctx.fill();
-    for (let i = 0; i < 5; i++) {
-      const on = Math.floor(t * 5 + i) % 2 === 0;
-      ctx.fillStyle = out ? (on ? '#ff5b6e' : '#6e1f2c') : (on ? '#ffe28a' : '#7b6a30');
-      ctx.beginPath(); ctx.arc((i - 2) * r * .48, r * (.56 - Math.abs(i - 2) * .05), r * .09, 0, Math.PI * 2); ctx.fill();
+  function paintScale() {
+    const { ctx, W, H, U, cx, cy, ppc } = st;
+    ctx.strokeStyle = 'rgba(175,205,235,.11)';
+    ctx.lineWidth = Math.max(1, U * .13);
+    for (let cm = 1; cm <= 5; cm++) { ctx.beginPath(); ctx.arc(cx, cy, cm * ppc, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.beginPath();
+    ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.moveTo(cx, 0); ctx.lineTo(cx, H);
+    for (let cm = -5.5; cm <= 5.5; cm += .5) {
+      if (!cm) continue;
+      const len = U * (Number.isInteger(cm) ? .9 : .45);
+      ctx.moveTo(cx + cm * ppc, cy - len); ctx.lineTo(cx + cm * ppc, cy + len);
+      ctx.moveTo(cx - len, cy + cm * ppc); ctx.lineTo(cx + len, cy + cm * ppc);
     }
-    // le panda sous sa bulle
-    ctx.fillStyle = '#1c1c22';
-    [-1, 1].forEach(s => { ctx.beginPath(); ctx.arc(s * r * .44, -r * .42, r * .19, 0, Math.PI * 2); ctx.fill(); });
-    ctx.fillStyle = '#fbf8f1';
-    ctx.beginPath(); ctx.arc(0, -r * .08, r * .58, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#1c1c22';
-    [-1, 1].forEach(s => { ctx.beginPath(); ctx.ellipse(s * r * .23, -r * .13, r * .15, r * .19, s * .4, 0, Math.PI * 2); ctx.fill(); });
-    ctx.fillStyle = '#fff';
-    [-1, 1].forEach(s => { ctx.beginPath(); ctx.arc(s * r * .22, -r * .15, r * .06, 0, Math.PI * 2); ctx.fill(); });
-    ctx.fillStyle = '#1c1c22';
-    ctx.beginPath(); ctx.ellipse(0, r * .08, r * .08, r * .055, 0, 0, Math.PI * 2); ctx.fill();
-    const dome = ctx.createRadialGradient(-r * .3, -r * .5, r * .1, 0, -r * .1, r * .95);
-    dome.addColorStop(0, 'rgba(255,255,255,.42)'); dome.addColorStop(.6, 'rgba(150,215,255,.1)'); dome.addColorStop(1, 'rgba(150,215,255,.32)');
-    ctx.fillStyle = dome;
-    ctx.beginPath(); ctx.arc(0, -r * .08, r * .92, Math.PI * 1.02, Math.PI * 1.98); ctx.quadraticCurveTo(0, r * .36, -r * .92, -r * .05); ctx.fill();
-    ctx.restore();
+    ctx.stroke();
+  }
+
+  function paintZone(col, t) {
+    const { ctx, U, cx, cy } = st;
+    const r = st.r;
+    const fill = ctx.createRadialGradient(cx, cy, r * .62, cx, cy, r);
+    fill.addColorStop(0, `rgba(${col},0)`); fill.addColorStop(1, `rgba(${col},.11)`);
+    ctx.fillStyle = fill;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = `rgba(${col},.16)`; ctx.lineWidth = U * 1.25;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = `rgb(${col})`; ctx.lineWidth = U * .34;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    // graduations et arcs qui tournent lentement autour de la zone
+    ctx.strokeStyle = `rgba(${col},.42)`;
+    ctx.lineWidth = Math.max(1, U * .13);
+    ctx.beginPath();
+    for (let i = 0; i < 90; i++) {
+      const a = i / 90 * Math.PI * 2 + t * .035;
+      const r1 = r + U * 1.8, r2 = r1 + U * (i % 5 ? .55 : 1.2);
+      ctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+      ctx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(${col},.55)`;
+    ctx.lineWidth = U * .22;
+    for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2 - t * .09;
+      ctx.beginPath(); ctx.arc(cx, cy, r + U * 4.4, a, a + .62); ctx.stroke();
+    }
+  }
+
+  function paintPoint(px, py, col) {
+    const { ctx, U, cx, cy, trail } = st;
+    ctx.strokeStyle = `rgba(${col},.34)`;
+    ctx.lineWidth = Math.max(1, U * .14);
+    ctx.setLineDash([U * .7, U * .9]);
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.lineCap = 'round';
+    for (let i = 1; i < trail.length; i++) {
+      ctx.strokeStyle = `rgba(235,244,255,${(i / trail.length * .42).toFixed(3)})`;
+      ctx.lineWidth = U * .24;
+      ctx.beginPath(); ctx.moveTo(...trail[i - 1]); ctx.lineTo(...trail[i]); ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
+    const halo = ctx.createRadialGradient(px, py, 0, px, py, U * 4.2);
+    halo.addColorStop(0, 'rgba(235,245,255,.55)'); halo.addColorStop(1, 'rgba(235,245,255,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(px, py, U * 4.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(px, py, U * .95, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.9)';
+    ctx.lineWidth = Math.max(1, U * .2);
+    ctx.beginPath(); ctx.arc(px, py, U * 2.3, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath();
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+      ctx.moveTo(px + dx * U * 3, py + dy * U * 3);
+      ctx.lineTo(px + dx * U * 4.1, py + dy * U * 4.1);
+    });
+    ctx.stroke();
   }
 
   function paint(step, t) {
-    const { ctx, W, H, U, cx, cy, ppc, bg, rocks } = st;
+    const { ctx, W, H, U, cx, cy, ppc, bg } = st;
     const wanted = (snap ? snap.radiusCm : 2) * ppc;
     st.r += (wanted - st.r) * (1 - Math.exp(-step * 6));
     const follow = 1 - Math.exp(-step * 18);
     st.x += ((snap ? snap.xCm : 0) - st.x) * follow;
     st.y += ((snap ? snap.yCm : 0) - st.y) * follow;
     const out = !!(snap && snap.outside);
-    if (out && !st.wasOut) st.alarm = 1;
-    st.wasOut = out;
-    st.alarm = Math.max(out ? .55 : 0, st.alarm - step * 1.4);
+    st.alarm += ((out ? 1 : 0) - st.alarm) * (1 - Math.exp(-step * 9));
 
-    ctx.save();
-    if (st.alarm > .6) ctx.translate((Math.random() - .5) * U * 1.6, (Math.random() - .5) * U * 1.6);
-    ctx.drawImage(bg, -W * .05 - st.x * U * .35, -H * .05 + st.y * U * .35);
-    for (let i = 0; i < 34; i++) {
-      const px = ((pfHash(i + 40) * W - st.x * U * (1 + pfHash(i) * 2) + t * U * .4) % W + W) % W;
-      const py = ((pfHash(i + 60) * H + st.y * U * (1 + pfHash(i) * 2)) % H + H) % H;
-      ctx.fillStyle = `rgba(255,255,255,${(.5 + .45 * Math.sin(t * 2 + i)).toFixed(2)})`;
-      ctx.beginPath(); ctx.arc(px, py, U * .22, 0, Math.PI * 2); ctx.fill();
-    }
-
-    const col = out ? '230,55,78' : '67,206,162';
-    const r = st.r;
-    const field = ctx.createRadialGradient(cx, cy, r * .55, cx, cy, r);
-    field.addColorStop(0, `rgba(${col},.03)`); field.addColorStop(1, `rgba(${col},.3)`);
-    ctx.fillStyle = field;
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-    const ripple = (t * .5) % 1;
-    ctx.strokeStyle = `rgba(${col},${((1 - ripple) * .3).toFixed(3)})`;
-    ctx.lineWidth = U * .35;
-    ctx.beginPath(); ctx.arc(cx, cy, r * ripple, 0, Math.PI * 2); ctx.stroke();
-    const flick = out ? .6 + Math.random() * .4 : 1;
-    ctx.strokeStyle = `rgba(${col},${(.26 * flick).toFixed(3)})`;
-    ctx.lineWidth = U * 2;
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
-    ctx.strokeStyle = `rgba(${col},${flick.toFixed(3)})`;
-    ctx.lineWidth = U * .55;
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
-    ctx.strokeStyle = `rgba(${col},.6)`;
-    ctx.lineWidth = U * .3;
-    ctx.setLineDash([U * 2, U * 3.2]);
-    ctx.lineDashOffset = -t * U * 6;
-    ctx.beginPath(); ctx.arc(cx, cy, r + U * 1.7, 0, Math.PI * 2); ctx.stroke();
-    ctx.setLineDash([]);
-
-    for (let i = 0; i < 14; i++) {
-      const a = i / 14 * Math.PI * 2 + t * (.1 + pfHash(i) * .04);
-      const orbit = r + U * (7 + pfHash(i + 7) * 8);
-      const size = U * (3 + pfHash(i + 3) * 3.6);
-      ctx.save();
-      ctx.translate(cx + Math.cos(a) * orbit, cy + Math.sin(a) * orbit);
-      ctx.rotate(t * (.3 + pfHash(i) * .8) + i);
-      ctx.drawImage(rocks[i % rocks.length], -size / 2, -size / 2, size, size);
-      ctx.restore();
-    }
-
-    const px = pfClamp(cx + st.x * ppc, U * 6, W - U * 6);
-    const py = pfClamp(cy - st.y * ppc, U * 6, H - U * 6);
+    ctx.drawImage(bg, -W * .05 - st.x * U * .3, -H * .05 + st.y * U * .3);
+    paintScale();
+    const col = out ? RED : GREEN;
+    paintZone(col, t);
+    const px = pfClamp(cx + st.x * ppc, U * 5, W - U * 5);
+    const py = pfClamp(cy - st.y * ppc, U * 5, H - U * 5);
     st.trail.push([px, py]);
-    if (st.trail.length > 16) st.trail.shift();
-    st.trail.forEach(([x, y], i) => {
-      ctx.fillStyle = `rgba(${col},${(i / 16 * .32).toFixed(3)})`;
-      ctx.beginPath(); ctx.arc(x, y, U * (.6 + i / 16 * 1.8), 0, Math.PI * 2); ctx.fill();
-    });
-    paintShip(px, py, out, t);
-    ctx.restore();
-    paintVignette(ctx, W, H, '230,40,60', st.alarm * .62);
+    if (st.trail.length > 14) st.trail.shift();
+    paintPoint(px, py, col);
+    paintVignette(ctx, W, H, RED, st.alarm * .3);
   }
 
   function start() {
@@ -6349,9 +6331,8 @@ const ZoneScene = (() => {
     const g = sizeGameCanvas(canvas, stage);
     snap = null;
     st = {
-      ...g, cx: g.W / 2, cy: g.H * .57, ppc: g.U * 8.5, r: g.U * 17, x: 0, y: 0, trail: [], alarm: 0, wasOut: false,
-      bg: layerCanvas(Math.round(g.W * 1.1), Math.round(g.H * 1.1), paintSpace),
-      rocks: [11, 23, 37].map(s => layerCanvas(96, 96, paintRock(s))),
+      ...g, cx: g.W / 2, cy: g.H * .5, ppc: g.U * 8.5, r: g.U * 17, x: 0, y: 0, trail: [], alarm: 0,
+      bg: layerCanvas(Math.round(g.W * 1.1), Math.round(g.H * 1.1), paintOrbit),
     };
     runGameCanvas(canvas, paint);
   }
