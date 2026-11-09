@@ -2275,7 +2275,7 @@ const SlalomGame = (() => {
     const now = performance.now();
     const dt = (now - s.lastTickAt) / 1000;
     s.lastTickAt = now;
-    s.elapsedMs = now - s.startedAt;
+    if (!s.finished) s.elapsedMs = now - s.startedAt; // le chrono s'arrête au passage de la ligne d'arrivée
     if (s.base == null) s.base = latestX;
     s.base += (latestX - s.base) * (1 - Math.exp(-dt / 5)); // le centre du balancement suit doucement la position
     s.v += ((latestX - s.base) - s.v) * 0.45;
