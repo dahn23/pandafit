@@ -9318,8 +9318,8 @@ const LakeScene = (() => {
   const SKY_DAY = [[0, '#3f86d8'], [.55, '#8fc2ec'], [.85, '#ffd9a8'], [1, '#ffc078']];
   const RIDGE_BACK = [[0, .30], [.1, .42], [.2, .30], [.3, .46], [.4, .24], [.5, .12], [.6, .26], [.72, .52], [.82, .34], [.92, .44], [1, .30]];
   const RIDGE_FRONT = [[0, .20], [.12, .12], [.24, .22], [.36, .10], [.5, .03], [.64, .09], [.76, .20], [.9, .11], [1, .18]];
-  const MOUNT_DAWN = { back: '#2a2a63', front: '#171a42', snow: 'rgba(190,190,235,.75)' };
-  const MOUNT_DAY = { back: '#6f86b5', front: '#3f5f78', snow: '#ffffff' };
+  const MOUNT_DAWN = { far: '#3a3a78', farHaze: '#6a5a9a', mid: '#22265a', midHaze: '#4a4382', snow: 'rgba(214,206,244,.9)', rim: 'rgba(255,176,196,.55)', forest: '#0e1230' };
+  const MOUNT_DAY = { far: '#7d95c4', farHaze: '#bccde8', mid: '#4b6a8a', midHaze: '#8fa9c4', snow: '#ffffff', rim: 'rgba(255,255,255,.7)', forest: '#1d3a3a' };
 
   let st = null;
   let snapNow = null;
@@ -9349,37 +9349,75 @@ const LakeScene = (() => {
       ctx.fill();
     }
   }
-  function paintRidge(ctx, w, h, ridge, color) {
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(0, h);
-    ridge.forEach(([x, up]) => ctx.lineTo(x * w, h - up * h));
-    ctx.lineTo(w, h);
-    ctx.closePath();
-    ctx.fill();
-  }
-  function paintSnow(ctx, w, h, ridge, color) {
-    ctx.fillStyle = color;
-    for (let i = 1; i < ridge.length - 1; i++) {
-      const [x, up] = ridge[i];
-      if (up < .38 || up < ridge[i - 1][1] || up < ridge[i + 1][1]) continue;
-      const at = ([px, pu], t) => [mix(x, px, t) * w, h - mix(up, pu, t) * h];
-      const l1 = at(ridge[i - 1], .34), r1 = at(ridge[i + 1], .34);
-      ctx.beginPath();
-      ctx.moveTo(x * w, h - up * h);
-      ctx.lineTo(...l1);
-      ctx.lineTo(mix(l1[0], x * w, .5), l1[1] - h * .025);
-      ctx.lineTo(x * w, l1[1] + h * .01);
-      ctx.lineTo(mix(r1[0], x * w, .5), r1[1] - h * .025);
-      ctx.lineTo(...r1);
-      ctx.closePath();
-      ctx.fill();
+  /** Crête de montagne naturelle : quelques grands points, puis découpe fractale */
+  function ridgePts(points, rough, seed, w, h) {
+    let pts = points.map(([x, up]) => [x * w, h - up * h]);
+    for (let pass = 0; pass < 6; pass++) {
+      const next = [];
+      for (let i = 0; i < pts.length - 1; i++) {
+        const [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
+        next.push([x1, y1], [(x1 + x2) / 2, (y1 + y2) / 2 + (pfHash(seed + pass * 31 + i * 7.3) - .5) * rough * h / Math.pow(1.8, pass)]);
+      }
+      next.push(pts[pts.length - 1]);
+      pts = next;
     }
+    return pts;
+  }
+  /** Une chaîne : dégradé vers la brume du bas, neige au-dessus d'une limite, faces à l'ombre, arêtes éclairées */
+  function paintRange(ctx, w, h, pts, top, base, snowY, snow, rim) {
+    const minY = Math.min(...pts.map(p => p[1]));
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(0, h); pts.forEach(p => ctx.lineTo(p[0], p[1])); ctx.lineTo(w, h); ctx.closePath();
+    const g = ctx.createLinearGradient(0, minY, 0, h);
+    g.addColorStop(0, top); g.addColorStop(1, base);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.clip();
+    if (snow) {
+      ctx.fillStyle = snow;
+      ctx.beginPath();
+      pts.forEach((p, i) => ctx[i ? 'lineTo' : 'moveTo'](p[0], p[1] - 2));
+      for (let i = pts.length - 1; i >= 0; i--) {
+        const [x, y] = pts[i];
+        ctx.lineTo(x, y < snowY ? y + (snowY - y) * (.5 + pfHash(i * 1.7 + 3) * .6) : y);
+      }
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(8,12,36,.2)'; // faces à l'ombre
+    ctx.beginPath(); ctx.moveTo(0, h); pts.forEach(p => ctx.lineTo(p[0] + w * .02, p[1] + h * .012)); ctx.lineTo(w, h); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = rim; ctx.lineWidth = Math.max(1, w * .0016);
+    ctx.beginPath(); pts.forEach((p, i) => ctx[i ? 'lineTo' : 'moveTo'](p[0], p[1])); ctx.stroke();
+  }
+  /** Sapins sur la rive, en ombre chinoise */
+  function paintForest(ctx, w, h, color) {
+    // deux rangs de sapins étagés (branches en trois étages), le rang de devant plus sombre
+    [[0, .9, .03], [1, 1, 0]].forEach(([row, shade, lift]) => {
+      ctx.fillStyle = color; ctx.globalAlpha = row ? 1 : .75;
+      const base = h - h * (.006 + lift);
+      ctx.fillRect(0, base - h * .012, w, h - base + h * .012);
+      for (let x = -w * .01 + row * w * .009; x <= w + w * .02; x += w * (.018 + pfHash(x * .11 + row) * .01)) {
+        const th = h * (.05 + pfHash(x * .37 + 5 + row * 9) * .08) * shade, tw = th * .42;
+        for (let k = 0; k < 3; k++) {
+          const y0 = base - th * k * .3, ww = tw * (1 - k * .25);
+          ctx.beginPath(); ctx.moveTo(x - ww / 2, y0); ctx.lineTo(x, y0 - th * .5); ctx.lineTo(x + ww / 2, y0); ctx.closePath(); ctx.fill();
+        }
+      }
+    });
+    ctx.globalAlpha = 1;
   }
   function paintMountains(ctx, w, h, pal) {
-    paintRidge(ctx, w, h, RIDGE_BACK, pal.back);
-    paintSnow(ctx, w, h, RIDGE_BACK, pal.snow);
-    paintRidge(ctx, w, h, RIDGE_FRONT, pal.front);
+    const back = ridgePts(RIDGE_BACK, .1, 11, w, h), front = ridgePts(RIDGE_FRONT, .07, 23, w, h);
+    paintRange(ctx, w, h, back, pal.far, pal.farHaze, h * .64, pal.snow, pal.rim);
+    paintRange(ctx, w, h, front, pal.mid, pal.midHaze, h * .82, null, pal.rim);
+    paintForest(ctx, w, h, pal.forest);
+  }
+  function paintCloud(c, w, h, seed) {
+    for (let i = 0; i < 10; i++) {
+      const x = w * (.14 + pfHash(seed * 10 + i) * .72), y = h * (.58 + (pfHash(seed * 10 + i + .5) - .5) * .3), r = h * (.24 + pfHash(seed * 10 + i + .7) * .26);
+      const g = c.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, 'rgba(255,255,255,.5)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2);
+    }
   }
 
   function start() {
@@ -9400,7 +9438,8 @@ const LakeScene = (() => {
       mountDawn: layer(W, h0, (c, w, h) => paintMountains(c, w, h, MOUNT_DAWN)),
       mountDay: layer(W, h0, (c, w, h) => paintMountains(c, w, h, MOUNT_DAY)),
       top: layer(W, h0, () => {}),
-      level: 0, wave: 0, x: 0, y: 0, last: performance.now(),
+      clouds: [0, 1, 2].map(k => layer(Math.round(W * .5), Math.round(W * .16), (c, w, h) => paintCloud(c, w, h, k + 1))),
+      level: 0, wave: 0, x: 0, y: 0, last: performance.now(), t0: null, mist: .85,
     };
     requestAnimationFrame(frame);
   }
@@ -9418,7 +9457,7 @@ const LakeScene = (() => {
     return d <= 1 ? Math.max(0, (d - .6) / .4) * .2 : Math.min(1, .55 + (d - 1) * .6);
   }
 
-  function paintTop(level) {
+  function paintTop(level, t) {
     const { top, W, H, h0, skyDawn, skyDay, mountDawn, mountDay } = st;
     const c = top.getContext('2d');
     c.globalAlpha = 1; c.drawImage(skyDawn, 0, 0);
@@ -9433,12 +9472,25 @@ const LakeScene = (() => {
     c.fillRect(0, 0, W, h0);
     c.fillStyle = mixColor([255, 150, 90], [255, 236, 170], level);
     c.beginPath(); c.arc(sunX, sunY, R, 0, Math.PI * 2); c.fill();
+    st.clouds.forEach((cl, k) => {
+      const x = ((t * W * .007 * (1 + k * .45) + k * W * .62) % (W * 1.6)) - W * .55;
+      c.globalAlpha = .3 + .5 * level;
+      c.drawImage(cl, x, h0 * (.1 + k * .14), cl.width * (1 - k * .18), cl.height * (1 - k * .18));
+    });
+    c.globalAlpha = 1;
     c.drawImage(mountDawn, 0, 0);
     c.globalAlpha = level; c.drawImage(mountDay, 0, 0);
     c.globalAlpha = 1;
+    c.strokeStyle = 'rgba(22,26,52,.72)'; c.lineWidth = Math.max(1.2, W * .0024); c.lineCap = 'round';
+    for (let i = 0; i < 3; i++) {
+      const x = ((((t * (.016 + i * .004) + i * .37) % 1.3) + 1.3) % 1.3 - .15) * W;
+      const y = h0 * (.24 + i * .07) + Math.sin(t * .7 + i) * h0 * .02, s = W * .013 * (1 - i * .18), f = Math.sin(t * 6 + i * 2);
+      c.beginPath(); c.moveTo(x - s, y - f * s * .5); c.quadraticCurveTo(x - s * .4, y - s * .35, x, y); c.quadraticCurveTo(x + s * .4, y - s * .35, x + s, y - f * s * .5); c.stroke();
+    }
+    c.lineCap = 'butt';
   }
 
-  function paintWater(t, wave) {
+  function paintWater(t, wave, level) {
     const { ctx, top, W, H, h0 } = st;
     if (wave < .012) {
       ctx.save();
@@ -9462,6 +9514,28 @@ const LakeScene = (() => {
     tint.addColorStop(1, 'rgba(14,30,76,.44)');
     ctx.fillStyle = tint;
     ctx.fillRect(0, h0, W, H - h0);
+    const fres = ctx.createLinearGradient(0, h0, 0, h0 + (H - h0) * .35);
+    fres.addColorStop(0, 'rgba(255,255,255,.1)'); fres.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = fres; ctx.fillRect(0, h0, W, (H - h0) * .35);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const glow = (.35 + .65 * level) * Math.max(0, 1 - wave * 1.3);
+    if (glow > .02) {
+      const warm = mixColor([255, 170, 120], [255, 240, 190], level);
+      for (let i = 0; i < 46; i++) {
+        const k = Math.pow((i + .5) / 46, 1.5), y = h0 + k * (H - h0) * .8;
+        const spread = W * (.02 + .12 * k), x = W / 2 + (pfHash(i + 300) - .5) * 2 * spread;
+        const a = glow * (.18 + .5 * Math.max(0, Math.sin(t * (2 + pfHash(i + 301) * 3) + i * 1.7)));
+        ctx.globalAlpha = a; ctx.fillStyle = warm;
+        ctx.beginPath(); ctx.ellipse(x, y, W * (.006 + .02 * k), Math.max(1, W * .0018 * (1 + k)), 0, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1; ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 1;
+    for (let i = 0; i < 9; i++) {
+      const k = (i + .5) / 9, y = h0 + k * k * (H - h0) * .9 + Math.sin(t * .4 + i) * 2;
+      const x = ((pfHash(i + 320) * W + t * W * .01 * (i % 2 ? 1 : -1)) % W + W) % W, len = W * (.08 + .2 * k);
+      ctx.beginPath(); ctx.moveTo(x - len / 2, y); ctx.lineTo(x + len / 2, y); ctx.stroke();
+    }
     if (wave > .12) {
       ctx.strokeStyle = `rgba(255,255,255,${(.55 * wave).toFixed(3)})`;
       ctx.lineCap = 'round';
@@ -9521,16 +9595,69 @@ const LakeScene = (() => {
     const { ctx, W, H } = st;
     const yTop = H * .85;
     const left = y => mix(W * .36, W * .2, (y - yTop) / (H - yTop));
-    ctx.fillStyle = mixColor([58, 49, 80], [154, 107, 69], level);
-    ctx.beginPath();
-    ctx.moveTo(left(yTop), yTop); ctx.lineTo(W - left(yTop), yTop); ctx.lineTo(W - left(H), H); ctx.lineTo(left(H), H);
-    ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,.28)';
-    ctx.lineWidth = Math.max(1.5, W * .003);
-    [.2, .45, .72].forEach(k => {
-      const y = mix(yTop, H, k);
-      ctx.beginPath(); ctx.moveTo(left(y), y); ctx.lineTo(W - left(y), y); ctx.stroke();
+    const woodA = mixColor([62, 52, 86], [162, 114, 72], level), woodB = mixColor([54, 46, 78], [146, 100, 62], level);
+    const dark = mixColor([28, 24, 44], [84, 54, 32], level);
+    // poteaux au bout du ponton, avec leur reflet
+    [left(yTop) + W * .012, W - left(yTop) - W * .012].forEach(x => {
+      ctx.fillStyle = dark; ctx.fillRect(x - W * .009, yTop - H * .016, W * .018, H * .035);
+      ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(x - W * .009, yTop + H * .019, W * .018, H * .03);
     });
+    const n = 9;
+    for (let i = 0; i < n; i++) {
+      const a = i / n, b = (i + 1) / n;
+      ctx.fillStyle = i % 2 ? woodA : woodB;
+      ctx.beginPath();
+      ctx.moveTo(mix(left(yTop), W - left(yTop), a), yTop); ctx.lineTo(mix(left(yTop), W - left(yTop), b), yTop);
+      ctx.lineTo(mix(left(H), W - left(H), b), H); ctx.lineTo(mix(left(H), W - left(H), a), H);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,.32)'; ctx.lineWidth = Math.max(1.5, W * .0028);
+    for (let i = 1; i < n; i++) {
+      const a = i / n;
+      ctx.beginPath(); ctx.moveTo(mix(left(yTop), W - left(yTop), a), yTop); ctx.lineTo(mix(left(H), W - left(H), a), H); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,.1)'; ctx.lineWidth = 1; // veinage du bois
+    for (let i = 0; i < 24; i++) {
+      const a = (i + .5) / 24 + (pfHash(i + 40) - .5) * .02, y1 = mix(yTop, H, pfHash(i + 41) * .6);
+      const y2 = y1 + (H - yTop) * (.15 + pfHash(i + 42) * .3);
+      ctx.beginPath(); ctx.moveTo(mix(left(y1), W - left(y1), a), y1); ctx.lineTo(mix(left(y2), W - left(y2), a), y2); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(left(yTop), yTop, W - 2 * left(yTop), Math.max(1.5, H * .002));
+    const sh = ctx.createLinearGradient(0, yTop, 0, H); // ombre douce vers le bas de l'image
+    sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.28)');
+    ctx.fillStyle = sh; ctx.fillRect(left(H), yTop, W - 2 * left(H), H - yTop);
+  }
+  /** Brume posée sur l'horizon : épaisse au début de la séance, elle se lève peu à peu */
+  function paintMist(t, level) {
+    const { ctx, W, H, h0 } = st;
+    const col = mixColor([222, 202, 236], [240, 246, 255], level).replace('rgb', 'rgba').replace(')', ',');
+    const g = ctx.createLinearGradient(0, h0 - H * .07, 0, h0 + H * .08);
+    g.addColorStop(0, col + '0)'); g.addColorStop(.5, col + (.42 * st.mist).toFixed(3) + ')'); g.addColorStop(1, col + '0)');
+    ctx.fillStyle = g; ctx.fillRect(0, h0 - H * .07, W, H * .15);
+    for (let i = 0; i < 6; i++) {
+      const x = ((pfHash(i + 60) * W * 1.4 + t * W * .012 * (1 + i % 3 * .3)) % (W * 1.4)) - W * .2, y = h0 + (pfHash(i + 61) - .5) * H * .05, r = W * (.14 + pfHash(i + 62) * .12);
+      ctx.save(); ctx.translate(x, y); ctx.scale(1, .22);
+      const p = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+      p.addColorStop(0, col + (.3 * st.mist).toFixed(3) + ')'); p.addColorStop(1, col + '0)');
+      ctx.fillStyle = p; ctx.fillRect(-r, -r, r * 2, r * 2);
+      ctx.restore();
+    }
+  }
+  /** Lucioles et pollen qui flottent au-dessus de l'eau, plus visibles à l'aube */
+  function paintMotes(t, level) {
+    const { ctx, W, H, h0 } = st;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 14; i++) {
+      const x = W * pfHash(i + 80) + Math.sin(t * .3 + i) * W * .04;
+      const y = h0 + (H - h0) * (.12 + pfHash(i + 81) * .62) + Math.sin(t * .5 + i * 2) * H * .012;
+      const a = (.2 + .65 * (1 - level)) * (.45 + .55 * Math.sin(t * 1.6 + i * 3));
+      if (a <= .02) continue;
+      const r = W * .012;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, `rgba(255,236,170,${a.toFixed(3)})`); g.addColorStop(.25, `rgba(255,220,140,${(a * .35).toFixed(3)})`); g.addColorStop(1, 'rgba(255,220,140,0)');
+      ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    ctx.restore();
   }
 
   function frame(now) {
@@ -9550,9 +9677,14 @@ const LakeScene = (() => {
       st.y += (snapNow.yCm - st.y) * (1 - Math.exp(-step * 14));
     }
     const t = now / 1000;
-    paintTop(st.level);
+    if (snapNow && st.t0 == null && snapNow.timeLeft > 0) st.t0 = snapNow.timeLeft;
+    const prog = snapNow && st.t0 ? clamp(1 - snapNow.timeLeft / st.t0, 0, 1) : 0;
+    st.mist += ((.85 - .6 * prog) - st.mist) * (1 - Math.exp(-step * .5));
+    paintTop(st.level, t);
     st.ctx.drawImage(st.top, 0, 0);
-    paintWater(t, st.wave);
+    paintWater(t, st.wave, st.level);
+    paintMist(t, st.level);
+    paintMotes(t, st.level);
     paintPlayer(snapNow, st.x, st.y);
     paintDeck(st.level);
     if (st.panda) {
