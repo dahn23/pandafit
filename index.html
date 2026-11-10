@@ -136,6 +136,22 @@
   .market-streak { color: #fff; text-shadow: 0 6px 22px rgba(10,14,30,.6); }
   @keyframes sportIn { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: none; } }
   @keyframes sportOut { 0%, 40% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateX(80px); } }
+  .shop-list { position: absolute; top: 118px; left: calc(min(46vw, 230px) + 14px); right: 14px; padding: 10px 12px 12px; background: #fbf3df; border-radius: 6px; box-shadow: 0 10px 26px rgba(40,24,8,.35); transform: rotate(-1.2deg); pointer-events: none; }
+  .shop-list::before { content: ''; position: absolute; top: -9px; left: 50%; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: #e23440; box-shadow: 0 2px 4px rgba(0,0,0,.35); }
+  .shop-list.fresh { animation: shopFresh .45s cubic-bezier(.2,1.3,.4,1); }
+  .shop-title { font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-size: 25px; font-weight: 700; color: #6b3a10; border-bottom: 2px solid #e8b46a; padding-bottom: 4px; margin-bottom: 8px; line-height: 1.15; }
+  .shop-slots { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .shop-slot { position: relative; text-align: center; }
+  .shop-slot img { width: 100%; max-width: 70px; aspect-ratio: 1; object-fit: contain; display: block; margin: 0 auto; }
+  .shop-name { font-size: 12.5px; font-weight: 700; line-height: 1.15; color: #4a2a0c; margin-top: 2px; }
+  .shop-slot.done img { opacity: .38; filter: grayscale(.6); }
+  .shop-slot.done .shop-name { text-decoration: line-through; color: #9a7a52; }
+  .shop-slot.done::after { content: '✓'; position: absolute; top: 4px; left: 50%; width: 40px; height: 40px; margin-left: -20px; border-radius: 50%; background: #1fb56f; color: #fff; font-size: 26px; font-weight: 900; line-height: 40px; box-shadow: 0 3px 8px rgba(0,0,0,.3); animation: shopCheck .35s cubic-bezier(.2,1.6,.4,1); }
+  .market-stage .shop-done { top: 40%; }
+  .market-stage .shop-done .ski-warn-box { border-left-color: #1fb56f; }
+  .market-stage .shop-done .ski-warn-s { color: #8df0b8; }
+  @keyframes shopFresh { from { opacity: 0; transform: rotate(-1.2deg) translateY(-30px) scale(.92); } to { opacity: 1; transform: rotate(-1.2deg); } }
+  @keyframes shopCheck { from { transform: scale(2.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   /* Panier Malin : plein écran */
   body.game-full .bottomnav, body.game-full #adsBanner, body.game-full #adsLabel { display: none !important; }
   body.game-full .topbar { position: fixed !important; top: 0; left: 0; right: 0; background: transparent !important; z-index: 60; }
@@ -2108,125 +2124,180 @@ const ElectroGame = (() => {
 })();
 
 /* =====================================================================================
-   JEU : LE PANIER MALIN (habillage Migros Vaud — mascotte et couleurs originales,
-   pas les assets officiels Migros)
-   Le pied contrôle un panier horizontalement, il faut attraper les bons produits
-   et éviter la malbouffe.
+   JEU : LE PANIER MALIN — liste de courses. Une recette suisse = 5 ingrédients à trouver
+   sur les étals qui défilent, en gardant l'équilibre (sortir du cercle bloque 2 s).
+   Bons clics = ingrédients de la liste ; mauvais clics = tout le reste. Score = bons - mauvais.
    ===================================================================================== */
+const SHOP_RECIPES = [
+  { name: 'Rösti', items: ['potato', 'butter', 'onion', 'bacon', 'egg'] },
+  { name: 'Raclette', items: ['cheese', 'potato', 'pickle', 'onion', 'ham'] },
+  { name: 'Fondue', items: ['cheese', 'bread', 'garlic', 'pear', 'potato'] },
+  { name: 'Älplermagronen', items: ['macaroni', 'potato', 'cheese', 'onion', 'apple'] },
+  { name: 'Birchermüesli', items: ['oats', 'apple', 'yogurt', 'hazelnut', 'raspberry'] },
+  { name: 'Émincé zurichois', items: ['meat', 'mushroom', 'cream', 'onion', 'parsley'] },
+  { name: 'Gâteau aux carottes argovien', items: ['carrot', 'hazelnut', 'egg', 'sugar', 'lemon'] },
+  { name: 'Gâteau aux pruneaux', items: ['prune', 'flour', 'butter', 'cream', 'egg'] },
+  { name: 'Tresse du dimanche', items: ['flour', 'butter', 'milk', 'egg', 'yeast'] },
+  { name: 'Papet vaudois', items: ['leek', 'potato', 'sausage', 'cream', 'onion'] },
+  { name: 'Croûte au fromage', items: ['bread', 'cheese', 'egg', 'milk', 'ham'] },
+  { name: 'Polenta tessinoise', items: ['corn', 'butter', 'cheese', 'mushroom', 'milk'] },
+  { name: "Soupe d'orge grisonne", items: ['barley', 'carrot', 'leek', 'celery', 'bacon'] },
+  { name: 'Meringues à la double crème', items: ['egg', 'sugar', 'cream', 'strawberry', 'blueberry'] },
+  { name: 'Vermicelles', items: ['chestnut', 'sugar', 'cream', 'milk', 'vanilla'] },
+  { name: 'Ramequins au fromage', items: ['flour', 'butter', 'cheese', 'egg', 'milk'] },
+  { name: 'Riz Casimir', items: ['rice', 'chicken', 'pineapple', 'banana', 'cream'] },
+  { name: 'Tourte aux noix engadinoise', items: ['walnut', 'honey', 'cream', 'flour', 'butter'] },
+  { name: 'Leckerli de Bâle', items: ['honey', 'almond', 'orange', 'flour', 'cinnamon'] },
+  { name: 'Cholera valaisan', items: ['potato', 'leek', 'apple', 'cheese', 'onion'] },
+];
+const SHOP_NAMES = {
+  potato: 'Pommes de terre', butter: 'Beurre', onion: 'Oignon', bacon: 'Lard', egg: 'Œufs', cheese: 'Fromage',
+  pickle: 'Cornichons', ham: 'Jambon', bread: 'Pain', garlic: 'Ail', pear: 'Poire', macaroni: 'Macaronis',
+  apple: 'Pomme', oats: "Flocons d'avoine", yogurt: 'Yaourt', hazelnut: 'Noisettes', raspberry: 'Framboises',
+  meat: 'Viande', mushroom: 'Champignons', cream: 'Crème', parsley: 'Persil', carrot: 'Carottes', sugar: 'Sucre',
+  lemon: 'Citron', prune: 'Pruneaux', flour: 'Farine', milk: 'Lait', yeast: 'Levure', leek: 'Poireaux',
+  sausage: 'Saucisson', corn: 'Maïs', barley: 'Orge', celery: 'Céleri', strawberry: 'Fraises', blueberry: 'Myrtilles',
+  chestnut: 'Châtaignes', vanilla: 'Vanille', rice: 'Riz', chicken: 'Poulet', pineapple: 'Ananas', banana: 'Banane',
+  walnut: 'Noix', honey: 'Miel', almond: 'Amandes', orange: 'Orange', cinnamon: 'Cannelle',
+};
+
 const MigrosGame = (() => {
-  const RADIUS_CM = { easy: 4.0, medium: 2.0, hard: 1.0 }; // taille de la zone à ne pas quitter (comme The Zone)
+  const RADIUS_CM = { easy: 4.0, medium: 2.0, hard: 1.0 }; // zone à ne pas quitter (comme The Zone)
   const POSITION_DIVIDER = 2;
   const PREPARE_SECONDS = 3;
-  const LOCK_MS = 2000; // durée pendant laquelle on ne peut plus attraper d'item après une sortie de zone
-  const HEALTHY_SPRITES = ['apple', 'pear', 'banana', 'grapes', 'strawberry', 'carrot', 'orange', 'melon'];
-  const JUNK_SPRITES = ['candy', 'lollipop', 'donut', 'cupcake', 'chocolate', 'fries'];
+  const LOCK_MS = 2000;                    // après une sortie du cercle : impossible de prendre un ingrédient
+  const ROWS = [{ dir: 1, speed: .085 }, { dir: -1, speed: .11 }, { dir: 1, speed: .095 }]; // 3 étals (part de la largeur par seconde)
+  const GAP = .2;                          // écart minimal entre deux ingrédients d'un même étal
+  const ALL = Object.keys(SHOP_NAMES);
 
-  let cfg = { difficulty: 'medium', duration: 45 };
-  let s = null;
-  let latestX = 0, latestY = 0;
-  function onSensorData(d) { latestX = d.x / (100 * POSITION_DIVIDER); latestY = d.y / (100 * POSITION_DIVIDER); } // cm, comme The Zone
+  let cfg = { difficulty: 'medium', duration: 30 };
+  let s = null, latestX = 0, latestY = 0, tickTimer = null, clockTimer = null;
+  let onFrameCb = null, onFinishCb = null, onEventCb = null;
+  function onSensorData(d) { latestX = d.x / (100 * POSITION_DIVIDER); latestY = d.y / (100 * POSITION_DIVIDER); }
 
+  const pick = list => list[Math.floor(Math.random() * list.length)];
   function radiusCm() { return RADIUS_CM[cfg.difficulty]; }
   function isLocked() { return Date.now() < s.lockedUntil; }
+  function recipe() { return SHOP_RECIPES[s.order[s.recipeIdx % s.order.length]]; }
+  function missing() { return recipe().items.filter(i => !s.found.includes(i)); }
 
   function reset() {
+    const order = SHOP_RECIPES.map((_, i) => i).sort(() => Math.random() - .5);
     s = {
-      items: [], goodCount: 0, junkCount: 0, lockedUntil: 0, timeLeft: cfg.duration,
-      running: true, lastZoneState: 'none', xCm: 0, yCm: 0,
+      running: true, order, recipeIdx: 0, found: [], items: [], good: 0, wrong: 0, lists: 0, streak: 0,
+      lockedUntil: 0, lastZoneState: 'none', timeLeft: cfg.duration, xCm: 0, yCm: 0, lastTickAt: performance.now(), seq: 0,
     };
   }
 
-  function spawnItem() {
-    const progress = 1 - (s.timeLeft / cfg.duration); // 0 au début, 1 à la fin
-    const junkChance = 0.3 + progress * 0.35; // de 30% à 65% de mauvais items
-    const isJunk = Math.random() < junkChance;
-    const sprite = isJunk
-      ? JUNK_SPRITES[Math.floor(Math.random() * JUNK_SPRITES.length)]
-      : HEALTHY_SPRITES[Math.floor(Math.random() * HEALTHY_SPRITES.length)];
-    s.items.push({ id: Math.random().toString(36).slice(2), kind: isJunk ? 'junk' : 'healthy', sprite, x: 0.1 + Math.random() * 0.8, y: -0.06, speed: 0.09 + Math.random() * 0.05 });
+  /** Les ingrédients de la liste encore manquants sont toujours à l'écran ; le reste vient des autres recettes */
+  function chooseIngredient() {
+    const need = missing();
+    const onScreen = new Set(s.items.map(it => it.ing));
+    const absent = need.filter(i => !onScreen.has(i));
+    if (absent.length && Math.random() < .85) return pick(absent);
+    const share = Math.max(.28, .42 - .05 * s.lists); // un peu plus de pièges à chaque liste réussie
+    if (need.length && Math.random() < share) return pick(need);
+    const current = recipe().items;
+    const decoys = ALL.filter(i => !current.includes(i) && s.items.filter(it => it.ing === i).length < 1);
+    return pick(decoys.length ? decoys : ALL.filter(i => !current.includes(i)));
   }
-  function spawnLoop() {
+
+  function spawn(rowIdx) {
+    const row = ROWS[rowIdx];
+    s.items.push({ id: `i${++s.seq}`, ing: chooseIngredient(), row: rowIdx, x: row.dir > 0 ? -.08 : 1.08 });
+  }
+
+  function tick() {
     if (!s || !s.running) return;
-    spawnItem();
-    const progress = 1 - (s.timeLeft / cfg.duration);
-    const interval = 267 - progress * 150; // accélère de 267ms à ~117ms entre deux items
-    spawnTimer = setTimeout(spawnLoop, Math.max(90, interval));
+    const now = performance.now();
+    const dt = Math.min(.1, (now - s.lastTickAt) / 1000);
+    s.lastTickAt = now;
+    s.xCm = latestX; s.yCm = latestY;
+    const out = latestX * latestX + latestY * latestY > radiusCm() * radiusCm();
+    if (out && s.lastZoneState !== 'outside') { s.lastZoneState = 'outside'; s.lockedUntil = Date.now() + LOCK_MS; SoundFx.lifeLost(); }
+    else if (!out && s.lastZoneState !== 'inside') s.lastZoneState = 'inside';
+
+    const boost = 1 + s.lists * .07;
+    s.items.forEach(it => { const r = ROWS[it.row]; it.x += r.dir * r.speed * boost * dt; });
+    s.items = s.items.filter(it => it.x > -.12 && it.x < 1.12);
+    ROWS.forEach((row, r) => {
+      const inRow = s.items.filter(it => it.row === r);
+      const entry = row.dir > 0 ? -.08 : 1.08;
+      const nearest = inRow.reduce((m, it) => Math.min(m, Math.abs(it.x - entry)), 9);
+      if (nearest > GAP + Math.random() * .08) spawn(r);
+    });
+    onFrameCb && onFrameCb(snapshot());
   }
 
-  let rafId = null, spawnTimer = null, tickTimer = null;
-  let onFrameCb = null, onFinishCb = null, onCatchCb = null;
-
-  function start(config, onFrame, onFinish, onCatch) {
-    cfg = config; onFrameCb = onFrame; onFinishCb = onFinish; onCatchCb = onCatch;
+  function start(config, onFrame, onFinish, onEvent) {
+    cfg = config; onFrameCb = onFrame; onFinishCb = onFinish; onEventCb = onEvent;
+    const order = s ? s.order : null; // garde la liste montrée pendant le décompte
     reset();
+    if (order) s.order = order;
+    // les étals démarrent déjà garnis
+    ROWS.forEach((row, r) => { for (let x = .08 + Math.random() * .1; x < 1; x += GAP + .06) s.items.push({ id: `i${++s.seq}`, ing: chooseIngredient(), row: r, x }); });
     PandaFitSensor.off('data', onSensorData);
     PandaFitSensor.on('data', onSensorData);
-    spawnLoop(); // fréquence dynamique (accélère avec la progression), remplace l'ancien intervalle fixe
-    tickTimer = setInterval(() => { s.timeLeft -= 1; if (s.timeLeft <= 0) finish('time'); }, 1000);
-    loop();
+    tickTimer = setInterval(tick, 40);
+    clockTimer = setInterval(() => { s.timeLeft -= 1; if (s.timeLeft <= 0) finish('time'); }, 1000);
   }
 
-  function loop() {
-    if (!s.running) return;
-    s.xCm = latestX; s.yCm = latestY;
-    const squared = latestX * latestX + latestY * latestY;
-    const squaredRange = radiusCm() * radiusCm();
-    if (squared > squaredRange && s.lastZoneState !== 'outside') {
-      s.lastZoneState = 'outside';
-      s.lockedUntil = Date.now() + LOCK_MS;
-      SoundFx.lifeLost();
-    } else if (squared <= squaredRange && s.lastZoneState !== 'inside') {
-      s.lastZoneState = 'inside';
-    }
-    for (let i = s.items.length - 1; i >= 0; i--) {
-      const it = s.items[i];
-      it.y += it.speed * 0.02;
-      if (it.y > 1.05) s.items.splice(i, 1);
-    }
-    onFrameCb && onFrameCb(snapshot());
-    rafId = requestAnimationFrame(loop);
-  }
-
-  /** À appeler quand le joueur tape sur un item affiché à l'écran (par son id). Ignoré pendant le verrouillage. */
+  /** Le joueur touche un ingrédient (par son id). Ignoré pendant le blocage après une sortie du cercle. */
   function tapItem(id) {
     if (!s || !s.running || isLocked()) return null;
-    const idx = s.items.findIndex(it => it.id === id);
-    if (idx === -1) return null;
-    const it = s.items[idx];
-    s.items.splice(idx, 1);
-    if (it.kind === 'junk') { s.junkCount++; SoundFx.lifeLost(); }
-    else { s.goodCount++; SoundFx.ready(); }
-    onCatchCb && onCatchCb(it.kind, it);
-    return it.kind;
+    const it = s.items.find(i => i.id === id);
+    if (!it) return null;
+    const need = missing();
+    if (need.includes(it.ing)) {
+      s.good++; s.streak++;
+      s.found.push(it.ing);
+      const slot = recipe().items.indexOf(it.ing);
+      s.items = s.items.filter(i => i.ing !== it.ing); // les autres exemplaires disparaissent : plus de piège injuste
+      SoundFx.ready();
+      onEventCb && onEventCb({ type: 'good', item: it, slot });
+      if (s.found.length >= 5) {
+        const done = recipe().name;
+        s.lists++;
+        s.recipeIdx++;
+        s.found = [];
+        onEventCb && onEventCb({ type: 'list', name: done });
+      }
+    } else {
+      s.wrong++; s.streak = 0;
+      s.items = s.items.filter(i => i.id !== id);
+      SoundFx.lifeLost();
+      onEventCb && onEventCb({ type: 'wrong', item: it });
+    }
+    onFrameCb && onFrameCb(snapshot());
+    return it.ing;
   }
 
-  function finish(reason) {
-    if (!s.running) return;
+  function stop() {
     s.running = false;
-    clearTimeout(spawnTimer); clearInterval(tickTimer); cancelAnimationFrame(rafId);
+    clearInterval(tickTimer); clearInterval(clockTimer);
     PandaFitSensor.off('data', onSensorData);
+  }
+  function finish(reason) {
+    if (!s || !s.running) return;
+    stop();
     SoundFx.finish();
     onFinishCb && onFinishCb(snapshot(), reason);
   }
-
-  function abort() {
-    if (!s || !s.running) return;
-    s.running = false;
-    clearTimeout(spawnTimer); clearInterval(tickTimer); cancelAnimationFrame(rafId);
-    PandaFitSensor.off('data', onSensorData);
-  }
+  function abort() { if (s && s.running) stop(); }
 
   function snapshot() {
+    const r = recipe();
     return {
-      items: s.items.slice(), goodCount: s.goodCount, junkCount: s.junkCount,
-      locked: isLocked(), timeLeft: s.timeLeft,
-      xCm: s.xCm, yCm: s.yCm, radiusCm: radiusCm(), difficulty: cfg.difficulty,
+      items: s.items.map(it => ({ ...it })), recipe: { name: r.name, items: r.items.slice() }, found: s.found.slice(),
+      goodCount: s.good, wrongCount: s.wrong, lists: s.lists, streak: s.streak,
+      locked: isLocked(), timeLeft: s.timeLeft, xCm: s.xCm, yCm: s.yCm, radiusCm: radiusCm(), difficulty: cfg.difficulty,
     };
   }
+  function computeScore(snap) { return snap.goodCount - snap.wrongCount; }
+  /** Première liste, pour l'afficher pendant le décompte */
+  function preview() { reset(); return snapshot(); }
 
-  function computeScore(snap) { return snap.goodCount - snap.junkCount; }
-
-  return { start, finish, abort, snapshot, tapItem, computeScore, radiusCm, PREPARE_SECONDS };
+  return { start, finish, abort, snapshot, tapItem, computeScore, preview, radiusCm, PREPARE_SECONDS, ROWS };
 })();
 
 /* =====================================================================================
@@ -2966,6 +3037,75 @@ const UI_DICT_ROWS = [
   ["Prépare-toi, ça démarre dans...", "Mach dich bereit, es geht los in...", "Get ready, starting in...", "Preparati, si parte tra..."],
   // Slalom
   ["Balance le plateau de gauche à droite, à ton rythme : chaque balancement fait passer une porte. Plus tu es régulier, plus le panda va vite, mais les balancements trop petits coûtent 3 secondes.", "Schwinge die Plattform in deinem Rhythmus von links nach rechts: Jeder Schwung bringt dich durch ein Tor. Je regelmässiger du bist, desto schneller fährt der Panda, aber zu kleine Schwünge kosten 3 Sekunden.", "Swing the platform from left to right at your own pace: each swing takes you through a gate. The steadier you are, the faster the panda goes, but swings that are too small cost 3 seconds.", "Fai oscillare la piattaforma da sinistra a destra, al tuo ritmo: ogni oscillazione ti fa passare una porta. Più sei regolare, più il panda va veloce, ma le oscillazioni troppo piccole costano 3 secondi."],
+  ["TROUVE LES 5 INGRÉDIENTS", "FINDE DIE 5 ZUTATEN", "FIND THE 5 INGREDIENTS", "TROVA I 5 INGREDIENTI"],
+  ["Et garde ton équilibre !", "Und halte dein Gleichgewicht!", "And keep your balance!", "E mantieni l'equilibrio!"],
+  ["Liste complète !", "Liste komplett!", "List complete!", "Lista completa!"],
+  ["Bons clics", "Richtige Klicks", "Correct taps", "Tocchi giusti"],
+  ["Mauvais clics", "Falsche Klicks", "Wrong taps", "Tocchi sbagliati"],
+  ["Listes complètes", "Volle Listen", "Lists completed", "Liste completate"],
+  ["Une liste de courses s'affiche : une recette suisse et ses 5 ingrédients. Trouve-les sur les étals et touche-les, puis passe à la liste suivante. Garde ton équilibre : si tu sors du cercle, le panda doit rattraper sa caisse et ne peut plus rien prendre pendant 2 secondes.", "Eine Einkaufsliste erscheint: ein Schweizer Rezept mit seinen 5 Zutaten. Finde sie an den Ständen und tippe sie an, dann geht es zur nächsten Liste. Halte dein Gleichgewicht: Wenn du den Kreis verlässt, muss der Panda seine Kiste auffangen und kann 2 Sekunden lang nichts nehmen.", "A shopping list appears: a Swiss recipe and its 5 ingredients. Find them on the market stalls and tap them, then move on to the next list. Keep your balance: if you leave the circle, the panda has to steady its crate and can't take anything for 2 seconds.", "Appare una lista della spesa: una ricetta svizzera e i suoi 5 ingredienti. Trovali sulle bancarelle e toccali, poi passa alla lista successiva. Mantieni l'equilibrio: se esci dal cerchio, il panda deve riprendere la sua cassa e non può prendere nulla per 2 secondi."],
+  ["S'entraîner à garder l'équilibre tout en traitant une information rend plus stable : près de 9 études d'entraînement « double tâche » sur 10 montrent une meilleure stabilité (méta-analyse de 42 études, Ghai et al., 2017).", "Gleichgewicht zu halten und dabei Informationen zu verarbeiten, macht stabiler: Fast 9 von 10 Studien mit «Dual-Task»-Training zeigen eine bessere Stabilität (Meta-Analyse von 42 Studien, Ghai et al., 2017).", "Training to keep your balance while processing information makes you steadier: nearly 9 out of 10 dual-task training studies show better stability (meta-analysis of 42 studies, Ghai et al., 2017).", "Allenarsi a mantenere l'equilibrio mentre si elabora un'informazione rende più stabili: quasi 9 studi di allenamento «doppio compito» su 10 mostrano una stabilità migliore (meta-analisi di 42 studi, Ghai et al., 2017)."],
+  ["Tu repères les bons ingrédients au milieu des autres et tu les touches au bon moment, sans perdre l'équilibre : l'attention et l'équilibre travaillent ensemble.", "Du erkennst die richtigen Zutaten zwischen den anderen und tippst sie im richtigen Moment an, ohne das Gleichgewicht zu verlieren: Aufmerksamkeit und Gleichgewicht arbeiten zusammen.", "You spot the right ingredients among the others and tap them at the right moment without losing your balance: attention and balance work together.", "Individui gli ingredienti giusti tra gli altri e li tocchi al momento giusto, senza perdere l'equilibrio: attenzione ed equilibrio lavorano insieme."],
+  ["Entraîne la prise d'information rapide et la concentration en restant stable, comme quand on cherche un produit en rayon ou un panneau en marchant.", "Trainiert die schnelle Informationsaufnahme und die Konzentration bei stabiler Haltung, wie wenn man ein Produkt im Regal oder ein Schild beim Gehen sucht.", "Trains fast information processing and concentration while staying steady, like looking for a product on a shelf or a sign while walking.", "Allena la presa di informazioni rapida e la concentrazione restando stabili, come quando si cerca un prodotto sullo scaffale o un cartello camminando."],
+  ["Émincé zurichois", "Zürcher Geschnetzeltes", "Zurich-style veal", "Sminuzzato alla zurighese"],
+  ["Gâteau aux carottes argovien", "Aargauer Rüeblitorte", "Aargau carrot cake", "Torta di carote argoviese"],
+  ["Gâteau aux pruneaux", "Zwetschgenwähe", "Plum tart", "Torta di prugne"],
+  ["Tresse du dimanche", "Sonntagszopf", "Sunday plaited bread", "Treccia della domenica"],
+  ["Papet vaudois", "Waadtländer Papet", "Vaud leek stew", "Papet vodese"],
+  ["Croûte au fromage", "Käseschnitte", "Cheese toast", "Crostone al formaggio"],
+  ["Polenta tessinoise", "Tessiner Polenta", "Ticino polenta", "Polenta ticinese"],
+  ["Soupe d'orge grisonne", "Bündner Gerstensuppe", "Grisons barley soup", "Minestra d'orzo grigionese"],
+  ["Meringues à la double crème", "Meringues mit Doppelrahm", "Meringues with double cream", "Meringhe con doppia panna"],
+  ["Ramequins au fromage", "Käseküchlein", "Cheese tartlets", "Tortine al formaggio"],
+  ["Tourte aux noix engadinoise", "Engadiner Nusstorte", "Engadine nut tart", "Torta di noci engadinese"],
+  ["Leckerli de Bâle", "Basler Leckerli", "Basel Leckerli", "Leckerli di Basilea"],
+  ["Cholera valaisan", "Walliser Cholera", "Valais cholera pie", "Cholera vallesana"],
+  ["Pommes de terre", "Kartoffeln", "Potatoes", "Patate"],
+  ["Beurre", "Butter", "Butter", "Burro"],
+  ["Oignon", "Zwiebel", "Onion", "Cipolla"],
+  ["Lard", "Speck", "Bacon", "Lardo"],
+  ["Œufs", "Eier", "Eggs", "Uova"],
+  ["Fromage", "Käse", "Cheese", "Formaggio"],
+  ["Cornichons", "Essiggurken", "Gherkins", "Cetriolini"],
+  ["Jambon", "Schinken", "Ham", "Prosciutto"],
+  ["Pain", "Brot", "Bread", "Pane"],
+  ["Ail", "Knoblauch", "Garlic", "Aglio"],
+  ["Poire", "Birne", "Pear", "Pera"],
+  ["Macaronis", "Makkaroni", "Macaroni", "Maccheroni"],
+  ["Pomme", "Apfel", "Apple", "Mela"],
+  ["Flocons d'avoine", "Haferflocken", "Oats", "Fiocchi d'avena"],
+  ["Yaourt", "Joghurt", "Yogurt", "Yogurt"],
+  ["Noisettes", "Haselnüsse", "Hazelnuts", "Nocciole"],
+  ["Framboises", "Himbeeren", "Raspberries", "Lamponi"],
+  ["Viande", "Fleisch", "Meat", "Carne"],
+  ["Champignons", "Pilze", "Mushrooms", "Funghi"],
+  ["Crème", "Rahm", "Cream", "Panna"],
+  ["Persil", "Petersilie", "Parsley", "Prezzemolo"],
+  ["Carottes", "Rüebli", "Carrots", "Carote"],
+  ["Sucre", "Zucker", "Sugar", "Zucchero"],
+  ["Citron", "Zitrone", "Lemon", "Limone"],
+  ["Pruneaux", "Zwetschgen", "Plums", "Prugne"],
+  ["Farine", "Mehl", "Flour", "Farina"],
+  ["Lait", "Milch", "Milk", "Latte"],
+  ["Levure", "Hefe", "Yeast", "Lievito"],
+  ["Poireaux", "Lauch", "Leeks", "Porri"],
+  ["Saucisson", "Wurst", "Sausage", "Salsiccia"],
+  ["Maïs", "Mais", "Corn", "Mais"],
+  ["Orge", "Gerste", "Barley", "Orzo"],
+  ["Céleri", "Sellerie", "Celery", "Sedano"],
+  ["Fraises", "Erdbeeren", "Strawberries", "Fragole"],
+  ["Myrtilles", "Heidelbeeren", "Blueberries", "Mirtilli"],
+  ["Châtaignes", "Marroni", "Chestnuts", "Castagne"],
+  ["Vanille", "Vanille", "Vanilla", "Vaniglia"],
+  ["Riz", "Reis", "Rice", "Riso"],
+  ["Poulet", "Poulet", "Chicken", "Pollo"],
+  ["Ananas", "Ananas", "Pineapple", "Ananas"],
+  ["Banane", "Banane", "Banana", "Banana"],
+  ["Noix", "Baumnüsse", "Walnuts", "Noci"],
+  ["Miel", "Honig", "Honey", "Miele"],
+  ["Amandes", "Mandeln", "Almonds", "Mandorle"],
+  ["Orange", "Orange", "Orange", "Arancia"],
+  ["Cannelle", "Zimt", "Cinnamon", "Cannella"],
   ["TAPE LES BONS ALIMENTS", "TIPPE DIE GUTEN LEBENSMITTEL AN", "TAP THE HEALTHY FOODS", "TOCCA I CIBI SANI"],
   ["Et reste dans le cercle !", "Und bleib im Kreis!", "And stay in the circle!", "E resta nel cerchio!"],
   ["HORS ZONE !", "AUSSERHALB!", "OUT OF ZONE!", "FUORI ZONA!"],
@@ -4333,9 +4473,9 @@ const GAME_INFO = {
   },
   migros: {
     cat: 'precision',
-    science: 'Plus on mange de fruits et légumes, plus le risque de maladies cardiovasculaires baisse, avec un optimum autour de 800 g par jour (méta-analyse, Aune et al., 2017).',
-    why: 'Tu restes stable dans la zone tout en visant les bons aliments du doigt : équilibre et coordination œil-main.',
-    benefits: 'Améliore la stabilité quand l\'attention est prise ailleurs, et rappelle les bons choix alimentaires.',
+    science: 'S\'entraîner à garder l\'équilibre tout en traitant une information rend plus stable : près de 9 études d\'entraînement « double tâche » sur 10 montrent une meilleure stabilité (méta-analyse de 42 études, Ghai et al., 2017).',
+    why: 'Tu repères les bons ingrédients au milieu des autres et tu les touches au bon moment, sans perdre l\'équilibre : l\'attention et l\'équilibre travaillent ensemble.',
+    benefits: 'Entraîne la prise d\'information rapide et la concentration en restant stable, comme quand on cherche un produit en rayon ou un panneau en marchant.',
   },
   skiprev: {
     cat: 'mouvement',
@@ -5048,7 +5188,7 @@ function screenMigrosSetup() {
     <div class="game-setup" style="${MIGROS_THEME}">
       <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="shopping-cart"></i> Le Panier Malin</h1>
       ${gameVideoBigHTML(MIGROS_WELCOME_VIDEO_B64)}
-      <p class="page-sub">Reste dans la zone en bas sans en sortir, et tape sur les bons aliments qui tombent — évite les sucreries.</p>
+      <p class="page-sub">Une liste de courses s'affiche : une recette suisse et ses 5 ingrédients. Trouve-les sur les étals et touche-les, puis passe à la liste suivante. Garde ton équilibre : si tu sors du cercle, le panda doit rattraper sa caisse et ne peut plus rien prendre pendant 2 secondes.</p>
       <button class="btn-primary" id="btnMigrosStart" style="width:100%;">${t('game_start_btn')}</button>
 <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
     ${gameInfoHTML('migros')}
@@ -5067,11 +5207,14 @@ function wireMigrosSetup() {
 function migrosPrepareThenStart() { startMigrosGame(); }
 function startMigrosGame() {
   migrosStreak = 0;
+  shopListKey = '';
   content.innerHTML = `<div style="${MIGROS_THEME}">${screenMigrosPlaying()}</div>`;
   if (window.lucide) lucide.createIcons();
   document.getElementById('migrosPandaHappy')?.play().catch(() => {});
   document.getElementById('migrosPandaFail')?.play().catch(() => {});
-  requestAnimationFrame(() => MarketScene.start());
+  const firstList = MigrosGame.preview();
+  renderShopList(firstList);
+  requestAnimationFrame(() => { MarketScene.start(); MarketScene.update({ ...firstList, items: [] }); });
   // Décompte sur l'étal : le temps ne part qu'au GO
   let remaining = MigrosGame.PREPARE_SECONDS;
   SoundFx.ready();
@@ -5100,51 +5243,74 @@ function runMigrosGame() {
     (snap, reason) => {
       activeGameModule = null;
       const score = MigrosGame.computeScore(snap);
-      PandaFitBackend.recordSession(clientConfig, 'migros', score, { difficulty: migrosCfg.difficulty, goodCount: snap.goodCount, junkCount: snap.junkCount, reason }).then(submitPendingAnswersIfAny).then(() => refreshHighlights()); // attend l'enregistrement réel avant de rafraîchir, sinon on lit encore l'ancienne donnée
+      PandaFitBackend.recordSession(clientConfig, 'migros', score, { difficulty: migrosCfg.difficulty, goodClicks: snap.goodCount, wrongClicks: snap.wrongCount, lists: snap.lists, reason }).then(submitPendingAnswersIfAny).then(() => refreshHighlights()); // attend l'enregistrement réel avant de rafraîchir, sinon on lit encore l'ancienne donnée
       maybeShowArcadePrompt('migros', score);
       content.innerHTML = `<div style="${MIGROS_THEME}">${screenMigrosResult(snap, score, reason)}</div>`; wireMigrosResult();
     },
-    (kind, it) => migrosSpawnCatchPulse(kind, it)
+    (ev) => migrosOnEvent(ev)
   );
 }
-/** Panier Malin : un étal au soleil devant les vergers et les Alpes. Tout est dessiné par le code, aucune image ni emoji. */
-const MarketScene = (() => {
-  const S = 256; // taille de dessin d'un aliment
-  const FALL_TOP = 0.13, FALL_BOTTOM = 0.74;
-  const RING_Y = 0.875, RING_FLAT = 0.42;
-  const SIZE = 11.5;  // taille d'un aliment, en % de la largeur
+/** Les 46 ingrédients du Panier Malin, dessinés par le code (zone 256 × 256, centre 128, 128). */
+const SHOP_DRAW = (() => {
   const mix = (a, b, t) => a + (b - a) * t;
-  let st = null, snap = null, sprites = null;
-
   function radial(c, x, y, r0, r1, stops, cx, cy) {
     const g = c.createRadialGradient(x, y, r0, cx == null ? x : cx, cy == null ? y : cy, r1);
     stops.forEach(([o, col]) => g.addColorStop(o, col));
     return g;
   }
+  function linear(c, x1, y1, x2, y2, stops) {
+    const g = c.createLinearGradient(x1, y1, x2, y2);
+    stops.forEach(([o, col]) => g.addColorStop(o, col));
+    return g;
+  }
   function gloss(c, x, y, rx, ry, rot, alpha) {
     c.save(); c.translate(x, y); c.rotate(rot); c.scale(1, ry / rx);
-    const g = c.createRadialGradient(0, 0, 0, 0, 0, rx);
-    g.addColorStop(0, `rgba(255,255,255,${alpha})`); g.addColorStop(1, 'rgba(255,255,255,0)');
-    c.fillStyle = g; c.beginPath(); c.arc(0, 0, rx, 0, Math.PI * 2); c.fill();
+    c.fillStyle = radial(c, 0, 0, 0, rx, [[0, `rgba(255,255,255,${alpha})`], [1, 'rgba(255,255,255,0)']]);
+    c.beginPath(); c.arc(0, 0, rx, 0, Math.PI * 2); c.fill();
     c.restore();
   }
   function leaf(c, x, y, len, rot, col1, col2) {
     c.save(); c.translate(x, y); c.rotate(rot);
-    const g = c.createLinearGradient(0, -len * .3, 0, len * .3);
-    g.addColorStop(0, col1 || '#7ccb46'); g.addColorStop(1, col2 || '#2f7d32');
-    c.fillStyle = g;
+    c.fillStyle = linear(c, 0, -len * .3, 0, len * .3, [[0, col1 || '#7ccb46'], [1, col2 || '#2f7d32']]);
     c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(len * .5, -len * .42, len, 0); c.quadraticCurveTo(len * .5, len * .42, 0, 0); c.fill();
-    c.strokeStyle = 'rgba(20,70,30,.55)'; c.lineWidth = 2;
+    c.strokeStyle = 'rgba(20,70,30,.5)'; c.lineWidth = 2;
     c.beginPath(); c.moveTo(4, 0); c.lineTo(len * .92, 0); c.stroke();
     c.restore();
   }
+  function ball(c, x, y, r, light, mid, dark) {
+    c.fillStyle = radial(c, x - r * .35, y - r * .4, r * .1, r * 1.15, [[0, light], [.5, mid], [1, dark]], x, y);
+    c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+  }
+  function egg(c, x, y, s, light, dark) {
+    c.save(); c.translate(x, y); c.scale(s, s);
+    c.fillStyle = radial(c, -14, -22, 4, 70, [[0, light], [1, dark]], 0, 0);
+    c.beginPath(); c.moveTo(0, -56); c.bezierCurveTo(34, -56, 46, 0, 44, 18); c.bezierCurveTo(42, 46, 22, 58, 0, 58); c.bezierCurveTo(-22, 58, -42, 46, -44, 18); c.bezierCurveTo(-46, 0, -34, -56, 0, -56); c.fill();
+    gloss(c, -16, -22, 14, 22, -.3, .7);
+    c.restore();
+  }
+  function bowl(c, fill) {
+    c.fillStyle = 'rgba(0,0,0,.12)'; c.beginPath(); c.ellipse(128, 222, 92, 14, 0, 0, Math.PI * 2); c.fill();
+    fill(c);
+    c.fillStyle = linear(c, 30, 0, 226, 0, [[0, '#2f5d9e'], [.5, '#4f86cf'], [1, '#244a80']]);
+    c.beginPath(); c.moveTo(24, 132); c.quadraticCurveTo(30, 216, 128, 220); c.quadraticCurveTo(226, 216, 232, 132); c.closePath(); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 5;
+    c.beginPath(); c.moveTo(44, 168); c.quadraticCurveTo(128, 196, 212, 168); c.stroke();
+    c.fillStyle = '#dce8f7'; c.beginPath(); c.ellipse(128, 132, 104, 18, 0, 0, Math.PI); c.fill();
+  }
+  function grains(c, n, rx, ry, cy, col, len, seed) {
+    for (let i = 0; i < n; i++) {
+      const a = pfHash(seed + i) * Math.PI * 2, d = Math.sqrt(pfHash(seed + i + .5));
+      const x = 128 + Math.cos(a) * rx * d, y = cy + Math.sin(a) * ry * d - (1 - d) * ry * .9;
+      c.fillStyle = col(i);
+      c.beginPath(); c.ellipse(x, y, len, len * .55, pfHash(seed + i + .7) * 3, 0, Math.PI * 2); c.fill();
+    }
+  }
 
-  const DRAW = {
+  return {
     apple(c) {
       c.fillStyle = radial(c, 92, 96, 8, 158, [[0, '#ff8f7a'], [.38, '#ec2f38'], [.8, '#b5121f'], [1, '#6f0a16']], 128, 138);
       c.beginPath(); c.moveTo(128, 72); c.bezierCurveTo(98, 44, 30, 56, 30, 126); c.bezierCurveTo(30, 190, 82, 238, 108, 238); c.bezierCurveTo(118, 238, 122, 231, 128, 231); c.bezierCurveTo(134, 231, 138, 238, 148, 238); c.bezierCurveTo(174, 238, 226, 190, 226, 126); c.bezierCurveTo(226, 56, 158, 44, 128, 72); c.fill();
-      c.fillStyle = 'rgba(90,10,20,.5)'; c.beginPath(); c.ellipse(128, 74, 26, 9, 0, 0, Math.PI * 2); c.fill();
-      gloss(c, 84, 104, 44, 26, -.6, .85); gloss(c, 182, 178, 26, 12, -.8, .22);
+      gloss(c, 84, 104, 44, 26, -.6, .85);
       c.strokeStyle = '#6a4427'; c.lineWidth = 9; c.lineCap = 'round';
       c.beginPath(); c.moveTo(128, 76); c.quadraticCurveTo(126, 44, 142, 22); c.stroke();
       leaf(c, 136, 50, 74, -.32);
@@ -5155,24 +5321,31 @@ const MarketScene = (() => {
       gloss(c, 96, 150, 36, 24, -.7, .75);
       c.strokeStyle = '#6a4427'; c.lineWidth = 8; c.lineCap = 'round';
       c.beginPath(); c.moveTo(128, 38); c.quadraticCurveTo(130, 22, 142, 12); c.stroke();
+      leaf(c, 138, 22, 56, -.1);
     },
     orange(c) {
-      c.fillStyle = radial(c, 92, 92, 10, 150, [[0, '#ffd27a'], [.42, '#ff9a1f'], [.85, '#e56a00'], [1, '#a84400']], 128, 134);
-      c.beginPath(); c.arc(128, 134, 100, 0, Math.PI * 2); c.fill();
-      c.save(); c.beginPath(); c.arc(128, 134, 100, 0, Math.PI * 2); c.clip();
-      for (let i = 0; i < 260; i++) {
+      ball(c, 128, 136, 98, '#ffd27a', '#ff951a', '#b34a00');
+      c.save(); c.beginPath(); c.arc(128, 136, 98, 0, Math.PI * 2); c.clip();
+      for (let i = 0; i < 240; i++) {
         c.fillStyle = `rgba(150,70,0,${(.1 + pfHash(i) * .22).toFixed(2)})`;
-        c.beginPath(); c.arc(30 + pfHash(i + 1) * 196, 36 + pfHash(i + 2) * 196, 1.1 + pfHash(i + 3) * 1.1, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(30 + pfHash(i + 1) * 196, 38 + pfHash(i + 2) * 196, 1.1 + pfHash(i + 3), 0, Math.PI * 2); c.fill();
       }
       c.restore();
-      gloss(c, 88, 96, 42, 26, -.6, .8);
-      c.fillStyle = '#5b7a2a'; c.beginPath(); c.arc(128, 38, 8, 0, Math.PI * 2); c.fill();
-      leaf(c, 132, 36, 72, -.18);
+      gloss(c, 88, 98, 42, 26, -.6, .8);
+      c.fillStyle = '#5b7a2a'; c.beginPath(); c.arc(128, 40, 8, 0, Math.PI * 2); c.fill();
+      leaf(c, 132, 38, 70, -.18);
+    },
+    lemon(c) {
+      c.save(); c.translate(128, 136); c.rotate(-.35);
+      c.fillStyle = radial(c, -30, -26, 6, 120, [[0, '#fffbb0'], [.5, '#ffe23a'], [1, '#c9a400']], 0, 0);
+      c.beginPath(); c.moveTo(-108, 0); c.quadraticCurveTo(-96, -16, -84, -18); c.bezierCurveTo(-60, -76, 60, -76, 84, -18); c.quadraticCurveTo(96, -16, 108, 0); c.quadraticCurveTo(96, 16, 84, 18); c.bezierCurveTo(60, 76, -60, 76, -84, 18); c.quadraticCurveTo(-96, 16, -108, 0); c.fill();
+      for (let i = 0; i < 120; i++) { c.fillStyle = 'rgba(170,130,0,.2)'; c.beginPath(); c.arc((pfHash(i) - .5) * 170, (pfHash(i + 1) - .5) * 100, 1.3, 0, Math.PI * 2); c.fill(); }
+      gloss(c, -26, -26, 40, 16, 0, .75);
+      c.restore();
+      leaf(c, 186, 92, 60, -1.2);
     },
     banana(c) {
-      const g = c.createLinearGradient(40, 60, 200, 230);
-      g.addColorStop(0, '#fff09a'); g.addColorStop(.55, '#ffd232'); g.addColorStop(1, '#d99a0b');
-      c.fillStyle = g;
+      c.fillStyle = linear(c, 40, 60, 200, 230, [[0, '#fff09a'], [.55, '#ffd232'], [1, '#d99a0b']]);
       c.beginPath(); c.moveTo(196, 24); c.bezierCurveTo(214, 96, 196, 178, 132, 216); c.bezierCurveTo(98, 236, 56, 234, 28, 214); c.bezierCurveTo(70, 210, 118, 188, 146, 138); c.bezierCurveTo(166, 104, 176, 66, 176, 28); c.closePath(); c.fill();
       c.strokeStyle = 'rgba(160,104,10,.6)'; c.lineWidth = 4; c.lineCap = 'round';
       c.beginPath(); c.moveTo(186, 44); c.bezierCurveTo(194, 104, 168, 170, 112, 204); c.stroke();
@@ -5182,151 +5355,440 @@ const MarketScene = (() => {
       c.beginPath(); c.ellipse(30, 214, 8, 5, 0, 0, Math.PI * 2); c.fill();
     },
     strawberry(c) {
-      c.fillStyle = radial(c, 96, 104, 8, 150, [[0, '#ff7f78'], [.45, '#ee2436'], [1, '#90091e']], 128, 130);
-      c.beginPath(); c.moveTo(128, 240); c.bezierCurveTo(70, 206, 30, 132, 44, 92); c.bezierCurveTo(58, 56, 106, 58, 128, 64); c.bezierCurveTo(150, 58, 198, 56, 212, 92); c.bezierCurveTo(226, 132, 186, 206, 128, 240); c.fill();
-      for (let r = 0; r < 7; r++) {
-        const y = 92 + r * 21, half = (7 - r) * 13.5, n = Math.max(1, 6 - r + (r % 2 ? 0 : 1));
-        for (let i = 0; i < n; i++) {
-          const x = 128 + (n > 1 ? mix(-half, half, i / (n - 1)) : 0);
-          c.fillStyle = '#f7d774';
-          c.beginPath(); c.ellipse(x, y, 3.6, 6.2, (x - 128) * .006, 0, Math.PI * 2); c.fill();
-          c.fillStyle = 'rgba(120,8,20,.3)'; c.beginPath(); c.ellipse(x + 1, y + 7, 4, 2, 0, 0, Math.PI * 2); c.fill();
-        }
-      }
-      gloss(c, 88, 112, 30, 18, -.7, .65);
-      [-1.25, -.65, 0, .65, 1.25].forEach(a => leaf(c, 128, 66, 66, -Math.PI / 2 + a + Math.PI, '#7ccb46', '#2c7a32'));
-      c.strokeStyle = '#4e7a2a'; c.lineWidth = 8; c.lineCap = 'round';
-      c.beginPath(); c.moveTo(128, 62); c.lineTo(128, 28); c.stroke();
-    },
-    grapes(c) {
-      c.strokeStyle = '#6a4427'; c.lineWidth = 8; c.lineCap = 'round';
-      c.beginPath(); c.moveTo(128, 56); c.quadraticCurveTo(122, 32, 136, 14); c.stroke();
-      leaf(c, 134, 40, 78, -.2);
-      const rows = [[0, 62, 4], [1, 98, 5], [2, 134, 4], [3, 170, 3], [4, 206, 2], [5, 236, 1]];
-      rows.forEach(([, y, n]) => {
-        for (let i = 0; i < n; i++) {
-          const x = 128 + (i - (n - 1) / 2) * 40;
-          c.fillStyle = radial(c, x - 8, y - 8, 2, 26, [[0, '#bb86e8'], [.45, '#6c2db0'], [1, '#2c0f5c']], x, y);
-          c.beginPath(); c.arc(x, y + 16, 22, 0, Math.PI * 2); c.fill();
-          gloss(c, x - 7, y + 8, 10, 6, -.6, .85);
-        }
+      [[96, 150, .8, -.25], [150, 130, 1, .15]].forEach(([x, y, s, r]) => {
+        c.save(); c.translate(x, y); c.rotate(r); c.scale(s, s);
+        c.fillStyle = radial(c, -26, -20, 6, 110, [[0, '#ff8a80'], [.45, '#ee2436'], [1, '#8f0a1e']], 0, 0);
+        c.beginPath(); c.moveTo(0, 86); c.bezierCurveTo(-48, 58, -78, 2, -66, -28); c.bezierCurveTo(-54, -58, -18, -56, 0, -50); c.bezierCurveTo(18, -56, 54, -58, 66, -28); c.bezierCurveTo(78, 2, 48, 58, 0, 86); c.fill();
+        for (let i = 0; i < 26; i++) { const px = (pfHash(i) - .5) * 100, py = -30 + pfHash(i + 1) * 100; if (Math.abs(px) > 60 - py * .5) continue; c.fillStyle = '#f7d774'; c.beginPath(); c.ellipse(px, py, 3, 5, 0, 0, Math.PI * 2); c.fill(); }
+        gloss(c, -26, -14, 22, 12, -.6, .6);
+        [-1.1, -.4, .3, 1].forEach(a => leaf(c, 0, -48, 40, -Math.PI / 2 + a + Math.PI, '#7ccb46', '#2c7a32'));
+        c.restore();
       });
+    },
+    raspberry(c) {
+      [[92, 150, .85], [158, 124, 1]].forEach(([x, y, s]) => {
+        c.save(); c.translate(x, y); c.scale(s, s);
+        for (let r = 0; r < 5; r++) for (let i = 0; i < 6 - Math.abs(r - 2); i++) {
+          const px = (i - (5 - Math.abs(r - 2)) / 2) * 20, py = -40 + r * 20;
+          ball(c, px, py, 13, '#ffb0c4', '#e0245a', '#8c0f36');
+        }
+        c.fillStyle = '#5f8a2e';
+        [-.9, -.3, .3, .9].forEach(a => { c.save(); c.translate(0, -58); c.rotate(a); c.beginPath(); c.ellipse(0, -6, 6, 14, 0, 0, Math.PI * 2); c.fill(); c.restore(); });
+        c.restore();
+      });
+    },
+    blueberry(c) {
+      [[84, 168], [136, 176], [184, 156], [110, 120], [160, 110], [128, 70]].forEach(([x, y], i) => {
+        ball(c, x, y, 34, '#8fa9e8', '#3a4f9c', '#141e4d');
+        c.fillStyle = 'rgba(210,220,255,.25)'; c.beginPath(); c.arc(x, y, 34, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#1a1f3a'; c.beginPath();
+        for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2 + i; c.lineTo(x + Math.cos(a) * 9, y - 14 + Math.sin(a) * 6); }
+        c.closePath(); c.fill();
+      });
+    },
+    prune(c) {
+      [[96, 146, -.4], [156, 128, .3]].forEach(([x, y, r]) => {
+        c.save(); c.translate(x, y); c.rotate(r);
+        c.fillStyle = radial(c, -20, -24, 4, 80, [[0, '#9d8bd8'], [.5, '#4b2f8c'], [1, '#1d1240']], 0, 0);
+        c.beginPath(); c.ellipse(0, 0, 54, 70, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = 'rgba(205,200,240,.22)'; c.beginPath(); c.ellipse(0, 0, 54, 70, 0, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = 'rgba(20,10,50,.5)'; c.lineWidth = 3; c.beginPath(); c.moveTo(6, -66); c.quadraticCurveTo(24, 0, 6, 66); c.stroke();
+        c.strokeStyle = '#5a3b1e'; c.lineWidth = 6; c.lineCap = 'round'; c.beginPath(); c.moveTo(0, -66); c.lineTo(-4, -84); c.stroke();
+        gloss(c, -20, -26, 16, 26, 0, .55);
+        c.restore();
+      });
+    },
+    pineapple(c) {
+      for (let i = 0; i < 9; i++) leaf(c, 128, 96, 66 + (i % 3) * 16, -Math.PI / 2 + (i - 4) * .2, '#7ccb46', '#2a6d2c');
+      c.fillStyle = radial(c, 104, 140, 10, 110, [[0, '#ffd66b'], [.6, '#e0981e'], [1, '#8a5310']], 128, 170);
+      c.beginPath(); c.ellipse(128, 172, 66, 80, 0, 0, Math.PI * 2); c.fill();
+      c.save(); c.beginPath(); c.ellipse(128, 172, 66, 80, 0, 0, Math.PI * 2); c.clip();
+      c.strokeStyle = 'rgba(110,60,10,.55)'; c.lineWidth = 3;
+      for (let k = -8; k < 9; k++) { c.beginPath(); c.moveTo(40 + k * 22, 90); c.lineTo(140 + k * 22, 260); c.stroke(); c.beginPath(); c.moveTo(216 - k * 22, 90); c.lineTo(116 - k * 22, 260); c.stroke(); }
+      c.restore();
+      gloss(c, 104, 140, 20, 34, 0, .4);
+    },
+    chestnut(c) {
+      [[94, 152, -.3], [156, 128, .25]].forEach(([x, y, r]) => {
+        c.save(); c.translate(x, y); c.rotate(r);
+        c.fillStyle = radial(c, -20, -20, 4, 80, [[0, '#c7703a'], [.55, '#7a3416'], [1, '#3a1608']], 0, 0);
+        c.beginPath(); c.moveTo(0, -66); c.bezierCurveTo(48, -40, 66, 20, 50, 52); c.lineTo(-50, 52); c.bezierCurveTo(-66, 20, -48, -40, 0, -66); c.fill();
+        c.fillStyle = '#e6caa0'; c.beginPath(); c.ellipse(0, 50, 50, 16, 0, 0, Math.PI * 2); c.fill();
+        gloss(c, -18, -18, 14, 30, -.3, .7);
+        c.restore();
+      });
+    },
+    walnut(c) {
+      [[96, 150], [160, 120]].forEach(([x, y], k) => {
+        ball(c, x, y, 56, '#e7c69a', '#b98a55', '#6f4a26');
+        c.strokeStyle = 'rgba(80,50,20,.55)'; c.lineWidth = 3;
+        for (let i = 0; i < 9; i++) { c.beginPath(); c.arc(x + (pfHash(i + k) - .5) * 60, y + (pfHash(i + k + 3) - .5) * 60, 12 + pfHash(i) * 14, pfHash(i + 2) * 6, pfHash(i + 2) * 6 + 2); c.stroke(); }
+        c.lineWidth = 4; c.beginPath(); c.moveTo(x, y - 56); c.quadraticCurveTo(x + 10, y, x, y + 56); c.stroke();
+      });
+    },
+    hazelnut(c) {
+      [[90, 158], [164, 158], [128, 96]].forEach(([x, y]) => {
+        c.fillStyle = radial(c, x - 14, y - 6, 3, 50, [[0, '#d39a5c'], [.6, '#8f5524'], [1, '#4f2a10']], x, y + 6);
+        c.beginPath(); c.moveTo(x, y - 46); c.bezierCurveTo(x + 40, y - 30, x + 44, y + 34, x, y + 44); c.bezierCurveTo(x - 44, y + 34, x - 40, y - 30, x, y - 46); c.fill();
+        c.fillStyle = '#e8cfa6'; c.beginPath(); c.ellipse(x, y - 34, 22, 12, 0, 0, Math.PI * 2); c.fill();
+        gloss(c, x - 12, y + 2, 10, 18, 0, .6);
+      });
+    },
+    almond(c) {
+      [[88, 152, -.5], [168, 150, .5], [128, 104, 0]].forEach(([x, y, r]) => {
+        c.save(); c.translate(x, y); c.rotate(r);
+        c.fillStyle = radial(c, -10, -10, 3, 60, [[0, '#e3a76b'], [.6, '#a8642c'], [1, '#5f3412']], 0, 0);
+        c.beginPath(); c.moveTo(0, -56); c.bezierCurveTo(30, -30, 30, 30, 0, 50); c.bezierCurveTo(-30, 30, -30, -30, 0, -56); c.fill();
+        c.strokeStyle = 'rgba(80,40,12,.45)'; c.lineWidth = 2;
+        for (let i = -2; i <= 2; i++) { c.beginPath(); c.moveTo(i * 6, -40); c.quadraticCurveTo(i * 9, 0, i * 6, 40); c.stroke(); }
+        c.restore();
+      });
+    },
+    potato(c) {
+      [[150, 116, .85, .4], [110, 150, 1, -.2]].forEach(([x, y, s, r], k) => {
+        c.save(); c.translate(x, y); c.rotate(r); c.scale(s, s);
+        c.fillStyle = radial(c, -24, -22, 6, 110, [[0, '#e8c38c'], [.55, '#b98648'], [1, '#6d4a22']], 0, 0);
+        c.beginPath(); c.moveTo(-90, -6); c.bezierCurveTo(-92, -54, -30, -66, 10, -58); c.bezierCurveTo(70, -60, 98, -22, 92, 14); c.bezierCurveTo(86, 54, 34, 66, -10, 62); c.bezierCurveTo(-60, 60, -88, 32, -90, -6); c.fill();
+        c.fillStyle = 'rgba(90,55,20,.55)';
+        [[-40, -20], [20, -30], [50, 20], [-20, 30], [0, 0]].forEach(([px, py], i) => { c.beginPath(); c.ellipse(px, py, 5, 3, i, 0, Math.PI * 2); c.fill(); });
+        gloss(c, -30, -28, 30, 14, -.3, .35);
+        c.restore();
+      });
+    },
+    onion(c) {
+      c.fillStyle = radial(c, 98, 120, 8, 120, [[0, '#f6d79a'], [.5, '#cf8a3a'], [1, '#7a4013']], 128, 150);
+      c.beginPath(); c.moveTo(128, 40); c.bezierCurveTo(150, 80, 220, 104, 214, 162); c.bezierCurveTo(208, 214, 160, 232, 128, 232); c.bezierCurveTo(96, 232, 48, 214, 42, 162); c.bezierCurveTo(36, 104, 106, 80, 128, 40); c.fill();
+      c.strokeStyle = 'rgba(110,60,18,.45)'; c.lineWidth = 3;
+      [-60, -30, 0, 30, 60].forEach(o => { c.beginPath(); c.moveTo(128, 46); c.quadraticCurveTo(128 + o * 1.4, 150, 128 + o * .5, 230); c.stroke(); });
+      c.strokeStyle = '#8a5a22'; c.lineWidth = 6; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(128, 42); c.lineTo(122, 16); c.stroke();
+      c.strokeStyle = '#c9b08a'; c.lineWidth = 2;
+      for (let i = -4; i <= 4; i++) { c.beginPath(); c.moveTo(128, 230); c.lineTo(128 + i * 6, 246); c.stroke(); }
+      gloss(c, 92, 128, 18, 40, .2, .55);
+    },
+    garlic(c) {
+      c.fillStyle = radial(c, 104, 130, 8, 120, [[0, '#ffffff'], [.6, '#efe6dc'], [1, '#b9a690']], 128, 160);
+      [[-46, 0, 44], [46, 0, 44], [-20, -6, 50], [20, -6, 50], [0, -2, 52]].forEach(([dx, dy, r]) => {
+        c.beginPath(); c.moveTo(128 + dx, 70); c.bezierCurveTo(128 + dx + r, 100 + dy, 128 + dx + r * .9, 220, 128 + dx * .6, 226); c.bezierCurveTo(128 + dx - r * .9, 220, 128 + dx - r, 100 + dy, 128 + dx, 70); c.fill();
+      });
+      c.strokeStyle = 'rgba(150,90,140,.5)'; c.lineWidth = 3;
+      [-34, -10, 14, 36].forEach(o => { c.beginPath(); c.moveTo(128 + o * .3, 80); c.quadraticCurveTo(128 + o * 1.3, 160, 128 + o * .5, 222); c.stroke(); });
+      c.fillStyle = '#d9cbb6'; c.beginPath(); c.moveTo(118, 74); c.lineTo(124, 20); c.lineTo(132, 20); c.lineTo(138, 74); c.fill();
+    },
+    leek(c) {
+      c.save(); c.translate(128, 128); c.rotate(-.75);
+      c.fillStyle = linear(c, -120, 0, 120, 0, [[0, '#f7f5e8'], [.42, '#e6efc2'], [.58, '#8cc45a'], [1, '#2e6e2c']]);
+      c.beginPath(); c.moveTo(-118, -20); c.lineTo(10, -22); c.lineTo(120, -48); c.lineTo(126, -10); c.lineTo(60, 0); c.lineTo(126, 20); c.lineTo(116, 50); c.lineTo(10, 22); c.lineTo(-118, 20); c.closePath(); c.fill();
+      c.strokeStyle = 'rgba(60,110,40,.35)'; c.lineWidth = 2;
+      [-10, 0, 10].forEach(o => { c.beginPath(); c.moveTo(-110, o); c.lineTo(20, o); c.stroke(); });
+      c.strokeStyle = '#d9cfb0'; c.lineWidth = 2;
+      for (let i = -5; i <= 5; i++) { c.beginPath(); c.moveTo(-118, i * 3); c.lineTo(-132, i * 5); c.stroke(); }
+      gloss(c, -50, -10, 50, 6, 0, .6);
+      c.restore();
+    },
+    celery(c) {
+      for (let i = 0; i < 5; i++) {
+        c.save(); c.translate(128, 236); c.rotate((i - 2) * .14);
+        c.fillStyle = linear(c, -14, 0, 14, 0, [[0, '#9fcf6a'], [.5, '#d9f0a6'], [1, '#7fb34c']]);
+        roundedRect(c, -13, -170, 26, 170, 10); c.fill();
+        c.strokeStyle = 'rgba(80,130,40,.4)'; c.lineWidth = 2; c.beginPath(); c.moveTo(-4, -160); c.lineTo(-4, -10); c.moveTo(5, -160); c.lineTo(5, -10); c.stroke();
+        for (let k = 0; k < 3; k++) leaf(c, 0, -166, 34, -Math.PI / 2 + (k - 1) * .6, '#7fc24a', '#3b8a33');
+        c.restore();
+      }
+    },
+    parsley(c) {
+      c.strokeStyle = '#5a9a3a'; c.lineWidth = 5; c.lineCap = 'round';
+      for (let i = 0; i < 6; i++) { c.beginPath(); c.moveTo(128, 236); c.quadraticCurveTo(128 + (i - 2.5) * 18, 160, 128 + (i - 2.5) * 34, 96 + (i % 2) * 20); c.stroke(); }
+      for (let i = 0; i < 6; i++) {
+        const x = 128 + (i - 2.5) * 34, y = 92 + (i % 2) * 20;
+        for (let k = 0; k < 7; k++) { const a = k / 7 * Math.PI * 2; ball(c, x + Math.cos(a) * 18, y + Math.sin(a) * 15, 15, '#b8ec7a', '#4f9a35', '#23602a'); }
+      }
     },
     carrot(c) {
       [-.5, -.15, .22, .55].forEach(a => leaf(c, 150, 66, 80, -Math.PI / 2 + a + .5));
       c.save(); c.translate(128, 128); c.rotate(.5); c.translate(-128, -128);
-      const g = c.createLinearGradient(84, 0, 172, 0);
-      g.addColorStop(0, '#ffb04a'); g.addColorStop(.5, '#ff8518'); g.addColorStop(1, '#c95200');
-      c.fillStyle = g;
+      c.fillStyle = linear(c, 84, 0, 172, 0, [[0, '#ffb04a'], [.5, '#ff8518'], [1, '#c95200']]);
       c.beginPath(); c.moveTo(82, 52); c.quadraticCurveTo(128, 30, 174, 52); c.bezierCurveTo(176, 110, 146, 212, 128, 248); c.bezierCurveTo(110, 212, 80, 110, 82, 52); c.fill();
       c.strokeStyle = 'rgba(130,60,0,.45)'; c.lineWidth = 3; c.lineCap = 'round';
       [[92, 88, 128], [136, 116, 166], [98, 142, 130], [132, 172, 154], [114, 198, 134]].forEach(([a, y, b]) => { c.beginPath(); c.moveTo(a, y); c.quadraticCurveTo((a + b) / 2, y + 7, b, y); c.stroke(); });
       gloss(c, 106, 92, 14, 40, 0, .55);
       c.restore();
     },
-    melon(c) {
-      c.save(); c.translate(128, 150); c.rotate(-.18);
-      c.fillStyle = '#2f7d32'; c.beginPath(); c.arc(0, -58, 112, .15, Math.PI - .15); c.closePath(); c.fill();
-      c.fillStyle = '#d6efb0'; c.beginPath(); c.arc(0, -58, 100, .15, Math.PI - .15); c.closePath(); c.fill();
-      c.fillStyle = radial(c, -20, -40, 4, 130, [[0, '#ff7f86'], [.6, '#f02f46'], [1, '#c9183a']], 0, -58);
-      c.beginPath(); c.arc(0, -58, 90, .15, Math.PI - .15); c.closePath(); c.fill();
-      c.fillStyle = '#231016';
-      [[-48, -18], [-14, 0], [22, -2], [54, -20], [-30, -36], [10, -32], [38, -40]].forEach(([x, y]) => { c.beginPath(); c.ellipse(x, y, 4.5, 8, x * .01, 0, Math.PI * 2); c.fill(); });
-      gloss(c, -30, -34, 40, 16, 0, .4);
+    corn(c) {
+      c.save(); c.translate(128, 128); c.rotate(-.5);
+      leaf(c, -10, 70, 120, -1.9, '#9ccf5a', '#3f7d2d'); leaf(c, 10, 70, 120, -1.25, '#9ccf5a', '#3f7d2d');
+      c.fillStyle = '#e8a81e'; c.beginPath(); c.ellipse(0, -10, 40, 100, 0, 0, Math.PI * 2); c.fill();
+      for (let r = -9; r <= 9; r++) for (let k = -3; k <= 3; k++) {
+        const y = r * 10 - 10, w = 40 * Math.sqrt(Math.max(0, 1 - (y + 10) * (y + 10) / 10000));
+        const x = k * w / 3.6;
+        if (Math.abs(x) > w - 4) continue;
+        ball(c, x, y, 5.5, '#fff3a6', '#ffcf2e', '#c98a08');
+      }
+      leaf(c, 0, 80, 110, -Math.PI / 2 - .25, '#a8d86a', '#4b8a32');
       c.restore();
     },
-
-    donut(c) {
-      c.fillStyle = radial(c, 100, 104, 10, 130, [[0, '#f7c98a'], [1, '#b06f2e']], 128, 134);
-      c.beginPath(); c.arc(128, 138, 100, 0, Math.PI * 2); c.fill();
-      c.fillStyle = radial(c, 96, 96, 8, 118, [[0, '#ffb3d9'], [.6, '#f25ca8'], [1, '#c02b7f']], 128, 130);
-      c.beginPath(); c.arc(128, 128, 88, 0, Math.PI * 2); c.fill();
-      ['#fff', '#ffe066', '#6fd3ff', '#8ef08a', '#fff', '#ff9d3c'].forEach((col, k) => {
-        c.strokeStyle = col; c.lineWidth = 6; c.lineCap = 'round';
-        for (let i = 0; i < 7; i++) {
-          const a = pfHash(k * 11 + i) * Math.PI * 2, r = 50 + pfHash(k * 7 + i) * 32;
-          const x = 128 + Math.cos(a) * r, y = 128 + Math.sin(a) * r, o = pfHash(i + k) * 6;
-          c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(o) * 11, y + Math.sin(o) * 11); c.stroke();
+    barley(c) {
+      [-.35, 0, .35].forEach((a, k) => {
+        c.save(); c.translate(128, 240); c.rotate(a);
+        c.strokeStyle = '#c99a3c'; c.lineWidth = 5; c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -150); c.stroke();
+        for (let i = 0; i < 8; i++) {
+          const y = -110 - i * 13;
+          [-1, 1].forEach(s => {
+            c.fillStyle = radial(c, s * 6, y, 1, 12, [[0, '#fff0b0'], [1, '#d6a440']]);
+            c.beginPath(); c.ellipse(s * 7, y, 6, 10, s * .4, 0, Math.PI * 2); c.fill();
+            c.strokeStyle = 'rgba(214,170,80,.8)'; c.lineWidth = 1.6;
+            c.beginPath(); c.moveTo(s * 9, y - 6); c.lineTo(s * 24, y - 60); c.stroke();
+          });
         }
-      });
-      c.fillStyle = 'rgba(40,20,20,.92)'; c.beginPath(); c.arc(128, 130, 30, 0, Math.PI * 2); c.fill();
-      gloss(c, 84, 90, 40, 18, -.7, .7);
-    },
-    lollipop(c) {
-      c.fillStyle = '#f2ecdf'; c.fillRect(120, 136, 16, 112);
-      c.fillStyle = radial(c, 92, 72, 6, 110, [[0, '#ffe3ef'], [1, '#ff3d8a']], 128, 94);
-      c.beginPath(); c.arc(128, 94, 84, 0, Math.PI * 2); c.fill();
-      c.strokeStyle = '#7a2bd6'; c.lineWidth = 15; c.lineCap = 'round';
-      c.beginPath();
-      for (let a = 0; a < Math.PI * 7; a += .12) { const r = a * 3.6; const x = 128 + Math.cos(a) * r, y = 94 + Math.sin(a) * r; a ? c.lineTo(x, y) : c.moveTo(x, y); }
-      c.stroke();
-      gloss(c, 92, 60, 36, 20, -.6, .75);
-    },
-    candy(c) {
-      c.fillStyle = '#ff5a5f';
-      c.beginPath(); c.moveTo(66, 128); c.lineTo(14, 84); c.lineTo(28, 128); c.lineTo(14, 172); c.closePath(); c.fill();
-      c.beginPath(); c.moveTo(190, 128); c.lineTo(242, 84); c.lineTo(228, 128); c.lineTo(242, 172); c.closePath(); c.fill();
-      c.fillStyle = radial(c, 104, 96, 8, 92, [[0, '#ffd3d3'], [1, '#e8263e']], 128, 128);
-      c.beginPath(); c.ellipse(128, 128, 76, 60, 0, 0, Math.PI * 2); c.fill();
-      c.save(); c.beginPath(); c.ellipse(128, 128, 76, 60, 0, 0, Math.PI * 2); c.clip();
-      c.strokeStyle = '#fff'; c.lineWidth = 15;
-      for (let x = 30; x < 240; x += 40) { c.beginPath(); c.moveTo(x, 60); c.lineTo(x + 44, 200); c.stroke(); }
-      c.restore();
-      gloss(c, 100, 100, 34, 16, -.5, .85);
-    },
-    cupcake(c) {
-      c.fillStyle = '#c94f7c';
-      c.beginPath(); c.moveTo(62, 150); c.lineTo(194, 150); c.lineTo(174, 240); c.lineTo(82, 240); c.closePath(); c.fill();
-      c.strokeStyle = 'rgba(255,255,255,.4)'; c.lineWidth = 5;
-      for (let i = 0; i < 7; i++) { const t = i / 6; c.beginPath(); c.moveTo(mix(72, 184, t), 152); c.lineTo(mix(90, 166, t), 238); c.stroke(); }
-      [[128, 142, 86], [128, 108, 66], [128, 78, 44]].forEach(([x, y, r], i) => {
-        c.fillStyle = radial(c, x - r * .35, y - r * .4, 3, r * 1.25, [[0, '#fff5f8'], [1, i ? '#ffc1d6' : '#ffa6c3']], x, y);
-        c.beginPath(); c.ellipse(x, y, r, r * .55, 0, 0, Math.PI * 2); c.fill();
-      });
-      c.fillStyle = radial(c, 120, 34, 2, 24, [[0, '#ff8a8a'], [1, '#c20f2c']], 128, 44);
-      c.beginPath(); c.arc(128, 46, 20, 0, Math.PI * 2); c.fill();
-      gloss(c, 121, 39, 9, 5, -.5, .9);
-      c.strokeStyle = '#4e7a2a'; c.lineWidth = 4; c.beginPath(); c.moveTo(130, 30); c.quadraticCurveTo(138, 14, 150, 10); c.stroke();
-    },
-    chocolate(c) {
-      c.save(); c.translate(128, 128); c.rotate(-.24); c.translate(-128, -128);
-      c.fillStyle = '#c9a23a'; roundedRect(c, 58, 22, 140, 212, 8); c.fill();
-      c.fillStyle = '#3e1f0e'; roundedRect(c, 66, 30, 124, 118, 6); c.fill();
-      for (let r = 0; r < 3; r++) for (let q = 0; q < 2; q++) {
-        const x = 72 + q * 58, y = 36 + r * 36;
-        const g = c.createLinearGradient(x, y, x + 54, y + 32);
-        g.addColorStop(0, '#8a5430'); g.addColorStop(1, '#4b2612');
-        c.fillStyle = g; roundedRect(c, x, y, 54, 32, 5); c.fill();
-      }
-      c.fillStyle = '#7a1f2c'; c.fillRect(58, 148, 140, 86);
-      c.fillStyle = '#f0d27a'; c.fillRect(58, 148, 140, 8);
-      gloss(c, 100, 56, 44, 12, 0, .32);
-      c.restore();
-    },
-    fries(c) {
-      for (let i = 0; i < 11; i++) {
-        const x = 62 + i * 13, h = 110 + pfHash(i + 4) * 66, a = (i - 5) * .035;
-        c.save(); c.translate(x, 150); c.rotate(a);
-        const g = c.createLinearGradient(-8, 0, 8, 0);
-        g.addColorStop(0, '#ffe08a'); g.addColorStop(1, '#e8a428');
-        c.fillStyle = g; roundedRect(c, -8, -h, 16, h, 3); c.fill();
         c.restore();
+      });
+    },
+    mushroom(c) {
+      [[92, 168, .8], [150, 140, 1]].forEach(([x, y, s]) => {
+        c.save(); c.translate(x, y); c.scale(s, s);
+        c.fillStyle = linear(c, -20, 0, 20, 0, [[0, '#efe6d6'], [1, '#c9b89a']]);
+        roundedRect(c, -20, -10, 40, 70, 14); c.fill();
+        c.fillStyle = radial(c, -20, -50, 6, 90, [[0, '#f3e3cc'], [.6, '#c49a6c'], [1, '#7e5833']], 0, -20);
+        c.beginPath(); c.moveTo(-66, -10); c.bezierCurveTo(-66, -76, 66, -76, 66, -10); c.quadraticCurveTo(0, 6, -66, -10); c.fill();
+        gloss(c, -24, -46, 22, 12, -.3, .6);
+        c.restore();
+      });
+    },
+    bread(c) {
+      c.fillStyle = 'rgba(0,0,0,.12)'; c.beginPath(); c.ellipse(128, 214, 100, 16, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = radial(c, 104, 104, 10, 140, [[0, '#f0c27c'], [.55, '#c47f35'], [1, '#7a4416']], 128, 150);
+      c.beginPath(); c.moveTo(28, 196); c.bezierCurveTo(16, 92, 80, 56, 128, 56); c.bezierCurveTo(176, 56, 240, 92, 228, 196); c.closePath(); c.fill();
+      c.strokeStyle = '#f6dcae'; c.lineWidth = 8; c.lineCap = 'round';
+      [[-1, 1], [1, 1]].forEach(() => {});
+      c.beginPath(); c.moveTo(78, 110); c.lineTo(178, 170); c.moveTo(178, 110); c.lineTo(78, 170); c.stroke();
+      for (let i = 0; i < 40; i++) { c.fillStyle = 'rgba(255,255,255,.55)'; c.beginPath(); c.arc(60 + pfHash(i) * 136, 70 + pfHash(i + 1) * 60, 1.6, 0, Math.PI * 2); c.fill(); }
+    },
+    macaroni(c) {
+      [[80, 160, .4], [150, 176, -.6], [176, 104, .9], [104, 96, -.2], [130, 136, 1.5]].forEach(([x, y, r]) => {
+        c.save(); c.translate(x, y); c.rotate(r);
+        c.strokeStyle = '#d99a2a'; c.lineWidth = 30; c.lineCap = 'butt';
+        c.beginPath(); c.arc(0, 26, 34, -Math.PI * .95, -Math.PI * .05); c.stroke();
+        c.strokeStyle = '#ffd56a'; c.lineWidth = 22;
+        c.beginPath(); c.arc(0, 26, 34, -Math.PI * .95, -Math.PI * .05); c.stroke();
+        c.fillStyle = '#b27616'; c.beginPath(); c.ellipse(-34, 28, 11, 6, .2, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#7a4c0a'; c.beginPath(); c.ellipse(-34, 28, 6, 3, .2, 0, Math.PI * 2); c.fill();
+        c.restore();
+      });
+    },
+    oats(c) {
+      bowl(c, (k) => {
+        k.fillStyle = '#e9d3a6'; k.beginPath(); k.ellipse(128, 128, 98, 46, 0, Math.PI, 0); k.fill();
+        grains(k, 70, 90, 30, 116, i => i % 3 ? '#f2e2bf' : '#d8bd86', 9, 7);
+      });
+    },
+    rice(c) {
+      bowl(c, (k) => {
+        k.fillStyle = '#f7f4ec'; k.beginPath(); k.ellipse(128, 130, 98, 56, 0, Math.PI, 0); k.fill();
+        grains(k, 110, 88, 40, 112, i => i % 4 ? '#ffffff' : '#e6e0d2', 6, 3);
+      });
+    },
+    yogurt(c) {
+      c.fillStyle = linear(c, 60, 0, 196, 0, [[0, '#e7ecf2'], [.4, '#ffffff'], [1, '#c7d0db']]);
+      c.beginPath(); c.moveTo(62, 70); c.lineTo(194, 70); c.lineTo(176, 230); c.lineTo(80, 230); c.closePath(); c.fill();
+      c.fillStyle = '#2f7fd8'; c.beginPath(); c.moveTo(66, 120); c.lineTo(190, 120); c.lineTo(185, 166); c.lineTo(71, 166); c.closePath(); c.fill();
+      ball(c, 128, 143, 16, '#ffb0b0', '#e8263e', '#8f0a1e');
+      c.fillStyle = linear(c, 50, 56, 206, 80, [[0, '#d8dde3'], [.5, '#ffffff'], [1, '#a9b1bb']]);
+      c.beginPath(); c.ellipse(128, 70, 72, 14, 0, 0, Math.PI * 2); c.fill();
+    },
+    milk(c) {
+      c.fillStyle = linear(c, 76, 0, 180, 0, [[0, '#e7eef6'], [.35, '#ffffff'], [1, '#c4cfdb']]);
+      c.beginPath(); c.moveTo(108, 40); c.lineTo(148, 40); c.lineTo(150, 74); c.bezierCurveTo(186, 96, 186, 120, 186, 140); c.lineTo(184, 236); c.lineTo(72, 236); c.lineTo(70, 140); c.bezierCurveTo(70, 120, 70, 96, 106, 74); c.closePath(); c.fill();
+      c.fillStyle = '#d52b1e'; roundedRect(c, 104, 26, 48, 22, 5); c.fill();
+      c.fillStyle = '#2f7fd8'; c.fillRect(72, 156, 112, 48);
+      c.fillStyle = '#fff';
+      c.beginPath(); c.ellipse(110, 176, 14, 9, 0, 0, Math.PI * 2); c.ellipse(146, 186, 10, 7, 0, 0, Math.PI * 2); c.fill();
+      gloss(c, 92, 120, 10, 40, 0, .7);
+    },
+    cream(c) {
+      c.fillStyle = 'rgba(0,0,0,.12)'; c.beginPath(); c.ellipse(124, 226, 78, 12, 0, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#cfd8e3'; c.lineWidth = 16; c.beginPath(); c.arc(200, 140, 34, -1.2, 1.3); c.stroke();
+      c.fillStyle = linear(c, 50, 0, 200, 0, [[0, '#e2e9f1'], [.4, '#ffffff'], [1, '#c3cedb']]);
+      c.beginPath(); c.moveTo(56, 70); c.lineTo(196, 70); c.lineTo(204, 200); c.quadraticCurveTo(200, 228, 128, 228); c.quadraticCurveTo(56, 228, 52, 200); c.closePath(); c.fill();
+      c.fillStyle = '#3b6fb6'; for (let i = 0; i < 3; i++) c.fillRect(54, 110 + i * 30, 148, 8);
+      c.fillStyle = '#fffaf0'; c.beginPath(); c.ellipse(126, 70, 70, 16, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#fff'; c.beginPath(); c.moveTo(50, 66); c.quadraticCurveTo(34, 60, 40, 48); c.quadraticCurveTo(54, 50, 62, 64); c.fill();
+    },
+    butter(c) {
+      c.fillStyle = 'rgba(0,0,0,.12)'; c.beginPath(); c.ellipse(128, 206, 104, 16, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = linear(c, 0, 120, 0, 200, [[0, '#ffe680'], [1, '#e8b832']]);
+      c.beginPath(); c.moveTo(40, 120); c.lineTo(190, 120); c.lineTo(190, 196); c.lineTo(40, 196); c.closePath(); c.fill();
+      c.fillStyle = '#fff3b0'; c.beginPath(); c.moveTo(40, 120); c.lineTo(80, 92); c.lineTo(226, 92); c.lineTo(190, 120); c.closePath(); c.fill();
+      c.fillStyle = '#f2cc4a'; c.beginPath(); c.moveTo(190, 120); c.lineTo(226, 92); c.lineTo(226, 168); c.lineTo(190, 196); c.closePath(); c.fill();
+      c.fillStyle = linear(c, 110, 0, 230, 0, [[0, '#e9c46a'], [.5, '#fff2c0'], [1, '#c99a2e']]);
+      c.beginPath(); c.moveTo(120, 120); c.lineTo(190, 120); c.lineTo(190, 196); c.lineTo(112, 196); c.lineTo(124, 160); c.closePath(); c.fill();
+      c.beginPath(); c.moveTo(150, 92); c.lineTo(226, 92); c.lineTo(226, 168); c.lineTo(190, 196); c.lineTo(190, 120); c.closePath(); c.fill();
+      c.strokeStyle = 'rgba(150,110,30,.4)'; c.lineWidth = 2;
+      [[130, 130, 140, 186], [160, 124, 168, 190]].forEach(([a, b, d, e]) => { c.beginPath(); c.moveTo(a, b); c.lineTo(d, e); c.stroke(); });
+    },
+    cheese(c) {
+      c.fillStyle = 'rgba(0,0,0,.12)'; c.beginPath(); c.ellipse(128, 212, 104, 14, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = linear(c, 0, 130, 0, 206, [[0, '#ffd75a'], [1, '#e8a91e']]);
+      c.beginPath(); c.moveTo(24, 130); c.lineTo(232, 110); c.lineTo(232, 190); c.lineTo(24, 206); c.closePath(); c.fill();
+      c.fillStyle = '#ffe58a'; c.beginPath(); c.moveTo(24, 130); c.lineTo(170, 54); c.lineTo(232, 110); c.closePath(); c.fill();
+      c.fillStyle = '#d98e12'; c.beginPath(); c.moveTo(232, 110); c.lineTo(232, 190); c.lineTo(226, 190); c.lineTo(226, 106); c.closePath(); c.fill();
+      c.fillStyle = '#e0a62a';
+      [[70, 160, 14], [130, 176, 10], [180, 150, 16], [96, 112, 10], [160, 92, 8]].forEach(([x, y, r]) => { c.beginPath(); c.ellipse(x, y, r, r * .8, 0, 0, Math.PI * 2); c.fill(); });
+      c.fillStyle = 'rgba(255,255,255,.35)'; c.beginPath(); c.moveTo(40, 128); c.lineTo(166, 62); c.lineTo(176, 70); c.lineTo(56, 130); c.closePath(); c.fill();
+    },
+    egg(c) { egg(c, 100, 146, 1.05, '#fffdf6', '#d9ccb2'); egg(c, 164, 128, .95, '#f2c79a', '#a8703f'); },
+    sugar(c) {
+      [[64, 150], [128, 150], [96, 92], [160, 98]].forEach(([x, y], i) => {
+        c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(x, y); c.lineTo(x + 52, y); c.lineTo(x + 52, y + 52); c.lineTo(x, y + 52); c.closePath(); c.fill();
+        c.fillStyle = '#e9eef4'; c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y - 16); c.lineTo(x + 70, y - 16); c.lineTo(x + 52, y); c.closePath(); c.fill();
+        c.fillStyle = '#cfd8e3'; c.beginPath(); c.moveTo(x + 52, y); c.lineTo(x + 70, y - 16); c.lineTo(x + 70, y + 36); c.lineTo(x + 52, y + 52); c.closePath(); c.fill();
+        for (let k = 0; k < 14; k++) { c.fillStyle = 'rgba(160,175,195,.5)'; c.fillRect(x + pfHash(i * 9 + k) * 50, y + pfHash(i * 9 + k + 1) * 50, 2, 2); }
+      });
+    },
+    flour(c) {
+      c.fillStyle = 'rgba(0,0,0,.12)'; c.beginPath(); c.ellipse(128, 230, 86, 12, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = linear(c, 50, 0, 206, 0, [[0, '#d9c8a4'], [.45, '#f4ead3'], [1, '#bfa97c']]);
+      c.beginPath(); c.moveTo(60, 70); c.lineTo(196, 70); c.quadraticCurveTo(214, 160, 200, 228); c.lineTo(56, 228); c.quadraticCurveTo(42, 160, 60, 70); c.fill();
+      c.fillStyle = '#e8dcc0'; c.beginPath(); c.moveTo(60, 70); c.lineTo(80, 40); c.lineTo(176, 40); c.lineTo(196, 70); c.closePath(); c.fill();
+      c.strokeStyle = '#b5893a'; c.lineWidth = 4; c.beginPath(); c.moveTo(128, 210); c.lineTo(128, 110); c.stroke();
+      for (let i = 0; i < 5; i++) [-1, 1].forEach(s => { c.fillStyle = '#d6a440'; c.beginPath(); c.ellipse(128 + s * 10, 120 + i * 16, 7, 11, s * .5, 0, Math.PI * 2); c.fill(); });
+      c.fillStyle = 'rgba(255,255,255,.8)'; for (let i = 0; i < 16; i++) { c.beginPath(); c.arc(80 + pfHash(i) * 96, 34 + pfHash(i + 1) * 14, 2, 0, Math.PI * 2); c.fill(); }
+    },
+    yeast(c) {
+      c.fillStyle = 'rgba(0,0,0,.12)'; c.beginPath(); c.ellipse(128, 206, 92, 14, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#e5c999'; c.beginPath(); c.moveTo(56, 110); c.lineTo(170, 110); c.lineTo(170, 200); c.lineTo(56, 200); c.closePath(); c.fill();
+      c.fillStyle = '#f2dcb2'; c.beginPath(); c.moveTo(56, 110); c.lineTo(96, 80); c.lineTo(210, 80); c.lineTo(170, 110); c.closePath(); c.fill();
+      c.fillStyle = '#d0ae74'; c.beginPath(); c.moveTo(170, 110); c.lineTo(210, 80); c.lineTo(210, 170); c.lineTo(170, 200); c.closePath(); c.fill();
+      for (let i = 0; i < 50; i++) { c.fillStyle = 'rgba(150,110,50,.35)'; c.beginPath(); c.arc(60 + pfHash(i) * 108, 114 + pfHash(i + 1) * 82, 1.8, 0, Math.PI * 2); c.fill(); }
+      c.fillStyle = '#2f7fd8'; c.beginPath(); c.moveTo(56, 160); c.lineTo(170, 160); c.lineTo(210, 130); c.lineTo(210, 170); c.lineTo(170, 200); c.lineTo(56, 200); c.closePath(); c.fill();
+      c.fillStyle = '#ffd24a'; c.fillRect(56, 168, 114, 6);
+    },
+    honey(c) {
+      c.fillStyle = 'rgba(0,0,0,.12)'; c.beginPath(); c.ellipse(118, 230, 80, 12, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = linear(c, 40, 0, 196, 0, [[0, '#c46a0a'], [.4, '#ffb21a'], [1, '#a35400']]);
+      roundedRect(c, 44, 92, 148, 138, 26); c.fill();
+      gloss(c, 76, 150, 12, 44, 0, .55);
+      c.fillStyle = '#d52b1e'; c.beginPath(); c.moveTo(38, 92); c.quadraticCurveTo(118, 58, 198, 92); c.lineTo(206, 108); c.quadraticCurveTo(118, 90, 30, 108); c.closePath(); c.fill();
+      c.fillStyle = '#fff'; for (let i = 0; i < 6; i++) c.fillRect(46 + i * 26, 92, 12, 10);
+      c.save(); c.translate(196, 120); c.rotate(.6);
+      c.fillStyle = '#9a6a3a'; c.fillRect(-5, -110, 10, 110);
+      c.fillStyle = '#c9925a'; for (let i = 0; i < 4; i++) { c.beginPath(); c.ellipse(0, -10 - i * 12, 16, 6, 0, 0, Math.PI * 2); c.fill(); }
+      c.restore();
+    },
+    vanilla(c) {
+      [[-.5, 0], [-.3, 18]].forEach(([r, o]) => {
+        c.save(); c.translate(132, 140 + o); c.rotate(r);
+        c.fillStyle = linear(c, 0, -8, 0, 8, [[0, '#5a3218'], [1, '#2a1408']]);
+        c.beginPath(); c.moveTo(-110, 0); c.quadraticCurveTo(0, -14, 110, -2); c.quadraticCurveTo(0, 12, -110, 0); c.fill();
+        c.restore();
+      });
+      for (let k = 0; k < 5; k++) { c.save(); c.translate(84, 82); c.rotate(k / 5 * Math.PI * 2); c.fillStyle = '#fff3c4'; c.beginPath(); c.ellipse(0, -24, 13, 26, 0, 0, Math.PI * 2); c.fill(); c.restore(); }
+      ball(c, 84, 82, 12, '#fff7a8', '#f2c21a', '#b8860b');
+    },
+    cinnamon(c) {
+      [[0, 0], [24, -36], [-24, 30]].forEach(([dx, dy]) => {
+        c.save(); c.translate(128 + dx, 128 + dy); c.rotate(-.5);
+        c.fillStyle = linear(c, 0, -16, 0, 16, [[0, '#b0642c'], [.5, '#8a4a1c'], [1, '#5a2e0e']]);
+        roundedRect(c, -100, -15, 200, 30, 8); c.fill();
+        c.strokeStyle = 'rgba(60,25,6,.45)'; c.lineWidth = 2;
+        [-60, -10, 40].forEach(x => { c.beginPath(); c.moveTo(x, -15); c.lineTo(x + 6, 15); c.stroke(); });
+        c.fillStyle = '#6a3410'; c.beginPath(); c.ellipse(100, 0, 8, 15, 0, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = '#c47a3c'; c.lineWidth = 2.5; c.beginPath(); c.arc(100, 0, 6, 0, Math.PI * 1.6); c.stroke();
+        c.restore();
+      });
+    },
+    pickle(c) {
+      [[100, 140, -.6], [156, 134, -.3]].forEach(([x, y, r]) => {
+        c.save(); c.translate(x, y); c.rotate(r);
+        c.fillStyle = linear(c, -30, 0, 30, 0, [[0, '#2f6a28'], [.45, '#78b24a'], [1, '#244f1e']]);
+        c.beginPath(); c.ellipse(0, 0, 30, 92, 0, 0, Math.PI * 2); c.fill();
+        for (let i = 0; i < 14; i++) { c.fillStyle = 'rgba(200,235,150,.7)'; c.beginPath(); c.arc((pfHash(i) - .5) * 36, (pfHash(i + 1) - .5) * 160, 3, 0, Math.PI * 2); c.fill(); }
+        gloss(c, -10, -30, 6, 34, 0, .5);
+        c.restore();
+      });
+    },
+    ham(c) {
+      [[110, 150, -.2], [148, 112, .25]].forEach(([x, y, r]) => {
+        c.save(); c.translate(x, y); c.rotate(r);
+        c.fillStyle = '#fdf1ea'; c.beginPath(); c.ellipse(0, 0, 92, 62, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = radial(c, -20, -16, 6, 90, [[0, '#ffb3b8'], [.6, '#e8707c'], [1, '#b8424f']], 0, 0);
+        c.beginPath(); c.ellipse(-6, 4, 76, 50, 0, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = 'rgba(255,235,235,.6)'; c.lineWidth = 3;
+        c.beginPath(); c.moveTo(-50, -6); c.quadraticCurveTo(-6, -24, 40, 10); c.stroke();
+        c.restore();
+      });
+    },
+    bacon(c) {
+      [0, 1, 2].forEach(k => {
+        c.save(); c.translate(128, 72 + k * 56); c.rotate(-.12);
+        const band = (y1, y2, col) => {
+          c.fillStyle = col; c.beginPath();
+          for (let x = -110; x <= 110; x += 10) c.lineTo(x, y1 + Math.sin(x * .06 + k) * 8);
+          for (let x = 110; x >= -110; x -= 10) c.lineTo(x, y2 + Math.sin(x * .06 + k) * 8);
+          c.closePath(); c.fill();
+        };
+        band(-20, 20, '#c94a4a'); band(-6, 4, '#fbe3d8'); band(12, 20, '#f6d2c4');
+        c.restore();
+      });
+    },
+    meat(c) {
+      c.fillStyle = 'rgba(0,0,0,.12)'; c.beginPath(); c.ellipse(128, 206, 100, 16, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#fbeee4';
+      c.beginPath(); c.moveTo(40, 120); c.bezierCurveTo(40, 60, 150, 50, 200, 80); c.bezierCurveTo(240, 104, 230, 190, 160, 200); c.bezierCurveTo(100, 208, 40, 180, 40, 120); c.fill();
+      c.fillStyle = radial(c, 104, 110, 8, 110, [[0, '#e8545a'], [.6, '#b7232f'], [1, '#7a121c']], 128, 130);
+      c.beginPath(); c.moveTo(54, 122); c.bezierCurveTo(56, 76, 148, 66, 192, 92); c.bezierCurveTo(222, 112, 214, 178, 156, 186); c.bezierCurveTo(106, 192, 54, 168, 54, 122); c.fill();
+      c.strokeStyle = 'rgba(255,225,225,.45)'; c.lineWidth = 3;
+      [[80, 110, 150, 96], [90, 150, 180, 140], [120, 128, 196, 116]].forEach(([a, b, d, e]) => { c.beginPath(); c.moveTo(a, b); c.quadraticCurveTo((a + d) / 2, b - 12, d, e); c.stroke(); });
+      gloss(c, 100, 104, 30, 10, -.2, .35);
+    },
+    sausage(c) {
+      c.save(); c.translate(128, 140); c.rotate(-.2);
+      c.strokeStyle = '#6a2416'; c.lineWidth = 64; c.lineCap = 'round';
+      c.beginPath(); c.arc(0, 90, 130, -2.55, -.6); c.stroke();
+      c.strokeStyle = '#9a3a24'; c.lineWidth = 52;
+      c.beginPath(); c.arc(0, 90, 130, -2.55, -.6); c.stroke();
+      for (let i = 0; i < 40; i++) {
+        const a = -2.5 + pfHash(i) * 1.85, r = 130 + (pfHash(i + 1) - .5) * 40;
+        c.fillStyle = 'rgba(255,235,225,.75)'; c.beginPath(); c.arc(Math.cos(a) * r, 90 + Math.sin(a) * r, 2.5, 0, Math.PI * 2); c.fill();
       }
-      const g = c.createLinearGradient(60, 0, 196, 0);
-      g.addColorStop(0, '#f23a3a'); g.addColorStop(.5, '#d7192a'); g.addColorStop(1, '#a30f20');
-      c.fillStyle = g;
-      c.beginPath(); c.moveTo(50, 124); c.quadraticCurveTo(128, 170, 206, 124); c.lineTo(182, 244); c.lineTo(74, 244); c.closePath(); c.fill();
-      c.fillStyle = 'rgba(255,255,255,.9)'; c.beginPath(); c.arc(128, 200, 26, 0, Math.PI * 2); c.fill();
-      c.fillStyle = '#d7192a'; c.beginPath(); c.arc(128, 200, 16, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#efe2c4'; c.lineWidth = 4;
+      const ex = Math.cos(-.6) * 130, ey = 90 + Math.sin(-.6) * 130;
+      c.beginPath(); c.moveTo(ex + 22, ey - 10); c.quadraticCurveTo(ex + 50, ey - 40, ex + 40, ey - 70); c.stroke();
+      c.restore();
+    },
+    chicken(c) {
+      c.save(); c.translate(128, 128); c.rotate(-.7);
+      c.fillStyle = '#fffaf0'; c.strokeStyle = '#b9a582'; c.lineWidth = 4;
+      [-1, 1].forEach(s => { c.beginPath(); c.arc(112, s * 13, 17, 0, Math.PI * 2); c.fill(); c.stroke(); });
+      roundedRect(c, 30, -12, 84, 24, 12); c.fill(); c.stroke();
+      c.fillStyle = '#fffaf0'; [-1, 1].forEach(s => { c.beginPath(); c.arc(112, s * 13, 14, 0, Math.PI * 2); c.fill(); }); c.fillRect(34, -9, 78, 18);
+      c.fillStyle = radial(c, -40, -26, 6, 110, [[0, '#f8c37a'], [.55, '#c97a2c'], [1, '#7a3e10']], -20, 0);
+      c.beginPath(); c.moveTo(40, -16); c.bezierCurveTo(10, -70, -110, -76, -112, 0); c.bezierCurveTo(-110, 76, 10, 70, 40, 16); c.closePath(); c.fill();
+      gloss(c, -60, -28, 34, 14, 0, .55);
+      c.restore();
     },
   };
+})();
 
+/** Panier Malin : le marché devant les vergers et les Alpes. Le panda porte sa caisse de courses en équilibre. */
+const MarketScene = (() => {
+  const S = 256;
+  const SHELVES = [.335, .46, .585];   // hauteur des 3 étals (bord de la planche)
+  const FLOOR = .665, RING_Y = .9, RING_FLAT = .4;
+  const SIZE = 12;                     // taille d'un ingrédient, en % de la largeur
+  const mix = (a, b, t) => a + (b - a) * t;
+  let st = null, snap = null, sprites = null;
+
+  function radial(c, x, y, r0, r1, stops, cx, cy) {
+    const g = c.createRadialGradient(x, y, r0, cx == null ? x : cx, cy == null ? y : cy, r1);
+    stops.forEach(([o, col]) => g.addColorStop(o, col));
+    return g;
+  }
   function makeSprites() {
     if (sprites) return sprites;
     sprites = {};
-    Object.keys(DRAW).forEach(name => {
-      const color = layerCanvas(S, S, c => DRAW[name](c));
-      const gray = layerCanvas(S, S, c => { c.filter = 'grayscale(1) brightness(.72)'; c.drawImage(color, 0, 0); });
+    Object.keys(SHOP_DRAW).forEach(name => {
+      const color = layerCanvas(S, S, c => { try { SHOP_DRAW[name](c); } catch (e) { /* un dessin raté ne bloque pas le jeu */ } });
+      const gray = layerCanvas(S, S, c => { c.filter = 'grayscale(1) brightness(.75)'; c.drawImage(color, 0, 0); });
       sprites[name] = { color, gray };
     });
     return sprites;
@@ -5472,216 +5934,249 @@ const MarketScene = (() => {
     c.fillStyle = shade; c.fillRect(0, ah + sw * .2, w, h * .05);
   }
 
-  /* ---------- Panier ---------- */
-  function paintBasket(c, w, h) {
-    const cx = w / 2, rimY = h * .4, rimR = w * .46;
-    const g = c.createLinearGradient(0, rimY, 0, h);
-    g.addColorStop(0, '#d9a45f'); g.addColorStop(1, '#8a5a2a');
-    c.fillStyle = g;
-    c.beginPath(); c.moveTo(cx - rimR, rimY); c.quadraticCurveTo(cx - rimR * .86, h * .98, cx - rimR * .55, h * .98); c.lineTo(cx + rimR * .55, h * .98); c.quadraticCurveTo(cx + rimR * .86, h * .98, cx + rimR, rimY); c.closePath(); c.fill();
-    c.save(); c.clip();
-    c.strokeStyle = 'rgba(70,40,14,.55)'; c.lineWidth = w * .011;
-    for (let r = 0; r < 7; r++) {
-      const y = mix(rimY, h, r / 7);
-      for (let i = -12; i < 13; i++) {
-        c.beginPath();
-        c.ellipse(cx + (i + (r % 2 ? .5 : 0)) * w * .075, y + h * .03, w * .04, h * .032, 0, 0, Math.PI * 2);
-        c.stroke();
-      }
-    }
-    c.restore();
-    const rim = c.createLinearGradient(0, rimY - h * .05, 0, rimY + h * .05);
-    rim.addColorStop(0, '#f1c98a'); rim.addColorStop(1, '#a4713c');
-    c.strokeStyle = rim; c.lineWidth = h * .075; c.lineCap = 'round';
-    c.beginPath(); c.moveTo(cx - rimR, rimY); c.quadraticCurveTo(cx, rimY + h * .1, cx + rimR, rimY); c.stroke();
+  /** Sol du marché et les 3 étals en bois sur lesquels défilent les ingrédients */
+  function paintShop(c, w, h) {
+    const floor = h * FLOOR;
+    const g = c.createLinearGradient(0, floor, 0, h);
+    g.addColorStop(0, '#b47d47'); g.addColorStop(.5, '#8d5c31'); g.addColorStop(1, '#5b3a1e');
+    c.fillStyle = g; c.fillRect(0, floor, w, h - floor);
+    c.strokeStyle = 'rgba(40,20,8,.4)'; c.lineWidth = Math.max(1, w * .003);
+    for (let i = -16; i <= 16; i++) { c.beginPath(); c.moveTo(w / 2 + i * w * .045, floor); c.lineTo(w / 2 + i * w * .14, h); c.stroke(); }
+    c.fillStyle = 'rgba(255,214,150,.3)'; c.fillRect(0, floor, w, h * .005);
+    SHELVES.forEach((sy, k) => {
+      const y = h * sy, th = h * .02;
+      c.fillStyle = 'rgba(30,16,6,.28)'; c.fillRect(0, y + th, w, h * .018);
+      const p = c.createLinearGradient(0, y, 0, y + th);
+      p.addColorStop(0, '#d8a56a'); p.addColorStop(1, '#8f5d2e');
+      c.fillStyle = p; c.fillRect(0, y, w, th);
+      c.fillStyle = 'rgba(255,230,180,.55)'; c.fillRect(0, y, w, Math.max(1, h * .003));
+      c.fillStyle = '#6e4522';
+      [.08, .5, .92].forEach(fx => { c.fillRect(fx * w - w * .008, y + th, w * .016, h * .03); });
+    });
   }
 
-  /* ---------- Animation ---------- */
+  /** Le panda de face, bras levés pour tenir sa caisse (la caisse est dessinée à part) */
+  function paintPanda(c, w, h) {
+    c.scale(w / 300, h / 380);
+    const black = '#1c1c22', white = '#fbf8f1';
+    c.fillStyle = black;
+    [[108, 350], [192, 350]].forEach(([x, y]) => { c.beginPath(); c.ellipse(x, y, 36, 26, 0, 0, Math.PI * 2); c.fill(); });
+    c.fillStyle = radial(c, 130, 240, 10, 110, [[0, '#ffffff'], [1, '#ddd6c8']], 150, 270);
+    c.beginPath(); c.ellipse(150, 272, 82, 86, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#1f9d7f';
+    c.beginPath(); c.ellipse(150, 280, 62, 64, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#fff'; c.font = '800 46px Montserrat, system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText('10', 150, 282);
+    c.strokeStyle = black; c.lineWidth = 34; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(84, 220); c.quadraticCurveTo(52, 150, 72, 76); c.moveTo(216, 220); c.quadraticCurveTo(248, 150, 228, 76); c.stroke();
+    c.fillStyle = black;
+    [[100, 104], [200, 104]].forEach(([x, y]) => { c.beginPath(); c.arc(x, y, 21, 0, Math.PI * 2); c.fill(); });
+    c.fillStyle = white; c.beginPath(); c.arc(150, 158, 62, 0, Math.PI * 2); c.fill();
+    c.fillStyle = black;
+    [[-1, 126], [1, 174]].forEach(([s, x]) => { c.beginPath(); c.ellipse(x, 152, 19, 24, s * -.45, 0, Math.PI * 2); c.fill(); });
+    c.fillStyle = '#fff'; [126, 174].forEach(x => { c.beginPath(); c.arc(x + 2, 148, 7, 0, Math.PI * 2); c.fill(); });
+    c.fillStyle = black; [126, 174].forEach(x => { c.beginPath(); c.arc(x + 3, 149, 3.5, 0, Math.PI * 2); c.fill(); });
+    c.beginPath(); c.ellipse(150, 178, 10, 7, 0, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = black; c.lineWidth = 3.5;
+    c.beginPath(); c.moveTo(138, 192); c.quadraticCurveTo(150, 202, 162, 192); c.stroke();
+  }
+
+  function paintCrateBox(c, w, h) {
+    const g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#d9a56a'); g.addColorStop(1, '#a06b38');
+    for (let k = 0; k < 3; k++) {
+      c.fillStyle = g; c.fillRect(0, k * h / 3, w, h / 3 - h * .04);
+      c.fillStyle = 'rgba(60,32,12,.28)'; c.fillRect(0, (k + 1) * h / 3 - h * .06, w, h * .02);
+    }
+    c.fillStyle = '#7d5129'; c.fillRect(0, 0, w * .07, h); c.fillRect(w * .93, 0, w * .07, h);
+  }
+
   function itemPos(it) {
-    const { W, H } = st;
-    const y = H * mix(FALL_TOP, FALL_BOTTOM, it.y);
-    const wob = Math.sin(it.y * 9 + pfHash(it.id.charCodeAt(1)) * 6) * st.U * 1.3;
-    return { x: W * it.x + wob, y };
+    const { W, H, U } = st;
+    const y = H * SHELVES[it.row] - U * SIZE * .5;
+    return { x: W * it.x, y };
   }
   function spawnBurst(x, y, good) {
     const { U } = st;
     const colors = good ? ['#ffe28a', '#fff6c8', '#8df0a8', '#ffffff'] : ['#ff5468', '#ff9aa6', '#3a0a12'];
-    for (let i = 0; i < 26; i++) {
-      const a = Math.random() * Math.PI * 2, v = U * (16 + Math.random() * 48);
+    for (let i = 0; i < 24; i++) {
+      const a = Math.random() * Math.PI * 2, v = U * (16 + Math.random() * 44);
       st.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - U * 10, r: U * (.3 + Math.random() * .8), c: colors[i % colors.length], age: 0, life: .5 + Math.random() * .4 });
     }
   }
+  function confetti() {
+    const { W, H, U } = st;
+    for (let i = 0; i < 90; i++) {
+      st.parts.push({ x: W * Math.random(), y: H * (.1 + Math.random() * .2), vx: (Math.random() - .5) * U * 30, vy: -U * (10 + Math.random() * 30), r: U * (.5 + Math.random() * .6), c: ['#ffd24a', '#ff6a13', '#43cea2', '#ffffff', '#e23440'][i % 5], age: 0, life: 1.4 + Math.random() * .6, square: true });
+    }
+  }
+
   function paint(step, t) {
     const { ctx, W, H, U, bg, awning } = st;
     ctx.save();
-    if (st.shake > 0) { st.shake -= step; ctx.translate((Math.random() - .5) * U * 2, (Math.random() - .5) * U * 2); }
+    if (st.shake > 0) { st.shake -= step; ctx.translate((Math.random() - .5) * U * 1.6, (Math.random() - .5) * U * 1.6); }
     ctx.drawImage(bg, 0, 0);
 
-    // rayons de soleil et pollens
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const sx = W * .72, sy = H * .2;
-    for (let i = 0; i < 7; i++) {
-      const a = 1.5 + i * .34 + Math.sin(t * .22 + i) * .05, len = H * .95, sp = .05 + pfHash(i) * .05;
+    for (let i = 0; i < 6; i++) {
+      const a = 1.6 + i * .36 + Math.sin(t * .22 + i) * .05, len = H * .8, sp = .05 + pfHash(i) * .05;
       const g = ctx.createLinearGradient(sx, sy, sx + Math.cos(a) * len, sy + Math.sin(a) * len);
-      g.addColorStop(0, 'rgba(255,226,160,.16)'); g.addColorStop(1, 'rgba(255,226,160,0)');
+      g.addColorStop(0, 'rgba(255,226,160,.12)'); g.addColorStop(1, 'rgba(255,226,160,0)');
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + Math.cos(a - sp) * len, sy + Math.sin(a - sp) * len); ctx.lineTo(sx + Math.cos(a + sp) * len, sy + Math.sin(a + sp) * len); ctx.closePath(); ctx.fill();
-    }
-    for (let i = 0; i < 34; i++) {
-      const x = ((pfHash(i + 1) * W + t * U * (.5 + pfHash(i) * 1.2)) % W + W) % W;
-      const y = H * (.15 + pfHash(i + 2) * .62) + Math.sin(t + i) * U * 1.2;
-      ctx.fillStyle = `rgba(255,240,190,${(.2 + .3 * Math.sin(t * 1.6 + i) ** 2).toFixed(3)})`;
-      ctx.beginPath(); ctx.arc(x, y, U * (.14 + pfHash(i + 3) * .32), 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
 
     const locked = !!(snap && snap.locked);
-    const inside = !snap || (snap.xCm * snap.xCm + snap.yCm * snap.yCm) <= snap.radiusCm * snap.radiusCm;
-
-    // aliments qui tombent
-    const itemSize = U * SIZE;
+    const size = U * SIZE;
     if (snap) snap.items.forEach(it => {
       const p = itemPos(it);
-      const sp = sprites[it.sprite];
+      const sp = sprites[it.ing];
       if (!sp) return;
-      const rot = Math.sin(it.y * 5 + pfHash(it.id.charCodeAt(2)) * 6) * .5;
-      ctx.fillStyle = 'rgba(40,24,10,.16)';
-      ctx.beginPath(); ctx.ellipse(p.x + U * 1.2, p.y + itemSize * .6, itemSize * .32, itemSize * .09, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(rot);
-      ctx.drawImage(locked ? sp.gray : sp.color, -itemSize / 2, -itemSize / 2, itemSize, itemSize);
-      ctx.restore();
+      const bob = Math.sin(t * 3 + it.x * 20) * U * .25;
+      ctx.drawImage(locked ? sp.gray : sp.color, p.x - size / 2, p.y - size / 2 + bob, size, size);
     });
 
-    // anneau d'équilibre
+    // anneau d'équilibre au sol
     const cx = W / 2, cy = H * RING_Y, ppc = U * 11;
+    const inside = !snap || (snap.xCm * snap.xCm + snap.yCm * snap.yCm) <= snap.radiusCm * snap.radiusCm;
     const col = inside ? '72,214,170' : '232,62,84';
     const r = (snap ? snap.radiusCm : 2) * ppc;
     ctx.fillStyle = `rgba(${col},.16)`;
     ctx.beginPath(); ctx.ellipse(cx, cy, r, r * RING_FLAT, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = `rgba(${col},.38)`; ctx.lineWidth = U * 1.5;
-    ctx.beginPath(); ctx.ellipse(cx, cy, r, r * RING_FLAT, 0, 0, Math.PI * 2); ctx.stroke();
     ctx.strokeStyle = `rgb(${col})`; ctx.lineWidth = U * .55;
     ctx.beginPath(); ctx.ellipse(cx, cy, r, r * RING_FLAT, 0, 0, Math.PI * 2); ctx.stroke();
 
-    // panier, qui suit l'équilibre, et fruits récoltés dedans
-    st.x += ((snap ? snap.xCm : 0) - st.x) * (1 - Math.exp(-step * 16));
-    st.y += ((snap ? snap.yCm : 0) - st.y) * (1 - Math.exp(-step * 16));
-    const bx = pfClamp(cx + st.x * ppc, U * 16, W - U * 16);
-    const by = cy - pfClamp(st.y, -5, 5) * ppc * RING_FLAT;
-    st.bounce = Math.max(0, st.bounce - step * 5);
-    const bw = U * 22, bh = bw * .72, sq = 1 + Math.sin(st.bounce * Math.PI) * .08;
-    ctx.fillStyle = 'rgba(30,16,6,.34)';
-    ctx.beginPath(); ctx.ellipse(bx, by + bh * .12, bw * .5, bh * .15, 0, 0, Math.PI * 2); ctx.fill();
-    st.heap.slice(-9).forEach((name, i) => {
-      const sp = sprites[name], fx = pfHash(i + 31) - .5, s = bw * .3;
-      ctx.drawImage(sp.color, bx + fx * bw * .62 - s / 2, by - bh * .62 - (i % 3) * U * 1.4 - s * .2, s, s);
+    // le panda et sa caisse, qui penchent avec ton équilibre
+    st.x += ((snap ? snap.xCm : 0) - st.x) * (1 - Math.exp(-step * 14));
+    st.y += ((snap ? snap.yCm : 0) - st.y) * (1 - Math.exp(-step * 14));
+    const px = pfClamp(cx + st.x * ppc, U * 14, W - U * 14);
+    const py = cy - pfClamp(st.y, -5, 5) * ppc * RING_FLAT;
+    const d = snap ? Math.hypot(snap.xCm, snap.yCm) / snap.radiusCm : 0;
+    const wobble = (d > .7 ? Math.sin(t * 14) * Math.min(1, (d - .7) * 2) * .07 : 0) + (locked ? Math.sin(t * 22) * .09 : 0);
+    const lean = pfClamp(st.x * .07, -.28, .28);
+    const ph = U * 30, pw = ph * 300 / 380;
+    ctx.fillStyle = 'rgba(30,16,6,.3)';
+    ctx.beginPath(); ctx.ellipse(px, py, pw * .42, pw * .1, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.save();
+    ctx.translate(px, py); ctx.rotate(lean);
+    ctx.drawImage(st.panda, -pw / 2, -ph, pw, ph);
+    // caisse sur la tête, avec les ingrédients déjà trouvés
+    ctx.translate(0, -ph * .79); ctx.rotate(wobble);
+    const cw = pw * .82, ch = cw * .34;
+    (snap ? snap.found : []).forEach((ing, i) => {
+      const s = cw * .34, fx = (i - 2) * cw * .19;
+      ctx.drawImage(sprites[ing].color, fx - s / 2, -ch - s * .62 - (i % 2) * U * .8, s, s);
     });
-    ctx.save(); ctx.translate(bx, by + bh * .22); ctx.scale(sq, 2 - sq);
-    ctx.drawImage(st.basket, -bw / 2, -bh * .9, bw, bh);
+    ctx.drawImage(st.crate, -cw / 2, -ch, cw, ch);
+    // niveau à bulle sur la caisse
+    const lw = cw * .38, lx = -lw / 2, ly = -ch * .62;
+    ctx.fillStyle = '#e8f6ef'; roundedRect(ctx, lx, ly, lw, ch * .3, ch * .15); ctx.fill();
+    ctx.strokeStyle = '#2b5b4a'; ctx.lineWidth = Math.max(1, U * .25); ctx.stroke();
+    ctx.fillStyle = `rgb(${col})`;
+    ctx.beginPath(); ctx.arc(pfClamp(st.x / (snap ? snap.radiusCm : 2), -1, 1) * lw * .38, ly + ch * .15, ch * .11, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
-    // le repère exact de la position du joueur
-    ctx.fillStyle = `rgba(${col},.32)`;
-    ctx.beginPath(); ctx.ellipse(bx, by, U * 3.4, U * 1.6, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.strokeStyle = `rgb(${col})`; ctx.lineWidth = U * .5;
-    ctx.beginPath(); ctx.ellipse(bx, by, U * 1.5, U * .8, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-    // aliments qui volent vers le panier
+    // ingrédients qui s'envolent vers la liste
     st.flying = st.flying.filter(f => f.age < 1);
     st.flying.forEach(f => {
-      f.age += step / .34;
-      const k = Math.min(1, f.age), ease = k * k;
-      const x = mix(f.x, bx, ease), y = mix(f.y, by - bh * .6, ease) - Math.sin(k * Math.PI) * U * 10;
-      const size = itemSize * mix(1.2, .55, k);
-      ctx.save(); ctx.translate(x, y); ctx.rotate(k * 7);
-      ctx.drawImage(sprites[f.sprite].color, -size / 2, -size / 2, size, size);
-      ctx.restore();
-      if (k >= 1 && !f.done) { f.done = true; st.heap.push(f.sprite); st.bounce = 1; }
+      f.age += step / .45;
+      const k = Math.min(1, f.age), e = 1 - (1 - k) * (1 - k);
+      const x = mix(f.x, f.tx, e), y = mix(f.y, f.ty, e) - Math.sin(k * Math.PI) * U * 8;
+      const s = size * mix(1.15, .55, k);
+      ctx.drawImage(sprites[f.ing].color, x - s / 2, y - s / 2, s, s);
     });
 
-    // éclats
     st.parts = st.parts.filter(p => p.age < p.life);
     st.parts.forEach(p => {
-      p.age += step; p.vy += U * 80 * step; p.x += p.vx * step; p.y += p.vy * step;
+      p.age += step; p.vy += U * 70 * step; p.x += p.vx * step; p.y += p.vy * step;
       ctx.globalAlpha = pfClamp(1 - p.age / p.life, 0, 1);
       ctx.fillStyle = p.c;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+      if (p.square) ctx.fillRect(p.x, p.y, p.r * 2, p.r * 1.2);
+      else { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); }
     });
     ctx.globalAlpha = 1;
 
-    // points qui montent
     st.pops = st.pops.filter(p => p.age < 1);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     st.pops.forEach(p => {
       p.age += step / .75;
       ctx.globalAlpha = pfClamp(1.3 - p.age * 1.3, 0, 1);
-      ctx.font = `italic 900 ${Math.round(U * 9 * (1 + (1 - Math.min(1, p.age * 4)) * .5))}px Montserrat, system-ui, sans-serif`;
-      ctx.lineWidth = U * .9; ctx.strokeStyle = 'rgba(20,24,20,.75)';
-      ctx.strokeText(p.text, p.x, p.y - p.age * U * 13);
-      ctx.fillStyle = p.color;
-      ctx.fillText(p.text, p.x, p.y - p.age * U * 13);
+      ctx.font = `italic 900 ${Math.round(U * 8)}px Montserrat, system-ui, sans-serif`;
+      ctx.lineWidth = U * .8; ctx.strokeStyle = 'rgba(20,24,20,.75)';
+      ctx.strokeText(p.text, p.x, p.y - p.age * U * 12);
+      ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y - p.age * U * 12);
     });
     ctx.globalAlpha = 1;
 
     ctx.drawImage(awning, 0, 0);
     ctx.restore();
-
-    if (locked) paintVignette(ctx, W, H, '232,40,60', .5 + Math.sin(t * 12) * .08);
-    if (st.flash > 0) { st.flash -= step * 3.2; paintVignette(ctx, W, H, '232,30,50', Math.max(0, st.flash) * .7); }
+    if (locked) paintVignette(ctx, W, H, '232,40,60', .45 + Math.sin(t * 12) * .08);
+    if (st.flash > 0) { st.flash -= step * 3.2; paintVignette(ctx, W, H, '232,30,50', Math.max(0, st.flash) * .6); }
   }
 
-  /* ---------- Interface avec le jeu ---------- */
   function start() {
     const canvas = document.getElementById('marketCanvas');
     const stage = document.getElementById('marketStage');
     if (!canvas || !stage) return;
     makeSprites();
     const g = sizeGameCanvas(canvas, stage);
-    snap = null;
-    st = { ...g, x: 0, y: 0, bounce: 0, shake: 0, flash: 0, parts: [], flying: [], pops: [], heap: [] };
+    st = { ...g, x: 0, y: 0, shake: 0, flash: 0, parts: [], flying: [], pops: [] };
     st.bg = layerCanvas(g.W, g.H, (c, w, h) => {
       paintBackdrop(c, w, h);
-      paintCrate(c, -w * .05, h * .79, w * .34, ['apple', 'pear', 'apple', 'orange', 'apple']);
-      paintCrate(c, w * .71, h * .79, w * .34, ['carrot', 'orange', 'strawberry', 'grapes', 'banana']);
+      paintShop(c, w, h);
+      paintCrate(c, -w * .06, h * .74, w * .3, ['apple', 'pear', 'apple', 'orange', 'apple']);
+      paintCrate(c, w * .76, h * .74, w * .3, ['carrot', 'leek', 'potato', 'onion', 'celery']);
     });
     st.awning = layerCanvas(g.W, g.H, paintAwning);
-    st.basket = layerCanvas(520, 374, paintBasket);
+    st.panda = layerCanvas(300, 380, paintPanda);
+    st.crate = layerCanvas(300, 102, paintCrateBox);
     runGameCanvas(canvas, paint);
     canvas.addEventListener('pointerdown', (e) => {
       if (!snap || !st) return;
       const rect = canvas.getBoundingClientRect();
       const ratio = st.W / rect.width;
       const x = (e.clientX - rect.left) * ratio, y = (e.clientY - rect.top) * ratio;
-      let best = null, bestD = st.U * SIZE * .82;
+      let best = null, bestD = st.U * SIZE * .75;
       snap.items.forEach(it => {
-        const p = itemPos(it), d = Math.hypot(p.x - x, p.y - y);
-        if (d < bestD) { bestD = d; best = it; }
+        const p = itemPos(it), dd = Math.hypot(p.x - x, p.y - y);
+        if (dd < bestD) { bestD = dd; best = it; }
       });
       if (best) MigrosGame.tapItem(best.id);
     });
   }
-  /** kind = 'healthy' | 'junk' : le jeu vient de valider un tap */
-  function caught(kind, it) {
+
+  /** Réaction aux événements du jeu : bon clic, mauvais clic, liste terminée */
+  function event(ev) {
     if (!st) return;
-    const p = itemPos(it);
-    if (kind === 'healthy') {
-      st.flying.push({ x: p.x, y: p.y, sprite: it.sprite, age: 0 });
+    if (ev.type === 'list') { confetti(); return; }
+    const p = itemPos(ev.item);
+    if (ev.type === 'good') {
+      const slot = document.querySelectorAll('#shopList .shop-slot img')[ev.slot];
+      const canvas = st.canvas, rect = canvas.getBoundingClientRect(), ratio = st.W / rect.width;
+      let tx = st.W * .6, ty = st.H * .15;
+      if (slot) { const r = slot.getBoundingClientRect(); tx = (r.left + r.width / 2 - rect.left) * ratio; ty = (r.top + r.height / 2 - rect.top) * ratio; }
+      st.flying.push({ x: p.x, y: p.y, tx, ty, ing: ev.item.ing, age: 0 });
       st.pops.push({ x: p.x, y: p.y, text: '+1', color: '#7dffb0', age: 0 });
       spawnBurst(p.x, p.y, true);
     } else {
       st.pops.push({ x: p.x, y: p.y, text: '-1', color: '#ff5468', age: 0 });
       spawnBurst(p.x, p.y, false);
-      st.shake = .28; st.flash = 1;
+      st.shake = .25; st.flash = 1;
     }
   }
+
   return {
-    start, caught, update(s) { snap = s; },
+    start, event, update(s) { snap = s; },
     iconURL(name) { return makeSprites()[name].color.toDataURL('image/png'); },
   };
 })();
 
 let migrosPandaTimeout = null;
 let migrosStreak = 0;
+let shopListKey = '';
 function screenMigrosPlaying() {
   return `
     <button class="btn-ghost back-top-right game-quit">← Retour</button>
@@ -5696,20 +6191,22 @@ function screenMigrosPlaying() {
     <div class="game-stage market-stage" id="marketStage">
       <canvas id="marketCanvas" style="touch-action:none;"></canvas>
       <div class="game-hud market-hud">
-        <div class="timer market-count good"><img src="${MarketScene.iconURL('apple')}" alt=""><span id="migrosGood">0</span></div>
-        <div class="timer market-count bad"><img src="${MarketScene.iconURL('donut')}" alt=""><span id="migrosBad">0</span></div>
+        <div class="timer market-count good"><i data-lucide="check"></i><span id="migrosGood">0</span></div>
+        <div class="timer market-count bad"><i data-lucide="x"></i><span id="migrosBad">0</span></div>
         <div class="timer" id="migrosTimer">--</div>
       </div>
-      <div class="game-hint market-hint">Reste dans le cercle, tape les bons aliments.</div>
+      <div class="shop-list" id="shopList"></div>
       <div class="market-streak" id="migrosStreak"><span class="w">SÉRIE</span> <span class="n" id="migrosStreakN"></span></div>
+      <div class="ski-warn shop-done" id="shopDone"><div class="ski-warn-box">
+        <div class="ski-warn-t" id="shopDoneName"></div>
+        <div class="ski-warn-s">Liste complète !</div>
+      </div></div>
       <div class="ski-intro" id="marketIntro"><div class="ski-warn-box">
         <div class="ski-intro-row">
-          <div class="market-example"><img src="${MarketScene.iconURL('apple')}" alt=""><i data-lucide="check"></i></div>
           <div class="ski-intro-num tick" id="marketIntroNum">3</div>
-          <div class="market-example no"><img src="${MarketScene.iconURL('donut')}" alt=""><i data-lucide="x"></i></div>
         </div>
-        <div class="ski-warn-t ski-intro-t">TAPE LES BONS ALIMENTS</div>
-        <div class="ski-warn-s">Et reste dans le cercle !</div>
+        <div class="ski-warn-t ski-intro-t">TROUVE LES 5 INGRÉDIENTS</div>
+        <div class="ski-warn-s">Et garde ton équilibre !</div>
       </div></div>
       <div class="ski-warn" id="migrosWarn"><div class="ski-warn-box">
         <div class="ski-warn-t">HORS ZONE !</div>
@@ -5718,21 +6215,39 @@ function screenMigrosPlaying() {
     </div>
   `;
 }
-function migrosSpawnCatchPulse(kind, it) {
-  MarketScene.caught(kind, it);
-  migrosStreak = kind === 'healthy' ? migrosStreak + 1 : 0;
+/** La liste de courses en papier : nom de la recette + 5 ingrédients, cochés au fur et à mesure */
+function renderShopList(snap) {
+  const el = document.getElementById('shopList');
+  if (!el) return;
+  const key = snap.recipe.name;
+  if (shopListKey !== key) {
+    shopListKey = key;
+    el.innerHTML = `<div class="shop-title">${snap.recipe.name}</div><div class="shop-slots">${snap.recipe.items.map(ing => `
+      <div class="shop-slot" data-ing="${ing}"><img src="${MarketScene.iconURL(ing)}" alt=""><div class="shop-name">${SHOP_NAMES[ing]}</div></div>`).join('')}</div>`;
+    el.classList.remove('fresh'); void el.offsetWidth; el.classList.add('fresh');
+  }
+  el.querySelectorAll('.shop-slot').forEach(slot => slot.classList.toggle('done', snap.found.includes(slot.dataset.ing)));
+}
+function migrosOnEvent(ev) {
+  MarketScene.event(ev);
+  if (ev.type === 'list') {
+    const box = document.getElementById('shopDone');
+    const name = document.getElementById('shopDoneName');
+    if (box && name) { name.textContent = `${ev.name} ✓`; box.classList.remove('show'); void box.offsetWidth; box.classList.add('show'); setTimeout(() => box.classList.remove('show'), 1500); }
+    return;
+  }
+  migrosStreak = ev.type === 'good' ? migrosStreak + 1 : 0;
   if (migrosStreak && migrosStreak % 5 === 0) {
-    const box = document.getElementById('migrosStreak');
+    const s = document.getElementById('migrosStreak');
     const n = document.getElementById('migrosStreakN');
-    if (box && n) { n.textContent = `x${migrosStreak}`; box.classList.remove('show'); void box.offsetWidth; box.classList.add('show'); }
+    if (s && n) { n.textContent = `x${migrosStreak}`; s.classList.remove('show'); void s.offsetWidth; s.classList.add('show'); }
   }
   const happy = document.getElementById('migrosPandaHappy');
   const fail = document.getElementById('migrosPandaFail');
   if (!happy || !fail) return;
   clearTimeout(migrosPandaTimeout);
-  if (kind === 'junk') {
-    fail.classList.add('active');
-    happy.classList.remove('active');
+  if (ev.type === 'wrong') {
+    fail.classList.add('active'); happy.classList.remove('active');
     migrosPandaTimeout = setTimeout(() => { fail.classList.remove('active'); happy.classList.add('active'); }, 900);
   } else {
     happy.classList.add('happy-bounce');
@@ -5745,8 +6260,9 @@ function renderMigrosPlaying(snap) {
   const goodEl = document.getElementById('migrosGood');
   const badEl = document.getElementById('migrosBad');
   if (goodEl) goodEl.textContent = snap.goodCount;
-  if (badEl) badEl.textContent = snap.junkCount;
+  if (badEl) badEl.textContent = snap.wrongCount;
   document.getElementById('migrosWarn')?.classList.toggle('show', snap.locked);
+  renderShopList(snap);
   MarketScene.update(snap);
 }
 function screenMigrosResult(snap, score, reason) {
@@ -5756,8 +6272,9 @@ function screenMigrosResult(snap, score, reason) {
     ${gameVideoBigHTML(MIGROS_END_VIDEO_B64)}
     <div class="result-score"><div class="num">${score}</div><div class="lbl">Score</div></div>
     ${resultStatsHTML([
-      { icon: 'apple', label: 'Bons aliments', value: snap.goodCount },
-      { icon: 'candy', label: 'Sucreries', value: snap.junkCount },
+      { icon: 'check', label: 'Bons clics', value: snap.goodCount },
+      { icon: 'x', label: 'Mauvais clics', value: snap.wrongCount },
+      { icon: 'list-checks', label: 'Listes complètes', value: snap.lists },
     ])}
     <div class="row">
       <button class="btn-primary" id="btnMigrosReplay">Rejouer</button>
