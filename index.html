@@ -3147,7 +3147,7 @@ const UI_DICT_ROWS = [
   ["Bons clics", "Richtige Klicks", "Correct taps", "Tocchi giusti"],
   ["Mauvais clics", "Falsche Klicks", "Wrong taps", "Tocchi sbagliati"],
   ["Listes complètes", "Volle Listen", "Lists completed", "Liste completate"],
-  ["Une liste de courses s'affiche : une recette suisse et ses 5 ingrédients. Trouve-les sur les étals et touche-les, puis passe à la liste suivante. Garde ton équilibre : si tu sors du cercle, le panda doit rattraper sa caisse et ne peut plus rien prendre pendant 2 secondes.", "Eine Einkaufsliste erscheint: ein Schweizer Rezept mit seinen 5 Zutaten. Finde sie an den Ständen und tippe sie an, dann geht es zur nächsten Liste. Halte dein Gleichgewicht: Wenn du den Kreis verlässt, muss der Panda seine Kiste auffangen und kann 2 Sekunden lang nichts nehmen.", "A shopping list appears: a Swiss recipe and its 5 ingredients. Find them on the market stalls and tap them, then move on to the next list. Keep your balance: if you leave the circle, the panda has to steady its crate and can't take anything for 2 seconds.", "Appare una lista della spesa: una ricetta svizzera e i suoi 5 ingredienti. Trovali sulle bancarelle e toccali, poi passa alla lista successiva. Mantieni l'equilibrio: se esci dal cerchio, il panda deve riprendere la sua cassa e non può prendere nulla per 2 secondi."],
+  ["Une liste de courses s'affiche : une recette suisse et ses 5 ingrédients. Trouve-les sur les étals et touche-les, puis passe à la liste suivante. Garde ton équilibre : le niveau à bulle de ton panier montre où tu en es. Si la bulle sort du cercle, tu ne peux plus rien prendre pendant 2 secondes.", "Eine Einkaufsliste erscheint: ein Schweizer Rezept mit seinen 5 Zutaten. Finde sie an den Ständen und tippe sie an, dann geht es zur nächsten Liste. Halte dein Gleichgewicht: Die Wasserwaage an deinem Korb zeigt, wo du stehst. Verlässt die Blase den Kreis, kannst du 2 Sekunden lang nichts nehmen.", "A shopping list appears: a Swiss recipe and its 5 ingredients. Find them on the market stalls and tap them, then move on to the next list. Keep your balance: the spirit level on your basket shows where you are. If the bubble leaves the circle, you can't take anything for 2 seconds.", "Appare una lista della spesa: una ricetta svizzera e i suoi 5 ingredienti. Trovali sulle bancarelle e toccali, poi passa alla lista successiva. Mantieni l'equilibrio: la livella sul tuo cestino mostra dove sei. Se la bolla esce dal cerchio, non puoi prendere nulla per 2 secondi."],
   ["S'entraîner à garder l'équilibre tout en traitant une information rend plus stable : près de 9 études d'entraînement « double tâche » sur 10 montrent une meilleure stabilité (méta-analyse de 42 études, Ghai et al., 2017).", "Gleichgewicht zu halten und dabei Informationen zu verarbeiten, macht stabiler: Fast 9 von 10 Studien mit «Dual-Task»-Training zeigen eine bessere Stabilität (Meta-Analyse von 42 Studien, Ghai et al., 2017).", "Training to keep your balance while processing information makes you steadier: nearly 9 out of 10 dual-task training studies show better stability (meta-analysis of 42 studies, Ghai et al., 2017).", "Allenarsi a mantenere l'equilibrio mentre si elabora un'informazione rende più stabili: quasi 9 studi di allenamento «doppio compito» su 10 mostrano una stabilità migliore (meta-analisi di 42 studi, Ghai et al., 2017)."],
   ["Tu repères les bons ingrédients au milieu des autres et tu les touches au bon moment, sans perdre l'équilibre : l'attention et l'équilibre travaillent ensemble.", "Du erkennst die richtigen Zutaten zwischen den anderen und tippst sie im richtigen Moment an, ohne das Gleichgewicht zu verlieren: Aufmerksamkeit und Gleichgewicht arbeiten zusammen.", "You spot the right ingredients among the others and tap them at the right moment without losing your balance: attention and balance work together.", "Individui gli ingredienti giusti tra gli altri e li tocchi al momento giusto, senza perdere l'equilibrio: attenzione ed equilibrio lavorano insieme."],
   ["Entraîne la prise d'information rapide et la concentration en restant stable, comme quand on cherche un produit en rayon ou un panneau en marchant.", "Trainiert die schnelle Informationsaufnahme und die Konzentration bei stabiler Haltung, wie wenn man ein Produkt im Regal oder ein Schild beim Gehen sucht.", "Trains fast information processing and concentration while staying steady, like looking for a product on a shelf or a sign while walking.", "Allena la presa di informazioni rapida e la concentrazione restando stabili, come quando si cerca un prodotto sullo scaffale o un cartello camminando."],
@@ -5363,7 +5363,7 @@ function screenMarketSetup() {
     <div class="game-setup" style="${MARKET_THEME}">
       <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="shopping-cart"></i> Marché Express</h1>
       ${gameVideoBigHTML(MARKET_WELCOME_VIDEO_B64)}
-      <p class="page-sub">Une liste de courses s'affiche : une recette suisse et ses 5 ingrédients. Trouve-les sur les étals et touche-les, puis passe à la liste suivante. Garde ton équilibre : si tu sors du cercle, le panda doit rattraper sa caisse et ne peut plus rien prendre pendant 2 secondes.</p>
+      <p class="page-sub">Une liste de courses s'affiche : une recette suisse et ses 5 ingrédients. Trouve-les sur les étals et touche-les, puis passe à la liste suivante. Garde ton équilibre : le niveau à bulle de ton panier montre où tu en es. Si la bulle sort du cercle, tu ne peux plus rien prendre pendant 2 secondes.</p>
       <button class="btn-primary" id="btnMarketStart" style="width:100%;">${t('game_start_btn')}</button>
 <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
     ${gameInfoHTML('market')}
@@ -6156,6 +6156,40 @@ const MarketScene = (() => {
     c.beginPath(); c.moveTo(138, 192); c.quadraticCurveTo(150, 202, 162, 192); c.stroke();
   }
 
+  const BASKET_W = 600, BASKET_H = 330;
+  function weave(c, w, h) {
+    c.strokeStyle = 'rgba(70,40,14,.5)'; c.lineWidth = 5;
+    for (let r = 0; r < 9; r++) {
+      const y = 70 + r * 30;
+      for (let i = -2; i < 22; i++) { c.beginPath(); c.ellipse(i * 34 + (r % 2 ? 17 : 0), y + 14, 18, 13, 0, 0, Math.PI * 2); c.stroke(); }
+    }
+  }
+  function paintBasketBack(c, w, h) {
+    c.fillStyle = '#5a3818';
+    c.beginPath(); c.ellipse(300, 70, 272, 56, 0, 0, Math.PI * 2); c.fill();
+    const rim = c.createLinearGradient(0, 10, 0, 70);
+    rim.addColorStop(0, '#f0c98a'); rim.addColorStop(1, '#b07a3e');
+    c.strokeStyle = rim; c.lineWidth = 22;
+    c.beginPath(); c.ellipse(300, 70, 278, 60, 0, Math.PI, 0); c.stroke();
+  }
+  function paintBasketFront(c, w, h) {
+    const body = c.createLinearGradient(0, 70, 0, 330);
+    body.addColorStop(0, '#d9a45f'); body.addColorStop(1, '#7d4f22');
+    c.fillStyle = body;
+    c.beginPath(); c.moveTo(22, 70); c.bezierCurveTo(30, 220, 70, 318, 140, 326); c.lineTo(460, 326); c.bezierCurveTo(530, 318, 570, 220, 578, 70);
+    c.ellipse(300, 70, 278, 60, 0, 0, Math.PI); c.closePath(); c.fill();
+    c.save(); c.clip(); weave(c, w, h);
+    const shade = c.createLinearGradient(0, 0, w, 0);
+    shade.addColorStop(0, 'rgba(40,20,6,.35)'); shade.addColorStop(.35, 'rgba(40,20,6,0)'); shade.addColorStop(.7, 'rgba(255,230,180,.08)'); shade.addColorStop(1, 'rgba(40,20,6,.35)');
+    c.fillStyle = shade; c.fillRect(0, 0, w, h);
+    c.restore();
+    const rim = c.createLinearGradient(0, 70, 0, 140);
+    rim.addColorStop(0, '#f6d29a'); rim.addColorStop(1, '#a8723a');
+    c.strokeStyle = rim; c.lineWidth = 26; c.lineCap = 'round';
+    c.beginPath(); c.ellipse(300, 70, 278, 60, 0, 0, Math.PI); c.stroke();
+    c.strokeStyle = 'rgba(90,50,18,.45)'; c.lineWidth = 3;
+    for (let a = .1; a < Math.PI; a += .18) { const x = 300 + Math.cos(a) * 278, y = 70 + Math.sin(a) * 60; c.beginPath(); c.moveTo(x - 6, y - 10); c.lineTo(x + 6, y + 10); c.stroke(); }
+  }
   function paintCrateBox(c, w, h) {
     const g = c.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, '#d9a56a'); g.addColorStop(1, '#a06b38');
@@ -6214,44 +6248,56 @@ const MarketScene = (() => {
       ctx.drawImage(locked ? sp.gray : sp.color, p.x - size / 2, p.y - size / 2 + bob, size, size);
     });
 
-    // anneau d'équilibre au sol
-    const cx = W / 2, cy = H * RING_Y, ppc = U * 11;
+    // Vue à la première personne : tes mains tiennent le panier, qui penche avec ton équilibre
     const inside = !snap || (snap.xCm * snap.xCm + snap.yCm * snap.yCm) <= snap.radiusCm * snap.radiusCm;
     const col = inside ? '72,214,170' : '232,62,84';
-    const r = (snap ? snap.radiusCm : 2) * ppc;
-    ctx.fillStyle = `rgba(${col},.16)`;
-    ctx.beginPath(); ctx.ellipse(cx, cy, r, r * RING_FLAT, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = `rgb(${col})`; ctx.lineWidth = U * .55;
-    ctx.beginPath(); ctx.ellipse(cx, cy, r, r * RING_FLAT, 0, 0, Math.PI * 2); ctx.stroke();
-
-    // le panda et sa caisse, qui penchent avec ton équilibre
     st.x += ((snap ? snap.xCm : 0) - st.x) * (1 - Math.exp(-step * 14));
     st.y += ((snap ? snap.yCm : 0) - st.y) * (1 - Math.exp(-step * 14));
-    const px = pfClamp(cx + st.x * ppc, U * 14, W - U * 14);
-    const py = cy - pfClamp(st.y, -5, 5) * ppc * RING_FLAT;
+    const range = (snap ? snap.radiusCm : 1.6) * 1.7;
+    const nx = pfClamp(st.x / range, -1, 1), ny = pfClamp(st.y / range, -1, 1);
     const d = snap ? Math.hypot(snap.xCm, snap.yCm) / snap.radiusCm : 0;
-    const wobble = (d > .7 ? Math.sin(t * 14) * Math.min(1, (d - .7) * 2) * .07 : 0) + (locked ? Math.sin(t * 22) * .09 : 0);
-    const lean = pfClamp(st.x * .07, -.28, .28);
-    const ph = U * 30, pw = ph * 300 / 380;
-    ctx.fillStyle = 'rgba(30,16,6,.3)';
-    ctx.beginPath(); ctx.ellipse(px, py, pw * .42, pw * .1, 0, 0, Math.PI * 2); ctx.fill();
+    const wobble = (d > .7 ? Math.sin(t * 14) * Math.min(1, (d - .7) * 2) * .03 : 0) + (locked ? Math.sin(t * 24) * .045 : 0);
+    const bw = W * .8, bh = bw * BASKET_H / BASKET_W;
+    const cx = W / 2 + nx * U * 3, top = H * .79 - ny * U * 1.5;
     ctx.save();
-    ctx.translate(px, py); ctx.rotate(lean);
-    ctx.drawImage(st.panda, -pw / 2, -ph, pw, ph);
-    // caisse sur la tête, avec les ingrédients déjà trouvés
-    ctx.translate(0, -ph * .79); ctx.rotate(wobble);
-    const cw = pw * .82, ch = cw * .34;
+    ctx.translate(cx, H * 1.08); ctx.rotate(nx * .1 + wobble); ctx.translate(-cx, -H * 1.08);
+    ctx.drawImage(st.basketBack, cx - bw / 2, top, bw, bh);
     (snap ? snap.found : []).forEach((ing, i) => {
-      const s = cw * .34, fx = (i - 2) * cw * .19;
-      ctx.drawImage(sprites[ing].color, fx - s / 2, -ch - s * .62 - (i % 2) * U * .8, s, s);
+      const s = U * 12, fx = (i - 2) * bw * .15, lift = (i % 2) * U * 1.6;
+      ctx.drawImage(sprites[ing].color, cx + fx - s / 2, top + bh * .2 - s * .62 - lift, s, s);
     });
-    ctx.drawImage(st.crate, -cw / 2, -ch, cw, ch);
-    // niveau à bulle sur la caisse
-    const lw = cw * .38, lx = -lw / 2, ly = -ch * .62;
-    ctx.fillStyle = '#e8f6ef'; roundedRect(ctx, lx, ly, lw, ch * .3, ch * .15); ctx.fill();
-    ctx.strokeStyle = '#2b5b4a'; ctx.lineWidth = Math.max(1, U * .25); ctx.stroke();
-    ctx.fillStyle = `rgb(${col})`;
-    ctx.beginPath(); ctx.arc(pfClamp(st.x / (snap ? snap.radiusCm : 2), -1, 1) * lw * .38, ly + ch * .15, ch * .11, 0, Math.PI * 2); ctx.fill();
+    ctx.drawImage(st.basketFront, cx - bw / 2, top, bw, bh);
+    // niveau à bulle rond fixé sur le panier : le cercle = la zone, la bulle = ton équilibre
+    const lx = cx, ly = top + bh * .58, lr = U * 7.5;
+    ctx.fillStyle = '#5b6573'; ctx.beginPath(); ctx.arc(lx, ly, lr + U * 1.1, 0, Math.PI * 2); ctx.fill();
+    const glass = ctx.createRadialGradient(lx - lr * .3, ly - lr * .3, 1, lx, ly, lr);
+    glass.addColorStop(0, '#f4fff9'); glass.addColorStop(1, '#bfe6d6');
+    ctx.fillStyle = glass; ctx.beginPath(); ctx.arc(lx, ly, lr, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = `rgb(${col})`; ctx.lineWidth = U * .45;
+    ctx.beginPath(); ctx.arc(lx, ly, lr / 1.7, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(40,60,70,.35)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(lx - lr, ly); ctx.lineTo(lx + lr, ly); ctx.moveTo(lx, ly - lr); ctx.lineTo(lx, ly + lr); ctx.stroke();
+    const bx = lx + nx * lr * .82, byy = ly - ny * lr * .82;
+    const bub = ctx.createRadialGradient(bx - U * .5, byy - U * .5, 1, bx, byy, U * 1.8);
+    bub.addColorStop(0, '#ffffff'); bub.addColorStop(1, `rgba(${col},.9)`);
+    ctx.fillStyle = bub; ctx.beginPath(); ctx.arc(bx, byy, U * 1.7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.ellipse(lx - lr * .35, ly - lr * .45, lr * .4, lr * .18, -.5, 0, Math.PI * 2); ctx.fill();
+    // les avant-bras et les gants qui tiennent les bords du panier
+    [-1, 1].forEach(s => {
+      const gx = cx + s * bw * .47, gy = top + bh * .2;
+      const ex = cx + s * bw * .64, ey = H + U * 8;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#2b3140'; ctx.lineWidth = U * 10;
+      ctx.beginPath(); ctx.moveTo(ex, ey); ctx.quadraticCurveTo(cx + s * bw * .6, gy + bh * .55, gx, gy + U * 3); ctx.stroke();
+      ctx.strokeStyle = '#3a4255'; ctx.lineWidth = U * 7.5;
+      ctx.beginPath(); ctx.moveTo(ex, ey); ctx.quadraticCurveTo(cx + s * bw * .6, gy + bh * .55, gx, gy + U * 3); ctx.stroke();
+      ctx.fillStyle = '#1f8a73';
+      ctx.beginPath(); ctx.ellipse(gx, gy + U * 1.2, U * 5, U * 4.2, s * .5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#26a58a';
+      for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.ellipse(gx - s * U * (2.8 - k * 1.8), gy - U * 1.6, U * 1.25, U * 2, 0, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(gx - U * 4, gy + U * 2.4, U * 8, U * .6);
+      ctx.lineCap = 'butt';
+    });
     ctx.restore();
 
     // ingrédients qui s'envolent vers la liste
@@ -6306,8 +6352,8 @@ const MarketScene = (() => {
       paintCrate(c, w * .76, h * .74, w * .3, ['carrot', 'leek', 'potato', 'onion', 'celery']);
     });
     st.awning = layerCanvas(g.W, g.H, paintAwning);
-    st.panda = layerCanvas(300, 380, paintPanda);
-    st.crate = layerCanvas(300, 102, paintCrateBox);
+    st.basketBack = layerCanvas(BASKET_W, BASKET_H, paintBasketBack);
+    st.basketFront = layerCanvas(BASKET_W, BASKET_H, paintBasketFront);
     runGameCanvas(canvas, paint);
     canvas.addEventListener('pointerdown', (e) => {
       if (!snap || !st) return;
