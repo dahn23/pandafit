@@ -10857,7 +10857,20 @@ function startNightlyReload() {
    le toucher suivant y revient. Ordinateurs (souris) non concernés. */
 function enableTouchKioskFullscreen() {
   const installed = matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches;
-  if (installed || !matchMedia('(pointer: coarse)').matches) return;
+  if (!matchMedia('(pointer: coarse)').matches) return;
+  if (installed) {
+    // App installée (ex. app web gérée par le MDM, dont le manifeste n'impose pas le portrait) :
+    // on bloque le portrait au démarrage, au retour au premier plan et au toucher (si le premier essai a échoué).
+    let locked = false;
+    const lock = () => {
+      if (locked) return;
+      Promise.resolve(screen.orientation?.lock?.('portrait')).then(() => { locked = true; }).catch(() => {});
+    };
+    lock();
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { locked = false; lock(); } });
+    document.addEventListener('pointerdown', lock, { capture: true, passive: true });
+    return;
+  }
   const enter = () => {
     if (document.fullscreenElement || document.webkitFullscreenElement) return;
     const el = document.documentElement;
