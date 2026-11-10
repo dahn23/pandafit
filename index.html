@@ -6152,14 +6152,44 @@ const MarketScene = (() => {
     for (let i = -16; i <= 16; i++) { c.beginPath(); c.moveTo(w / 2 + i * w * .045, floor); c.lineTo(w / 2 + i * w * .14, h); c.stroke(); }
     c.fillStyle = 'rgba(255,214,150,.3)'; c.fillRect(0, floor, w, h * .005);
     SHELVES.forEach((sy, k) => {
-      const y = h * sy, th = h * .02;
-      c.fillStyle = 'rgba(30,16,6,.28)'; c.fillRect(0, y + th, w, h * .018);
+      const y = h * sy, depth = h * .034, th = h * .03;
+      // pieds et ombre portée sous l'étal
+      c.fillStyle = '#5e3a1c';
+      [.08, .5, .92].forEach(fx => { c.fillRect(fx * w - w * .01, y + th, w * .02, h * .045); });
+      const under = c.createLinearGradient(0, y + th, 0, y + th + h * .035);
+      under.addColorStop(0, 'rgba(30,16,6,.42)'); under.addColorStop(1, 'rgba(30,16,6,0)');
+      c.fillStyle = under; c.fillRect(0, y + th, w, h * .035);
+      // plateau incliné vers toi
+      const topG = c.createLinearGradient(0, y - depth, 0, y);
+      topG.addColorStop(0, '#a87442'); topG.addColorStop(1, '#e2b57c');
+      c.fillStyle = topG; c.fillRect(0, y - depth, w, depth);
+      c.strokeStyle = 'rgba(70,38,12,.25)'; c.lineWidth = 1;
+      for (let i = 1; i < 3; i++) { c.beginPath(); c.moveTo(0, y - depth * i / 3); c.lineTo(w, y - depth * i / 3); c.stroke(); }
+      // lit de feuilles vertes au fond du plateau
+      for (let i = 0; i < 70; i++) {
+        const lx = pfHash(i + k * 97) * w, ly = y - depth * (.55 + pfHash(i + k * 97 + .5) * .4), lr = w * (.012 + pfHash(i + k * 97 + .7) * .012);
+        c.fillStyle = ['#2f7d3a', '#3d9a46', '#59b552', '#276a31'][i % 4];
+        c.beginPath(); c.ellipse(lx, ly, lr * 1.6, lr * .7, (pfHash(i + k * 97 + .9) - .5) * 1.2, 0, Math.PI * 2); c.fill();
+      }
+      // rebord avant épais, veiné, avec des clous
       const p = c.createLinearGradient(0, y, 0, y + th);
-      p.addColorStop(0, '#d8a56a'); p.addColorStop(1, '#8f5d2e');
+      p.addColorStop(0, '#c48a50'); p.addColorStop(.5, '#9c6535'); p.addColorStop(1, '#6f4321');
       c.fillStyle = p; c.fillRect(0, y, w, th);
-      c.fillStyle = 'rgba(255,230,180,.55)'; c.fillRect(0, y, w, Math.max(1, h * .003));
-      c.fillStyle = '#6e4522';
-      [.08, .5, .92].forEach(fx => { c.fillRect(fx * w - w * .008, y + th, w * .016, h * .03); });
+      c.strokeStyle = 'rgba(60,30,10,.28)'; c.lineWidth = 1;
+      for (let i = 0; i < 6; i++) {
+        c.beginPath();
+        const yy = y + th * (.2 + i * .13);
+        for (let x = 0; x <= w; x += w * .05) c.lineTo(x, yy + Math.sin(x * .02 + i * 2 + k) * th * .06);
+        c.stroke();
+      }
+      c.fillStyle = 'rgba(255,232,190,.6)'; c.fillRect(0, y, w, Math.max(1, h * .0028));
+      c.fillStyle = 'rgba(40,20,6,.4)'; c.fillRect(0, y + th - Math.max(1, h * .002), w, Math.max(1, h * .002));
+      for (let x = w * .04; x < w; x += w * .16) {
+        [.3, .7].forEach(fy => {
+          c.fillStyle = '#5a4a3a'; c.beginPath(); c.arc(x, y + th * fy, Math.max(1.5, w * .0028), 0, Math.PI * 2); c.fill();
+          c.fillStyle = 'rgba(255,255,255,.4)'; c.beginPath(); c.arc(x - w * .0008, y + th * fy - w * .0008, Math.max(.7, w * .001), 0, Math.PI * 2); c.fill();
+        });
+      }
     });
   }
 
@@ -6233,6 +6263,14 @@ const MarketScene = (() => {
     c.fillStyle = '#7d5129'; c.fillRect(0, 0, w * .07, h); c.fillRect(w * .93, 0, w * .07, h);
   }
 
+  /** Rebond d'une chute (0 → 1) */
+  function bounceOut(k) {
+    const n = 7.5625, d = 2.75;
+    if (k < 1 / d) return n * k * k;
+    if (k < 2 / d) return n * (k -= 1.5 / d) * k + .75;
+    if (k < 2.5 / d) return n * (k -= 2.25 / d) * k + .9375;
+    return n * (k -= 2.625 / d) * k + .984375;
+  }
   function itemPos(it) {
     const { W, H, U } = st;
     const y = H * SHELVES[it.row] - U * SIZE * .5;
@@ -6278,6 +6316,8 @@ const MarketScene = (() => {
       const sp = sprites[it.ing];
       if (!sp) return;
       const bob = Math.sin(t * 3 + it.x * 20) * U * .25;
+      ctx.fillStyle = 'rgba(40,20,6,.32)';
+      ctx.beginPath(); ctx.ellipse(p.x, H * SHELVES[it.row] - U * .9, size * .36, U * 1.1, 0, 0, Math.PI * 2); ctx.fill();
       ctx.drawImage(locked ? sp.gray : sp.color, p.x - size / 2, p.y - size / 2 + bob, size, size);
     });
 
@@ -6295,9 +6335,15 @@ const MarketScene = (() => {
     ctx.save();
     ctx.translate(cx, H * 1.08); ctx.rotate(nx * .1 + wobble); ctx.translate(-cx, -H * 1.08);
     ctx.drawImage(st.basketBack, cx - bw / 2, top, bw, bh);
-    (snap ? snap.found : []).forEach((ing, i) => {
+    const found = snap ? snap.found : [];
+    if (found.length < st.foundAt.length) st.foundAt = [];
+    while (st.foundAt.length < found.length) st.foundAt.push(t);
+    found.forEach((ing, i) => {
       const s = U * 12, fx = (i - 2) * bw * .15, lift = (i % 2) * U * 1.6;
-      ctx.drawImage(sprites[ing].color, cx + fx - s / 2, top + bh * .2 - s * .62 - lift, s, s);
+      const k = Math.min(1, (t - st.foundAt[i]) / .7);
+      const drop = (1 - bounceOut(k)) * U * 34;
+      const squash = k < 1 ? 1 + Math.max(0, Math.sin(k * Math.PI * 3)) * .08 : 1;
+      ctx.drawImage(sprites[ing].color, cx + fx - s * squash / 2, top + bh * .2 - s * .62 - lift - drop + s * (1 - 1 / squash), s * squash, s / squash);
     });
     ctx.drawImage(st.basketFront, cx - bw / 2, top, bw, bh);
     // niveau à bulle rond fixé sur le panier : le cercle = la zone, la bulle = ton équilibre
@@ -6319,16 +6365,45 @@ const MarketScene = (() => {
     [-1, 1].forEach(s => {
       const gx = cx + s * bw * .47, gy = top + bh * .2;
       const ex = cx + s * bw * .64, ey = H + U * 8;
+      const qx = cx + s * bw * .6, qy = gy + bh * .55;
+      const fur = (x, y, r, n, seed) => { // bord poilu autour d'une forme ronde
+        ctx.strokeStyle = "#17171c"; ctx.lineWidth = Math.max(1, U * .5); ctx.lineCap = "round";
+        for (let i = 0; i < n; i++) {
+          const a = i / n * Math.PI * 2, l = r * (1.01 + pfHash(seed + i) * .07);
+          ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r * .9, y + Math.sin(a) * r * .9); ctx.lineTo(x + Math.cos(a + .08) * l, y + Math.sin(a + .08) * l); ctx.stroke();
+        }
+      };
       ctx.lineCap = 'round';
-      ctx.strokeStyle = '#2b3140'; ctx.lineWidth = U * 10;
-      ctx.beginPath(); ctx.moveTo(ex, ey); ctx.quadraticCurveTo(cx + s * bw * .6, gy + bh * .55, gx, gy + U * 3); ctx.stroke();
-      ctx.strokeStyle = '#3a4255'; ctx.lineWidth = U * 7.5;
-      ctx.beginPath(); ctx.moveTo(ex, ey); ctx.quadraticCurveTo(cx + s * bw * .6, gy + bh * .55, gx, gy + U * 3); ctx.stroke();
-      ctx.fillStyle = '#1f8a73';
-      ctx.beginPath(); ctx.ellipse(gx, gy + U * 1.2, U * 5, U * 4.2, s * .5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#26a58a';
-      for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.ellipse(gx - s * U * (2.8 - k * 1.8), gy - U * 1.6, U * 1.25, U * 2, 0, 0, Math.PI * 2); ctx.fill(); }
-      ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(gx - U * 4, gy + U * 2.4, U * 8, U * .6);
+      // bras de panda en fourrure noire
+      ctx.strokeStyle = '#0e0e12'; ctx.lineWidth = U * 12.5;
+      ctx.beginPath(); ctx.moveTo(ex, ey); ctx.quadraticCurveTo(qx, qy, gx, gy + U * 3); ctx.stroke();
+      ctx.strokeStyle = '#1d1d24'; ctx.lineWidth = U * 10.5;
+      ctx.beginPath(); ctx.moveTo(ex, ey); ctx.quadraticCurveTo(qx, qy, gx, gy + U * 3); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.09)'; ctx.lineWidth = U * 2.4;
+      ctx.beginPath(); ctx.moveTo(ex - s * U * 2.8, ey); ctx.quadraticCurveTo(qx - s * U * 2.8, qy, gx - s * U * 2, gy + U * 3.5); ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = Math.max(1, U * .3); // mèches de poils le long du bras
+      for (let i = 0; i < 14; i++) {
+        const k = (i + .5) / 14, mx = mix(mix(ex, qx, k), mix(qx, gx, k), k), my = mix(mix(ey, qy, k), mix(qy, gy + U * 3, k), k);
+        const side = i % 2 ? 1 : -1;
+        ctx.beginPath(); ctx.moveTo(mx + side * U * 3.4, my); ctx.lineTo(mx + side * U * 4.4, my - U * .9); ctx.stroke();
+      }
+      ctx.save(); ctx.translate(gx, gy); ctx.scale(1.25, 1.25); ctx.translate(-gx, -gy);
+      // la patte posée sur le bord du panier
+      const pg = ctx.createRadialGradient(gx - s * U * 1.6, gy, U * .4, gx, gy + U * 1.8, U * 6.4);
+      pg.addColorStop(0, '#3b3b46'); pg.addColorStop(1, '#141418');
+      ctx.fillStyle = pg;
+      ctx.beginPath(); ctx.ellipse(gx, gy + U * 2, U * 5.6, U * 4.8, s * .4, 0, Math.PI * 2); ctx.fill();
+      fur(gx, gy + U * 2, U * 5.2, 26, 50 + s);
+      // quatre doigts ronds repliés sur le bord, petits coussinets gris au bout
+      for (let k = 0; k < 4; k++) {
+        const fx = gx - s * U * (3.4 - k * 2.2), fy = gy - U * (1.5 + Math.sin(k / 3 * Math.PI) * .6);
+        const tg = ctx.createRadialGradient(fx - U * .5, fy - U * .6, U * .2, fx, fy, U * 1.9);
+        tg.addColorStop(0, '#45454f'); tg.addColorStop(1, '#16161b');
+        ctx.fillStyle = tg; ctx.beginPath(); ctx.ellipse(fx, fy, U * 1.45, U * 1.75, 0, 0, Math.PI * 2); ctx.fill();
+        fur(fx, fy, U * 1.45, 9, 70 + k + s);
+        ctx.fillStyle = '#5c5560'; ctx.beginPath(); ctx.ellipse(fx, fy - U * 1.25, U * .75, U * .42, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
       ctx.lineCap = 'butt';
     });
     ctx.restore();
@@ -6377,7 +6452,7 @@ const MarketScene = (() => {
     if (!canvas || !stage) return;
     makeSprites();
     const g = sizeGameCanvas(canvas, stage);
-    st = { ...g, x: 0, y: 0, shake: 0, flash: 0, parts: [], flying: [], pops: [] };
+    st = { ...g, x: 0, y: 0, shake: 0, flash: 0, parts: [], flying: [], pops: [], foundAt: [] };
     st.bg = layerCanvas(g.W, g.H, (c, w, h) => {
       paintBackdrop(c, w, h);
       paintShop(c, w, h);
