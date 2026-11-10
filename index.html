@@ -2394,7 +2394,12 @@ const SlalomGame = (() => {
   const PREPARE_SECONDS = 3;
   const WARM_SWINGS = 4;                      // premiers balancements : calage de l'ampleur et du rythme
   const DISTANCE = 42;                        // longueur de la piste
-  const STEP_SLOW = 0.42, STEP_FAST = 0.9;    // chemin parcouru par balancement : plus c'est régulier, plus on avance
+  // Vitesse de descente (piste par seconde) : ne dépend QUE de la régularité. Chaque balancement avance
+  // de cette vitesse × sa durée réelle : se balancer plus vite ou plus lentement ne change rien au temps.
+  const V_SLOW = 0.8, V_FAST = 1.75;
+  const DUR_DEFAULT = 0.7, DUR_MIN = 0.1, DUR_MAX = 1.6; // durée d'un balancement prise en compte (s)
+  const speedOf = reg => V_SLOW + (V_FAST - V_SLOW) * reg;
+  const typicalDur = () => (median(s.intervals) / 1000) || DUR_DEFAULT;
   const X_SIGN = 1;                           // sens du panda : mettre -1 si le plateau et le panda vont à l'opposé
   const H_MIN = 0.3, H_MAX = 0.5, H_REL = 0.25; // retour minimal pour valider un balancement (ignore les petites secousses)
   const SWING_MIN = 0.6;                      // en dessous, ce n'est pas un balancement
@@ -2423,7 +2428,7 @@ const SlalomGame = (() => {
     s = {
       running: true, startedAt: now, elapsedMs: 0, base: null, v: 0, dir: 0, ext: 0, lastVal: null,
       ref: REF_START, amps: [], intervals: [], lastPeakAt: now, lastSide: -1, peakSeq: 0, swings: 0,
-      world: 0, step: STEP_SLOW, reg: 0, regSum: 0, regCount: 0, results: [],
+      world: 0, step: V_SLOW * DUR_DEFAULT, reg: 0, regSum: 0, regCount: 0, results: [],
       warnAt: 0, cooldownUntil: 0, penaltyS: 0, penaltyUntil: 0,
       finished: false, finishAt: 0, finishWorld: 0, lastTickAt: now,
     };
@@ -2439,6 +2444,7 @@ const SlalomGame = (() => {
     const amp = s.lastVal == null ? Math.abs(val) * 2 : Math.abs(val - s.lastVal);
     s.lastVal = val;
     if (amp < SWING_MIN || s.finished) return;
+    const dur = s.swings > 0 ? (now - s.lastPeakAt) / 1000 : typicalDur();
     if (s.swings > 0) { s.intervals.push(now - s.lastPeakAt); if (s.intervals.length > 6) s.intervals.shift(); }
     s.lastPeakAt = now;
     s.amps.push(amp);
@@ -2447,12 +2453,12 @@ const SlalomGame = (() => {
     s.lastSide = side;
     s.peakSeq++;
 
-    s.world += s.step;
+    s.world += speedOf(s.reg) * Math.min(DUR_MAX, Math.max(DUR_MIN, dur)); // régularité acquise × durée réelle du balancement
     s.results.push({ world: s.world, side, i: s.swings });
     s.swings++;
     s.reg = regularity();
     if (s.swings > WARM_SWINGS) { s.regSum += s.reg; s.regCount++; }
-    s.step = STEP_SLOW + (STEP_FAST - STEP_SLOW) * s.reg;
+    s.step = speedOf(s.reg) * typicalDur(); // pas attendu au prochain balancement (portes à venir, glisse entre deux balancements)
     if (s.swings > WARM_SWINGS) checkAmplitude(now);
     if (s.world >= DISTANCE) { s.finished = true; s.finishAt = now; s.finishWorld = s.world; SoundFx.finish(); }
   }
@@ -2503,7 +2509,7 @@ const SlalomGame = (() => {
     s.v += ((latestX - s.base) - s.v) * 0.45;
     detect(now);
     if (!s.finished && (now - s.lastPeakAt) / 1000 > IDLE_S && s.reg > 0) {
-      s.reg = 0; s.step = STEP_SLOW; s.intervals = []; s.lastVal = null; s.dir = 0; // repart en douceur après un arrêt
+      s.reg = 0; s.intervals = []; s.step = V_SLOW * DUR_DEFAULT; s.lastVal = null; s.dir = 0; // repart en douceur après un arrêt
     }
     if ((s.finished && now - s.finishAt > RUNOUT_MS) || s.elapsedMs > MAX_MS) { finish(); return; }
     onFrameCb && onFrameCb(snapshot(now));
