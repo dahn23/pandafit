@@ -8784,6 +8784,32 @@ const ZoneScene = (() => {
       c.fillStyle = `rgba(215,228,245,${(.12 + pfHash(i + .5) * .42).toFixed(2)})`;
       c.beginPath(); c.arc(pfHash(i + 1) * w, pfHash(i + 2) * h * .82, .4 + pfHash(i + 3) * .8, 0, Math.PI * 2); c.fill();
     }
+    // nébuleuses très discrètes
+    [[.2, .22, '70,170,200'], [.82, .36, '120,90,210'], [.55, .12, '60,110,220']].forEach(([fx, fy, col], k) => {
+      const r = w * (.45 + k * .08), g2 = c.createRadialGradient(fx * w, fy * h, 0, fx * w, fy * h, r);
+      g2.addColorStop(0, `rgba(${col},.11)`); g2.addColorStop(.5, `rgba(${col},.04)`); g2.addColorStop(1, `rgba(${col},0)`);
+      c.fillStyle = g2; c.fillRect(0, 0, w, h);
+    });
+    // la Voie lactée en diagonale
+    c.save(); c.translate(w * .5, h * .34); c.rotate(-.5);
+    const band = c.createLinearGradient(0, -h * .12, 0, h * .12);
+    band.addColorStop(0, 'rgba(170,190,235,0)'); band.addColorStop(.5, 'rgba(190,205,240,.1)'); band.addColorStop(1, 'rgba(170,190,235,0)');
+    c.fillStyle = band; c.fillRect(-w, -h * .12, w * 2, h * .24);
+    for (let i = 0; i < 900; i++) {
+      const x = (pfHash(i + 500) - .5) * w * 2, gy = ((pfHash(i + 501) + pfHash(i + 502) + pfHash(i + 503)) / 3 - .5) * h * .26;
+      c.fillStyle = `rgba(225,232,250,${(.1 + pfHash(i + 504) * .4).toFixed(2)})`;
+      c.fillRect(x, gy, .9, .9);
+    }
+    c.restore();
+    // quelques étoiles brillantes avec leurs aigrettes
+    for (let i = 0; i < 9; i++) {
+      const x = pfHash(i + 700) * w, y = pfHash(i + 701) * h * .6, r = w * (.006 + pfHash(i + 702) * .008);
+      const gl = c.createRadialGradient(x, y, 0, x, y, r * 3);
+      gl.addColorStop(0, 'rgba(235,242,255,.9)'); gl.addColorStop(.2, 'rgba(200,220,255,.25)'); gl.addColorStop(1, 'rgba(200,220,255,0)');
+      c.fillStyle = gl; c.fillRect(x - r * 3, y - r * 3, r * 6, r * 6);
+      c.strokeStyle = 'rgba(220,232,255,.35)'; c.lineWidth = .8;
+      c.beginPath(); c.moveTo(x - r * 4, y); c.lineTo(x + r * 4, y); c.moveTo(x, y - r * 4); c.lineTo(x, y + r * 4); c.stroke();
+    }
     // la courbure de la planète, en bas de l'image
     const R = w * 1.25, px = w * .5, py = h * 1.02 + R * .78;
     const air = c.createRadialGradient(px, py, R * .985, px, py, R * 1.09);
@@ -8807,6 +8833,20 @@ const ZoneScene = (() => {
       c.fillStyle = `rgba(255,214,150,${(.15 + pfHash(i + 102) * .5).toFixed(2)})`;
       c.beginPath(); c.arc(x, y, .5 + pfHash(i + 103) * .7, 0, Math.PI * 2); c.fill();
     }
+    // aurore boréale qui ondule au-dessus du bord de la planète
+    c.lineCap = 'round';
+    for (let i = 0; i < 26; i++) {
+      const a0 = -Math.PI / 2 - .42 + i * .012, rr = R * (1.012 + Math.sin(i * .9) * .006);
+      c.strokeStyle = `rgba(90,240,170,${(.05 + .05 * Math.sin(i * .7) ** 2).toFixed(3)})`; c.lineWidth = w * .012;
+      c.beginPath(); c.arc(px, py, rr, a0, a0 + .02); c.stroke();
+    }
+    // lever de soleil orbital sur le bord droit
+    const sa = -Math.PI / 2 + .5, sx = px + Math.cos(sa) * R, sy = py + Math.sin(sa) * R;
+    const sun = c.createRadialGradient(sx, sy, 0, sx, sy, w * .4);
+    sun.addColorStop(0, 'rgba(255,246,225,.85)'); sun.addColorStop(.08, 'rgba(255,214,160,.4)'); sun.addColorStop(.35, 'rgba(255,170,110,.1)'); sun.addColorStop(1, 'rgba(255,170,110,0)');
+    c.fillStyle = sun; c.fillRect(0, 0, w, h);
+    c.fillStyle = 'rgba(255,238,215,.28)';
+    c.beginPath(); c.ellipse(sx, sy, w * .32, w * .006, sa + Math.PI / 2, 0, Math.PI * 2); c.fill();
   }
 
   function paintScale() {
@@ -8853,6 +8893,18 @@ const ZoneScene = (() => {
       const a = i * Math.PI / 2 - t * .09;
       ctx.beginPath(); ctx.arc(cx, cy, r + U * 4.4, a, a + .62); ctx.stroke();
     }
+    // lumière intérieure qui respire et particules en orbite sur le cercle
+    const breath = .5 + .5 * Math.sin(t * 1.4);
+    const inner = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    inner.addColorStop(0, `rgba(${col},${(.05 + .05 * breath).toFixed(3)})`); inner.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = inner; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 28; i++) {
+      const a = i / 28 * Math.PI * 2 + t * (.25 + (i % 3) * .07), rr = r + Math.sin(t * 2 + i) * U * .5;
+      ctx.fillStyle = `rgba(${col},${(.35 + .35 * Math.sin(t * 3 + i * 1.3)).toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, U * (.22 + (i % 4) * .06), 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
   }
 
   function paintPoint(px, py, col) {
@@ -8863,11 +8915,15 @@ const ZoneScene = (() => {
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke();
     ctx.setLineDash([]);
     ctx.lineCap = 'round';
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
     for (let i = 1; i < trail.length; i++) {
-      ctx.strokeStyle = `rgba(235,244,255,${(i / trail.length * .42).toFixed(3)})`;
-      ctx.lineWidth = U * .24;
+      const k = i / trail.length;
+      ctx.strokeStyle = `rgba(${col},${(k * .22).toFixed(3)})`; ctx.lineWidth = U * (.6 + k * 2.2);
+      ctx.beginPath(); ctx.moveTo(...trail[i - 1]); ctx.lineTo(...trail[i]); ctx.stroke();
+      ctx.strokeStyle = `rgba(235,244,255,${(k * .5).toFixed(3)})`; ctx.lineWidth = U * (.12 + k * .3);
       ctx.beginPath(); ctx.moveTo(...trail[i - 1]); ctx.lineTo(...trail[i]); ctx.stroke();
     }
+    ctx.restore();
     ctx.lineCap = 'butt';
     const halo = ctx.createRadialGradient(px, py, 0, px, py, U * 4.2);
     halo.addColorStop(0, 'rgba(235,245,255,.55)'); halo.addColorStop(1, 'rgba(235,245,255,0)');
@@ -8897,6 +8953,21 @@ const ZoneScene = (() => {
     st.alarm += ((out ? 1 : 0) - st.alarm) * (1 - Math.exp(-step * 9));
 
     ctx.drawImage(bg, -W * .05 - st.x * U * .3, -H * .05 + st.y * U * .3);
+    // étoiles qui scintillent et, de temps en temps, une étoile filante
+    for (let i = 0; i < 14; i++) {
+      const a = .5 + .5 * Math.sin(t * (1.3 + pfHash(i + 900) * 2) + i * 2.1);
+      ctx.fillStyle = `rgba(230,238,255,${(a * .85).toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(pfHash(i + 901) * W, pfHash(i + 902) * H * .7, U * (.15 + a * .2), 0, Math.PI * 2); ctx.fill();
+    }
+    const sp = (t % 7) / 1.1;
+    if (sp < 1) {
+      const n = Math.floor(t / 7), x0 = W * (.15 + pfHash(n + 950) * .6), y0 = H * (.05 + pfHash(n + 951) * .25);
+      const x = x0 + sp * W * .3, y = y0 + sp * W * .12;
+      const tail = ctx.createLinearGradient(x - W * .12, y - W * .048, x, y);
+      tail.addColorStop(0, 'rgba(220,235,255,0)'); tail.addColorStop(1, `rgba(235,245,255,${(.7 * Math.sin(sp * Math.PI)).toFixed(3)})`);
+      ctx.strokeStyle = tail; ctx.lineWidth = Math.max(1, U * .22); ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x - W * .12, y - W * .048); ctx.lineTo(x, y); ctx.stroke(); ctx.lineCap = 'butt';
+    }
     paintScale();
     const col = out ? RED : GREEN;
     paintZone(col, t);
@@ -8965,8 +9036,45 @@ const ElectroScene = (() => {
       roundedRect(c, x, y, cw, ch, unit * .6); c.fill();
       c.strokeStyle = 'rgba(255,255,255,.12)'; c.lineWidth = 1; c.stroke();
     }
+    // trame du vernis de la carte
+    c.strokeStyle = 'rgba(255,255,255,.025)'; c.lineWidth = 1;
+    for (let x = 0; x < w; x += unit * 3.2) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); }
+    for (let y = 0; y < h; y += unit * 3.2) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); }
+    // composants montés en surface : résistances, condensateurs, marquages blancs
+    c.font = `600 ${Math.round(unit * 1.5)}px Montserrat, system-ui, sans-serif`; c.textAlign = 'left'; c.textBaseline = 'top';
+    for (let i = 0; i < 18; i++) {
+      const x = pfHash(i + 120) * w, y = pfHash(i + 121) * h, vert = pfHash(i + 122) < .5, L = unit * 3.6, T = unit * 1.6;
+      c.save(); c.translate(x, y); if (vert) c.rotate(Math.PI / 2);
+      c.fillStyle = '#c9c9cf'; c.fillRect(-L / 2, -T / 2, L * .22, T); c.fillRect(L / 2 - L * .22, -T / 2, L * .22, T);
+      c.fillStyle = '#16161a'; c.fillRect(-L / 2 + L * .2, -T / 2, L * .6, T);
+      c.fillStyle = 'rgba(255,255,255,.55)'; c.fillRect(-L * .12, -T * .2, L * .24, T * .12);
+      c.restore();
+      c.fillStyle = 'rgba(235,240,255,.32)'; c.fillText(`R${i + 1}`, x + unit * 2.4, y - unit * .7);
+    }
+    for (let i = 0; i < 7; i++) {
+      const x = pfHash(i + 140) * w, y = pfHash(i + 141) * h, r = unit * (1.8 + pfHash(i + 142) * 1.4);
+      const cap = c.createRadialGradient(x - r * .3, y - r * .3, r * .1, x, y, r);
+      cap.addColorStop(0, '#f2f4f8'); cap.addColorStop(1, '#7c8494');
+      c.fillStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.arc(x + r * .15, y + r * .2, r, 0, Math.PI * 2); c.fill();
+      c.fillStyle = cap; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = 'rgba(40,46,60,.6)'; c.lineWidth = Math.max(1, unit * .25);
+      c.beginPath(); c.moveTo(x - r * .5, y); c.lineTo(x + r * .5, y); c.moveTo(x, y - r * .5); c.lineTo(x, y + r * .5); c.stroke();
+      c.fillStyle = 'rgba(235,240,255,.32)'; c.fillText(`C${i + 1}`, x + r + unit * .5, y - r);
+    }
+    // trous de fixation dorés dans les coins
+    [[.05, .05], [.95, .05], [.05, .95], [.95, .95]].forEach(([fx, fy]) => {
+      c.fillStyle = '#d6aa5a'; c.beginPath(); c.arc(fx * w, fy * h, unit * 2.2, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#050a16'; c.beginPath(); c.arc(fx * w, fy * h, unit * 1.2, 0, Math.PI * 2); c.fill();
+    });
     c.fillStyle = 'rgba(4,10,28,.26)';
     c.fillRect(0, 0, w, h);
+    // lumière douce venant d'en haut à gauche, bords dans l'ombre
+    const light = c.createRadialGradient(w * .2, h * .1, 0, w * .2, h * .1, w * 1.2);
+    light.addColorStop(0, 'rgba(120,200,255,.1)'); light.addColorStop(1, 'rgba(120,200,255,0)');
+    c.fillStyle = light; c.fillRect(0, 0, w, h);
+    const vig = c.createRadialGradient(w / 2, h / 2, Math.min(w, h) * .35, w / 2, h / 2, Math.hypot(w, h) * .62);
+    vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,.45)');
+    c.fillStyle = vig; c.fillRect(0, 0, w, h);
   }
 
   function strokePath(c, upto, width, style) {
@@ -9025,11 +9133,25 @@ const ElectroScene = (() => {
     halo.addColorStop(1, 'rgba(255,214,120,0)');
     ctx.fillStyle = halo;
     ctx.beginPath(); ctx.arc(bx, by, (30 + 62 * lit) * k, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = `rgb(${Math.round(90 + 165 * lit)},${Math.round(70 + 150 * lit)},${Math.round(40 + 90 * lit)})`;
-    ctx.strokeStyle = '#e0a83e'; ctx.lineWidth = 3.2 * k;
-    ctx.beginPath(); ctx.arc(bx, by, 14 * k, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // une vraie ampoule : culot vissé, verre, filament qui s'allume avec le courant
+    const gy = by - 4 * k;
+    ctx.fillStyle = '#9aa2ae';
+    roundedRect(ctx, bx - 7 * k, gy + 12 * k, 14 * k, 11 * k, 2.5 * k); ctx.fill();
+    ctx.strokeStyle = 'rgba(40,46,58,.7)'; ctx.lineWidth = 1.4 * k;
+    for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(bx - 7 * k, gy + (12 + i * 2.7) * k); ctx.lineTo(bx + 7 * k, gy + (12 + i * 2.7) * k); ctx.stroke(); }
+    const glass = ctx.createRadialGradient(bx - 4 * k, gy - 5 * k, 1, bx, gy, 17 * k);
+    glass.addColorStop(0, lit > .05 ? `rgba(255,252,235,${(.5 + .5 * lit).toFixed(3)})` : 'rgba(220,235,255,.35)');
+    glass.addColorStop(1, lit > .05 ? `rgba(255,200,90,${(.25 + .6 * lit).toFixed(3)})` : 'rgba(120,150,200,.18)');
+    ctx.fillStyle = glass; ctx.strokeStyle = 'rgba(230,240,255,.55)'; ctx.lineWidth = 1.6 * k;
+    ctx.beginPath(); ctx.arc(bx, gy, 15 * k, Math.PI * .78, Math.PI * .22); ctx.lineTo(bx + 6 * k, gy + 12 * k); ctx.lineTo(bx - 6 * k, gy + 12 * k); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.strokeStyle = lit > .4 ? '#fffbe6' : '#a4762d'; ctx.lineWidth = 1.8 * k;
-    ctx.beginPath(); ctx.moveTo(bx - 6 * k, by + 3 * k); ctx.lineTo(bx - 3 * k, by - 4 * k); ctx.lineTo(bx, by + 3 * k); ctx.lineTo(bx + 3 * k, by - 4 * k); ctx.lineTo(bx + 6 * k, by + 3 * k); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx - 4 * k, gy + 11 * k); ctx.lineTo(bx - 4 * k, gy + 1 * k);
+    ctx.lineTo(bx - 2 * k, gy - 3 * k); ctx.lineTo(bx, gy + 1 * k); ctx.lineTo(bx + 2 * k, gy - 3 * k); ctx.lineTo(bx + 4 * k, gy + 1 * k); ctx.lineTo(bx + 4 * k, gy + 11 * k); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.ellipse(bx - 6 * k, gy - 6 * k, 3 * k, 5 * k, -.5, 0, Math.PI * 2); ctx.fill();
+    // borne de départ : symbole +
+    ctx.strokeStyle = '#eafff7'; ctx.lineWidth = 2 * k;
+    const sxp = ax + 20 * k, syp = ay - 16 * k;
+    ctx.beginPath(); ctx.moveTo(sxp - 4 * k, syp); ctx.lineTo(sxp + 4 * k, syp); ctx.moveTo(sxp, syp - 4 * k); ctx.lineTo(sxp, syp + 4 * k); ctx.stroke();
   }
 
   function paint(step, t, now) {
@@ -9043,6 +9165,15 @@ const ElectroScene = (() => {
     ctx.save();
     if (sinceShock < 500) ctx.translate((Math.random() - .5) * U * 2, (Math.random() - .5) * U * 2);
     ctx.drawImage(st.bg, 0, 0);
+    // petites LED de la carte qui clignotent
+    for (let i = 0; i < 6; i++) {
+      const on = Math.sin(t * (1.5 + pfHash(i + 160) * 3) + i * 2) > .2;
+      if (!on) continue;
+      const x = pfHash(i + 161) * W, y = pfHash(i + 162) * H, col = i % 2 ? '80,255,140' : '255,70,70';
+      const g = ctx.createRadialGradient(x, y, 0, x, y, U * 2.2);
+      g.addColorStop(0, `rgba(${col},.9)`); g.addColorStop(.3, `rgba(${col},.35)`); g.addColorStop(1, `rgba(${col},0)`);
+      ctx.fillStyle = g; ctx.fillRect(x - U * 2.2, y - U * 2.2, U * 4.4, U * 4.4);
+    }
 
     // impulsions qui courent sur les pistes de la carte
     ctx.fillStyle = 'rgba(255,225,150,.85)';
@@ -9087,6 +9218,19 @@ const ElectroScene = (() => {
     ctx.beginPath(); ctx.arc(fx, fy, 11.5 * k, 0, Math.PI * 2); ctx.stroke();
     ctx.fillStyle = '#eafdff';
     ctx.beginPath(); ctx.arc(fx, fy, 4.5 * k, 0, Math.PI * 2); ctx.fill();
+    // étincelles qui s'échappent du doigt
+    if (!shock && Math.random() < .35) {
+      const a = Math.random() * Math.PI * 2, v = (60 + Math.random() * 120) * k;
+      st.sparks.push({ x: fx, y: fy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40 * k, age: 0, life: .35 + Math.random() * .3 });
+    }
+    st.sparks = st.sparks.filter(p => p.age < p.life);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    st.sparks.forEach(p => {
+      p.age += step; p.vy += 260 * k * step; p.x += p.vx * step; p.y += p.vy * step;
+      ctx.strokeStyle = `rgba(150,235,255,${(1 - p.age / p.life).toFixed(3)})`; ctx.lineWidth = Math.max(1, 1.6 * k);
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * .03, p.y - p.vy * .03); ctx.stroke();
+    });
+    ctx.restore();
 
     if (shock) {
       const sx = vx(shock.x), sy = vy(shock.y);
@@ -9122,7 +9266,7 @@ const ElectroScene = (() => {
     const offY = HEAD_CSS * g.dpr;
     const k = Math.min(g.W / VB_W, (g.H - offY - 10 * g.dpr) / VB_H);
     snap = null;
-    st = { ...g, k, offX: (g.W - VB_W * k) / 2, offY, drawn: -1, shock: null, lastBolts: 0, bolts: [], traces: [] };
+    st = { ...g, k, offX: (g.W - VB_W * k) / 2, offY, drawn: -1, shock: null, lastBolts: 0, bolts: [], traces: [], sparks: [] };
     st.bg = layerCanvas(g.W, g.H, (c, w, h) => paintBoard(c, w, h, st.traces));
     st.wire = layerCanvas(g.W, g.H, paintWire);
     st.done = layerCanvas(g.W, g.H, () => {});
@@ -9151,6 +9295,31 @@ const MindScene = (() => {
     const g = c.createRadialGradient(w / 2, h * .42, 0, w / 2, h * .42, h * .8);
     g.addColorStop(0, '#2b1a6e'); g.addColorStop(.55, '#170f49'); g.addColorStop(1, '#0a0827');
     c.fillStyle = g; c.fillRect(0, 0, w, h);
+    // grande silhouette de cerveau en lumière, au fond
+    const bx = w / 2, by = h * .44, bw = w * .42, bh = h * .2;
+    c.save();
+    const hemi = sd => { c.beginPath(); c.ellipse(bx + sd * bw * .5, by, bw * .55, bh, 0, 0, Math.PI * 2); };
+    const fill = c.createRadialGradient(bx, by, 0, bx, by, bw * 1.1);
+    fill.addColorStop(0, 'rgba(150,120,255,.14)'); fill.addColorStop(1, 'rgba(150,120,255,.03)');
+    c.fillStyle = fill; hemi(-1); c.fill(); hemi(1); c.fill();
+    c.strokeStyle = 'rgba(190,170,255,.08)'; c.lineWidth = Math.max(1.5, w * .003);
+    hemi(-1); c.stroke(); hemi(1); c.stroke();
+    c.beginPath(); hemi(-1); c.ellipse(bx + bw * .5, by, bw * .55, bh, 0, 0, Math.PI * 2); c.clip();
+    c.strokeStyle = 'rgba(190,170,255,.13)'; c.lineWidth = Math.max(1, w * .0022); c.lineCap = 'round';
+    for (let i = 0; i < 26; i++) { // circonvolutions
+      const x = bx + (pfHash(i + 400) - .5) * bw * 2, y = by + (pfHash(i + 401) - .5) * bh * 1.8, r = w * (.03 + pfHash(i + 402) * .04);
+      c.beginPath(); c.arc(x, y, r, pfHash(i + 403) * 6, pfHash(i + 403) * 6 + 2.6); c.stroke();
+    }
+    c.restore();
+    c.strokeStyle = 'rgba(190,170,255,.1)'; c.lineWidth = Math.max(1, w * .002);
+    c.beginPath(); c.moveTo(bx, by - bh * .95); c.bezierCurveTo(bx - w * .01, by - bh * .3, bx + w * .01, by + bh * .3, bx, by + bh * .95); c.stroke();
+    // neurones lointains, flous
+    for (let i = 0; i < 22; i++) {
+      const x = pfHash(i + 450) * w, y = pfHash(i + 451) * h, r = w * (.02 + pfHash(i + 452) * .03);
+      const n = c.createRadialGradient(x, y, 0, x, y, r);
+      n.addColorStop(0, 'rgba(170,150,255,.14)'); n.addColorStop(1, 'rgba(170,150,255,0)');
+      c.fillStyle = n; c.fillRect(x - r, y - r, r * 2, r * 2);
+    }
     for (let i = 0; i < 64; i++) nodes.push({ x: pfHash(i + 1) * w, y: pfHash(i + 2) * h, links: [] });
     const maxD = w * .22;
     c.strokeStyle = 'rgba(160,140,255,.17)';
@@ -9175,6 +9344,12 @@ const MindScene = (() => {
       const pulse = .35 + .35 * Math.sin(t * 1.6 + i);
       ctx.fillStyle = on ? `rgba(255,214,120,${(.6 + pulse * .4).toFixed(3)})` : `rgba(180,165,255,${(pulse * .7 + .1 + st.glow * .4).toFixed(3)})`;
       ctx.beginPath(); ctx.arc(n.x, n.y, U * (on ? .62 : .36 + st.glow * .3), 0, Math.PI * 2); ctx.fill();
+      if (on || i % 5 === 0) { // halo des neurones actifs
+        const hr = U * (on ? 2.6 : 1.4);
+        const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, hr);
+        g.addColorStop(0, on ? 'rgba(255,214,120,.35)' : `rgba(180,165,255,${(pulse * .2).toFixed(3)})`); g.addColorStop(1, 'rgba(180,165,255,0)');
+        ctx.fillStyle = g; ctx.fillRect(n.x - hr, n.y - hr, hr * 2, hr * 2);
+      }
     });
     ctx.lineCap = 'round';
     for (let i = 0; i < 16; i++) {
@@ -9182,8 +9357,11 @@ const MindScene = (() => {
       if (!a.links.length) continue;
       const b = nodes[a.links[i % a.links.length]];
       const f = (t * (.25 + pfHash(i) * .35) + pfHash(i + 5)) % 1;
-      ctx.fillStyle = 'rgba(130,240,255,.9)';
-      ctx.beginPath(); ctx.arc(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, U * .3, 0, Math.PI * 2); ctx.fill();
+      for (let k = 0; k < 4; k++) { // l'influx et sa traînée
+        const ff = Math.max(0, f - k * .03);
+        ctx.fillStyle = `rgba(130,240,255,${(.9 - k * .22).toFixed(3)})`;
+        ctx.beginPath(); ctx.arc(a.x + (b.x - a.x) * ff, a.y + (b.y - a.y) * ff, U * (.3 - k * .05), 0, Math.PI * 2); ctx.fill();
+      }
     }
   }
 
@@ -9203,6 +9381,30 @@ const MindScene = (() => {
     ctx.fillStyle = panel; ctx.fill();
     ctx.strokeStyle = 'rgba(190,120,255,.3)'; ctx.lineWidth = U * 1.8; ctx.stroke();
     ctx.strokeStyle = st.flash ? '#ffe9a8' : '#c9a2ff'; ctx.lineWidth = U * .55; ctx.stroke();
+    // ampoules de fête foraine autour de la tour : elles défilent, et s'emballent quand la cloche sonne
+    const bulbs = [];
+    for (let i = 0; i <= 18; i++) { const y = yBot - U * 2 + (yTop - yBot + U * 4) * i / 18; bulbs.push([cx - tw - U * 2.4, y], [cx + tw + U * 2.4, y]); }
+    const chase = Math.floor(t * (st.flash ? 22 : 7));
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    bulbs.forEach(([x, y], i) => {
+      const on = st.flash ? (i + chase) % 2 === 0 : (Math.floor(i / 2) + chase) % 3 === 0;
+      ctx.fillStyle = on ? 'rgba(255,214,120,.95)' : 'rgba(255,190,90,.22)';
+      ctx.beginPath(); ctx.arc(x, y, U * .62, 0, Math.PI * 2); ctx.fill();
+      if (on) {
+        const g = ctx.createRadialGradient(x, y, 0, x, y, U * 2.4);
+        g.addColorStop(0, 'rgba(255,214,120,.4)'); g.addColorStop(1, 'rgba(255,214,120,0)');
+        ctx.fillStyle = g; ctx.fillRect(x - U * 2.4, y - U * 2.4, U * 4.8, U * 4.8);
+      }
+    });
+    ctx.restore();
+    // gerbe d'étincelles à chaque passage de la barre
+    if (flash && !st.wasFlash) {
+      for (let i = 0; i < 40; i++) {
+        const a = -Math.PI / 2 + (Math.random() - .5) * 2.6, v = U * (20 + Math.random() * 45);
+        st.parts.push({ x: cx, y: yTop - U * 5, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: 0, life: .7 + Math.random() * .5, c: ['255,224,140', '255,170,80', '255,255,255'][i % 3] });
+      }
+    }
+    st.wasFlash = flash;
 
     ctx.strokeStyle = 'rgba(255,255,255,.32)'; ctx.lineWidth = Math.max(1, U * .22);
     for (let i = 1; i < 14; i++) {
@@ -9293,10 +9495,17 @@ const MindScene = (() => {
     ctx.beginPath(); ctx.arc(cx, cy, zone, 0, Math.PI * 2); ctx.stroke();
     ctx.strokeStyle = `rgb(${col})`; ctx.lineWidth = U * .5;
     ctx.beginPath(); ctx.arc(cx, cy, zone, 0, Math.PI * 2); ctx.stroke();
-    if (calm) {
+    // anneaux et réticule du radar
+    ctx.strokeStyle = `rgba(${col},.18)`; ctx.lineWidth = Math.max(1, U * .15);
+    [.33, .66].forEach(k => { ctx.beginPath(); ctx.arc(cx, cy, zone * k, 0, Math.PI * 2); ctx.stroke(); });
+    ctx.beginPath(); ctx.moveTo(cx - outer, cy); ctx.lineTo(cx + outer, cy); ctx.moveTo(cx, cy - outer); ctx.lineTo(cx, cy + outer); ctx.stroke();
+    if (calm) { // balayage avec sa traînée
       const a = t * 1.8;
-      ctx.strokeStyle = `rgba(${col},.75)`; ctx.lineWidth = U * .3;
-      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * zone, cy + Math.sin(a) * zone); ctx.stroke();
+      for (let k = 0; k < 14; k++) {
+        const aa = a - k * .045;
+        ctx.strokeStyle = `rgba(${col},${(.75 * (1 - k / 14)).toFixed(3)})`; ctx.lineWidth = U * (k ? .5 : .3);
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(aa) * zone, cy + Math.sin(aa) * zone); ctx.stroke();
+      }
     }
     st.rx += ((snap ? snap.xCm : 0) - st.rx) * .4;
     st.ry += ((snap ? snap.yCm : 0) - st.ry) * .4;
@@ -9314,11 +9523,19 @@ const MindScene = (() => {
   }
 
   function paint(step, t, now) {
-    const { ctx, W, H } = st;
+    const { ctx, W, H, U } = st;
     ctx.drawImage(st.bg, 0, 0);
     paintNetwork(t, step);
     if (!snap || snap.phase === 'effort') paintTower(t, now);
     else paintRadar(t);
+    st.parts = st.parts.filter(p => p.age < p.life);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    st.parts.forEach(p => {
+      p.age += step; p.vy += U * 60 * step; p.x += p.vx * step; p.y += p.vy * step;
+      ctx.fillStyle = `rgba(${p.c},${(1 - p.age / p.life).toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, U * .45, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.restore();
     if (st.glow > 0) { ctx.fillStyle = `rgba(255,214,120,${(st.glow * .16).toFixed(3)})`; ctx.fillRect(0, 0, W, H); }
     paintVignette(ctx, W, H, '230,55,78', st.bad * .55);
   }
@@ -9329,7 +9546,7 @@ const MindScene = (() => {
     if (!canvas || !stage) return;
     const g = sizeGameCanvas(canvas, stage);
     snap = null; lastCorrect = 0; lastWrong = 0;
-    st = { ...g, nodes: [], y: 0, rx: 0, ry: 0, trail: [], flash: 0, glow: 0, bad: 0 };
+    st = { ...g, nodes: [], y: 0, rx: 0, ry: 0, trail: [], flash: 0, glow: 0, bad: 0, parts: [], wasFlash: false };
     st.bg = layerCanvas(g.W, g.H, (c, w, h) => paintBrain(c, w, h, st.nodes));
     runGameCanvas(canvas, paint);
   }
