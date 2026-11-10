@@ -120,22 +120,8 @@
   .game-hud .timer { font-size: 26px; color: #fff; background: rgba(10,14,50,.5); padding: 4px 14px; border-radius: 999px; display: flex; align-items: center; gap: 6px; line-height: 1.2; }
   .game-hud .timer svg { width: 22px; height: 22px; }
   .game-hud, .game-hint { pointer-events: none; }
-  /* Style « course » (trail, marathon) : essai sur le Panier Malin avant de l’étendre aux autres jeux */
-  .market-stage .ski-intro, .market-stage .ski-warn { transform: none; }
-  .market-stage .ski-intro { animation: sportIn .35s cubic-bezier(.2,.9,.3,1); }
-  .market-stage .ski-intro.go { animation: sportOut .6s ease-in forwards; }
-  .market-stage .ski-warn.show { animation: sportIn .3s cubic-bezier(.2,.9,.3,1); }
-  .market-stage .ski-warn-box { display: block; width: auto; margin: 0 7%; padding: 16px 26px 18px; background: linear-gradient(100deg, #0d1322, #1b2438); border: none; border-left: 14px solid #ff6a13; border-image: none; border-radius: 4px; transform: skewX(-9deg); box-shadow: 0 14px 34px rgba(0,0,0,.4); }
-  .market-stage .ski-warn-box > * { transform: skewX(9deg); }
-  .market-stage .ski-warn-t { color: #fff; font-size: 50px; font-style: italic; font-weight: 900; text-shadow: none; letter-spacing: .01em; }
-  .market-stage .ski-warn-s { color: #ffb15c; font-size: 26px; font-style: italic; }
-  .market-stage .ski-intro-num { color: #ffb21a; text-shadow: none; }
-  .market-stage #migrosWarn .ski-warn-box { border-left-color: #ff3048; }
-  .market-stage #migrosWarn .ski-warn-s { color: #ff98a3; }
   .market-streak .w { display: inline-block; padding: 0 16px; background: #ff6a13; color: #fff; transform: skewX(-10deg); text-shadow: none; }
   .market-streak { color: #fff; text-shadow: 0 6px 22px rgba(10,14,30,.6); }
-  @keyframes sportIn { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: none; } }
-  @keyframes sportOut { 0%, 40% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateX(80px); } }
   .shop-list { position: absolute; top: 118px; left: calc(min(46vw, 230px) + 14px); right: 14px; padding: 10px 12px 12px; background: #fbf3df; border-radius: 6px; box-shadow: 0 10px 26px rgba(40,24,8,.35); transform: rotate(-1.2deg); pointer-events: none; }
   .shop-list::before { content: ''; position: absolute; top: -9px; left: 50%; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: #e23440; box-shadow: 0 2px 4px rgba(0,0,0,.35); }
   .shop-list.fresh { animation: shopFresh .45s cubic-bezier(.2,1.3,.4,1); }
@@ -152,16 +138,13 @@
   .market-stage .shop-done .ski-warn-s { color: #8df0b8; }
   @keyframes shopFresh { from { opacity: 0; transform: rotate(-1.2deg) translateY(-30px) scale(.92); } to { opacity: 1; transform: rotate(-1.2deg); } }
   @keyframes shopCheck { from { transform: scale(2.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-  /* Panier Malin : plein écran */
+  /* Marché Express : plein écran */
   body.game-full .bottomnav, body.game-full #adsBanner, body.game-full #adsLabel { display: none !important; }
   body.game-full .topbar { position: fixed !important; top: 0; left: 0; right: 0; background: transparent !important; z-index: 60; }
   body.game-full .topbar .brand { display: none; }
   .market-stage { position: fixed; inset: 0; width: 100vw; height: 100dvh !important; border-radius: 0; z-index: 40; margin: 0 !important; background: #8cc7ee; }
   .market-stage .market-hud { top: 72px; }
-  .market-stage .ski-warn-box { display: block; width: 100%; box-sizing: border-box; }
   .market-stage .ski-intro { top: 25%; }
-  .market-stage .ski-intro-t { white-space: normal; font-size: 46px; line-height: 1.08; }
-  .market-stage .ski-intro .ski-warn-s { white-space: normal; }
   .market-count { gap: 6px; }
   .market-count img { width: 34px; height: 34px; object-fit: contain; }
   .market-stage .market-hint { top: 130px; }
@@ -203,6 +186,34 @@
   @keyframes skiSlam { 0% { opacity: 0; transform: scale(3) rotate(-10deg); } 22% { opacity: 1; transform: scale(1) rotate(-4deg); } 82% { opacity: 1; transform: scale(1.03) rotate(-4deg); } 100% { opacity: 0; transform: scale(.9) rotate(-4deg); } }
   .ski-shake { animation: skiShake .45s linear; }
   @keyframes skiShake { 0%,100% { transform: translate(0,0); } 15% { transform: translate(-12px,5px); } 30% { transform: translate(11px,-6px); } 45% { transform: translate(-8px,-3px); } 60% { transform: translate(7px,4px); } 80% { transform: translate(-3px,2px); } }
+  /* Style « course » (trail, marathon), commun aux 7 jeux : départ, alertes et messages */
+  .ski-intro, .ski-warn { left: 0; right: 0; transform: none; }
+  .ski-intro { top: 22%; animation: sportIn .35s cubic-bezier(.2,.9,.3,1); }
+  .ski-intro.go { animation: sportOut .6s ease-in forwards; }
+  .ski-warn.show { opacity: 1; animation: sportIn .3s cubic-bezier(.2,.9,.3,1); }
+  .ski-warn-box { display: block; min-width: 0; margin: 0 5%; padding: 14px 32px 16px 26px; box-sizing: border-box; background: linear-gradient(100deg, #0d1322, #1b2438); border: none; border-left: 14px solid #ff6a13; border-image: none; border-radius: 4px; transform: skewX(-8deg); box-shadow: 0 14px 34px rgba(0,0,0,.4); }
+  .ski-warn-box > * { transform: skewX(8deg); }
+  .ski-warn-t, .ski-intro-t { color: #fff; font-size: clamp(26px, 5.4vw, 46px); font-style: italic; font-weight: 900; line-height: 1.08; white-space: normal; overflow-wrap: break-word; text-shadow: none; letter-spacing: .01em; }
+  .ski-warn-s, .ski-intro .ski-warn-s { color: #ffb15c; font-size: clamp(17px, 3.1vw, 25px); font-weight: 800; font-style: italic; white-space: normal; margin-top: 4px; }
+  .ski-intro-row { gap: clamp(12px, 3vw, 30px); }
+  .ski-intro-num { min-width: 0; color: #ffb21a; text-shadow: none; font-size: clamp(80px, 15vw, 128px); }
+  .ski-arrow { width: clamp(64px, 13vw, 116px); fill: #ff8a1f; filter: none; }
+  .ski-warn.alert .ski-warn-box { border-left-color: #ff3048; }
+  .ski-warn.alert .ski-warn-s { color: #ff98a3; }
+  .ski-warn-bar div { background: linear-gradient(90deg, #ff3048, #ffb21a); }
+  .ski-penalty .n { color: #fff; -webkit-text-stroke: 0; text-shadow: 0 8px 26px rgba(0,0,0,.55); font-size: clamp(90px, 18vw, 160px); }
+  .ski-penalty .l { background: #ff3048; }
+  .game-stage .stadium-flash { left: 50%; right: auto; width: auto; max-width: 90%; padding: 6px 34px 8px; box-sizing: border-box; white-space: nowrap; color: #fff; text-shadow: none; background: linear-gradient(100deg, #0d1322, #1b2438); border-left: 14px solid #1fb56f; border-radius: 4px; font-size: clamp(44px, 9vw, 80px); font-style: italic; font-weight: 900; transform: translateX(-50%) skewX(-8deg); }
+  .game-stage .stadium-flash.hit { color: #fff; text-shadow: none; border-left-color: #1fb56f; }
+  .game-stage .stadium-flash.miss { color: #fff; text-shadow: none; border-left-color: #ff3048; font-size: clamp(36px, 7vw, 58px); }
+  .game-stage .stadium-flash.show { animation: sportFlash .8s cubic-bezier(.2,1.1,.4,1) forwards; }
+  .game-stage .stadium-card { background: linear-gradient(100deg, #0d1322, #1b2438); border-left: 14px solid #ff6a13; border-radius: 4px; transform: translate(-50%, -50%) skewX(-8deg); box-shadow: 0 14px 34px rgba(0,0,0,.4); }
+  .game-stage .stadium-card > * { transform: skewX(8deg); }
+  .game-stage .stadium-card h2 { font-style: italic; font-weight: 900; text-transform: uppercase; }
+  .game-stage .stadium-card .stadium-count { color: #ffb21a; font-style: italic; }
+  @keyframes sportIn { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: none; } }
+  @keyframes sportOut { 0%, 40% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateX(80px); } }
+  @keyframes sportFlash { 0% { opacity: 0; transform: translateX(-50%) translateX(-70px) skewX(-8deg); } 22% { opacity: 1; transform: translateX(-50%) skewX(-8deg); } 80% { opacity: 1; transform: translateX(-50%) skewX(-8deg); } 100% { opacity: 0; transform: translateX(-50%) translateX(70px) skewX(-8deg); } }
   .ski-reg { position: absolute; top: 134px; left: calc(min(46vw, 230px) + 12px); right: 14px; display: flex; align-items: center; gap: 10px; color: #fff; background: rgba(10,14,50,.62); padding: 8px 14px; border-radius: 14px; pointer-events: none; box-sizing: border-box; }
   .ski-reg svg { width: 24px; height: 24px; flex: none; }
   .ski-reg-bar { position: relative; flex: 1; height: 12px; border-radius: 6px; background: rgba(255,255,255,.26); overflow: hidden; }
@@ -572,7 +583,7 @@
   .result-score .num { font-size: 44px; font-weight: 800; background: var(--grad-main); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .result-score .lbl { font-size: 12.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
 
-  /* --- Jeu Migros : Le Panier Malin --- */
+  /* --- Jeu : Marché Express --- */
   .migros-canvas-wrap { display: flex; justify-content: center; margin: 10px 0 16px; }
   #migrosCanvas { background: linear-gradient(180deg, #fff7ef, #ffe4c7); border-radius: 20px; }
 
@@ -1586,7 +1597,7 @@ const ZoneGame = (() => {
 /* =====================================================================================
    JEU : TEMPO — alterne effort physique (7 passages de barre, axe Y) et calcul mental
    (7 calculs, un par un, à répondre seulement en zone calme). Chrono général 60s.
-   Score = bonnes réponses - mauvaises réponses (comme Panier Malin).
+   Score = bonnes réponses - mauvaises réponses (comme Marché Express).
    ===================================================================================== */
 const TempoGame = (() => {
   const TOTAL_DURATION = 60;
@@ -2124,7 +2135,7 @@ const ElectroGame = (() => {
 })();
 
 /* =====================================================================================
-   JEU : LE PANIER MALIN — liste de courses. Une recette suisse = 5 ingrédients à trouver
+   JEU : MARCHÉ EXPRESS — liste de courses. Une recette suisse = 5 ingrédients à trouver
    sur les étals qui défilent, en gardant l'équilibre (sortir du cercle bloque 2 s).
    Bons clics = ingrédients de la liste ; mauvais clics = tout le reste. Score = bons - mauvais.
    ===================================================================================== */
@@ -2162,7 +2173,7 @@ const SHOP_NAMES = {
 };
 
 const MigrosGame = (() => {
-  const RADIUS_CM = { easy: 4.0, medium: 2.0, hard: 1.0 }; // zone à ne pas quitter (comme The Zone)
+  const RADIUS_CM = { easy: 3.2, medium: 1.6, hard: .8 }; // zone à ne pas quitter (un peu plus petite que The Zone)
   const POSITION_DIVIDER = 2;
   const PREPARE_SECONDS = 3;
   const LOCK_MS = 2000;                    // après une sortie du cercle : impossible de prendre un ingrédient
@@ -2908,7 +2919,7 @@ const UI_DICT_ROWS = [
   // Noms de jeux
   ["Slalom Réflexe", "Reflex-Slalom", "Reflex Slalom", "Slalom Riflessi"],
   ["Tir au but", "Penaltyschiessen", "Penalty shootout", "Calci di rigore"],
-  ["Le Panier Malin", "Der clevere Einkaufskorb", "The Smart Basket", "Il Carrello Furbo"],
+  ["Marché Express", "Markt-Express", "Market Express", "Mercato Express"],
   ["Prévention ski — inspiré Swiss-Ski", "Ski-Prävention — inspiriert von Swiss-Ski", "Ski prevention — inspired by Swiss-Ski", "Prevenzione sci — ispirato a Swiss-Ski"],
   ["Jeu Migros Vaud — attrape les bons produits", "Migros-Waadt-Spiel — fang die guten Produkte", "Migros Vaud game — catch the good products", "Gioco Migros Vaud — prendi i prodotti buoni"],
   ["Cours, puis marque un maximum de buts", "Lauf, dann schiess möglichst viele Tore", "Run, then score as many goals as you can", "Corri, poi segna più gol possibile"],
@@ -3029,7 +3040,7 @@ const UI_DICT_ROWS = [
   ["Journal", "Protokoll", "Log", "Registro"],
   ["Configuration de la tablette", "Einrichtung des Tablets", "Tablet setup", "Configurazione del tablet"],
   ["Cette tablette n'est pas encore enregistrée. Entre la clé fournie par le superadmin (une seule fois).", "Dieses Tablet ist noch nicht registriert. Gib den Schlüssel des Superadmins ein (nur einmal).", "This tablet is not registered yet. Enter the key provided by the superadmin (only once).", "Questo tablet non è ancora registrato. Inserisci la chiave fornita dal superadmin (una sola volta)."],
-  // Le Panier Malin
+  // Marché Express
   ["Reste dans la zone en bas sans en sortir, et tape sur les bons aliments qui tombent — évite les sucreries.", "Bleib unten in der Zone und tippe auf die guten Lebensmittel, die herunterfallen — meide Süssigkeiten.", "Stay in the zone at the bottom and tap the healthy foods that fall — avoid the sweets.", "Resta nella zona in basso e tocca i cibi buoni che cadono — evita i dolciumi."],
   ["Reste dans le cercle, tape les bons aliments.", "Bleib im Kreis, tippe die guten Lebensmittel an.", "Stay in the circle, tap the healthy foods.", "Resta nel cerchio, tocca i cibi buoni."],
   ["Nombre de bons aliments", "Gute Lebensmittel", "Healthy foods", "Cibi buoni"],
@@ -3037,6 +3048,19 @@ const UI_DICT_ROWS = [
   ["Prépare-toi, ça démarre dans...", "Mach dich bereit, es geht los in...", "Get ready, starting in...", "Preparati, si parte tra..."],
   // Slalom
   ["Balance le plateau de gauche à droite, à ton rythme : chaque balancement fait passer une porte. Plus tu es régulier, plus le panda va vite, mais les balancements trop petits coûtent 3 secondes.", "Schwinge die Plattform in deinem Rhythmus von links nach rechts: Jeder Schwung bringt dich durch ein Tor. Je regelmässiger du bist, desto schneller fährt der Panda, aber zu kleine Schwünge kosten 3 Sekunden.", "Swing the platform from left to right at your own pace: each swing takes you through a gate. The steadier you are, the faster the panda goes, but swings that are too small cost 3 seconds.", "Fai oscillare la piattaforma da sinistra a destra, al tuo ritmo: ogni oscillazione ti fa passare una porta. Più sei regolare, più il panda va veloce, ma le oscillazioni troppo piccole costano 3 secondi."],
+  ["RESTE DANS LE CERCLE", "BLEIB IM KREIS", "STAY IN THE CIRCLE", "RESTA NEL CERCHIO"],
+  ["Stable et détendu !", "Stabil und locker!", "Steady and relaxed!", "Stabile e rilassato!"],
+  ["SUIS LE FIL", "FOLGE DEM DRAHT", "FOLLOW THE WIRE", "SEGUI IL FILO"],
+  ["Du vert au orange, sans le lâcher !", "Von Grün zu Orange, ohne loszulassen!", "From green to orange, without letting go!", "Dal verde all'arancione, senza mollare!"],
+  ["COUP DE JUS !", "STROMSCHLAG!", "SHOCK!", "SCOSSA!"],
+  ["Reprends dès que ça repart.", "Mach weiter, sobald es wieder geht.", "Carry on as soon as it starts again.", "Riprendi appena riparte."],
+  ["RESPIRE AVEC LE SOLEIL", "ATME MIT DER SONNE", "BREATHE WITH THE SUN", "RESPIRA CON IL SOLE"],
+  ["Reste stable : le lac reste lisse.", "Bleib stabil: Der See bleibt glatt.", "Stay steady: the lake stays smooth.", "Resta stabile: il lago resta liscio."],
+  ["BOUGE, PUIS CALCULE", "BEWEGE DICH, DANN RECHNE", "MOVE, THEN CALCULATE", "MUOVITI, POI CALCOLA"],
+  ["Passe la barre, puis réponds au calme !", "Überquere die Linie, dann antworte in Ruhe!", "Cross the line, then answer calmly!", "Supera la linea, poi rispondi con calma!"],
+  ["COURS VERS LE BUT", "LAUF ZUM TOR", "RUN TO THE GOAL", "CORRI VERSO LA PORTA"],
+  ["Balance-toi d'avant en arrière, bien régulier !", "Schwing regelmässig vor und zurück!", "Sway back and forth, nice and steady!", "Oscilla avanti e indietro, con regolarità!"],
+  ["Slalom", "Slalom", "Slalom", "Slalom"],
   ["TROUVE LES 5 INGRÉDIENTS", "FINDE DIE 5 ZUTATEN", "FIND THE 5 INGREDIENTS", "TROVA I 5 INGREDIENTI"],
   ["Et garde ton équilibre !", "Und halte dein Gleichgewicht!", "And keep your balance!", "E mantieni l'equilibrio!"],
   ["Liste complète !", "Liste komplett!", "List complete!", "Lista completa!"],
@@ -4638,8 +4662,8 @@ const GAMES = [
   { id: 'base', icon: 'zap', name: 'Electro', desc: 'Suis le fil sans le lâcher', playable: true },
   { id: 'thezone', icon: 'circle-dot', name: 'The Zone', desc: 'Reste dans la zone, ne perds pas de vies', playable: true },
   { id: 'cross', icon: 'wind', name: 'Zen', desc: 'Respiration guidée pour se détendre', playable: true },
-  { id: 'migros', icon: 'shopping-cart', name: 'Le Panier Malin', desc: 'Jeu Migros Vaud — attrape les bons produits', playable: true },
-  { id: 'skiprev', icon: 'mountain-snow', name: 'Slalom Réflexe', desc: 'Prévention ski — inspiré Swiss-Ski', playable: true },
+  { id: 'migros', icon: 'shopping-cart', name: 'Marché Express', desc: 'Trouve les ingrédients de la liste en gardant ton équilibre', playable: true },
+  { id: 'skiprev', icon: 'mountain-snow', name: 'Slalom', desc: 'Échauffement au ski : balance-toi régulièrement', playable: true },
   { id: 'tempo', icon: 'brain', name: 'MindFit', desc: 'Effort physique et calcul mental, en alternance', playable: true },
 ];
 function screenGames() {
@@ -4765,22 +4789,7 @@ function wireZoneSetup() {
   document.getElementById('btnZoneBack')?.addEventListener('click', () => navigate('home'));
 }
 
-function zonePrepareThenStart() {
-  let remaining = ZoneGame.PREPARE_SECONDS;
-  content.innerHTML = screenZonePrepare(remaining);
-  SoundFx.ready();
-  const timer = setInterval(() => {
-    remaining--;
-    const el = document.getElementById('zonePrepareNum');
-    if (remaining <= 0) {
-      clearInterval(timer);
-      SoundFx.go();
-      startZoneGame();
-    } else if (el) {
-      el.textContent = remaining;
-    }
-  }, 1000);
-}
+function zonePrepareThenStart() { startZoneGame(); }
 
 function screenZonePrepare(seconds) {
   return `
@@ -4800,6 +4809,7 @@ function startZoneGame() {
   requestAnimationFrame(() => ZoneScene.start());
   document.getElementById('zonePandaCalm')?.play().catch(() => {});
   document.getElementById('zonePandaScared')?.play().catch(() => {});
+  runGameCountdown(() => {
   activeGameModule = ZoneGame;
   ZoneGame.start(zoneSetupCfg,
     (snap) => renderZonePlaying(snap),
@@ -4813,6 +4823,7 @@ function startZoneGame() {
       wireZoneResult();
     }
   );
+  });
   renderZonePlaying({
     timeLeft: zoneSetupCfg.duration, livesLost: 0,
     livesRemaining: zoneSetupCfg.lives, xCm: 0, yCm: 0,
@@ -4859,6 +4870,8 @@ function screenZonePlaying() {
         <div class="timer" id="zoneTimer">--</div>
       </div>
       <div class="game-hint">Reste dans le cercle vert.</div>
+      ${sportIntroHTML('RESTE DANS LE CERCLE', 'Stable et détendu !')}
+      ${sportAlertHTML('zoneWarn', 'HORS ZONE !', 'Reviens dans le cercle !')}
     </div>
   `;
 }
@@ -4881,6 +4894,7 @@ function renderZonePlaying(snap) {
     scaredEl.play().catch(() => {});
   }
   ZoneScene.update(snap);
+  document.getElementById('zoneWarn')?.classList.toggle('show', !inside);
 }
 
 function screenZoneResult(snap, score, reason) {
@@ -5178,7 +5192,7 @@ function wireInfoPage() {
   document.getElementById('btnInfoPageBack')?.addEventListener('click', () => navigate('home'));
 }
 
-/* ============================ Jeu : Le Panier Malin (Migros Vaud) ============================ */
+/* ============================ Jeu : Marché Express ============================ */
 const MIGROS_THEME = '--primary:#ff7a00;--primary-dark:#e05a00;--accent:#ffb703;--accent-dark:#e08e00;';
 
 function screenMigrosSetup() {
@@ -5186,7 +5200,7 @@ function screenMigrosSetup() {
     <button class="btn-ghost back-top" id="btnMigrosBackTop">← Retour</button>
     <div class="centered-page">
     <div class="game-setup" style="${MIGROS_THEME}">
-      <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="shopping-cart"></i> Le Panier Malin</h1>
+      <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="shopping-cart"></i> Marché Express</h1>
       ${gameVideoBigHTML(MIGROS_WELCOME_VIDEO_B64)}
       <p class="page-sub">Une liste de courses s'affiche : une recette suisse et ses 5 ingrédients. Trouve-les sur les étals et touche-les, puis passe à la liste suivante. Garde ton équilibre : si tu sors du cercle, le panda doit rattraper sa caisse et ne peut plus rien prendre pendant 2 secondes.</p>
       <button class="btn-primary" id="btnMigrosStart" style="width:100%;">${t('game_start_btn')}</button>
@@ -5250,7 +5264,7 @@ function runMigrosGame() {
     (ev) => migrosOnEvent(ev)
   );
 }
-/** Les 46 ingrédients du Panier Malin, dessinés par le code (zone 256 × 256, centre 128, 128). */
+/** Les 46 ingrédients du Marché Express, dessinés par le code (zone 256 × 256, centre 128, 128). */
 const SHOP_DRAW = (() => {
   const mix = (a, b, t) => a + (b - a) * t;
   function radial(c, x, y, r0, r1, stops, cx, cy) {
@@ -5769,7 +5783,7 @@ const SHOP_DRAW = (() => {
   };
 })();
 
-/** Panier Malin : le marché devant les vergers et les Alpes. Le panda porte sa caisse de courses en équilibre. */
+/** Marché Express : le marché devant les vergers et les Alpes. Le panda porte sa caisse de courses en équilibre. */
 const MarketScene = (() => {
   const S = 256;
   const SHELVES = [.335, .46, .585];   // hauteur des 3 étals (bord de la planche)
@@ -6208,7 +6222,7 @@ function screenMigrosPlaying() {
         <div class="ski-warn-t ski-intro-t">TROUVE LES 5 INGRÉDIENTS</div>
         <div class="ski-warn-s">Et garde ton équilibre !</div>
       </div></div>
-      <div class="ski-warn" id="migrosWarn"><div class="ski-warn-box">
+      <div class="ski-warn alert" id="migrosWarn"><div class="ski-warn-box">
         <div class="ski-warn-t">HORS ZONE !</div>
         <div class="ski-warn-s">Reviens dans le cercle !</div>
       </div></div>
@@ -6303,7 +6317,7 @@ function screenSkiSetup() {
     <button class="btn-ghost back-top" id="btnSkiBackTop">← Retour</button>
     <div class="centered-page">
     <div class="game-setup" style="${SKI_THEME}">
-      <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="mountain-snow"></i> Slalom Réflexe</h1>
+      <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="mountain-snow"></i> Slalom</h1>
       ${gameVideoBigHTML(SKI_WELCOME_VIDEO_B64)}
       <p class="page-sub">Balance le plateau de gauche à droite, à ton rythme : chaque balancement fait passer une porte. Plus tu es régulier, plus le panda va vite, mais les balancements trop petits coûtent 3 secondes.</p>
       <button class="btn-primary" id="btnSkiStart" style="width:100%;">${t('game_start_btn')}</button>
@@ -7122,26 +7136,12 @@ function wireElectroSetup() {
   document.getElementById('btnElectroBackTop')?.addEventListener('click', () => navigate('home'));
 }
 
-function electroPrepareThenStart() {
-  let remaining = ElectroGame.PREPARE_SECONDS;
-  content.innerHTML = screenGenericPrepare(remaining, 'zap', 'Pose le doigt sur le rond vert, en haut à droite, ça démarre dans...');
-  SoundFx.ready();
-  const timer = setInterval(() => {
-    remaining--;
-    const el = document.getElementById('genericPrepareNum');
-    if (remaining <= 0) {
-      clearInterval(timer);
-      SoundFx.go();
-      startElectroGame();
-    } else if (el) {
-      el.textContent = remaining;
-    }
-  }, 1000);
-}
+function electroPrepareThenStart() { startElectroGame(); }
 
 function startElectroGame() {
   content.innerHTML = screenElectroPlaying();
   wireElectroPlaying();
+  runGameCountdown(() => {
   activeGameModule = ElectroGame;
   ElectroGame.start(electroSetupCfg,
     (snap) => renderElectroPlaying(snap),
@@ -7155,6 +7155,7 @@ function startElectroGame() {
     },
     (x, y) => electroSpawnSpark(x, y)
   );
+  });
 }
 
 function screenElectroPlaying() {
@@ -7175,17 +7176,21 @@ function screenElectroPlaying() {
         <div class="timer" id="electroTimer">0:00.0</div>
       </div>
       <div class="game-hint" id="electroHint">Fais glisser le doigt le long du fil, du vert au orange.</div>
+      ${sportIntroHTML('SUIS LE FIL', 'Du vert au orange, sans le lâcher !')}
+      ${sportAlertHTML('electroWarn', 'COUP DE JUS !', 'Reprends dès que ça repart.')}
     </div>
   `;
 }
 
 function electroSpawnSpark(x, y) {
   ElectroScene.shock(x, y);
+  document.getElementById('electroWarn')?.classList.add('show');
   const hint = document.getElementById('electroHint');
   if (hint) hint.textContent = 'Figé ! Une vie perdue — reprends dès que ça repart.';
   document.getElementById('electroPandaThunder')?.classList.add('active');
   document.getElementById('electroPandaHappy')?.classList.remove('active');
   setTimeout(() => {
+    document.getElementById('electroWarn')?.classList.remove('show');
     const h = document.getElementById('electroHint');
     if (h) h.textContent = 'Fais glisser le doigt le long du fil, du vert au orange.';
     document.getElementById('electroPandaHappy')?.classList.add('active');
@@ -7269,27 +7274,17 @@ function wireFootballSetup() {
   document.getElementById('btnFootballBackTop')?.addEventListener('click', () => navigate('home'));
 }
 const FOOTBALL_COUNTDOWN = false; // temporaire, pour les tests de Dan : remettre à true pour retrouver le 3-2-1
-function footballPrepareThenStart() {
-  if (!FOOTBALL_COUNTDOWN) { SoundFx.go(); startFootballGame(); return; }
-  let remaining = FootballGame.PREPARE_SECONDS;
-  content.innerHTML = screenGenericPrepare(remaining, 'footprints', 'Prépare-toi à courir, ça démarre dans...');
-  SoundFx.ready();
-  const timer = setInterval(() => {
-    remaining--;
-    const el = document.getElementById('genericPrepareNum');
-    if (remaining <= 0) { clearInterval(timer); SoundFx.go(); startFootballGame(); }
-    else if (el) el.textContent = remaining;
-  }, 1000);
-}
+function footballPrepareThenStart() { startFootballGame(FOOTBALL_COUNTDOWN); }
 
 let footballLastPhase = null;
 let footballHappyUntil = 0;
-function startFootballGame() {
+function startFootballGame(withCountdown) {
   footballLastPhase = null;
   footballHappyUntil = 0;
   content.innerHTML = screenFootballPlaying();
   requestAnimationFrame(() => StadiumScene.start());
   wireFootballPandaWatcher();
+  const run = () => {
   activeGameModule = FootballGame;
   FootballGame.start(
     (snap) => renderFootballPlaying(snap),
@@ -7302,6 +7297,9 @@ function startFootballGame() {
       wireFootballResult();
     }
   );
+  };
+  if (withCountdown) runGameCountdown(run);
+  else { document.getElementById('gameIntro')?.remove(); SoundFx.go(); run(); }
 }
 
 function screenFootballPlaying() {
@@ -7324,6 +7322,7 @@ function screenFootballPlaying() {
     <div class="game-stage" id="fbStage">
       <canvas id="fbCanvas"></canvas>
       <div id="footballPhaseArea"></div>
+      ${sportIntroHTML('COURS VERS LE BUT', "Balance-toi d'avant en arrière, bien régulier !")}
     </div>
   `;
 }
@@ -7939,17 +7938,7 @@ function wireRelaxSetup() {
   });
   document.getElementById('btnRelaxStart')?.addEventListener('click', () => relaxPrepareThenStart());
 }
-function relaxPrepareThenStart() {
-  let remaining = 3;
-  content.innerHTML = screenGenericPrepare(remaining, 'wind', 'Installe-toi confortablement, ça démarre dans...');
-  SoundFx.ready();
-  const timer = setInterval(() => {
-    remaining--;
-    const el = document.getElementById('genericPrepareNum');
-    if (remaining <= 0) { clearInterval(timer); SoundFx.go(); startRelaxGame(); }
-    else if (el) el.textContent = remaining;
-  }, 1000);
-}
+function relaxPrepareThenStart() { startRelaxGame(); }
 let relaxFailUntil = 0;
 function startRelaxGame() {
   relaxFailUntil = 0;
@@ -7957,6 +7946,7 @@ function startRelaxGame() {
   document.getElementById('relaxPandaHappy')?.play().catch(() => {});
   document.getElementById('relaxPandaFail')?.play().catch(() => {});
   requestAnimationFrame(() => LakeScene.start());
+  runGameCountdown(() => {
   activeGameModule = RelaxGame;
   RelaxGame.start(relaxSetupCfg,
     (snap) => renderRelaxPlaying(snap),
@@ -7969,6 +7959,7 @@ function startRelaxGame() {
       wireRelaxResult();
     }
   );
+  });
 }
 /* Outils communs aux décors de jeux dessinés par le code */
 const pfHash = n => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
@@ -8591,6 +8582,36 @@ const MindScene = (() => {
   return { start, update };
 })();
 
+/** Départ commun à tous les jeux : consigne et 3-2-1 sur la scène, style « course ». Le jeu ne démarre qu'au GO. */
+function sportIntroHTML(title, sub) {
+  return `<div class="ski-intro" id="gameIntro"><div class="ski-warn-box">
+    <div class="ski-intro-row"><div class="ski-intro-num tick" id="gameIntroNum">3</div></div>
+    <div class="ski-warn-t ski-intro-t">${title}</div>
+    <div class="ski-warn-s">${sub}</div>
+  </div></div>`;
+}
+function sportAlertHTML(id, title, sub) {
+  return `<div class="ski-warn alert" id="${id}"><div class="ski-warn-box"><div class="ski-warn-t">${title}</div><div class="ski-warn-s">${sub}</div></div></div>`;
+}
+function runGameCountdown(onGo) {
+  const intro = document.getElementById('gameIntro');
+  const num = document.getElementById('gameIntroNum');
+  if (!intro || !num) { onGo(); return; }
+  let remaining = 3;
+  SoundFx.ready();
+  const timer = setInterval(() => {
+    if (!intro.isConnected) { clearInterval(timer); return; } // le joueur a quitté pendant le décompte
+    remaining--;
+    num.classList.remove('tick'); void num.offsetWidth; num.classList.add('tick');
+    if (remaining > 0) { num.textContent = remaining; SoundFx.ready(); return; }
+    clearInterval(timer);
+    num.textContent = 'GO !';
+    intro.classList.add('go');
+    SoundFx.go();
+    onGo();
+  }, 1000);
+}
+
 /** L'image d'un jeu remplit l'écran, sans défilement de la page */
 function fitGameStage(stage) {
   window.scrollTo(0, 0);
@@ -8873,6 +8894,7 @@ function screenRelaxPlaying() {
       <canvas id="lakeCanvas"></canvas>
       <div class="timer lake-timer" id="relaxTimer">--</div>
       <div class="lake-label" id="relaxPhaseLabel">Installe-toi...</div>
+      ${sportIntroHTML('RESPIRE AVEC LE SOLEIL', 'Reste stable : le lac reste lisse.')}
       <svg class="lake-panda" id="lakePanda" viewBox="0 0 200 190" aria-hidden="true">
         <ellipse cx="42" cy="170" rx="34" ry="17" fill="#1c1c22"/>
         <ellipse cx="158" cy="170" rx="34" ry="17" fill="#1c1c22"/>
@@ -8946,17 +8968,7 @@ function wireTempoSetup() {
   document.getElementById('btnDoInitiationFirst')?.addEventListener('click', () => navigate('initiation'));
   document.getElementById('btnTempoStart')?.addEventListener('click', () => tempoPrepareThenStart());
 }
-function tempoPrepareThenStart() {
-  let remaining = 3;
-  content.innerHTML = screenGenericPrepare(remaining, 'brain', 'Prépare-toi, ça démarre dans...');
-  SoundFx.ready();
-  const timer = setInterval(() => {
-    remaining--;
-    const el = document.getElementById('genericPrepareNum');
-    if (remaining <= 0) { clearInterval(timer); SoundFx.go(); startTempoGame(); }
-    else if (el) el.textContent = remaining;
-  }, 1000);
-}
+function tempoPrepareThenStart() { startTempoGame(); }
 let tempoLastPhase = null;
 let tempoLastQuestionIndex = -1;
 let tempoFailUntil = 0;
@@ -8969,6 +8981,7 @@ function startTempoGame() {
   document.getElementById('tempoPandaEffort')?.play().catch(() => {});
   document.getElementById('tempoPandaHappy')?.play().catch(() => {});
   document.getElementById('tempoPandaFail')?.play().catch(() => {});
+  runGameCountdown(() => {
   activeGameModule = TempoGame;
   TempoGame.start(
     (snap) => renderTempoPlaying(snap),
@@ -8981,6 +8994,7 @@ function startTempoGame() {
       wireTempoResult();
     }
   );
+  });
 }
 function screenTempoPlaying() {
   return `
@@ -9000,6 +9014,7 @@ function screenTempoPlaying() {
       <canvas id="tempoCanvas"></canvas>
       <div class="game-hud"><div class="timer" id="tempoTimer">1:00</div></div>
       <div id="tempoPhaseArea"></div>
+      ${sportIntroHTML('BOUGE, PUIS CALCULE', 'Passe la barre, puis réponds au calme !')}
     </div>
   `;
 }
