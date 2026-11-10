@@ -7124,13 +7124,9 @@ const SkiScene = (() => {
     }
     // panneau publicitaire au pied de la tribune
     const a = P3(s1, side * (EDGE + 1), 0), b = P3(s2, side * (EDGE + 1), 0), c = P3(s2, side * (EDGE + 1), 3.2), d = P3(s1, side * (EDGE + 1), 3.2);
-    if (poly([a, b, c, d], Math.round(s1 * 2) % 2 ? '#d52b1e' : '#0d1322') && mid[2] > .12) {
-      const { ctx } = st;
-      ctx.fillStyle = '#fff';
-      ctx.font = `italic 900 ${Math.max(6, Math.round(st.U * 2.2 * mid[2]))}px Montserrat, system-ui, sans-serif`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('PANDAFIT', (a[0] + b[0]) / 2, (a[1] + d[1]) / 2);
-    }
+    // bande rouge continue, liseré blanc en haut (vue de profil : pas de texte, il déborderait)
+    poly([a, b, c, d], '#d52b1e');
+    poly([P3(s1, side * (EDGE + 1), 2.6), P3(s2, side * (EDGE + 1), 2.6), c, d], '#f4f6f9');
   }
   /** Grande tribune du fond, avec toit, projecteurs, écran géant et drapeaux */
   function drawBackStand(t, excite) {
@@ -7233,7 +7229,7 @@ const SkiScene = (() => {
   /** Cabane de départ : murs en bois, toit enneigé, bandeau START et portillon qui s'ouvre au GO */
   function drawStartHouse(t) {
     const { ctx, U } = st;
-    const sB = .3, HW = 19, TH = 3, HH = 44, DP = .07;
+    const sB = .3, HW = 19, TH = 3, HH = 1.12 * (st.py - st.hz) / U, DP = .07;
     if (!P3(sB, 0, 0)) return;
     // deux piliers en bois, avec leur épaisseur
     [-1, 1].forEach(sd => {
@@ -7272,10 +7268,10 @@ const SkiScene = (() => {
         ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.fill();
       });
     }
-    // portillon de départ : la barre pivote vers l'avant au GO
+    // portillon de départ : la barre se lève le long du pilier au GO (elle ne croise jamais le panda)
     const k = st.goT == null ? 0 : Math.min(1, (t - st.goT) / .45);
-    const ang = (1 - Math.pow(1 - k, 3)) * 1.35, L = 2 * HW - 1.5;
-    const p0 = P3(sB, -HW + .6, 6), p1 = P3(sB + Math.sin(ang) * L / 34, -HW + .6 + Math.cos(ang) * L, 6);
+    const ang = (1 - Math.pow(1 - k, 3)) * Math.PI / 2, L = 2 * HW - 1.5;
+    const p0 = P3(sB, -HW + .6, 6), p1 = P3(sB, -HW + .6 + Math.cos(ang) * L, 6 + Math.sin(ang) * L);
     const post = P3(sB, -HW + .6, 0);
     if (p0 && p1 && post) {
       ctx.strokeStyle = '#2b2f3a'; ctx.lineWidth = Math.max(2, U * 1.1 * p0[2]);
@@ -7493,12 +7489,13 @@ const SkiScene = (() => {
     snap.gatesView.forEach(g => items.push([g.world, () => drawGate(g, t)]));
     if (finishS >= st.s) items.push([finishS, () => drawFinish(finishS)]);
     items.push([snap.distance + FINISH_DEPTH + 2, () => drawBackStand(t, excite)]);
-    if (st.s < 2.5) items.push([.3, () => drawStartHouse(t)]);
+    if (st.s <= .3) items.push([.3, () => drawStartHouse(t)]);
     items.sort((a, b) => b[0] - a[0]).forEach(([, draw]) => draw());
 
     paintSpray(step);
     paintPanda(pandaX, t);
     if (finishS < st.s) drawFinish(finishS);
+    if (st.s > .3 && st.s < 2.5) drawStartHouse(t); // le panda est passé sous le bandeau START
     paintSpeedSnow(t);
     ctx.restore();
     if (st.s <= snap.distance) paintSpeedEdges(t);
