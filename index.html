@@ -9401,7 +9401,7 @@ const MindScene = (() => {
     if (flash && !st.wasFlash) {
       for (let i = 0; i < 40; i++) {
         const a = -Math.PI / 2 + (Math.random() - .5) * 2.6, v = U * (20 + Math.random() * 45);
-        st.parts.push({ x: cx, y: yTop - U * 5, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: 0, life: .7 + Math.random() * .5, c: ['255,224,140', '255,170,80', '255,255,255'][i % 3] });
+        st.parts.push({ x: cx, y: lineY, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: 0, life: .7 + Math.random() * .5, c: ['255,224,140', '255,170,80', '255,255,255'][i % 3] });
       }
     }
     st.wasFlash = flash;
@@ -9412,26 +9412,10 @@ const MindScene = (() => {
       [-1, 1].forEach(s => { ctx.beginPath(); ctx.moveTo(cx + s * tw * .62, y); ctx.lineTo(cx + s * tw * .86, y); ctx.stroke(); });
     }
 
-    // la cloche
-    const bellX = cx, bellY = yTop - U * 5.5, swing = Math.sin(t * 28) * st.flash * .34;
-    ctx.save();
-    ctx.translate(bellX, bellY - U * 3); ctx.rotate(swing); ctx.translate(0, U * 3);
-    const bell = ctx.createLinearGradient(-U * 5, 0, U * 5, 0);
-    bell.addColorStop(0, '#d98a1e'); bell.addColorStop(.5, '#ffe08a'); bell.addColorStop(1, '#c97a14');
-    ctx.fillStyle = bell;
-    ctx.beginPath();
-    ctx.moveTo(-U * 5, U * 3.2);
-    ctx.quadraticCurveTo(-U * 3.8, U * 1.8, -U * 3.5, -U * .8);
-    ctx.quadraticCurveTo(-U * 3.1, -U * 4.2, 0, -U * 4.2);
-    ctx.quadraticCurveTo(U * 3.1, -U * 4.2, U * 3.5, -U * .8);
-    ctx.quadraticCurveTo(U * 3.8, U * 1.8, U * 5, U * 3.2);
-    ctx.closePath(); ctx.fill();
-    ctx.restore();
     if (st.flash > 0) {
       const ring = 1 - st.flash;
-      ctx.strokeStyle = `rgba(255,224,140,${(st.flash * .8).toFixed(3)})`;
-      ctx.lineWidth = U * .6;
-      ctx.beginPath(); ctx.arc(bellX, bellY, U * (7 + ring * 22), 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = `rgba(255,224,140,${(st.flash * .7).toFixed(3)})`; ctx.lineWidth = U * .6;
+      ctx.beginPath(); ctx.ellipse(cx, lineY, tw * (1.3 + ring * 2.2), U * (2 + ring * 6), 0, 0, Math.PI * 2); ctx.stroke();
     }
 
     // la barre à passer
@@ -9460,6 +9444,32 @@ const MindScene = (() => {
     puck.addColorStop(0, '#ffffff'); puck.addColorStop(1, above ? '#ffc14d' : '#42d6f5');
     ctx.fillStyle = puck;
     ctx.beginPath(); ctx.arc(cx, py, U * 4, 0, Math.PI * 2); ctx.fill();
+
+    // flèches légères qui indiquent le sens : sous la barre on monte, au-dessus on redescend
+    st.arrowDir += ((above ? 1 : -1) - st.arrowDir) * .25;
+    const dirUp = st.arrowDir < 0;
+    const fade = Math.min(1, Math.abs(st.arrowDir));
+    const chevron = (x, y, size, up, alpha) => {
+      ctx.strokeStyle = `rgba(255,236,190,${alpha.toFixed(3)})`; ctx.lineWidth = size * .22; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      const k = up ? -1 : 1;
+      ctx.beginPath(); ctx.moveTo(x - size, y - k * size * .5); ctx.lineTo(x, y + k * size * .5); ctx.lineTo(x + size, y - k * size * .5); ctx.stroke();
+    };
+    // dans la tour : trois chevrons qui défilent du palet vers où aller
+    for (let i = 0; i < 3; i++) {
+      const ph = (t * 1.4 + i / 3) % 1;
+      const y = dirUp ? py - U * 6 - ph * U * 14 : py + U * 6 + ph * U * 14;
+      if (y < yTop + U * 2 || y > yBot - U * 2) continue;
+      chevron(cx, y, U * 3.2, dirUp, fade * .75 * Math.sin(ph * Math.PI));
+    }
+    // en haut de la tour, à la place de la cloche : la grande flèche du sens à suivre
+    const bob = Math.sin(t * 4) * U * 1.2 * (dirUp ? -1 : 1);
+    const ay = yTop - U * 6 + bob;
+    const glow = ctx.createRadialGradient(cx, ay, 0, cx, ay, U * 9);
+    glow.addColorStop(0, `rgba(255,214,120,${(.3 * fade).toFixed(3)})`); glow.addColorStop(1, 'rgba(255,214,120,0)');
+    ctx.fillStyle = glow; ctx.fillRect(cx - U * 9, ay - U * 9, U * 18, U * 18);
+    chevron(cx, ay - U * 1.8, U * 4.2, dirUp, fade * .95);
+    chevron(cx, ay + U * 1.8, U * 4.2, dirUp, fade * .55);
+    ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
 
     // sept lampes : une par passage réussi
     const done = snap ? snap.crossings : 0;
@@ -9546,7 +9556,7 @@ const MindScene = (() => {
     if (!canvas || !stage) return;
     const g = sizeGameCanvas(canvas, stage);
     snap = null; lastCorrect = 0; lastWrong = 0;
-    st = { ...g, nodes: [], y: 0, rx: 0, ry: 0, trail: [], flash: 0, glow: 0, bad: 0, parts: [], wasFlash: false };
+    st = { ...g, nodes: [], y: 0, rx: 0, ry: 0, trail: [], flash: 0, glow: 0, bad: 0, parts: [], wasFlash: false, arrowDir: -1 };
     st.bg = layerCanvas(g.W, g.H, (c, w, h) => paintBrain(c, w, h, st.nodes));
     runGameCanvas(canvas, paint);
   }
