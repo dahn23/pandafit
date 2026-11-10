@@ -3127,6 +3127,7 @@ const UI_DICT_ROWS = [
   ["En Suisse, les chutes et les faux pas sont la première cause d'accident, surtout pendant les loisirs.", "In der Schweiz sind Stürze und Stolpern die häufigste Unfallursache, vor allem in der Freizeit.", "In Switzerland, slips and falls are the leading cause of accidents, especially during leisure time.", "In Svizzera, cadute e passi falsi sono la prima causa di infortuni, soprattutto nel tempo libero."],
   ["Fermer", "Schliessen", "Close", "Chiudi"],
   ["Voir les jeux", "Spiele ansehen", "See the games", "Vedi i giochi"],
+  ["PANDAFIT · ARRIVÉE", "PANDAFIT · ZIEL", "PANDAFIT · FINISH", "PANDAFIT · ARRIVO"],
   ["ARRIVÉE", "ZIEL", "FINISH", "ARRIVO"],
   ["RESTE DANS LE CERCLE", "BLEIB IM KREIS", "STAY IN THE CIRCLE", "RESTA NEL CERCHIO"],
   ["Stable et détendu !", "Stabil und locker!", "Steady and relaxed!", "Stabile e rilassato!"],
@@ -7008,6 +7009,15 @@ const SkiScene = (() => {
       if (a + .3 < start) continue;
       band(Math.max(a, start), a + .3, 'rgba(213,43,30,.5)');
     }
+    if (snap.distance > st.s - 1.1) {
+      const l = project(snap.distance, -EDGE), r = project(snap.distance, EDGE);
+      if (l && r) {
+        for (let n = 0; n < 14; n++) {
+          ctx.fillStyle = n % 2 ? '#1c1c22' : '#ffffff';
+          ctx.fillRect(mix(l.x, r.x, n / 14), l.y - U * .9 * l.P, (r.x - l.x) / 14, U * 1.8 * l.P);
+        }
+      }
+    }
     const c = project(Math.max(snap.distance + 2.8, start + .2), 0);
     if (c) {
       ctx.fillStyle = 'rgba(213,43,30,.75)';
@@ -7018,53 +7028,201 @@ const SkiScene = (() => {
   }
 
   /** Le fond de l'aire d'arrivée : grande tribune, tableau du chrono, drapeaux */
-  function drawFinishWall(t) {
-    const { ctx, U } = st;
-    const s = snap.distance + FINISH_DEPTH;
-    const mid = project(s, 0);
-    if (!mid) return;
-    const tile = U * 112 * mid.P, h = tile * 260 / 460;
-    for (let k = -4; k <= 3; k++) ctx.drawImage(st.crowd, mid.x + k * (tile - 1), mid.y - h, tile, h);
-    for (let k = -6; k <= 6; k++) {
-      if (!k) continue;
-      const fx = mid.x + k * U * 27 * mid.P, size = U * 13 * mid.P;
-      ctx.strokeStyle = '#dfe3e8'; ctx.lineWidth = Math.max(1, U * .45 * mid.P);
-      ctx.beginPath(); ctx.moveTo(fx, mid.y - h + U * 4 * mid.P); ctx.lineTo(fx, mid.y - h - size * 1.2); ctx.stroke();
-      swissFlagAt(ctx, fx, mid.y - h - size * 1.2, size, t, k + 9, k % 2 ? 1 : -1);
-    }
-    // tableau d'affichage avec le chrono
-    const bw = U * 66 * mid.P, bh = U * 26 * mid.P, bx = mid.x - bw / 2, by = mid.y - h - bh * .42;
-    ctx.strokeStyle = '#5b6474'; ctx.lineWidth = Math.max(2, U * 1.3 * mid.P);
-    ctx.beginPath(); ctx.moveTo(bx + bw * .2, by + bh); ctx.lineTo(bx + bw * .2, mid.y - h * .4); ctx.moveTo(bx + bw * .8, by + bh); ctx.lineTo(bx + bw * .8, mid.y - h * .4); ctx.stroke();
-    ctx.fillStyle = '#0d1016';
-    roundedRect(ctx, bx, by, bw, bh, U * 1.6 * mid.P); ctx.fill();
-    ctx.strokeStyle = '#d52b1e'; ctx.lineWidth = Math.max(1.5, U * .6 * mid.P); ctx.stroke();
-    const secs = (snap.elapsedMs || 0) / 1000;
-    ctx.fillStyle = '#ffd24a';
-    ctx.font = `800 ${Math.round(bh * .66)}px Montserrat, system-ui, sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(`${Math.floor(secs / 60)}:${(secs % 60).toFixed(1).padStart(4, '0')}`, mid.x, by + bh * .54);
+  /* ---------- Aire d'arrivée en volume : tribunes à gradins, toit, écran géant, arche, panneaux ---------- */
+  const FAN_COLORS = ['#d52b1e', '#d52b1e', '#ffffff', '#f2f2f2', '#1d6fb8', '#ffd166', '#2a9d8f', '#3a3f55', '#ff8a3c', '#9b5de5'];
+  const SKIN = ['#f3d2b3', '#d9a877', '#a06f49', '#fbe3cf'];
+  const TIERS = 6, TIER_DX = 4.2, TIER_DH = 3.4, STAND_X0 = EDGE + 4, STAND_FROM = 7, BACK_AT = 4.2;
+  /** Point du monde (piste s, écart x, hauteur h en U) → écran */
+  function P3(s, x, h) {
+    const p = project(s, x);
+    return p ? [p.x, p.y - h * st.U * p.P, p.P] : null;
   }
-
+  function poly(pts, fill) {
+    if (pts.some(q => !q)) return false;
+    const { ctx } = st;
+    ctx.fillStyle = fill;
+    ctx.beginPath(); pts.forEach((q, i) => ctx[i ? 'lineTo' : 'moveTo'](q[0], q[1])); ctx.closePath(); ctx.fill();
+    return true;
+  }
+  /** Un spectateur (corps, tête, parfois un drapeau suisse), qui saute quand l'ambiance monte */
+  function fan(x, y, P, seed, excite, t) {
+    const { ctx, U } = st;
+    const r = U * .95 * P;
+    const jump = excite > 0 ? Math.max(0, Math.sin(t * 9 + seed * 2.3)) * U * 1.1 * P * excite : 0;
+    ctx.fillStyle = FAN_COLORS[seed % FAN_COLORS.length];
+    ctx.beginPath(); ctx.ellipse(x, y - r * 1.5 - jump, r * 1.15, r * 1.55, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = SKIN[seed % SKIN.length];
+    ctx.beginPath(); ctx.arc(x, y - r * 3.3 - jump, r * .82, 0, Math.PI * 2); ctx.fill();
+    if (seed % 6 === 0) {
+      const wave = Math.sin(t * 6 + seed) * r * .5;
+      ctx.strokeStyle = '#e8e8e8'; ctx.lineWidth = Math.max(1, r * .25);
+      ctx.beginPath(); ctx.moveTo(x + r, y - r * 2.4 - jump); ctx.lineTo(x + r * 1.6, y - r * 6 - jump); ctx.stroke();
+      swissFlagAt(ctx, x + r * 1.6, y - r * 6 - jump + wave * .2, r * 2.4, t, seed, 1);
+    } else if (excite > .3 && seed % 3 === 0) {
+      ctx.strokeStyle = SKIN[seed % SKIN.length]; ctx.lineWidth = Math.max(1, r * .45); ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x - r * .9, y - r * 2.6 - jump); ctx.lineTo(x - r * 1.5, y - r * 4.4 - jump); ctx.stroke();
+      ctx.lineCap = 'butt';
+    }
+    if (pfHash(seed + Math.floor(t * 6)) > .985) { // flash d'appareil photo
+      ctx.fillStyle = 'rgba(255,255,255,.95)';
+      ctx.beginPath(); ctx.arc(x, y - r * 3.3 - jump, r * 1.1, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  /** Un tronçon de tribune latérale (gradins qui montent vers l'extérieur) */
+  function drawSideStand(side, s1, s2, t, excite) {
+    const mid = P3((s1 + s2) / 2, side * STAND_X0, 0);
+    if (!mid) return;
+    const far = mid[2] < .3;
+    const xOut = side * (STAND_X0 + TIERS * TIER_DX), top = TIERS * TIER_DH;
+    // mur arrière et toit
+    poly([P3(s1, xOut, 0), P3(s2, xOut, 0), P3(s2, xOut, top + 7), P3(s1, xOut, top + 7)], '#1c2232');
+    poly([P3(s1, xOut, top + 7), P3(s2, xOut, top + 7), P3(s2, side * (STAND_X0 + 4), top + 9), P3(s1, side * (STAND_X0 + 4), top + 9)], '#2c3446');
+    for (let k = TIERS - 1; k >= 0; k--) {
+      const xa = side * (STAND_X0 + k * TIER_DX), xb = side * (STAND_X0 + (k + 1) * TIER_DX);
+      const h0 = k * TIER_DH, h1 = (k + 1) * TIER_DH;
+      poly([P3(s1, xa, h1), P3(s2, xa, h1), P3(s2, xb, h1), P3(s1, xb, h1)], far ? '#c24a55' : (k % 2 ? '#4a5570' : '#56627f'));
+      if (!far) {
+        const n = 4;
+        for (let i = 0; i < n; i++) {
+          const sf = s1 + (i + .5) / n * (s2 - s1);
+          const q = P3(sf, (xa + xb) / 2, h1);
+          if (q) fan(q[0], q[1], q[2], Math.abs(Math.round(sf * 9 + k * 31 + side * 7)), excite, t);
+        }
+      }
+      poly([P3(s1, xa, h0), P3(s2, xa, h0), P3(s2, xa, h1), P3(s1, xa, h1)], '#262e40');
+    }
+    // panneau publicitaire au pied de la tribune
+    const a = P3(s1, side * (EDGE + 1), 0), b = P3(s2, side * (EDGE + 1), 0), c = P3(s2, side * (EDGE + 1), 3.2), d = P3(s1, side * (EDGE + 1), 3.2);
+    if (poly([a, b, c, d], Math.round(s1 * 2) % 2 ? '#d52b1e' : '#0d1322') && !far) {
+      const { ctx } = st;
+      ctx.fillStyle = '#fff';
+      ctx.font = `italic 900 ${Math.max(6, Math.round(st.U * 2.2 * mid[2]))}px Montserrat, system-ui, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('PANDAFIT', (a[0] + b[0]) / 2, (a[1] + d[1]) / 2);
+    }
+  }
+  /** Grande tribune du fond, avec toit, projecteurs, écran géant et drapeaux */
+  function drawBackStand(t, excite) {
+    const { ctx, U } = st;
+    const s0 = snap.distance + BACK_AT, X = STAND_X0 + TIERS * TIER_DX + 6;
+    const step = .26, BH = 5.6, top = TIERS * BH, back = s0 + TIERS * step;
+    if (!P3(s0, 0, 0)) return;
+    poly([P3(back, -X, 0), P3(back, X, 0), P3(back, X, top + 10), P3(back, -X, top + 10)], '#1c2232');
+    for (let k = TIERS - 1; k >= 0; k--) {
+      const sa = s0 + k * step, sb = s0 + (k + 1) * step, h0 = k * BH, h1 = (k + 1) * BH;
+      poly([P3(sa, -X, h1), P3(sa, X, h1), P3(sb, X, h1), P3(sb, -X, h1)], k % 2 ? '#4a5570' : '#56627f');
+      const q0 = P3(sa + step * .5, 0, h1);
+      if (q0) {
+        for (let i = -15; i <= 15; i++) {
+          const q = P3(sa + step * .5, i * (X / 15.5), h1);
+          if (q) fan(q[0], q[1], q[2], Math.abs(i * 13 + k * 41) + 3, excite, t);
+        }
+      }
+      poly([P3(sa, -X, h0), P3(sa, X, h0), P3(sa, X, h1), P3(sa, -X, h1)], '#262e40');
+    }
+    // toit en porte-à-faux avec projecteurs
+    const roofH = top + 30;
+    poly([P3(s0 - .35, -X, roofH), P3(s0 - .35, X, roofH), P3(back, X, roofH + 3), P3(back, -X, roofH + 3)], '#151a28');
+    poly([P3(s0 - .35, -X, roofH - 1.4), P3(s0 - .35, X, roofH - 1.4), P3(s0 - .35, X, roofH), P3(s0 - .35, -X, roofH)], '#d52b1e');
+    [-1, 1].forEach(sd => {
+      const a = P3(s0 - .3, sd * X, 0), b = P3(s0 - .3, sd * X, roofH);
+      if (a && b) { ctx.strokeStyle = '#3c4458'; ctx.lineWidth = Math.max(2, U * 1.2 * a[2]); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+    });
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = -6; i <= 6; i++) {
+      const q = P3(s0 - .34, i * (X / 6.5), roofH - 1.6);
+      if (!q) continue;
+      const r = U * 4 * q[2];
+      const g = ctx.createRadialGradient(q[0], q[1], 0, q[0], q[1], r * 3);
+      g.addColorStop(0, 'rgba(255,248,220,.9)'); g.addColorStop(.25, 'rgba(255,240,200,.35)'); g.addColorStop(1, 'rgba(255,240,200,0)');
+      ctx.fillStyle = g; ctx.fillRect(q[0] - r * 3, q[1] - r * 3, r * 6, r * 6);
+    }
+    ctx.restore();
+    // écran géant sous le toit : nom, drapeau, temps
+    const sl = P3(s0 - .3, -30, roofH - 26), sr = P3(s0 - .3, 30, roofH - 26), tl = P3(s0 - .3, -30, roofH - 3);
+    if (sl && sr && tl) {
+      const w = sr[0] - sl[0], h = sl[1] - tl[1];
+      ctx.fillStyle = '#05070d'; roundedRect(ctx, sl[0] - w * .03, tl[1] - h * .05, w * 1.06, h * 1.1, h * .08); ctx.fill();
+      const g = ctx.createLinearGradient(0, tl[1], 0, sl[1]);
+      g.addColorStop(0, '#13213f'); g.addColorStop(1, '#0a1226');
+      ctx.fillStyle = g; ctx.fillRect(sl[0], tl[1], w, h);
+      ctx.fillStyle = '#d52b1e'; ctx.fillRect(sl[0], tl[1], h * .55, h * .55);
+      ctx.fillStyle = '#fff'; ctx.fillRect(sl[0] + h * .24, tl[1] + h * .1, h * .07, h * .35); ctx.fillRect(sl[0] + h * .1, tl[1] + h * .24, h * .35, h * .07);
+      ctx.textBaseline = 'middle';
+      ctx.font = `italic 900 ${Math.round(h * .32)}px Montserrat, system-ui, sans-serif`; ctx.textAlign = 'left';
+      ctx.fillStyle = '#fff'; ctx.fillText('10  PANDA', sl[0] + h * .7, tl[1] + h * .28);
+      const secs = (snap.elapsedMs || 0) / 1000;
+      ctx.font = `italic 900 ${Math.round(h * .42)}px Montserrat, system-ui, sans-serif`; ctx.textAlign = 'right';
+      ctx.fillStyle = '#ffcf1a'; ctx.fillText(`${Math.floor(secs / 60)}:${(secs % 60).toFixed(2).padStart(5, '0')}`, sl[0] + w * .96, tl[1] + h * .72);
+    }
+    for (let i = -5; i <= 5; i++) {
+      if (!i) continue;
+      const q = P3(back, i * (X / 5.5), roofH + 3);
+      if (!q) continue;
+      const size = U * 7 * q[2];
+      ctx.strokeStyle = '#dfe3e8'; ctx.lineWidth = Math.max(1, U * .3 * q[2]);
+      ctx.beginPath(); ctx.moveTo(q[0], q[1]); ctx.lineTo(q[0], q[1] - size * 1.4); ctx.stroke();
+      swissFlagAt(ctx, q[0], q[1] - size * 1.4, size, t, i + 20, i % 2 ? 1 : -1);
+    }
+  }
+  /** Arche d'arrivée gonflable, en volume */
   function drawFinish(sf) {
     const { ctx, U } = st;
-    const l = project(sf, -EDGE), r = project(sf, EDGE);
-    if (!l || !r) return;
-    const h = (st.py - st.hz) * 1.12 * l.P; // plus haute que le regard : la banderole passe au-dessus du panda
-    ctx.fillStyle = '#c8102e';
-    ctx.fillRect(l.x - U * 1.1 * l.P, l.y - h, U * 2.2 * l.P, h);
-    ctx.fillRect(r.x - U * 1.1 * l.P, r.y - h, U * 2.2 * l.P, h);
-    ctx.fillRect(l.x - U * 1.1 * l.P, l.y - h, r.x - l.x + U * 2.2 * l.P, U * 8.5 * l.P);
-    ctx.fillStyle = '#fff';
-    ctx.font = `800 ${Math.round(U * 6 * l.P)}px Montserrat, system-ui, sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('PANDAFIT', (l.x + r.x) / 2, l.y - h + U * 4.4 * l.P);
-    // ligne d'arrivée
-    const stripes = 14;
-    for (let n = 0; n < stripes; n++) {
-      ctx.fillStyle = n % 2 ? '#1c1c22' : '#ffffff';
-      ctx.fillRect(mix(l.x, r.x, n / stripes), l.y - U * .9 * l.P, (r.x - l.x) / stripes, U * 1.8 * l.P);
+    const ha = 1.12 * (st.py - st.hz) / U, beam = 8.5, depth = .14, xw = EDGE - 2, pw = 4.5;
+    const lp = P3(sf, -xw, 0);
+    if (!lp) return;
+    const red = (x1, x2) => {
+      const a = P3(sf, x1, 0), b = P3(sf, x2, 0);
+      if (!a || !b) return '#c8102e';
+      const g = ctx.createLinearGradient(a[0], 0, b[0], 0);
+      g.addColorStop(0, '#8e0f1d'); g.addColorStop(.45, '#ef2a3c'); g.addColorStop(1, '#a10f20');
+      return g;
+    };
+    [-1, 1].forEach(sd => {
+      const xi = sd * (xw - pw), xo = sd * xw;
+      poly([P3(sf, xi, 0), P3(sf + depth, xi, 0), P3(sf + depth, xi, ha), P3(sf, xi, ha)], '#7a0c18');
+      poly([P3(sf, Math.min(xi, xo), 0), P3(sf, Math.max(xi, xo), 0), P3(sf, Math.max(xi, xo), ha), P3(sf, Math.min(xi, xo), ha)], red(Math.min(xi, xo), Math.max(xi, xo)));
+    });
+    poly([P3(sf, -xw, ha - beam), P3(sf, xw, ha - beam), P3(sf + depth, xw, ha - beam), P3(sf + depth, -xw, ha - beam)], '#6d0a15');
+    const bl = P3(sf, -xw, ha - beam), br = P3(sf, xw, ha - beam), tr = P3(sf, xw, ha), tl = P3(sf, -xw, ha);
+    if (poly([bl, br, tr, tl], red(-xw, xw))) {
+      const h = bl[1] - tl[1];
+      ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(tl[0], tl[1] + h * .1, tr[0] - tl[0], h * .14);
+      ctx.fillStyle = '#fff';
+      ctx.font = `italic 900 ${Math.round(h * .62)}px Montserrat, system-ui, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('PANDAFIT · ARRIVÉE', (tl[0] + tr[0]) / 2, tl[1] + h * .56);
     }
+    // cellules de chronométrage sur les montants
+    [-1, 1].forEach(sd => {
+      const q = P3(sf, sd * (xw - pw), 3);
+      if (q) { ctx.fillStyle = '#ffcf1a'; ctx.beginPath(); ctx.arc(q[0], q[1], Math.max(2, U * .7 * q[2]), 0, Math.PI * 2); ctx.fill(); }
+    });
+  }
+  /** Feux d'artifice au-dessus de l'arrivée, une fois la ligne franchie */
+  function paintFireworks(step, t) {
+    const { ctx, W, H, U } = st;
+    st.fwTimer -= step;
+    if (st.fwTimer <= 0) {
+      st.fwTimer = .32;
+      const x = W * (.12 + Math.random() * .76), y = H * (.16 + Math.random() * .14);
+      const col = ['255,90,90', '255,210,80', '120,220,255', '255,255,255'][Math.floor(Math.random() * 4)];
+      for (let i = 0; i < 46; i++) {
+        const a = i / 46 * Math.PI * 2, v = U * (24 + Math.random() * 16);
+        st.fw.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: 0, life: .9 + Math.random() * .4, col });
+      }
+    }
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    st.fw = st.fw.filter(p => p.age < p.life);
+    st.fw.forEach(p => {
+      p.age += step; p.vy += U * 14 * step; p.vx *= .985; p.vy *= .985;
+      p.x += p.vx * step; p.y += p.vy * step;
+      ctx.fillStyle = `rgba(${p.col},${(1 - p.age / p.life).toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, U * .75, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = U * .35;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * .06, p.y - p.vy * .06); ctx.stroke();
+    });
+    ctx.restore();
   }
 
   function paintPanda(x, t) {
@@ -7198,35 +7356,22 @@ const SkiScene = (() => {
     for (let k = -3; k < 26; k++) {
       const sk = Math.floor(st.s / .7) * .7 + k * .7;
       const n = Math.round(sk / .7);
-      if (sk > snap.distance - .7) continue; // plus de forêt dans l'aire d'arrivée
+      if (sk > snap.distance - STAND_FROM - .7) continue; // pas de forêt derrière les tribunes de l'arrivée
       items.push([sk, () => {
         drawTree(sk, EDGE + 10 + pfHash(n + 1) * 34, .8 + pfHash(n + 2) * .6, n);
         drawTree(sk + .3, -(EDGE + 10 + pfHash(n + 3) * 34), .8 + pfHash(n + 4) * .6, n + 1);
       }]);
     }
-    for (let k = 0; k < 29; k++) {
-      const sc = snap.distance - 8 + k * .5;
-      if (sc < st.s - 1.2) continue;
-      items.push([sc + .01, () => {
-        [-1, 1].forEach(side => {
-          const p = project(sc, side * (EDGE + 3));
-          if (!p) return;
-          const sw = U * 40 * p.P, sh = sw * 260 / 460;
-          ctx.drawImage(st.crowd, side < 0 ? p.x - sw : p.x, p.y - sh, sw, sh);
-          if (k % 2) return;
-          // grands drapeaux suisses agités au sommet de la tribune
-          const fx = side < 0 ? p.x - sw * .45 : p.x + sw * .45;
-          const top = p.y - sh;
-          const size = U * 8.5 * p.P;
-          ctx.strokeStyle = '#dfe3e8'; ctx.lineWidth = Math.max(1, U * .3 * p.P);
-          ctx.beginPath(); ctx.moveTo(fx, top + U * 3 * p.P); ctx.lineTo(fx, top - size * 1.3); ctx.stroke();
-          swissFlagAt(ctx, fx, top - size * 1.3, size, t, k, side > 0 ? -1 : 1);
-        });
-      }]);
+    // tribunes latérales en volume, de la fin du parcours jusqu'au fond de l'aire d'arrivée
+    const excite = st.s > snap.distance ? 1 : pfClamp((st.s - (snap.distance - 10)) / 10, 0, 1);
+    for (let k = 0; k * .6 < STAND_FROM + BACK_AT - .1; k++) {
+      const s1 = snap.distance - STAND_FROM + k * .6, s2 = s1 + .6;
+      if (s2 < st.s - 1.1) continue;
+      [-1, 1].forEach(side => items.push([s1 + .3, () => drawSideStand(side, s1, s2, t, excite)]));
     }
     snap.gatesView.forEach(g => items.push([g.world, () => drawGate(g, t)]));
     if (finishS >= st.s) items.push([finishS, () => drawFinish(finishS)]);
-    items.push([snap.distance + FINISH_DEPTH, () => drawFinishWall(t)]);
+    items.push([snap.distance + FINISH_DEPTH + 2, () => drawBackStand(t, excite)]);
     items.sort((a, b) => b[0] - a[0]).forEach(([, draw]) => draw());
 
     paintSpray(step);
@@ -7234,6 +7379,7 @@ const SkiScene = (() => {
     if (finishS < st.s) drawFinish(finishS);
     paintSpeedSnow(t);
     ctx.restore();
+    if (st.s > snap.distance) paintFireworks(step, t);
     paintFlare();
     paintVignette(ctx, W, st.H, '8,18,40', .26);
     if (snap.penaltyNow) paintVignette(ctx, W, st.H, '225,20,45', .62);
@@ -7248,7 +7394,7 @@ const SkiScene = (() => {
     const hz = Math.round(g.H * HORIZON);
     snap = null; lastSeq = 0;
     st = {
-      ...g, hz, py: g.H * PANDA_Y, s: 0, lat: 0, prevLat: 0, trail: [], spray: [], speedN: 0,
+      ...g, hz, py: g.H * PANDA_Y, s: 0, lat: 0, prevLat: 0, trail: [], spray: [], speedN: 0, fw: [], fwTimer: 0,
       sky: layerCanvas(g.W, hz, paintBackdrop),
       trees: [5, 13, 27].map(v => layerCanvas(200, 300, paintTreeVariant(v))),
       crowd: layerCanvas(460, 260, paintCrowd),
@@ -8000,7 +8146,12 @@ const StadiumScene = (() => {
     paintGoal(now);
     if (running && snap) paintSpeed(t, snap.speed);
     paintConfetti(step);
-    if (st.missFlash > 0) { st.missFlash -= step * 1.6; paintVignette(st.ctx, st.W, st.H, '230,30,50', Math.max(0, st.missFlash) * .55); }
+    if (st.missFlash > 0) {
+      st.missFlash -= step * 1.5;
+      const k = Math.max(0, st.missFlash);
+      st.ctx.fillStyle = `rgba(220,20,40,${(k * .22).toFixed(3)})`; st.ctx.fillRect(0, 0, st.W, st.H);
+      paintVignette(st.ctx, st.W, st.H, '210,10,35', k * .85);
+    }
   }
 
   function update(snap) {
