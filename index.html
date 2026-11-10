@@ -268,6 +268,7 @@
   .mind-card .tempo-choice-btn:disabled { opacity: .55; }
   .game-hint { position: absolute; top: 68px; left: calc(min(46vw, 230px) + 12px); right: 14px; text-align: center; font-size: 21px; font-weight: 800; line-height: 1.2; color: #fff; background: rgba(10,14,50,.62); padding: 10px 14px; border-radius: 16px; }
   .football-runner { position: absolute; left: 50%; bottom: 7%; width: 300px; height: 300px; margin-left: -150px; transition: transform .08s linear; }
+  .football-runner::before { content: ''; position: absolute; left: 30%; right: 30%; bottom: 1%; height: 8%; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,18,10,.5), rgba(0,18,10,0)); }
   .football-runner img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; }
   .football-runner img.active { opacity: 1; }
   .stadium-speed { position: absolute; right: 14px; bottom: 8%; height: 36%; width: 34px; display: flex; flex-direction: column; align-items: center; gap: 8px; color: #fff; }
@@ -280,7 +281,7 @@
   .stadium-count { font-size: 76px; font-weight: 800; line-height: 1.15; margin-top: 6px; }
   .football-goalzone { position: absolute; }
   .football-target { position: absolute; width: 15%; aspect-ratio: 1; transform: translate(-50%, -50%); transition: left .1s linear, top .1s linear; cursor: pointer; }
-  .football-target svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 6px 8px rgba(10,14,50,.45)); animation: fbBallPop .22s ease-out; }
+  .football-target svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 10px 10px rgba(0,0,0,.55)); animation: fbBallPop .22s ease-out; transform: rotate(var(--spin, 0deg)); transition: transform .12s linear; }
   .football-target.hit svg { animation: fbBallIn .6s ease-out forwards; }
   .football-target.miss svg { animation: fbBallOut .6s ease-in forwards; }
   @keyframes fbBallPop { from { transform: scale(.2); } to { transform: scale(1); } }
@@ -7944,54 +7945,74 @@ const StadiumScene = (() => {
     return c;
   }
 
+  /** Le stade de nuit : ciel étoilé, toit éclairé, deux anneaux de tribunes, loges, pylônes d'éclairage */
   function paintStands(ctx, w, h) {
-    const sky = ctx.createLinearGradient(0, 0, 0, h * .3);
-    sky.addColorStop(0, '#26356f');
-    sky.addColorStop(.6, '#a9567f');
-    sky.addColorStop(1, '#f2a65a');
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, w, h);
-    // toit
-    ctx.fillStyle = '#141b3c';
-    ctx.beginPath();
-    ctx.moveTo(0, h * .12); ctx.lineTo(w, h * .12); ctx.lineTo(w, h * .24); ctx.lineTo(0, h * .24);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = 'rgba(255,240,200,.85)';
-    ctx.fillRect(0, h * .232, w, Math.max(2, h * .008));
-    // gradins
-    ctx.fillStyle = '#1e2c58';
-    ctx.fillRect(0, h * .24, w, h * .76);
-    const r = w * .0052;
-    let n = 1;
-    for (let y = h * .27; y < h; y += r * 2.5) {
-      if (Math.abs(y - h * .63) < r * 1.6) continue; // l'allée entre les deux étages
-      for (let x = (y % 2) * r; x < w; x += r * 2.3) {
-        n++;
-        if (hash(n) < .05) continue; // quelques places vides
-        ctx.fillStyle = CROWD[Math.floor(hash(n + .3) * CROWD.length)];
-        ctx.beginPath(); ctx.arc(x, y + r * .7, r * .95, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = SKIN[Math.floor(hash(n + .6) * SKIN.length)];
-        ctx.beginPath(); ctx.arc(x, y - r * .45, r * .55, 0, Math.PI * 2); ctx.fill();
-      }
+    const sky = ctx.createLinearGradient(0, 0, 0, h * .24);
+    sky.addColorStop(0, '#040814'); sky.addColorStop(.7, '#0c1634'); sky.addColorStop(1, '#1b2a58');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 70; i++) {
+      ctx.fillStyle = `rgba(255,255,255,${(.25 + hash(i + 200) * .6).toFixed(2)})`;
+      ctx.fillRect(hash(i + 201) * w, hash(i + 202) * h * .14, 1.2, 1.2);
     }
-    ctx.fillStyle = 'rgba(255,255,255,.75)';
-    ctx.fillRect(0, h * .63, w, Math.max(2, h * .006));
-    const shade = ctx.createLinearGradient(0, h * .24, 0, h);
-    shade.addColorStop(0, 'rgba(10,14,50,.42)');
-    shade.addColorStop(1, 'rgba(10,14,50,.06)');
-    ctx.fillStyle = shade;
-    ctx.fillRect(0, h * .24, w, h * .76);
-    // projecteurs
-    [.14, .5, .86].forEach(fx => {
-      const x = fx * w, y = h * .17;
-      const g = ctx.createRadialGradient(x, y, 2, x, y, w * .16);
-      g.addColorStop(0, 'rgba(255,250,225,.95)');
-      g.addColorStop(.18, 'rgba(255,240,190,.45)');
-      g.addColorStop(1, 'rgba(255,240,190,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(x - w * .16, y - w * .16, w * .32, w * .32);
-      ctx.fillStyle = '#fffdf0';
-      ctx.fillRect(x - w * .03, y - h * .018, w * .06, h * .036);
+    // toit : charpente sombre, rampe de lumière en dessous
+    ctx.fillStyle = '#0a0f22'; ctx.fillRect(0, h * .1, w, h * .11);
+    ctx.strokeStyle = 'rgba(120,140,190,.18)'; ctx.lineWidth = Math.max(1, w * .0015);
+    for (let x = 0; x < w; x += w * .035) { ctx.beginPath(); ctx.moveTo(x, h * .1); ctx.lineTo(x + w * .0175, h * .21); ctx.lineTo(x + w * .035, h * .1); ctx.stroke(); }
+    const ramp = ctx.createLinearGradient(0, h * .2, 0, h * .3);
+    ramp.addColorStop(0, 'rgba(255,244,214,.9)'); ramp.addColorStop(.12, 'rgba(255,240,200,.35)'); ramp.addColorStop(1, 'rgba(255,240,200,0)');
+    ctx.fillStyle = ramp; ctx.fillRect(0, h * .2, w, h * .1);
+    // anneau supérieur, plus sombre, sous le toit
+    ctx.fillStyle = '#141c3c'; ctx.fillRect(0, h * .21, w, h * .79);
+    const r = w * .0046;
+    let n = 1;
+    const crowdRow = (y0, y1, light) => {
+      for (let y = y0; y < y1; y += r * 2.45) {
+        const depth = (y - y0) / (y1 - y0);
+        for (let x = ((y / (r * 2.45)) % 2) * r * 1.1; x < w; x += r * 2.25) {
+          n++;
+          if (hash(n) < .06) continue;
+          ctx.globalAlpha = light * (.55 + depth * .45);
+          ctx.fillStyle = CROWD[Math.floor(hash(n + .3) * CROWD.length)];
+          ctx.beginPath(); ctx.arc(x, y + r * .7, r * .95, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = SKIN[Math.floor(hash(n + .6) * SKIN.length)];
+          ctx.beginPath(); ctx.arc(x, y - r * .45, r * .55, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1;
+    };
+    crowdRow(h * .25, h * .54, .62);
+    // loges vitrées entre les deux anneaux
+    ctx.fillStyle = '#0b1128'; ctx.fillRect(0, h * .55, w, h * .06);
+    for (let x = w * .01; x < w; x += w * .045) {
+      ctx.fillStyle = hash(x) < .2 ? 'rgba(255,214,140,.25)' : 'rgba(255,214,140,.7)';
+      ctx.fillRect(x, h * .565, w * .036, h * .03);
+    }
+    ctx.fillStyle = 'rgba(67,206,162,.9)'; ctx.fillRect(0, h * .607, w, Math.max(2, h * .006));
+    crowdRow(h * .64, h, 1);
+    // les projecteurs éclairent l'anneau inférieur, l'ombre du toit tombe sur le haut
+    const shade = ctx.createLinearGradient(0, h * .21, 0, h);
+    shade.addColorStop(0, 'rgba(4,8,24,.55)'); shade.addColorStop(.45, 'rgba(4,8,24,.18)'); shade.addColorStop(1, 'rgba(255,240,200,.06)');
+    ctx.fillStyle = shade; ctx.fillRect(0, h * .21, w, h * .79);
+    // pylônes d'éclairage, rampes de lampes et faisceaux
+    [.07, .93].forEach((fx, k) => {
+      const x = fx * w, top = h * .015, lw = w * .085, lh = h * .07;
+      ctx.fillStyle = '#1a2240';
+      ctx.beginPath(); ctx.moveTo(x - w * .006, top + lh); ctx.lineTo(x + w * .006, top + lh); ctx.lineTo(x + w * .012, h * .21); ctx.lineTo(x - w * .012, h * .21); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#20294a'; ctx.fillRect(x - lw / 2, top, lw, lh);
+      for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) {
+        ctx.fillStyle = '#fffbea';
+        ctx.fillRect(x - lw / 2 + lw * (.05 + i * .155), top + lh * (.12 + j * .3), lw * .12, lh * .2);
+      }
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(x, top + lh / 2, 0, x, top + lh / 2, w * .2);
+      g.addColorStop(0, 'rgba(255,250,225,.85)'); g.addColorStop(.2, 'rgba(255,240,200,.3)'); g.addColorStop(1, 'rgba(255,240,200,0)');
+      ctx.fillStyle = g; ctx.fillRect(x - w * .2, top + lh / 2 - w * .2, w * .4, w * .4);
+      const dir = k ? -1 : 1;
+      const beam = ctx.createLinearGradient(x, top, x + dir * w * .35, h);
+      beam.addColorStop(0, 'rgba(255,248,220,.16)'); beam.addColorStop(1, 'rgba(255,248,220,0)');
+      ctx.fillStyle = beam;
+      ctx.beginPath(); ctx.moveTo(x - lw / 2, top + lh); ctx.lineTo(x + lw / 2, top + lh); ctx.lineTo(x + dir * w * .5, h); ctx.lineTo(x + dir * w * .12, h); ctx.closePath(); ctx.fill();
+      ctx.restore();
     });
   }
 
@@ -8046,11 +8067,13 @@ const StadiumScene = (() => {
     const grassTop = st.foot - 3 * U * near;
     const boardH = 4 * U * near;
     const base = grassTop - boardH;
-    ctx.fillStyle = '#26356f';
+    ctx.fillStyle = '#040814';
     ctx.fillRect(0, 0, W, H);
     const dw = W * st.s, dh = SH * st.s;
     const standsTop = base - dh + Math.sin(t * 9) * U * .22 * st.ex;
     ctx.drawImage(stands, (W - dw) / 2, standsTop, dw, dh);
+    ctx.fillStyle = 'rgba(4,8,24,.4)'; // match de nuit : la foule dans la pénombre
+    ctx.fillRect(0, Math.max(0, standsTop), W, base - Math.max(0, standsTop));
 
     // la foule s'anime : flashs d'appareils photo et drapeaux
     const n = Math.round(6 + 26 * st.ex);
@@ -8079,14 +8102,58 @@ const StadiumScene = (() => {
       ctx.closePath(); ctx.fill();
     }
 
-    // panneaux au bord du terrain
-    ctx.fillStyle = '#10183a';
+    // les projecteurs des coins : halo et faisceaux qui tombent sur le terrain
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    [0, 1].forEach(k => {
+      const X = v => (k ? W - v : v);
+      const g = ctx.createRadialGradient(X(0), 0, 0, X(0), 0, W * .42);
+      g.addColorStop(0, 'rgba(255,248,222,.6)'); g.addColorStop(.22, 'rgba(255,244,210,.16)'); g.addColorStop(1, 'rgba(255,244,210,0)');
+      ctx.fillStyle = g; ctx.fillRect(X(0) - W * .42, -W * .42, W * .84, W * .84);
+      const b = ctx.createLinearGradient(0, 0, 0, H);
+      b.addColorStop(0, 'rgba(255,248,222,.12)'); b.addColorStop(1, 'rgba(255,248,222,0)');
+      ctx.fillStyle = b;
+      ctx.beginPath(); ctx.moveTo(X(-W * .02), 0); ctx.lineTo(X(W * .1), 0); ctx.lineTo(X(W * .78), H); ctx.lineTo(X(W * .32), H); ctx.closePath(); ctx.fill();
+    });
+    ctx.restore();
+
+    // écran géant sous le toit : buts et temps restant
+    const sw = dw * .2, sh = dh * .13, sx = W / 2 - sw / 2, sy = standsTop + dh * .225;
+    if (sy + sh > 0 && sy < base) {
+      const snap = snapNow;
+      const goals = snap ? snap.goals || 0 : 0;
+      const left = !snap ? 0 : snap.phase === 'run' ? snap.runTimeLeft : snap.phase === 'shoot' ? snap.shootTimeLeft : snap.transitionTimeLeft;
+      ctx.fillStyle = '#05070d'; ctx.fillRect(sx - sw * .02, sy - sh * .05, sw * 1.04, sh * 1.1);
+      const g = ctx.createLinearGradient(0, sy, 0, sy + sh);
+      g.addColorStop(0, '#13213f'); g.addColorStop(1, '#0a1226');
+      ctx.fillStyle = g; ctx.fillRect(sx, sy, sw, sh);
+      ctx.textBaseline = 'middle';
+      ctx.font = `italic 900 ${Math.round(sh * .3)}px Montserrat, system-ui, sans-serif`;
+      ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.fillText('PANDA', sx + sw * .06, sy + sh * .3);
+      ctx.fillStyle = '#43cea2'; ctx.fillText(`0:${String(Math.max(0, Math.ceil(left || 0))).padStart(2, '0')}`, sx + sw * .06, sy + sh * .72);
+      ctx.font = `italic 900 ${Math.round(sh * .7)}px Montserrat, system-ui, sans-serif`;
+      ctx.textAlign = 'right'; ctx.fillStyle = '#ffcf1a'; ctx.fillText(String(goals), sx + sw * .94, sy + sh * .53);
+    }
+
+    // panneaux LED au bord du terrain : le texte défile et change de couleur
+    ctx.fillStyle = '#060a18';
     ctx.fillRect(0, base, W, boardH);
-    ctx.fillStyle = '#43cea2';
-    ctx.font = `800 ${Math.round(boardH * .56)}px Montserrat, system-ui, sans-serif`;
+    const gap = U * 30 * near, off = (t * U * 8 * near) % gap;
+    const ledColors = ['#43cea2', '#ffd166', '#ffffff'];
+    ctx.font = `italic 900 ${Math.round(boardH * .58)}px Montserrat, system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const gap = U * 22 * near;
-    for (let x = W / 2 - gap * Math.ceil(W / 2 / gap); x <= W + gap; x += gap) ctx.fillText('PANDAFIT', x, base + boardH * .54);
+    for (let x = W / 2 - gap * Math.ceil(W / 2 / gap) - gap + off, k = 0; x <= W + gap; x += gap, k++) {
+      const col = ledColors[(k + Math.floor(t / 3)) % 3];
+      ctx.shadowColor = col; ctx.shadowBlur = boardH * .35;
+      ctx.fillStyle = col; ctx.fillText('PANDAFIT', x, base + boardH * .54);
+      ctx.shadowBlur = 0;
+      const fx = x + gap / 2, fs = boardH * .5;
+      ctx.fillStyle = '#d52b1e'; ctx.fillRect(fx - fs / 2, base + boardH / 2 - fs / 2, fs, fs);
+      ctx.fillStyle = '#fff'; ctx.fillRect(fx - fs * .3, base + boardH / 2 - fs * .09, fs * .6, fs * .18); ctx.fillRect(fx - fs * .09, base + boardH / 2 - fs * .3, fs * .18, fs * .6);
+    }
+    ctx.fillStyle = 'rgba(0,0,0,.28)'; // trame des LED
+    for (let x = 0; x < W; x += 3) ctx.fillRect(x, base, 1, boardH);
+    ctx.fillStyle = 'rgba(67,206,162,.6)';
+    ctx.fillRect(0, base, W, Math.max(1, U * .12));
     ctx.fillStyle = 'rgba(255,255,255,.35)';
     ctx.fillRect(0, base + boardH - Math.max(1, U * .1), W, Math.max(1, U * .1));
     return grassTop;
@@ -8094,17 +8161,39 @@ const StadiumScene = (() => {
 
   function paintGrass(grassTop) {
     const { ctx, W, H } = st;
-    ctx.fillStyle = '#2e8b4e';
+    ctx.fillStyle = '#257a43';
     ctx.fillRect(0, grassTop, W, H - grassTop);
-    ctx.fillStyle = '#37a058';
+    ctx.fillStyle = '#2f9152';
     for (let i = 0; i * BAND < 38; i += 2) {
       const y1 = yAt(i * BAND), y2 = yAt(Math.min(38.5, (i + 1) * BAND));
       if (y1 > H) break;
       ctx.fillRect(0, y1, W, y2 - y1);
     }
+    // tonte dans l'autre sens : bandes qui partent vers le but
+    ctx.fillStyle = 'rgba(255,255,255,.045)';
+    for (let x = -66; x < 66; x += 11) {
+      ctx.beginPath();
+      ctx.moveTo(xAt(x, 0), yAt(0)); ctx.lineTo(xAt(x + 5.5, 0), yAt(0));
+      ctx.lineTo(xAt(x + 5.5, 37), yAt(37)); ctx.lineTo(xAt(x, 37), yAt(37));
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    [[-14, 7], [14, 7], [0, 20]].forEach(([x, d]) => {
+      const px = xAt(x, d), py = yAt(d), r = st.U * 26 * st.z * (CAM / (CAM - d)) * .5;
+      if (py - r * .4 > H || py + r * .4 < grassTop) return;
+      ctx.save(); ctx.translate(px, py); ctx.scale(1, .38);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+      g.addColorStop(0, 'rgba(255,246,210,.1)'); g.addColorStop(1, 'rgba(255,246,210,0)');
+      ctx.fillStyle = g; ctx.fillRect(-r, -r, r * 2, r * 2);
+      ctx.restore();
+    });
+    ctx.restore();
+    const haze = ctx.createLinearGradient(0, grassTop, 0, grassTop + st.U * 12);
+    haze.addColorStop(0, 'rgba(170,190,240,.16)'); haze.addColorStop(1, 'rgba(170,190,240,0)');
+    ctx.fillStyle = haze; ctx.fillRect(0, grassTop, W, st.U * 12);
     const light = ctx.createLinearGradient(0, grassTop, 0, H);
-    light.addColorStop(0, 'rgba(255,225,160,.12)');
-    light.addColorStop(1, 'rgba(6,30,40,.3)');
+    light.addColorStop(0, 'rgba(255,225,160,.06)');
+    light.addColorStop(1, 'rgba(2,12,24,.42)');
     ctx.fillStyle = light;
     ctx.fillRect(0, grassTop, W, H - grassTop);
   }
@@ -8148,14 +8237,14 @@ const StadiumScene = (() => {
     let net = null;
     if (st.net) {
       const age = (now - st.net.at) / 1000;
-      if (age > .9) st.net = null;
-      else net = { x: cx + st.net.fx * w * .8, y: foot - h * .5 + st.net.fy * h * .7, amp: w * .075 * Math.exp(-age * 3.5), wob: Math.cos(age * 30) };
+      if (age > 1.4) st.net = null;
+      else net = { x: cx + st.net.fx * w * .8, y: foot - h * .5 + st.net.fy * h * .7, amp: Math.exp(-age * 2.6) * (.62 + .38 * Math.cos(age * 16)) };
     }
     const bend = (x, y) => {
       if (!net) return [x, y];
-      const dx = x - net.x, dy = y - net.y, d2 = (dx * dx + dy * dy) / (w * w * .03);
-      const f = Math.exp(-d2) * net.amp * net.wob / Math.max(1, Math.sqrt(dx * dx + dy * dy) * .04);
-      return [x + dx * f * .02, y + dy * f * .02];
+      const dx = x - net.x, dy = y - net.y;
+      const f = Math.exp(-(dx * dx + dy * dy) / (w * w * .022)) * net.amp * .62; // les mailles se resserrent vers le point d'impact
+      return [x - dx * f, y - dy * f];
     };
     ctx.strokeStyle = 'rgba(255,255,255,.62)';
     ctx.lineWidth = Math.max(1, w * .0035);
@@ -8295,12 +8384,26 @@ const StadiumScene = (() => {
     st.ex += (wanted - st.ex) * (1 - Math.exp(-step * 1.8));
 
     const t = now / 1000;
+    const pk = Math.max(0, st.punch || 0);
+    if (pk) st.punch -= step * .9;
+    const ctx = st.ctx;
+    ctx.save();
+    if (pk) {
+      const zoom = 1 + .08 * pk * pk, gx = st.W / 2, gy = st.foot - 8 * st.U * st.z * GOAL_RATIO * .5;
+      ctx.translate(gx, gy); ctx.scale(zoom, zoom); ctx.translate(-gx, -gy);
+    }
     const grassTop = paintBackground(t);
     paintGrass(grassTop);
     paintLines();
     paintGoal(now);
+    ctx.restore();
     if (running && snap) paintSpeed(t, snap.speed);
     paintConfetti(step);
+    if (pk) {
+      const bar = st.H * .06 * Math.min(1, pk * 3);
+      ctx.fillStyle = '#05070d'; ctx.fillRect(0, 0, st.W, bar); ctx.fillRect(0, st.H - bar, st.W, bar);
+      if (pk > .8) { ctx.fillStyle = `rgba(255,255,255,${((pk - .8) / .2 * .55).toFixed(3)})`; ctx.fillRect(0, 0, st.W, st.H); }
+    }
     if (st.missFlash > 0) {
       st.missFlash -= step * 1.5;
       const k = Math.max(0, st.missFlash);
@@ -8318,6 +8421,7 @@ const StadiumScene = (() => {
       if (lastResult === 'hit') {
         st.net = { at: performance.now(), fx: snap.targetX / 100, fy: snap.targetY / 100 };
         st.ex = 1;
+        st.punch = 1;
         spawnConfetti();
       }
     }
@@ -8339,6 +8443,8 @@ function footballBallSVG() {
   return `<svg viewBox="0 0 100 100" aria-hidden="true">
     <circle cx="50" cy="50" r="47" fill="#ffffff" stroke="#1c1c22" stroke-width="3"/>
     <g fill="#1c1c22" stroke="#1c1c22" stroke-width="2.5" stroke-linejoin="round"><polygon points="50,30 69,44 62,66 38,66 31,44"/>${panels}</g>
+    <defs><radialGradient id="fbBallShade" cx="38%" cy="32%" r="70%"><stop offset="45%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#0a1428" stop-opacity=".45"/></radialGradient></defs>
+    <circle cx="50" cy="50" r="47" fill="url(#fbBallShade)"/>
     <ellipse cx="36" cy="28" rx="16" ry="9" fill="rgba(255,255,255,.35)" transform="rotate(-28 36 28)"/>
   </svg>`;
 }
@@ -8443,6 +8549,7 @@ function renderFootballPlaying(snap) {
       target.style.left = `${50 + snap.targetX}%`;
       target.style.top = `${50 + snap.targetY}%`;
       target.style.setProperty('--dx', snap.targetX >= 0 ? '1' : '-1');
+      target.style.setProperty('--spin', `${(snap.targetX * 9).toFixed(1)}deg`); // le ballon roule avec ton équilibre
       target.className = 'football-target' + (snap.roundResult === 'hit' ? ' hit' : snap.roundResult === 'miss' ? ' miss' : '');
     }
     const flash = document.getElementById('fbShotFlash');
