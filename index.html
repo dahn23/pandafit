@@ -120,6 +120,9 @@
   .game-hud .timer { font-size: 26px; color: #fff; background: rgba(10,14,50,.5); padding: 4px 14px; border-radius: 999px; display: flex; align-items: center; gap: 6px; line-height: 1.2; }
   .game-hud .timer svg { width: 22px; height: 22px; }
   .game-hud, .game-hint { pointer-events: none; }
+  .game-hud .timer, .lake-timer { font-size: 30px; font-weight: 900; font-style: italic; color: #fff; background: rgba(8,12,28,.88); border: 2px solid rgba(255,255,255,.28); padding: 5px 18px; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.35); font-variant-numeric: tabular-nums; }
+  .game-hud .hearts { background: rgba(8,12,28,.88); border: 2px solid rgba(255,255,255,.28); border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+  .game-hud .timer svg { width: 26px; height: 26px; }
   .market-streak .w { display: inline-block; padding: 0 16px; background: #ff6a13; color: #fff; transform: skewX(-10deg); text-shadow: none; }
   .market-streak { color: #fff; text-shadow: 0 6px 22px rgba(10,14,30,.6); }
   .shop-list { position: absolute; top: 118px; left: calc(min(46vw, 230px) + 14px); right: 14px; padding: 10px 12px 12px; background: #fbf3df; border-radius: 6px; box-shadow: 0 10px 26px rgba(40,24,8,.35); transform: rotate(-1.2deg); pointer-events: none; }
@@ -342,6 +345,43 @@
     85% { opacity: 1; }
     100% { left: 120%; opacity: 0; }
   }
+  .bf-page { display: flex; flex-direction: column; gap: 14px; padding-top: 4px; }
+  .bf-title { margin: 0; font-size: clamp(28px, 5.4vw, 40px); font-weight: 900; font-style: italic; text-transform: uppercase; letter-spacing: .01em; line-height: 1.05; }
+  .bf-lead { margin: 0; font-size: 17px; line-height: 1.45; color: var(--text-dim); }
+  .bf-lead p { margin: 0 0 6px; }
+  .bf-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .bf-stat, .bf-fact { font: inherit; color: #fff; text-align: left; cursor: pointer; border: none; border-radius: 14px; position: relative; overflow: hidden; }
+  .bf-stat { display: flex; flex-direction: column; gap: 2px; padding: 18px 14px 20px; background: linear-gradient(140deg, #ff7a1a, #e3471a); box-shadow: 0 8px 20px rgba(227,71,26,.3); }
+  .bf-stat svg { width: 24px; height: 24px; opacity: .9; margin-bottom: 4px; }
+  .bf-stat .bf-big { font-size: clamp(26px, 5vw, 38px); font-weight: 900; font-style: italic; line-height: 1.05; }
+  .bf-stat .bf-label { font-size: 13.5px; font-weight: 700; line-height: 1.25; opacity: .95; }
+  .bf-section { font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: #ffb15c; border-left: 6px solid #ff6a13; padding-left: 10px; margin-top: 2px; }
+  .bf-facts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .bf-fact { display: grid; grid-template-columns: 54px 1fr; grid-template-rows: auto auto; column-gap: 12px; align-items: center; padding: 22px 40px 22px 16px; background: linear-gradient(135deg, var(--panel-hi), var(--panel)); border: 1px solid rgba(255,255,255,.08); }
+  .bf-ic { grid-row: 1 / span 2; width: 54px; height: 54px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: rgba(67,206,162,.16); color: var(--primary); }
+  .bf-ic svg { width: 28px; height: 28px; }
+  .bf-fact .bf-big { font-size: clamp(24px, 4.4vw, 32px); font-weight: 900; font-style: italic; line-height: 1.05; color: #ffb21a; }
+  .bf-fact .bf-label { font-size: 14px; font-weight: 700; line-height: 1.25; color: var(--text); }
+  .bf-more { position: absolute; top: 10px; right: 10px; color: var(--text-dim); }
+  .bf-more svg { width: 18px; height: 18px; }
+  .bf-partners { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .bf-partners-t { width: 100%; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); }
+  .bf-chip { padding: 7px 14px; border-radius: 999px; background: var(--panel-hi); font-size: 14px; font-weight: 800; }
+  .bf-sheet { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center; background: rgba(5,6,16,.62); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .bf-sheet.open { opacity: 1; pointer-events: auto; }
+  .bf-sheet-card { width: min(100%, 680px); box-sizing: border-box; padding: 26px 26px 30px; background: #141a2e; border-radius: 24px 24px 0 0; border-top: 6px solid #ff6a13; transform: translateY(40px); transition: transform .25s; }
+  .bf-sheet.open .bf-sheet-card { transform: none; }
+  .bf-sheet-big { font-size: 54px; font-weight: 900; font-style: italic; color: #ffb21a; line-height: 1; }
+  .bf-sheet-label { font-size: 20px; font-weight: 800; margin: 6px 0 12px; color: #fff; }
+  .bf-sheet-text { font-size: 17px; line-height: 1.5; color: #d9deea; margin: 0 0 16px; }
+  .bf-sheet-ref { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.06); font-size: 14px; line-height: 1.45; color: #b8c0d4; font-style: italic; margin-bottom: 18px; }
+  .bf-sheet-ref svg { flex: none; width: 18px; height: 18px; margin-top: 2px; color: #ffb15c; }
+  .in-step { display: grid; grid-template-columns: 42% 1fr; gap: 16px; align-items: center; padding: 14px; border-radius: 18px; background: linear-gradient(135deg, var(--panel-hi), var(--panel)); }
+  .in-step img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 14px; }
+  .in-num { display: inline-flex; align-items: center; justify-content: center; min-width: 54px; height: 54px; padding: 0 12px; box-sizing: border-box; border-radius: 6px; background: #ff6a13; color: #fff; font-size: 34px; font-weight: 900; font-style: italic; transform: skewX(-8deg); margin-bottom: 10px; }
+  .in-step h3 { margin: 0 0 8px; font-size: 21px; font-weight: 900; font-style: italic; line-height: 1.15; }
+  .in-step p { margin: 0; font-size: 15.5px; line-height: 1.5; color: var(--text-dim); }
+  .in-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .info-page-body h2 { font-size: 17px; font-weight: 700; margin: 20px 0 8px; }
   .info-page-body p { font-size: 14px; line-height: 1.55; color: var(--text); margin: 0 0 10px; }
   .info-page-body ul { margin: 0 0 10px; padding-left: 20px; }
@@ -3048,6 +3088,33 @@ const UI_DICT_ROWS = [
   ["Prépare-toi, ça démarre dans...", "Mach dich bereit, es geht los in...", "Get ready, starting in...", "Preparati, si parte tra..."],
   // Slalom
   ["Balance le plateau de gauche à droite, à ton rythme : chaque balancement fait passer une porte. Plus tu es régulier, plus le panda va vite, mais les balancements trop petits coûtent 3 secondes.", "Schwinge die Plattform in deinem Rhythmus von links nach rechts: Jeder Schwung bringt dich durch ein Tor. Je regelmässiger du bist, desto schneller fährt der Panda, aber zu kleine Schwünge kosten 3 Sekunden.", "Swing the platform from left to right at your own pace: each swing takes you through a gate. The steadier you are, the faster the panda goes, but swings that are too small cost 3 seconds.", "Fai oscillare la piattaforma da sinistra a destra, al tuo ritmo: ogni oscillazione ti fa passare una porta. Più sei regolare, più il panda va veloce, ma le oscillazioni troppo piccole costano 3 secondi."],
+  ["L'équilibre se travaille à tout âge : quelques minutes suffisent. Touche une carte pour voir sa source.", "Gleichgewicht lässt sich in jedem Alter trainieren: Ein paar Minuten genügen. Tippe auf eine Karte, um die Quelle zu sehen.", "Balance can be trained at any age: a few minutes are enough. Tap a card to see its source.", "L'equilibrio si allena a ogni età: bastano pochi minuti. Tocca una scheda per vederne la fonte."],
+  ["cause d'accident en Suisse : les chutes et faux pas", "Unfallursache in der Schweiz: Stürze und Stolpern", "cause of accidents in Switzerland: slips and falls", "causa di infortuni in Svizzera: cadute e passi falsi"],
+  ["1re", "Nr. 1", "No. 1", "1ª"],
+  ["personnes blessées chaque année", "Verletzte pro Jahr", "people injured every year", "persone ferite ogni anno"],
+  ["1,4 mia", "1,4 Mrd.", "1.4 bn", "1,4 mia"],
+  ["de francs de coûts par an", "Franken Kosten pro Jahr", "francs in costs per year", "di franchi di costi all'anno"],
+  ["Ce que dit la science", "Was die Wissenschaft sagt", "What science says", "Cosa dice la scienza"],
+  ["d'entorses de la cheville", "Verstauchungen des Fussgelenks", "ankle sprains", "distorsioni della caviglia"],
+  ["Les exercices d'équilibre réduisent d'environ un tiers le risque d'entorse de la cheville.", "Gleichgewichtsübungen senken das Risiko einer Verstauchung des Fussgelenks um etwa ein Drittel.", "Balance exercises cut the risk of ankle sprains by about a third.", "Gli esercizi di equilibrio riducono di circa un terzo il rischio di distorsione della caviglia."],
+  ["de ruptures du ligament croisé", "Kreuzbandrisse", "cruciate ligament tears", "rotture del legamento crociato"],
+  ["Les entraînements d'équilibre et d'appuis réduisent d'environ moitié les ruptures du ligament croisé du genou, blessure typique du ski.", "Gleichgewichts- und Stütztraining halbiert etwa die Kreuzbandrisse im Knie, eine typische Skiverletzung.", "Balance and footwork training roughly halves knee cruciate ligament tears, a typical skiing injury.", "Gli allenamenti di equilibrio e di appoggio dimezzano circa le rotture del legamento crociato del ginocchio, infortunio tipico dello sci."],
+  ["de blessures au football", "Verletzungen im Fussball", "football injuries", "infortuni nel calcio"],
+  ["Les échauffements d'équilibre et de stabilité « FIFA 11+ » réduisent de 39 % les blessures des footballeurs.", "Aufwärmprogramme für Gleichgewicht und Stabilität «FIFA 11+» senken die Verletzungen von Fussballern um 39 %.", "\"FIFA 11+\" balance and stability warm-ups cut injuries in footballers by 39%.", "I riscaldamenti di equilibrio e stabilità «FIFA 11+» riducono del 39 % gli infortuni dei calciatori."],
+  ["de chutes après 60 ans", "Stürze ab 60 Jahren", "falls after age 60", "cadute dopo i 60 anni"],
+  ["Après 60 ans, faire de l'exercice réduit de 23 % le nombre de chutes, et de 24 % avec des exercices d'équilibre.", "Ab 60 Jahren senkt Bewegung die Zahl der Stürze um 23 %, mit Gleichgewichtsübungen um 24 %.", "After age 60, exercise cuts the number of falls by 23%, and by 24% with balance exercises.", "Dopo i 60 anni, l'esercizio riduce del 23 % il numero di cadute, e del 24 % con esercizi di equilibrio."],
+  ["de risque de chute en « double tâche »", "Sturzrisiko bei «Doppelaufgaben»", "fall risk when dual-tasking", "rischio di caduta nel «doppio compito»"],
+  ["Chez les seniors qui ont du mal à marcher en faisant autre chose, le risque de chute est multiplié par 5.", "Bei Senioren, die Mühe haben, beim Gehen etwas anderes zu tun, ist das Sturzrisiko 5-mal höher.", "In older adults who struggle to walk while doing something else, the risk of falling is 5 times higher.", "Negli anziani che faticano a camminare facendo altro, il rischio di caduta è 5 volte più alto."],
+  ["études : l'équilibre progresse avec l'attention", "Studien: Gleichgewicht verbessert sich mit Aufmerksamkeit", "studies: balance improves with attention", "studi: l'equilibrio migliora con l'attenzione"],
+  ["S'entraîner à garder l'équilibre tout en traitant une information améliore la stabilité dans près de 9 études d'entraînement sur 10.", "Gleichgewicht zu trainieren und dabei Informationen zu verarbeiten verbessert die Stabilität in fast 9 von 10 Trainingsstudien.", "Training balance while processing information improves stability in nearly 9 out of 10 training studies.", "Allenare l'equilibrio elaborando un'informazione migliora la stabilità in quasi 9 studi di allenamento su 10."],
+  ["respirations pour faire baisser le stress", "Atemzüge, um Stress abzubauen", "breaths to lower stress", "respiri per ridurre lo stress"],
+  ["Respirer lentement, à environ 6 cycles par minute, active le système nerveux de la détente.", "Langsames Atmen mit etwa 6 Zügen pro Minute aktiviert das Entspannungsnervensystem.", "Breathing slowly, at about 6 breaths per minute, activates the relaxation nervous system.", "Respirare lentamente, a circa 6 cicli al minuto, attiva il sistema nervoso del rilassamento."],
+  ["de concentration après un court effort", "Konzentration nach kurzer Anstrengung", "focus after a short burst of exercise", "di concentrazione dopo un breve sforzo"],
+  ["Un court effort physique améliore ensuite légèrement les performances mentales.", "Eine kurze körperliche Anstrengung verbessert danach leicht die geistige Leistung.", "A short burst of exercise slightly improves mental performance afterwards.", "Un breve sforzo fisico migliora poi leggermente le prestazioni mentali."],
+  ["Références et partenaires", "Referenzen und Partner", "References and partners", "Referenze e partner"],
+  ["En Suisse, les chutes et les faux pas sont la première cause d'accident, surtout pendant les loisirs.", "In der Schweiz sind Stürze und Stolpern die häufigste Unfallursache, vor allem in der Freizeit.", "In Switzerland, slips and falls are the leading cause of accidents, especially during leisure time.", "In Svizzera, cadute e passi falsi sono la prima causa di infortuni, soprattutto nel tempo libero."],
+  ["Fermer", "Schliessen", "Close", "Chiudi"],
+  ["Voir les jeux", "Spiele ansehen", "See the games", "Vedi i giochi"],
   ["RESTE DANS LE CERCLE", "BLEIB IM KREIS", "STAY IN THE CIRCLE", "RESTA NEL CERCHIO"],
   ["Stable et détendu !", "Stabil und locker!", "Steady and relaxed!", "Stabile e rilassato!"],
   ["SUIS LE FIL", "FOLGE DEM DRAHT", "FOLLOW THE WIRE", "SEGUI IL FILO"],
@@ -3686,7 +3753,7 @@ function render() {
     case 'indextest': launchIndexWithQuestionnaire(); break;
     case 'calibrate': content.innerHTML = screenCalibrateIntro(); wireCalibrateIntro(); break;
     case 'settings': content.innerHTML = screenSettings(); wireSettingsScreen(); break;
-    case 'benefits': content.innerHTML = screenInfoPage('benefits'); wireInfoPage(); break;
+    case 'benefits': content.innerHTML = screenInfoPage(); wireInfoPage(); break;
     case 'initiation': content.innerHTML = screenInitiationPage(); wireInfoPage(); break;
     default: content.innerHTML = screenHome(); wireHomeScreen();
   }
@@ -5161,35 +5228,122 @@ function wireSettingsScreen() {
 }
 
 /* ---------- Pages info : Les bienfaits du PandaFit / Initiation au PandaFit ---------- */
-function screenInfoPage(pageId) {
-  const page = infoPagesCatalog?.[pageId];
-  const title = pageId === 'benefits' ? t('benefits_card_label') : t('initiation_card_label');
+/* Les bienfaits du PandaFit : une page visuelle, sans défilement. Chaque carte s'ouvre pour montrer sa source scientifique (sans lien externe). */
+const BENEFIT_STATS = [
+  { icon: 'triangle-alert', big: '1re', label: "cause d'accident en Suisse : les chutes et faux pas" },
+  { icon: 'users', big: "200'000", label: 'personnes blessées chaque année' },
+  { icon: 'banknote', big: '1,4 mia', label: 'de francs de coûts par an' },
+];
+const BENEFIT_STATS_REF = 'Suva, prévention des chutes et faux pas : statistiques des accidents en Suisse.';
+const BENEFIT_FACTS = [
+  { icon: 'footprints', big: '−1/3', label: "d'entorses de la cheville",
+    text: "Les exercices d'équilibre réduisent d'environ un tiers le risque d'entorse de la cheville.",
+    ref: 'Hübscher M. et al. (2010). Neuromuscular training for sports injury prevention: a systematic review. Medicine & Science in Sports & Exercise, 42(3), 413-421.' },
+  { icon: 'mountain-snow', big: '−50 %', label: 'de ruptures du ligament croisé',
+    text: "Les entraînements d'équilibre et d'appuis réduisent d'environ moitié les ruptures du ligament croisé du genou, blessure typique du ski.",
+    ref: 'Webster K.E., Hewett T.E. (2018). Meta-analysis of meta-analyses of anterior cruciate ligament injury reduction training programs. Journal of Orthopaedic Research, 36(10), 2696-2708.' },
+  { icon: 'goal', big: '−39 %', label: 'de blessures au football',
+    text: "Les échauffements d'équilibre et de stabilité « FIFA 11+ » réduisent de 39 % les blessures des footballeurs.",
+    ref: 'Thorborg K. et al. (2017). Effect of specific exercise-based football injury prevention programmes on the overall injury rate in football: a systematic review and meta-analysis of the FIFA 11 and 11+ programmes. British Journal of Sports Medicine, 51(7), 562-571.' },
+  { icon: 'shield-check', big: '−23 %', label: 'de chutes après 60 ans',
+    text: "Après 60 ans, faire de l'exercice réduit de 23 % le nombre de chutes, et de 24 % avec des exercices d'équilibre.",
+    ref: 'Sherrington C. et al. (2019). Exercise for preventing falls in older people living in the community. Cochrane Database of Systematic Reviews, CD012424.' },
+  { icon: 'brain', big: '×5', label: 'de risque de chute en « double tâche »',
+    text: "Chez les seniors qui ont du mal à marcher en faisant autre chose, le risque de chute est multiplié par 5.",
+    ref: 'Beauchet O. et al. (2009). Stops walking when talking: a predictor of falls in older adults? European Journal of Neurology, 16(7), 786-795.' },
+  { icon: 'scan-eye', big: '9 / 10', label: "études : l'équilibre progresse avec l'attention",
+    text: "S'entraîner à garder l'équilibre tout en traitant une information améliore la stabilité dans près de 9 études d'entraînement sur 10.",
+    ref: 'Ghai S., Ghai I., Effenberg A.O. (2017). Effects of dual tasks and dual-task training on postural stability: a systematic review and meta-analysis. Clinical Interventions in Aging, 12, 557-577.' },
+  { icon: 'wind', big: '6 / min', label: 'respirations pour faire baisser le stress',
+    text: "Respirer lentement, à environ 6 cycles par minute, active le système nerveux de la détente.",
+    ref: 'Laborde S. et al. (2022). Effects of voluntary slow breathing on heart rate and heart rate variability: a systematic review and a meta-analysis. Neuroscience & Biobehavioral Reviews, 138, 104711.' },
+  { icon: 'lightbulb', big: '+', label: "de concentration après un court effort",
+    text: "Un court effort physique améliore ensuite légèrement les performances mentales.",
+    ref: 'Chang Y.K. et al. (2012). The effects of acute exercise on cognitive performance: a meta-analysis. Brain Research, 1453, 87-101.' },
+];
+const BENEFIT_PARTNERS = ['JOJ Lausanne 2020', 'Suva', 'FISU', 'OFSP', 'EPFL'];
+
+function screenInfoPage() {
   return `
-    <button class="btn-ghost" id="btnInfoPageBack" style="margin-bottom:14px;">← Retour</button>
-    <h1 class="page-title">${title}</h1>
-    <div class="info-page-body">${pickLang(page, 'body') || ''}</div>
+    <button class="btn-ghost back-top" id="btnInfoPageBack">← Retour</button>
+    <div class="bf-page">
+      <h1 class="bf-title">${t('benefits_card_label')}</h1>
+      <p class="bf-lead">L'équilibre se travaille à tout âge : quelques minutes suffisent. Touche une carte pour voir sa source.</p>
+      <div class="bf-stats">
+        ${BENEFIT_STATS.map((s, i) => `<button class="bf-stat" data-stat="${i}"><i data-lucide="${s.icon}"></i><span class="bf-big">${s.big}</span><span class="bf-label">${s.label}</span></button>`).join('')}
+      </div>
+      <div class="bf-section">Ce que dit la science</div>
+      <div class="bf-facts">
+        ${BENEFIT_FACTS.map((f, i) => `<button class="bf-fact" data-fact="${i}">
+          <span class="bf-ic"><i data-lucide="${f.icon}"></i></span>
+          <span class="bf-big">${f.big}</span>
+          <span class="bf-label">${f.label}</span>
+          <span class="bf-more"><i data-lucide="book-open"></i></span>
+        </button>`).join('')}
+      </div>
+      <div class="bf-partners">
+        <span class="bf-partners-t">Références et partenaires</span>
+        ${BENEFIT_PARTNERS.map(p => `<span class="bf-chip">${p}</span>`).join('')}
+      </div>
+    </div>
+    <div class="bf-sheet" id="bfSheet"><div class="bf-sheet-card">
+      <div class="bf-sheet-big" id="bfSheetBig"></div>
+      <div class="bf-sheet-label" id="bfSheetLabel"></div>
+      <p class="bf-sheet-text" id="bfSheetText"></p>
+      <div class="bf-sheet-ref"><i data-lucide="book-open"></i><span id="bfSheetRef"></span></div>
+      <button class="btn-primary" id="bfSheetClose">Fermer</button>
+    </div></div>
   `;
 }
+
+/** Initiation : deux étapes en grand, avec leurs photos (contenu modifiable dans la console) */
 function screenInitiationPage() {
   const page = infoPagesCatalog?.initiation;
   return `
-    <button class="btn-ghost" id="btnInfoPageBack" style="margin-bottom:14px;">← Retour</button>
-    <h1 class="page-title">${t('initiation_card_label')}</h1>
-    <div class="info-page-body">${pickLang(page, 'body') || ''}</div>
-    ${initiationSteps.map((step, i) => `
-      <div class="initiation-step">
-        ${step.image_url ? `<img src="${step.image_url}" alt="">` : ''}
-        <div class="initiation-step-text">
-          <h3>${pickLang(step, 'title') || `Étape ${i + 1}`}</h3>
-          <p>${pickLang(step, 'body') || ''}</p>
+    <button class="btn-ghost back-top" id="btnInfoPageBack">← Retour</button>
+    <div class="bf-page">
+      <h1 class="bf-title">${t('initiation_card_label')}</h1>
+      <div class="bf-lead in-lead">${pickLang(page, 'body') || ''}</div>
+      ${initiationSteps.map((step, i) => `
+        <div class="in-step">
+          ${step.image_url ? `<img src="${step.image_url}" alt="">` : ''}
+          <div class="in-step-text">
+            <div class="in-num">${i + 1}</div>
+            <h3>${(pickLang(step, 'title') || '').replace(/^[^\d—–-]{1,14}\d+\s*[—–-]\s*/, '')}</h3>
+            <p>${pickLang(step, 'body') || ''}</p>
+          </div>
         </div>
+      `).join('')}
+      ${pickLang(page, 'footer') ? `<div class="bf-lead">${pickLang(page, 'footer')}</div>` : ''}
+      <div class="in-actions">
+        <button class="btn-primary" id="btnInitIndex">Passer mon PandaFit Index</button>
+        <button class="btn-ghost" id="btnInitGames">Voir les jeux</button>
       </div>
-    `).join('')}
-    <div class="info-page-body">${pickLang(page, 'footer') || ''}</div>
+    </div>
   `;
 }
 function wireInfoPage() {
   document.getElementById('btnInfoPageBack')?.addEventListener('click', () => navigate('home'));
+  document.getElementById('btnInitIndex')?.addEventListener('click', () => navigate('indextest'));
+  document.getElementById('btnInitGames')?.addEventListener('click', () => navigate('games'));
+  const sheet = document.getElementById('bfSheet');
+  if (!sheet) return;
+  const open = (big, label, text, ref) => {
+    document.getElementById('bfSheetBig').textContent = big;
+    document.getElementById('bfSheetLabel').textContent = label;
+    document.getElementById('bfSheetText').textContent = text;
+    document.getElementById('bfSheetRef').textContent = ref;
+    sheet.classList.add('open');
+  };
+  document.querySelectorAll('.bf-fact').forEach(b => b.addEventListener('click', () => {
+    const f = BENEFIT_FACTS[+b.dataset.fact];
+    open(f.big, f.label, f.text, f.ref);
+  }));
+  document.querySelectorAll('.bf-stat').forEach(b => b.addEventListener('click', () => {
+    const s = BENEFIT_STATS[+b.dataset.stat];
+    open(s.big, s.label, "En Suisse, les chutes et les faux pas sont la première cause d'accident, surtout pendant les loisirs.", BENEFIT_STATS_REF);
+  }));
+  sheet.addEventListener('click', (e) => { if (e.target === sheet || e.target.id === 'bfSheetClose') sheet.classList.remove('open'); });
 }
 
 /* ============================ Jeu : Marché Express ============================ */
@@ -7273,7 +7427,7 @@ function wireFootballSetup() {
   document.getElementById('btnFootballStart')?.addEventListener('click', () => footballPrepareThenStart());
   document.getElementById('btnFootballBackTop')?.addEventListener('click', () => navigate('home'));
 }
-const FOOTBALL_COUNTDOWN = false; // temporaire, pour les tests de Dan : remettre à true pour retrouver le 3-2-1
+const FOOTBALL_COUNTDOWN = true; // décompte 3-2-1 sur la scène, comme les autres jeux
 function footballPrepareThenStart() { startFootballGame(FOOTBALL_COUNTDOWN); }
 
 let footballLastPhase = null;
