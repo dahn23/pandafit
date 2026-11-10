@@ -5315,17 +5315,11 @@ function screenInitiationPage() {
         </div>
       `).join('')}
       ${pickLang(page, 'footer') ? `<div class="bf-lead">${pickLang(page, 'footer')}</div>` : ''}
-      <div class="in-actions">
-        <button class="btn-primary" id="btnInitIndex">Passer mon PandaFit Index</button>
-        <button class="btn-ghost" id="btnInitGames">Voir les jeux</button>
-      </div>
     </div>
   `;
 }
 function wireInfoPage() {
   document.getElementById('btnInfoPageBack')?.addEventListener('click', () => navigate('home'));
-  document.getElementById('btnInitIndex')?.addEventListener('click', () => navigate('indextest'));
-  document.getElementById('btnInitGames')?.addEventListener('click', () => navigate('games'));
   const sheet = document.getElementById('bfSheet');
   if (!sheet) return;
   const open = (big, label, text, ref) => {
