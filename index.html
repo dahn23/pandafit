@@ -131,6 +131,24 @@
   .tv-split-l { font-size: 16px; letter-spacing: .08em; opacity: .9; }
   .tv-split-t { font-size: 27px; font-variant-numeric: tabular-nums; }
   .tv-split.flash { animation: tvSplit .9s ease-out; }
+  .tv-board { position: absolute; left: 4%; bottom: 96px; width: min(560px, 74%); transform: skewX(-10deg); pointer-events: none; visibility: hidden; filter: drop-shadow(0 12px 22px rgba(0,0,0,.45)); }
+  .tv-board.show { visibility: visible; }
+  .tv-board > * { transform: translateX(-130%); opacity: 0; }
+  .tv-board.show > * { animation: tvRowIn .5s cubic-bezier(.2,1,.3,1) forwards; animation-delay: calc(var(--i, -1) * 110ms + 110ms); }
+  @keyframes tvRowIn { to { transform: none; opacity: 1; } }
+  .tv-board-h { background: #ff6a13; color: #fff; font-weight: 900; font-style: italic; letter-spacing: .1em; font-size: 17px; padding: 6px 16px; width: max-content; }
+  .tv-row { display: flex; align-items: center; height: 46px; background: linear-gradient(100deg, #0d1322, #1b2438); color: #fff; font-weight: 900; font-style: italic; border-top: 1px solid rgba(255,255,255,.08); }
+  .tv-row .rk { width: 50px; align-self: stretch; display: flex; align-items: center; justify-content: center; background: #fff; color: #10131d; font-size: 24px; }
+  .tv-row .fl { width: 30px; align-self: stretch; margin-left: 8px; background: #d52b1e; position: relative; }
+  .tv-row .fl::before, .tv-row .fl::after { content: ''; position: absolute; left: 50%; top: 50%; background: #fff; transform: translate(-50%, -50%); }
+  .tv-row .fl::before { width: 18px; height: 5px; } .tv-row .fl::after { width: 5px; height: 18px; }
+  .tv-row .nm { flex: 1; min-width: 0; padding: 0 14px; font-size: 21px; letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tv-row .tm { padding: 0 12px; font-size: 24px; font-variant-numeric: tabular-nums; }
+  .tv-row .gap { width: 84px; padding-right: 12px; text-align: right; font-size: 18px; color: #ffcf1a; font-variant-numeric: tabular-nums; }
+  .tv-row.me { background: linear-gradient(100deg, #ffd23a, #ffb000); color: #10131d; height: 54px; }
+  .tv-row.me .rk { background: #d52b1e; color: #fff; font-size: 30px; }
+  .tv-row.me .gap { color: #8a1020; }
+  .tv-board-best { background: #d52b1e; color: #fff; padding: 7px 16px; font-weight: 900; font-style: italic; font-size: 20px; letter-spacing: .06em; width: max-content; }
   @keyframes tvSplit { 0% { background: #fff; color: #10131d; } 30% { background: #ffcf1a; color: #10131d; } 100% { background: #ff6a13; color: #fff; } }
   .game-hud .timer, .lake-timer { font-size: 30px; font-weight: 900; font-style: italic; color: #fff; background: rgba(8,12,28,.88); border: 2px solid rgba(255,255,255,.28); padding: 5px 18px; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.35); font-variant-numeric: tabular-nums; }
   .game-hud .hearts { background: rgba(8,12,28,.88); border: 2px solid rgba(255,255,255,.28); border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
@@ -998,6 +1016,9 @@ const PandaFitBackend = (() => {
     try { return await rpc('tablet_event_rank', { p_device_key: getDeviceKey(), p_event_code: activeEvent.code, p_score: Math.round(score || 0) }); }
     catch (e) { return null; }
   }
+  async function skiBoard() {
+    try { return await rpc('tablet_ski_board', { p_device_key: getDeviceKey() }); } catch (e) { return null; }
+  }
   async function setPseudo(sessionId, pseudo) {
     return await rpc('tablet_set_pseudo', { p_device_key: getDeviceKey(), p_session_id: sessionId, p_pseudo: pseudo });
   }
@@ -1255,7 +1276,7 @@ const PandaFitBackend = (() => {
     } catch (e) { console.error('submitArcadeScore a échoué:', e); return false; }
   }
 
-  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore, fetchSatisfactionSettings, submitSatisfactionResponse, setHomeDisplayMode, fetchTabletSignals, joinEvent, tabletState, joinProject, projectAction, liveStats, eventRank, setPseudo, fetchCampaign, campaignProgress };
+  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore, fetchSatisfactionSettings, submitSatisfactionResponse, setHomeDisplayMode, fetchTabletSignals, joinEvent, tabletState, joinProject, projectAction, liveStats, eventRank, skiBoard, setPseudo, fetchCampaign, campaignProgress };
 })();
 
 /* =====================================================================================
@@ -2380,7 +2401,7 @@ const SlalomGame = (() => {
   const REF_START = 1.6, REF_MIN = 1, REF_MAX = 6;
   const AMP_OK = 1.2;                         // ampleur minimale attendue (à régler sur le vrai plateau)
   const WARN_S = 3, PENALTY_S = 3, COOLDOWN_S = 6; // avertissement, puis +3 s si ça continue ; jamais deux pénalités coup sur coup
-  const IDLE_S = 3, RUNOUT_MS = 3200, MAX_MS = 150000; // RUNOUT : le temps de le voir lever les bras
+  const IDLE_S = 3, RUNOUT_MS = 5600, MAX_MS = 150000; // RUNOUT : le temps de le voir lever les bras
 
   let s = null, latestX = 0, tickTimer = null, onFrameCb = null, onFinishCb = null;
   function onSensorData(d) { latestX = d.x / 200; }
@@ -2506,7 +2527,7 @@ const SlalomGame = (() => {
     const idle = !s.finished && (now - s.lastPeakAt) / 1000 > IDLE_S;
     const half = Math.max(250, median(s.intervals) || 700);
     const world = s.finished
-      ? s.finishWorld + Math.min(1, (now - s.finishAt) / RUNOUT_MS) * 2.4
+      ? s.finishWorld + Math.min(1, (now - s.finishAt) / 3200) * 2.4
       : s.world + Math.min(0.92, (now - s.lastPeakAt) / half) * s.step;
     // Portes déjà passées encore visibles + prochaines portes, une par balancement
     const gatesView = s.results.slice(-3).map(r => ({ world: r.world, side: r.side, i: r.i, warm: r.i < WARM_SWINGS }));
@@ -3128,6 +3149,10 @@ const UI_DICT_ROWS = [
   ["Fermer", "Schliessen", "Close", "Chiudi"],
   ["Voir les jeux", "Spiele ansehen", "See the games", "Vedi i giochi"],
   ["PANDAFIT · ARRIVÉE", "PANDAFIT · ZIEL", "PANDAFIT · FINISH", "PANDAFIT · ARRIVO"],
+  ["CLASSEMENT DU JOUR", "TAGESWERTUNG", "TODAY'S STANDINGS", "CLASSIFICA DEL GIORNO"],
+  ["MEILLEUR TEMPS DU JOUR !", "TAGESBESTZEIT!", "FASTEST TIME TODAY!", "MIGLIOR TEMPO DEL GIORNO!"],
+  ["PREMIER TEMPS DU JOUR !", "ERSTE ZEIT DES TAGES!", "FIRST TIME OF THE DAY!", "PRIMO TEMPO DEL GIORNO!"],
+  ["COLLÈGUE", "KOLLEGE", "COLLEAGUE", "COLLEGA"],
   ["ARRIVÉE", "ZIEL", "FINISH", "ARRIVO"],
   ["RESTE DANS LE CERCLE", "BLEIB IM KREIS", "STAY IN THE CIRCLE", "RESTA NEL CERCHIO"],
   ["Stable et détendu !", "Stabil und locker!", "Steady and relaxed!", "Stabile e rilassato!"],
@@ -6963,6 +6988,15 @@ const SkiScene = (() => {
     if (g.world < st.s - .3) return; // une fois dépassé, le piquet disparaît (il ne traverse pas le panda)
     const base = project(g.world, g.side * POLE);
     if (!base) return;
+    const tip = project(g.world - .2, g.side * POLE - 10), mid = project(g.world - .13, g.side * POLE - 6.5);
+    if (tip && mid) {
+      ctx.fillStyle = 'rgba(60,90,135,.17)';
+      ctx.beginPath();
+      ctx.moveTo(base.x - U * .4 * base.P, base.y); ctx.lineTo(base.x + U * .4 * base.P, base.y);
+      ctx.lineTo(tip.x + U * .7 * tip.P, tip.y); ctx.lineTo(tip.x - U * .7 * tip.P, tip.y); ctx.closePath(); ctx.fill();
+      const fw = g.side * U * 9 * mid.P;
+      ctx.beginPath(); ctx.moveTo(mid.x, mid.y); ctx.lineTo(tip.x, tip.y); ctx.lineTo(tip.x + fw, tip.y); ctx.lineTo(mid.x + fw, mid.y); ctx.closePath(); ctx.fill();
+    }
     const passed = st.s - g.world;
     const tilt = passed > 0 ? g.side * .62 * Math.exp(-passed * 7) : 0; // le skieur pousse le piquet en passant
     ctx.save();
@@ -7196,6 +7230,92 @@ const SkiScene = (() => {
       if (q) { ctx.fillStyle = '#ffcf1a'; ctx.beginPath(); ctx.arc(q[0], q[1], Math.max(2, U * .7 * q[2]), 0, Math.PI * 2); ctx.fill(); }
     });
   }
+  /** Cabane de départ : murs en bois, toit enneigé, bandeau START et portillon qui s'ouvre au GO */
+  function drawStartHouse(t) {
+    const { ctx, U } = st;
+    const sB = .3, HW = 19, TH = 3, HH = 44, DP = .07;
+    if (!P3(sB, 0, 0)) return;
+    // deux piliers en bois, avec leur épaisseur
+    [-1, 1].forEach(sd => {
+      const xi = sd * HW, xo = sd * (HW + TH);
+      poly([P3(sB, xi, 0), P3(sB + DP, xi, 0), P3(sB + DP, xi, HH), P3(sB, xi, HH)], '#5b341a');
+      const a = P3(sB, Math.min(xi, xo), 0), b = P3(sB, Math.max(xi, xo), 0);
+      if (!a || !b) return;
+      const g = ctx.createLinearGradient(a[0], 0, b[0], 0);
+      g.addColorStop(0, '#7a4a26'); g.addColorStop(.5, '#a8703f'); g.addColorStop(1, '#6e4122');
+      poly([a, b, P3(sB, Math.max(xi, xo), HH), P3(sB, Math.min(xi, xo), HH)], g);
+      ctx.strokeStyle = 'rgba(40,20,8,.35)'; ctx.lineWidth = Math.max(1, U * .25 * a[2]);
+      for (let k = 1; k < 10; k++) {
+        const p = P3(sB, Math.min(xi, xo), k * HH / 10), q = P3(sB, Math.max(xi, xo), k * HH / 10);
+        if (p && q) { ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); }
+      }
+      // petit chapeau de neige
+      const c1 = P3(sB, xi - sd * .6, HH), c2 = P3(sB, xo + sd * .6, HH);
+      if (c1 && c2) { ctx.fillStyle = '#f4f8fc'; ctx.beginPath(); ctx.ellipse((c1[0] + c2[0]) / 2, c1[1], Math.abs(c2[0] - c1[0]) / 2, U * 1.1 * c1[2], 0, Math.PI, 0); ctx.fill(); }
+    });
+    // bandeau START
+    const l = P3(sB, -HW, HH - 8), r = P3(sB, HW, HH - 8), tl = P3(sB, -HW, HH - 1.6);
+    if (l && r && tl) {
+      const w = r[0] - l[0], h = l[1] - tl[1];
+      const g = ctx.createLinearGradient(0, tl[1], 0, l[1]);
+      g.addColorStop(0, '#ef2a3c'); g.addColorStop(1, '#a10f20');
+      ctx.fillStyle = g; ctx.fillRect(l[0], tl[1], w, h);
+      ctx.fillStyle = '#fff'; ctx.font = `italic 900 ${Math.round(h * .66)}px Montserrat, system-ui, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('START', l[0] + w / 2, tl[1] + h * .54);
+      // feux du départ : rouges pendant le décompte, verts au GO
+      const on = st.goT != null;
+      [-1, 1].forEach(sd => {
+        const x = l[0] + w / 2 + sd * w * .36, y = tl[1] + h * .5, rr = h * .2;
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x, y, rr * 1.3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = on ? '#3dff7a' : (Math.sin(t * 6) > 0 ? '#ff3b3b' : '#7a1010');
+        ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.fill();
+      });
+    }
+    // portillon de départ : la barre pivote vers l'avant au GO
+    const k = st.goT == null ? 0 : Math.min(1, (t - st.goT) / .45);
+    const ang = (1 - Math.pow(1 - k, 3)) * 1.35, L = 2 * HW - 1.5;
+    const p0 = P3(sB, -HW + .6, 6), p1 = P3(sB + Math.sin(ang) * L / 34, -HW + .6 + Math.cos(ang) * L, 6);
+    const post = P3(sB, -HW + .6, 0);
+    if (p0 && p1 && post) {
+      ctx.strokeStyle = '#2b2f3a'; ctx.lineWidth = Math.max(2, U * 1.1 * p0[2]);
+      ctx.beginPath(); ctx.moveTo(post[0], post[1]); ctx.lineTo(p0[0], p0[1] - U * 1.5 * p0[2]); ctx.stroke();
+      ctx.lineCap = 'round'; ctx.lineWidth = Math.max(2, U * 1.1 * p0[2]);
+      ctx.strokeStyle = '#ffcf1a'; ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+      ctx.setLineDash([U * 2.4 * p0[2], U * 2.4 * p0[2]]); ctx.strokeStyle = '#16181d';
+      ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+      ctx.setLineDash([]); ctx.lineCap = 'butt';
+    }
+  }
+  /** Effet de vitesse : traînées blanches sur les bords de l'image */
+  function paintSpeedEdges(t) {
+    if (st.speedN < .05) return;
+    const { ctx, W, H, U } = st;
+    const a = st.speedN;
+    const g = ctx.createRadialGradient(W / 2, H * .55, Math.min(W, H) * .32, W / 2, H * .55, Math.hypot(W, H) * .62);
+    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, `rgba(235,244,255,${(a * .45).toFixed(3)})`);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = `rgba(255,255,255,${(a * .55).toFixed(3)})`; ctx.lineCap = 'round';
+    for (let i = 0; i < 26; i++) {
+      const side = i % 2 ? 1 : -1;
+      const ph = (t * (1.6 + a * 2.6) + pfHash(i + 70)) % 1;
+      const x = side > 0 ? W - pfHash(i + 71) * W * .16 : pfHash(i + 71) * W * .16;
+      const y = mix(H * .25, H * 1.05, ph), len = U * (6 + 16 * a) * (.5 + ph);
+      ctx.lineWidth = Math.max(1, U * .3 * (.4 + ph));
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + side * len * .25, y + len); ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
+  }
+  /** Arrivée façon retransmission : bandes cinéma et flash blanc au passage de la ligne */
+  function paintFinishCinema(step) {
+    const { ctx, W, H } = st;
+    st.finT += step;
+    const k = Math.min(1, st.finT * 2.5), bar = H * .065 * (1 - Math.pow(1 - k, 3));
+    ctx.fillStyle = '#05070d';
+    ctx.fillRect(0, 0, W, bar); ctx.fillRect(0, H - bar, W, bar);
+    if (st.finT < .35) { ctx.fillStyle = `rgba(255,255,255,${((1 - st.finT / .35) * .75).toFixed(3)})`; ctx.fillRect(0, 0, W, H); }
+  }
+
   /** Feux d'artifice au-dessus de l'arrivée, une fois la ligne franchie */
   function paintFireworks(step, t) {
     const { ctx, W, H, U } = st;
@@ -7230,7 +7350,9 @@ const SkiScene = (() => {
     ctx.save();
     ctx.translate(x, py);
     ctx.fillStyle = 'rgba(70,100,140,.3)';
-    ctx.beginPath(); ctx.ellipse(-U * 1.5, U * .8, U * 12, U * 2.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-U * 1.5, U * .8, U * 10, U * 2.2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(60,90,135,.17)';
+    ctx.beginPath(); ctx.ellipse(-U * 10, U * 3.4, U * 15, U * 3.2, -.12, 0, Math.PI * 2); ctx.fill();
     [-1, 1].forEach(s => {
       ctx.save();
       ctx.translate(s * U * 4.6, 0);
@@ -7327,6 +7449,7 @@ const SkiScene = (() => {
     if (!snap) { st.ctx.drawImage(st.sky, 0, 0); paintGround(t); paintPanda(st.W / 2, t); return; }
     const { ctx, W, U } = st;
     st.s += (snap.world - st.s) * (1 - Math.exp(-step * 11));
+    if (st.goT == null && snap.elapsedMs > 0) st.goT = t; // le portillon s'ouvre au GO
     st.prevLat = st.lat;
     st.lat += ((st.s > snap.distance ? 0 : snap.lateral) - st.lat) * (1 - Math.exp(-step * 15));
     const pandaXU = st.lat * TURN;
@@ -7341,7 +7464,8 @@ const SkiScene = (() => {
     bgFill.addColorStop(0, '#2a6fc4'); bgFill.addColorStop(HORIZON, '#dbeefa'); bgFill.addColorStop(1, '#e8f1fa');
     ctx.fillStyle = bgFill; ctx.fillRect(0, 0, W, st.H);
     ctx.save();
-    ctx.translate(W / 2, st.py); ctx.rotate(-st.lat * .055); ctx.scale(1 + st.speedN * .05, 1 + st.speedN * .05); ctx.translate(-W / 2, -st.py);
+    const shake = st.speedN > .4 && st.s < snap.distance ? U * .35 * (st.speedN - .4) : 0; // la caméra vibre un peu à grande vitesse
+    ctx.translate(W / 2 + (Math.random() - .5) * shake, st.py + (Math.random() - .5) * shake); ctx.rotate(-st.lat * .055); ctx.scale(1 + st.speedN * .05, 1 + st.speedN * .05); ctx.translate(-W / 2, -st.py);
     ctx.drawImage(st.sky, 0, 0);
     paintGround(t);
     paintFinishFloor();
@@ -7369,6 +7493,7 @@ const SkiScene = (() => {
     snap.gatesView.forEach(g => items.push([g.world, () => drawGate(g, t)]));
     if (finishS >= st.s) items.push([finishS, () => drawFinish(finishS)]);
     items.push([snap.distance + FINISH_DEPTH + 2, () => drawBackStand(t, excite)]);
+    if (st.s < 2.5) items.push([.3, () => drawStartHouse(t)]);
     items.sort((a, b) => b[0] - a[0]).forEach(([, draw]) => draw());
 
     paintSpray(step);
@@ -7376,11 +7501,13 @@ const SkiScene = (() => {
     if (finishS < st.s) drawFinish(finishS);
     paintSpeedSnow(t);
     ctx.restore();
+    if (st.s <= snap.distance) paintSpeedEdges(t);
     if (st.s > snap.distance) paintFireworks(step, t);
     paintFlare();
     paintVignette(ctx, W, st.H, '8,18,40', .26);
     if (snap.penaltyNow) paintVignette(ctx, W, st.H, '225,20,45', .62);
     else if (snap.warned) paintVignette(ctx, W, st.H, '255,170,0', .3 + Math.sin(t * 12) * .1);
+    if (st.s > snap.distance) paintFinishCinema(step);
   }
 
   function start() {
@@ -7391,7 +7518,7 @@ const SkiScene = (() => {
     const hz = Math.round(g.H * HORIZON);
     snap = null; lastSeq = 0;
     st = {
-      ...g, hz, py: g.H * PANDA_Y, s: 0, lat: 0, prevLat: 0, trail: [], spray: [], speedN: 0, fw: [], fwTimer: 0,
+      ...g, hz, py: g.H * PANDA_Y, s: 0, lat: 0, prevLat: 0, trail: [], spray: [], speedN: 0, fw: [], fwTimer: 0, goT: null, finT: 0,
       sky: layerCanvas(g.W, hz, paintBackdrop),
       trees: [5, 13, 27].map(v => layerCanvas(200, 300, paintTreeVariant(v))),
       crowd: layerCanvas(460, 260, paintCrowd),
@@ -7424,6 +7551,7 @@ function screenSkiPlaying() {
       <div class="game-hint" id="skiHint">Balance le plateau de gauche à droite, à ton rythme.</div>
       <div class="ski-reg"><i data-lucide="activity"></i><div class="ski-reg-bar"><div id="skiRegFill"></div></div></div>
       <div class="stadium-flash" id="skiFlash"></div>
+      <div class="tv-board" id="skiBoard"></div>
       <div class="tv-bar">
         <span class="tv-flag"></span><span class="tv-bib">10</span><span class="tv-name">PANDA</span>
         <span class="tv-split" id="tvSplit"><span class="tv-split-l" id="tvSplitL">INTER</span> <span class="tv-split-t" id="tvSplitT">--</span></span>
@@ -7483,6 +7611,7 @@ function renderSkiPlaying(snap) {
   [1 / 3, 2 / 3, 1].forEach((m, k) => {
     if (skiSplits[k] || !(k === 2 ? snap.finished : snap.world >= snap.distance * m)) return;
     skiSplits[k] = snap.elapsedMs;
+    if (k === 2) { const myMs = snap.elapsedMs; PandaFitBackend.skiBoard().then(b => setTimeout(() => showSkiBoard(b, myMs), 600)); }
     const l = document.getElementById('tvSplitL'), tt = document.getElementById('tvSplitT'), box = document.getElementById('tvSplit');
     if (!l || !tt || !box) return;
     const secs = snap.elapsedMs / 1000;
@@ -7496,6 +7625,32 @@ function renderSkiPlaying(snap) {
     flash.className = 'stadium-flash show hit';
   }
   SkiScene.update(snap);
+}
+/** Classement du jour façon télé, affiché pendant la décélération après la ligne */
+function skiTimeStr(ms) {
+  const s = ms / 1000;
+  return `${Math.floor(s / 60)}:${(s % 60).toFixed(2).padStart(5, '0')}`;
+}
+function showSkiBoard(board, myMs) {
+  const el = document.getElementById('skiBoard');
+  if (!el || el.dataset.done) return;
+  el.dataset.done = '1';
+  const others = (board?.times || []).map(o => ({ ms: Number(o.ms), name: (o.pseudo || 'Collègue').toUpperCase() }));
+  const list = [...others, { ms: myMs, name: 'PANDA', me: true }].sort((a, b) => a.ms - b.ms || (a.me ? 1 : -1));
+  const myRank = list.findIndex(r => r.me) + 1;
+  let rows = list.slice(0, 5).map((r, i) => ({ ...r, rank: i + 1 }));
+  if (myRank > 5) rows = [...rows.slice(0, 4), { ...list[myRank - 1], rank: myRank }];
+  const lead = list[0].ms;
+  const banner = !board ? '' : (myRank === 1 ? (board.runs ? 'MEILLEUR TEMPS DU JOUR !' : 'PREMIER TEMPS DU JOUR !') : '');
+  el.innerHTML = `
+    <div class="tv-board-h">CLASSEMENT DU JOUR</div>
+    ${rows.map((r, i) => `<div class="tv-row${r.me ? ' me' : ''}" style="--i:${i}">
+      <span class="rk">${r.rank}</span>${r.me ? '<span class="fl"></span>' : ''}<span class="nm"></span>
+      <span class="tm">${skiTimeStr(r.ms)}</span><span class="gap">${r.ms === lead ? '' : `+${((r.ms - lead) / 1000).toFixed(2)}`}</span>
+    </div>`).join('')}
+    ${banner ? `<div class="tv-board-best" style="--i:${rows.length}">${banner}</div>` : ''}`;
+  el.querySelectorAll('.nm').forEach((n, i) => { n.textContent = rows[i].name; }); // pseudo saisi par un joueur : jamais en HTML
+  requestAnimationFrame(() => el.classList.add('show'));
 }
 function screenSkiResult(snap, score) {
   const secs = snap.elapsedMs / 1000;
