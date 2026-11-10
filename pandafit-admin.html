@@ -3968,7 +3968,8 @@ async function renderParcView() {
         ${(all || []).map(d => `<tr><td><b>${escA(d.name)}</b></td>
           <td>${d.projects ? `${escA(d.projects.clients?.name || '')} · <span class="badge">${d.projects.code}</span>` : '<span style="color:var(--text-dim);">au parc</span>'}</td>
           <td>${d.project_id ? posteName(d.poste) : '—'}</td><td>${seenLabel(d)}</td>
-          <td>${d.project_id ? `<button class="btn-ghost" data-unassign="${d.id}">Retour au parc</button>` : `<button class="btn-ghost" data-del-dev="${d.id}">Supprimer</button>`}</td></tr>`).join('')}
+          <td style="white-space:nowrap;"><span data-key-slot="${d.id}"><button class="btn-ghost" data-show-key="${d.id}">Afficher la clé</button></span>
+            ${d.project_id ? `<button class="btn-ghost" data-unassign="${d.id}">Retour au parc</button>` : `<button class="btn-ghost" data-del-dev="${d.id}">Supprimer</button>`}</td></tr>`).join('')}
       </table>
     </div>
     <div class="card">
@@ -3978,6 +3979,15 @@ async function renderParcView() {
       <div id="newDeviceKey"></div>
     </div>`;
   document.getElementById('btnBackProjects').addEventListener('click', () => { editingProjectId = null; renderProjectsView(); });
+  // clé de la tablette, à ressaisir après une réinstallation (superadmin seulement) ; elle se masque d'elle-même après 1 minute
+  main.querySelectorAll('[data-show-key]').forEach(b => b.addEventListener('click', () => {
+    const d = (all || []).find(x => x.id === b.dataset.showKey);
+    const slot = main.querySelector(`[data-key-slot="${b.dataset.showKey}"]`);
+    if (!d || !slot) return;
+    const original = slot.innerHTML;
+    slot.innerHTML = `<span class="badge" style="font-size:15px;user-select:all;cursor:text;margin-right:6px;" title="Cliquer pour sélectionner">${escA(d.device_key)}</span>`;
+    setTimeout(() => { if (slot.isConnected) { slot.innerHTML = original; slot.querySelector('[data-show-key]')?.addEventListener('click', () => b.click()); } }, 60000);
+  }));
   main.querySelectorAll('[data-unassign]').forEach(b => b.addEventListener('click', async () => {
     if (!confirm('Renvoyer cette tablette au parc PandaFit ?')) return;
     const { error } = await sb.rpc('staff_assign_device', { p_device: b.dataset.unassign, p_project: null });
@@ -3995,7 +4005,7 @@ async function renderParcView() {
     const { error } = await sb.from('devices').insert({ client_id: PARC_CLIENT_ID, name, device_key });
     if (error) { alert('Erreur : ' + error.message); return; }
     await renderParcView();
-    document.getElementById('newDeviceKey').innerHTML = `<p style="margin-top:10px;">Clé de <b>${escA(name)}</b> : <span class="badge" style="font-size:15px;">${device_key}</span> — à noter, elle ne sera plus affichée.</p>`;
+    document.getElementById('newDeviceKey').innerHTML = `<p style="margin-top:10px;">Clé de <b>${escA(name)}</b> : <span class="badge" style="font-size:15px;">${device_key}</span> — à entrer sur la tablette (retrouvable ensuite avec « Afficher la clé »).</p>`;
   });
 }
 
