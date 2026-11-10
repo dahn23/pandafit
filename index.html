@@ -10883,6 +10883,23 @@ function enableTouchKioskFullscreen() {
   document.addEventListener('pointerdown', enter, { capture: true, passive: true });
 }
 
+/* ---------- Borne : l'écran ne se met jamais en veille tant que PandaFit est affiché ----------
+   Verrou d'écran du navigateur (Wake Lock) : Android le relâche quand l'app passe en arrière-plan,
+   on le redemande au retour et au toucher. Tablettes seulement (pas les ordinateurs). */
+function keepScreenAwake() {
+  if (!('wakeLock' in navigator) || !matchMedia('(pointer: coarse)').matches) return;
+  let sentinel = null;
+  const request = () => {
+    if (document.hidden || (sentinel && !sentinel.released)) return;
+    navigator.wakeLock.request('screen')
+      .then(s => { sentinel = s; })
+      .catch(() => {});
+  };
+  request();
+  document.addEventListener('visibilitychange', request);
+  document.addEventListener('pointerdown', request, { capture: true, passive: true });
+}
+
 /* ---------- Démarrage ---------- */
 async function boot() {
   applyStaticI18n();
@@ -10897,6 +10914,7 @@ document.getElementById('btnFullscreen')?.addEventListener('click', () => {
   }
 });
   enableTouchKioskFullscreen();
+  keepScreenAwake();
   const savedKey = PandaFitBackend.getDeviceKey();
   if (!savedKey) {
     content.innerHTML = screenDeviceSetup();
