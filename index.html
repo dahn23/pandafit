@@ -10971,13 +10971,18 @@ function keepScreenAwake() {
    Chrome ignore les entrées ajoutées sans action de l'utilisateur : on la remet donc à chaque toucher. */
 function trapBackGesture() {
   if (!matchMedia('(pointer: coarse)').matches) return;
-  const arm = () => {
-    if (history.state && history.state.pfTrap) return;
-    try { history.pushState({ pfTrap: true }, ''); } catch (e) {}
-  };
-  document.addEventListener('pointerdown', arm, { capture: true, passive: true });
-  window.addEventListener('popstate', arm);
-  arm();
+  let userArmed = false; // une entrée posée PENDANT un toucher (seules celles-là arrêtent le geste)
+  const push = () => { try { history.pushState({ pfTrap: true }, ''); } catch (e) {} };
+  document.addEventListener('pointerdown', () => {
+    if (userArmed) return;
+    push();
+    userArmed = true;
+  }, { capture: true, passive: true });
+  window.addEventListener('popstate', () => {
+    userArmed = false; // le geste a consommé l'entrée : on en repose une au prochain toucher
+    push();            // et une tout de suite (peut être ignorée par Chrome, d'où le toucher)
+  });
+  push();
 }
 
 /* ---------- Démarrage ---------- */
