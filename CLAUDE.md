@@ -76,7 +76,14 @@ Ni saisie avant l'Index, ni code / QR à la fin, y compris Mois et Campagne. Int
 ### PWA
 - App installable en plein écran. Manifest **externe** `manifest.webmanifest` (⚠️ un manifest data-URI ne permet PAS l'install WebAPK Android). `sw.js` en **network-first** (jamais de code périmé). Icônes 192 + 512.
 
+### Robustesse tablette (11.11.2026)
+- **Écran toujours allumé** : `keepScreenAwake()` (Wake Lock du navigateur, tablettes seulement).
+- **Démarrage sans réseau** (ex. après redémarrage, Wi-Fi pas encore prêt) : `startWithSavedKey()` affiche « Connexion au serveur… » et réessaie (5 s + évènement `online`) ; l'écran de clé n'apparaît que si le serveur refuse la clé (`err.badKey`). `render()` ne fait rien tant que `clientConfig` est vide.
+- **File d'attente des scores** : partie non envoyée (réseau) → `localStorage` `pandafit_play_queue`, renvoyée au retour du réseau / chaque minute / au démarrage. `tablet_record_play` accepte `p_played_at` (vraie heure, ≤ 7 jours) et `p_client_play_id` (anti-doublon).
+- **Orientation** : Android 16 ignore le blocage portrait sur tablette → rotation auto ON, la tablette debout.
+
 ## Verrouillage des tablettes (parc ≤ 10 pour l'instant)
+- **MDM retenu : Scalefusion**, mode entièrement géré (Android Enterprise, compte mdm@pandafit.ch), app web Google « PandaFit » en application unique, profil + config d'inscription « PandaFit borne ». Procédure complète et pièges : `_internal/test-mdm.md`. Écran de balayage = **écran de verrouillage Scalefusion** (Utilities → Global Settings → Android Settings → Lock Screen OFF).
 - **Rester sur Chrome** : les navigateurs kiosque à WebView (Fully Kiosk…) cassent le Web Bluetooth.
 - Verrouillage actuel : PWA plein écran + **épinglage d'écran** Android + notifications coupées + Ne pas déranger.
 - À l'échelle : envisager un **MDM Android Enterprise** (Esper / Scalefusion / SureMDM).
