@@ -47,7 +47,8 @@ PandaFit = application web pour **tablette**, autour d'un **capteur d'équilibre
 ### Reconnexion Bluetooth automatique
 - `PandaFitSensor` (dans `index.html`) : reconnexion sans sélecteur via `watchAdvertisements()` (méthode B), fallback `gatt.connect()` direct (méthode A). Récupère aussi après un débranchement du capteur.
 - **Nécessite 2 flags Chrome expérimentaux PAR TABLETTE** : `chrome://flags/#enable-experimental-web-platform-features` + `chrome://flags/#enable-web-bluetooth-new-permissions-backend`.
-- Préfixes de nom du capteur : `ASI_BLE` / `AdMOS_BLE` / `PandaFit`.
+- Préfixes de nom du capteur : `ASI_BLE` / `AdMOS_BLE` / `PandaFit` (capteurs d'origine, fournisseur disparu en 11.2026).
+- **WitMotion (en test depuis le 11.11.2026)** : préfixes `WT` / `Wit` / `WIT`. Trames 0x55 0x61 de 20 octets, accélération X/Y → mêmes unités que l'ancien capteur via `WIT_SCALE` (provisoire, 1 g = 4000 : **à recaler avec le capteur réel**). Service découvert automatiquement (UUID non documentés : les trouvés sont écrits dans le journal), vitesse réglée à 100 Hz à la connexion. Modèle visé : WT9011DCL-BT5.0.
 
 ### Affichage de l'accueil : « disponible » vs « affiché »
 - **Disponible** (admin seulement) : `projects.ads_enabled` + `projects.satisfaction_enabled` (avant : sur le client), **indépendants** (peut être les deux).

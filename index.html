@@ -1353,7 +1353,22 @@ const PandaFitSensor = (() => {
   const EXPECTED_PACKET_LENGTH = 16;
   const AVERAGE_EVERY = 2;
   const COORD_MAX_VALUE = 1500;
-  const NAME_PREFIXES = ['ASI_BLE', 'AdMOS_BLE', 'PandaFit'];
+  const NAME_PREFIXES = ['ASI_BLE', 'AdMOS_BLE', 'PandaFit', 'WT', 'Wit', 'WIT'];
+
+  /* ---- Capteur WitMotion (WT9011DCL-BT5.0 et famille BLE 5.0), en test depuis le 11.11.2026 ----
+     Protocole public : trames de 20 octets 0x55 0x61 puis 9 entiers 16 bits (petit-boutiste) :
+     accélération X, Y, Z (÷32768 × 16 g), vitesse angulaire, angles. Commandes : FF AA <registre> <bas> <haut>.
+     Les identifiants Bluetooth du service ne sont pas dans la doc publique : on essaie les plus courants
+     et on prend la première caractéristique « notify » trouvée. L'échelle WIT_SCALE (accélération → unités
+     de l'ancien capteur) est provisoire : à recaler avec le capteur réel. */
+  const WIT_PREFIXES = ['WT', 'Wit', 'WIT'];
+  const WIT_SERVICES = [
+    '0000ffe5-0000-1000-8000-00805f9a34fb', '0000ffe0-0000-1000-8000-00805f9a34fb',
+    '6e400001-b5a3-f393-e0a9-e50e24dcca9e', '0000fff0-0000-1000-8000-00805f9b34fb',
+  ];
+  const WIT_SCALE = 4000;      // 1 g d'accélération horizontale ≈ 4000 unités (0,2 g ≈ 800 ≈ « 4 cm » des jeux)
+  const WIT_RATE_100HZ = 0x09; // registre 0x03 : 0x09 = 100 mesures par seconde (défaut usine 0x06 = 10)
+  let isWit = false, witWriteChar = null, witBuffer = [];
 
   let device = null, characteristic = null;
   let intentionalDisconnect = false; // vrai quand on coupe volontairement -> pas de reconnexion auto
@@ -1394,14 +1409,34 @@ const PandaFitSensor = (() => {
   function emit(kind, payload) { listeners[kind].forEach(fn => fn(payload)); }
 
   function onData(evt) {
-    const bytes = new Uint8Array(evt.target.value.buffer);
+    const v = evt.target.value;
+    const bytes = new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+    if (isWit) { onWitData(bytes); return; }
     if (bytes.length !== EXPECTED_PACKET_LENGTH) return;
+    handleSample(parsePacket(bytes));
+  }
 
+  /* WitMotion : une notification peut contenir une ou plusieurs trames 0x55 0x61 de 20 octets. */
+  function onWitData(bytes) {
+    for (const b of bytes) witBuffer.push(b);
+    while (witBuffer.length >= 20) {
+      if (witBuffer[0] !== 0x55) { witBuffer.shift(); continue; }
+      if (witBuffer[1] !== 0x61) { witBuffer.splice(0, 2); continue; }
+      const f = witBuffer.splice(0, 20);
+      const i16 = (lo, hi) => { const n = (hi << 8) | lo; return n > 32767 ? n - 65536 : n; };
+      const axG = i16(f[2], f[3]) / 32768 * 16;
+      const ayG = i16(f[4], f[5]) / 32768 * 16;
+      const x = Math.max(-COORD_MAX_VALUE, Math.min(COORD_MAX_VALUE, Math.round(axG * WIT_SCALE)));
+      const y = Math.max(-COORD_MAX_VALUE, Math.min(COORD_MAX_VALUE, Math.round(ayG * WIT_SCALE)));
+      handleSample({ calibrated: { x: x - center.x, y: y - center.y }, raw: { x, y } });
+    }
+    if (witBuffer.length > 200) witBuffer = [];
+  }
+
+  function handleSample({ calibrated, raw }) {
     packetCount++; lastSecondCount++;
     const now = performance.now();
     if (now - lastSecondTime >= 1000) { hz = lastSecondCount; lastSecondCount = 0; lastSecondTime = now; }
-
-    const { calibrated, raw } = parsePacket(bytes);
 
     if (calibrationSamples) calibrationSamples.push(raw);
 
@@ -1471,13 +1506,55 @@ const PandaFitSensor = (() => {
     device.addEventListener('gattserverdisconnected', handleGattDisconnect);
     setStatus('searching', 'Connexion…');
     const server = await device.gatt.connect();
-    const service = await server.getPrimaryService(SERVICE_UUID);
-    characteristic = await service.getCharacteristic(DATA_CHAR_UUID);
+    isWit = !!(device.name && WIT_PREFIXES.some(p => device.name.startsWith(p)));
+    if (isWit) {
+      await connectWit(server);
+    } else {
+      const service = await server.getPrimaryService(SERVICE_UUID);
+      characteristic = await service.getCharacteristic(DATA_CHAR_UUID);
+    }
     await characteristic.startNotifications();
     characteristic.addEventListener('characteristicvaluechanged', onData);
-    packetCount = 0; lastSecondCount = 0; lastSecondTime = performance.now();
+    if (isWit) await setWitRate();
+    packetCount = 0; lastSecondCount = 0; lastSecondTime = performance.now(); averageBuffer = [];
     setStatus('connected', device.name);
     return device;
+  }
+
+  /* WitMotion : on cherche, parmi les services connus, une caractéristique qui envoie les mesures
+     (notify) et une pour les commandes (write). Les identifiants trouvés sont notés dans le journal. */
+  async function connectWit(server) {
+    characteristic = null; witWriteChar = null; witBuffer = [];
+    let services = [];
+    try { services = await server.getPrimaryServices(); } catch (e) { services = []; }
+    log('WitMotion : services ' + (services.map(s => s.uuid).join(', ') || 'aucun'));
+    for (const s of services) {
+      let chars = [];
+      try { chars = await s.getCharacteristics(); } catch (e) { continue; }
+      for (const c of chars) {
+        if (!characteristic && (c.properties.notify || c.properties.indicate)) characteristic = c;
+        if (!witWriteChar && (c.properties.write || c.properties.writeWithoutResponse)) witWriteChar = c;
+      }
+    }
+    log('WitMotion : mesures ' + (characteristic?.uuid || '—') + ' · commandes ' + (witWriteChar?.uuid || '—'));
+    if (!characteristic) throw new Error('WitMotion : aucune caractéristique de mesures trouvée');
+  }
+
+  /* Passe le capteur à 100 mesures par seconde (déverrouillage, réglage, enregistrement). */
+  async function setWitRate() {
+    if (!witWriteChar) { log('WitMotion : pas de canal de commande, vitesse d’usine conservée'); return; }
+    const send = (arr) => {
+      const data = new Uint8Array(arr);
+      return witWriteChar.writeValueWithoutResponse ? witWriteChar.writeValueWithoutResponse(data).catch(() => witWriteChar.writeValue(data))
+                                                   : witWriteChar.writeValue(data);
+    };
+    const pause = () => new Promise(r => setTimeout(r, 120));
+    try {
+      await send([0xFF, 0xAA, 0x69, 0x88, 0xB5]); await pause();          // déverrouiller
+      await send([0xFF, 0xAA, 0x03, WIT_RATE_100HZ, 0x00]); await pause(); // 100 Hz
+      await send([0xFF, 0xAA, 0x00, 0x00, 0x00]);                          // enregistrer
+      log('WitMotion : vitesse réglée à 100 Hz');
+    } catch (e) { log('WitMotion : réglage de la vitesse impossible — ' + e.message); }
   }
 
   async function connect() {
@@ -1488,7 +1565,7 @@ const PandaFitSensor = (() => {
     setStatus('searching', 'Recherche…');
     const chosen = await navigator.bluetooth.requestDevice({
       filters: NAME_PREFIXES.map(p => ({ namePrefix: p })),
-      optionalServices: [SERVICE_UUID]
+      optionalServices: [SERVICE_UUID, ...WIT_SERVICES]
     });
     return connectToDevice(chosen);
   }
