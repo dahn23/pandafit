@@ -10965,6 +10965,21 @@ function keepScreenAwake() {
   document.addEventListener('pointerdown', request, { capture: true, passive: true });
 }
 
+/* ---------- Borne : le geste « retour » d'Android ne ferme pas PandaFit ----------
+   Glisser depuis le bord gauche ou droit = « retour » ; sans page précédente, Android fermait l'app
+   (puis le MDM la relançait). On garde une entrée d'historique « tampon » que le geste consomme à la place.
+   Chrome ignore les entrées ajoutées sans action de l'utilisateur : on la remet donc à chaque toucher. */
+function trapBackGesture() {
+  if (!matchMedia('(pointer: coarse)').matches) return;
+  const arm = () => {
+    if (history.state && history.state.pfTrap) return;
+    try { history.pushState({ pfTrap: true }, ''); } catch (e) {}
+  };
+  document.addEventListener('pointerdown', arm, { capture: true, passive: true });
+  window.addEventListener('popstate', arm);
+  arm();
+}
+
 /* ---------- Démarrage ---------- */
 async function boot() {
   applyStaticI18n();
@@ -10980,6 +10995,7 @@ document.getElementById('btnFullscreen')?.addEventListener('click', () => {
 });
   enableTouchKioskFullscreen();
   keepScreenAwake();
+  trapBackGesture();
   const savedKey = PandaFitBackend.getDeviceKey();
   if (!savedKey) {
     content.innerHTML = screenDeviceSetup();
