@@ -983,19 +983,75 @@ const PandaFitBackend = (() => {
     // Triathlon : la partie est rattachée à l'équipe choisie sur la station (puis on libère pour le joueur suivant)
     const tri = (activeEvent && eventPlayCtx) ? eventPlayCtx : null;
     eventPlayCtx = null;
+    const payload = {
+      p_device_key: getDeviceKey(),
+      p_game_id: gameId,
+      p_score: Math.round(score || 0),
+      p_meta: tri ? { ...(meta || {}), event_team_id: tri.event_team_id, round: tri.round } : (meta || null),
+      p_employee_id: employeeId || null,
+      p_event_code: activeEvent?.code || null, // mode événement : partie rattachée à la séance (Index « officiel »)
+      p_played_at: new Date().toISOString(),   // vraie heure de la partie (utile si elle part plus tard)
+      p_client_play_id: newPlayId(),           // évite de compter deux fois une partie renvoyée
+    };
     try {
-      const id = await rpc('tablet_record_play', {
-        p_device_key: getDeviceKey(),
-        p_game_id: gameId,
-        p_score: Math.round(score || 0),
-        p_meta: tri ? { ...(meta || {}), event_team_id: tri.event_team_id, round: tri.round } : (meta || null),
-        p_employee_id: employeeId || null,
-        p_event_code: activeEvent?.code || null, // mode événement : partie rattachée à la séance (Index « officiel »)
-      });
+      const id = await rpc('tablet_record_play', payload);
       if (tri) refreshEventState(); // met à jour le compteur de joueurs par équipe sur la station
+      flushPlayQueue();             // le réseau répond : on en profite pour vider la file
       return id;
-    } catch (e) { return null; /* pas grave si ça échoue ponctuellement, on ne bloque pas le jeu */ }
+    } catch (e) {
+      if (isNetworkError(e)) queuePlay(payload); // sans réseau : gardée sur la tablette, renvoyée au retour du réseau
+      return null; // on ne bloque jamais le jeu
+    }
   }
+
+  /* ---------- File d'attente des parties jouées sans réseau ----------
+     Une partie qui ne peut pas être envoyée (pas de Wi-Fi / 4G, serveur injoignable) est gardée dans la
+     mémoire de la tablette, puis renvoyée toute seule : dès le retour du réseau, toutes les minutes, et
+     après chaque partie envoyée avec succès. Le serveur garde l'heure réelle de la partie et ignore les doublons. */
+  const PLAY_QUEUE_KEY = 'pandafit_play_queue';
+  const PLAY_QUEUE_MAX = 500;
+  let flushingPlays = false;
+  function newPlayId() {
+    try { if (crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+    return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+  }
+  function isNetworkError(e) {
+    return e instanceof TypeError || !navigator.onLine || /refusée: 5\d\d/.test(e?.message || '');
+  }
+  function readPlayQueue() {
+    try { return JSON.parse(localStorage.getItem(PLAY_QUEUE_KEY) || '[]') || []; } catch (e) { return []; }
+  }
+  function writePlayQueue(q) {
+    try { q.length ? localStorage.setItem(PLAY_QUEUE_KEY, JSON.stringify(q)) : localStorage.removeItem(PLAY_QUEUE_KEY); } catch (e) {}
+  }
+  function queuePlay(payload) {
+    const q = readPlayQueue();
+    q.push(payload);
+    writePlayQueue(q.slice(-PLAY_QUEUE_MAX));
+  }
+  async function flushPlayQueue() {
+    if (flushingPlays) return;
+    if (!readPlayQueue().length) return;
+    flushingPlays = true;
+    try {
+      let next;
+      while ((next = readPlayQueue()[0])) {
+        try {
+          await rpc('tablet_record_play', next);
+        } catch (e) {
+          if (isNetworkError(e)) break; // toujours pas de réseau : on réessaiera plus tard
+          // refusée par le serveur (ex. clé changée) : on l'abandonne pour ne pas bloquer la file
+        }
+        // retire cette partie-là (relue à neuf : une partie ajoutée pendant l'envoi n'est pas perdue)
+        writePlayQueue(readPlayQueue().filter(p => p.p_client_play_id !== next.p_client_play_id));
+      }
+    } finally {
+      flushingPlays = false;
+    }
+  }
+  window.addEventListener('online', () => flushPlayQueue());
+  setInterval(() => { if (navigator.onLine) flushPlayQueue(); }, 60 * 1000);
+  setTimeout(() => flushPlayQueue(), 8000); // au démarrage (parties restées d'avant un redémarrage)
 
   /* ---------- Projets : la tablette rejoint un projet avec son code PANDA-XXXX ----------
      Au parc (aucun projet) → écran « code du projet ». Dans un projet : séance en cours (démarrée par le coach),
