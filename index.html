@@ -3790,6 +3790,9 @@ function wireRHPin(targetRoute) {
 }
 
 function render() {
+  // Tant que la tablette n'a pas chargé sa configuration (écran de clé ou « Connexion au serveur… »),
+  // un évènement du capteur ne doit PAS afficher l'app (menus génériques sans projet) par-dessus.
+  if (!clientConfig) return;
   const connected = PandaFitSensor.isConnected();
   content.style.paddingTop = '';
   applyKioskMode();
