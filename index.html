@@ -937,7 +937,11 @@ const PandaFitBackend = (() => {
     } catch (e) {
       throw new Error('Impossible de contacter le serveur (tablette).');
     }
-    if (!boot || !boot.device) throw new Error("Clé de tablette inconnue. Vérifie auprès du superadmin PandaFit.");
+    if (!boot || !boot.device) {
+      const err = new Error("Clé de tablette inconnue. Vérifie auprès du superadmin PandaFit.");
+      err.badKey = true; // seul cas où l'on redemande la clé (sinon : réseau absent → on réessaie)
+      throw err;
+    }
     const device = { id: boot.device.id, name: boot.device.name, client_id: boot.device.client_id, clients: boot.client };
     const clientId = device.client_id;
     const clientName = device.clients ? device.clients.name : '—';
@@ -3119,6 +3123,8 @@ const UI_DICT_ROWS = [
   ["Déconnecter", "Trennen", "Disconnect", "Disconnetti"],
   ["Journal", "Protokoll", "Log", "Registro"],
   ["Configuration de la tablette", "Einrichtung des Tablets", "Tablet setup", "Configurazione del tablet"],
+  ["Connexion au serveur…", "Verbindung zum Server…", "Connecting to the server…", "Connessione al server…"],
+  ["La tablette attend le réseau. Nouvel essai automatique.", "Das Tablet wartet auf das Netzwerk. Automatischer neuer Versuch.", "The tablet is waiting for the network. Retrying automatically.", "Il tablet attende la rete. Nuovo tentativo automatico."],
   ["Cette tablette n'est pas encore enregistrée. Entre la clé fournie par le superadmin (une seule fois).", "Dieses Tablet ist noch nicht registriert. Gib den Schlüssel des Superadmins ein (nur einmal).", "This tablet is not registered yet. Enter the key provided by the superadmin (only once).", "Questo tablet non è ancora registrato. Inserisci la chiave fornita dal superadmin (una sola volta)."],
   // Marché Express
   ["Reste dans la zone en bas sans en sortir, et tape sur les bons aliments qui tombent — évite les sucreries.", "Bleib unten in der Zone und tippe auf die guten Lebensmittel, die herunterfallen — meide Süssigkeiten.", "Stay in the zone at the bottom and tap the healthy foods that fall — avoid the sweets.", "Resta nella zona in basso e tocca i cibi buoni che cadono — evita i dolciumi."],
@@ -10921,6 +10927,13 @@ document.getElementById('btnFullscreen')?.addEventListener('click', () => {
     wireDeviceSetup();
     return;
   }
+  startWithSavedKey(savedKey);
+}
+
+/* Démarre avec la clé enregistrée. Après un redémarrage de la tablette, l'app s'ouvre souvent AVANT que le
+   Wi-Fi soit connecté : sans réseau, on n'affiche PAS l'écran de clé (la clé est toujours là), on attend et
+   on réessaie toutes les 5 s (et dès que le réseau revient). Seule une clé refusée par le serveur la redemande. */
+async function startWithSavedKey(savedKey, attempt = 0) {
   try {
     clientConfig = await PandaFitBackend.fetchClientConfig(savedKey);
     try { localStorage.removeItem(EVENT_STORAGE_KEY); } catch (e) {} // ancien « mode événement » local, remplacé par les projets
@@ -10940,8 +10953,27 @@ document.getElementById('btnFullscreen')?.addEventListener('click', () => {
       .catch(e => log('Capteur : reconnexion auto erreur — ' + e.message));
   } catch (e) {
     log('Erreur de configuration : ' + e.message);
-    content.innerHTML = screenDeviceSetup(e.message);
-    wireDeviceSetup();
+    if (e.badKey) {
+      content.innerHTML = screenDeviceSetup(e.message);
+      wireDeviceSetup();
+      return;
+    }
+    clientConfig = null;
+    content.innerHTML = `
+      <div class="connect-hero">
+        <div class="icon"><i data-lucide="wifi"></i></div>
+        <h2>Connexion au serveur…</h2>
+        <p>La tablette attend le réseau. Nouvel essai automatique.</p>
+      </div>`;
+    let done = false;
+    const retry = () => {
+      if (done) return;
+      done = true;
+      window.removeEventListener('online', retry);
+      startWithSavedKey(savedKey, attempt + 1);
+    };
+    window.addEventListener('online', retry);
+    setTimeout(retry, 5000);
   }
 }
 boot();
