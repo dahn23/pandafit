@@ -7219,10 +7219,41 @@ const SkiScene = (() => {
     const p = project(s, xU);
     if (!p || p.y > st.H * 1.25) return;
     const { ctx, U, trees } = st;
-    const h = U * 36 * big * p.P, w = h * .66;
+    const art = decor(variant & 1 ? 'sapin-1' : 'sapin-2'); // sapin en rendu 3D s'il est chargé, sinon le sapin dessiné
+    const h = U * (art ? 46 : 36) * big * p.P, w = h * (art ? art.naturalWidth / art.naturalHeight : .66), sw = art ? w * 1.5 : w;
+    if (p.x + w < 0 || p.x - w > st.W) return; // hors de l'écran
     ctx.fillStyle = 'rgba(80,110,150,.24)';
-    ctx.beginPath(); ctx.ellipse(p.x - w * .34, p.y + U * .2 * p.P, w * .62, U * 1.5 * p.P, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.drawImage(trees[Math.abs(variant) % trees.length], p.x - w / 2, p.y - h, w, h);
+    ctx.beginPath(); ctx.ellipse(p.x - sw * .34, p.y + U * .2 * p.P, sw * .62, U * 1.5 * p.P, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.drawImage(art || trees[Math.abs(variant) % trees.length], p.x - w / 2, p.y - h, w, h);
+  }
+
+  /** Un panda spectateur au bord de la piste (cloche, bonnet ou drapeau) : il sautille sur place */
+  function drawFan(s, xU, kind, t, seed) {
+    const art = decor(`fan-${kind}`);
+    if (!art) return;
+    const p = project(s, xU);
+    if (!p || p.y > st.H * 1.2) return;
+    const { ctx, U } = st;
+    const h = U * 17 * p.P, w = h * art.naturalWidth / art.naturalHeight;
+    if (p.x + w < 0 || p.x - w > st.W) return;
+    const hop = Math.abs(Math.sin(t * 6.5 + seed * 2.4)) * U * 1.5 * p.P;
+    ctx.fillStyle = 'rgba(70,100,140,.26)';
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, w * .42, U * p.P, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.drawImage(art, p.x - w / 2, p.y - h - hop, w, h);
+  }
+
+  /** Un chalet à la lisière de la forêt (image seulement : rien n'est dessiné s'il manque) */
+  function drawChalet(s, xU, kind) {
+    const art = decor(`chalet-${kind}`);
+    if (!art) return;
+    const p = project(s, xU);
+    if (!p || p.y > st.H * 1.2) return;
+    const { ctx, U } = st;
+    const w = U * 66 * p.P, h = w * art.naturalHeight / art.naturalWidth;
+    if (p.x + w < 0 || p.x - w > st.W) return;
+    ctx.fillStyle = 'rgba(80,110,150,.22)';
+    ctx.beginPath(); ctx.ellipse(p.x - w * .1, p.y, w * .6, U * 2 * p.P, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.drawImage(art, p.x - w / 2, p.y - h * .985, w, h);
   }
 
   /** Un piquet de slalom : le panda le contourne par l'extérieur à chaque balancement */
@@ -7253,6 +7284,16 @@ const SkiScene = (() => {
     const color = g.warm ? '#8092aa' : (g.i % 2 ? '#1565c0' : '#d7263d');
     ctx.fillStyle = 'rgba(70,100,140,.3)';
     ctx.beginPath(); ctx.ellipse(base.x, base.y, U * 1.6 * base.P, U * .5 * base.P, 0, 0, Math.PI * 2); ctx.fill();
+    const gateArt = decor(g.warm ? 'porte-grise' : (g.i % 2 ? 'porte-bleue' : 'porte-rouge'));
+    if (gateArt) { // porte en rendu 3D : le piquet est à 6 % du bord gauche de l'image, le fanion part vers l'extérieur du virage
+      const gh = h * 1.06, gw = gh * gateArt.naturalWidth / gateArt.naturalHeight;
+      if (st.fpv) ctx.globalAlpha = fade * pfClamp(1.8 - base.P * .45, .3, 1);
+      ctx.translate(base.x, base.y); ctx.scale(g.side, 1);
+      ctx.drawImage(gateArt, -gw * .061, -gh, gw, gh);
+      ctx.restore();
+      ctx.globalAlpha = 1;
+      return;
+    }
     const pole = ctx.createLinearGradient(base.x - U * .5 * base.P, 0, base.x + U * .5 * base.P, 0);
     pole.addColorStop(0, color); pole.addColorStop(.45, '#ffffff'); pole.addColorStop(1, color);
     ctx.strokeStyle = pole;
@@ -7330,11 +7371,30 @@ const SkiScene = (() => {
     ctx.beginPath(); pts.forEach((q, i) => ctx[i ? 'lineTo' : 'moveTo'](q[0], q[1])); ctx.closePath(); ctx.fill();
     return true;
   }
-  /** Un spectateur (corps, tête, parfois un drapeau suisse), qui saute quand l'ambiance monte */
+  /** Version réduite d'un panda spectateur, pour remplir les tribunes sans ralentir l'image */
+  const MINI = {};
+  function fanMini(kind) {
+    if (MINI[kind]) return MINI[kind];
+    const art = decor(`fan-${kind}`);
+    if (!art) return null;
+    const h = 150, w = Math.round(h * art.naturalWidth / art.naturalHeight);
+    return MINI[kind] = layerCanvas(w, h, c => c.drawImage(art, 0, 0, w, h));
+  }
+  /** Un spectateur des tribunes : un panda en peluche (ou, sans image, un bonhomme dessiné), qui saute quand l'ambiance monte */
   function fan(x, y, P, seed, excite, t) {
     const { ctx, U } = st;
     const r = U * .95 * P;
     const jump = excite > 0 ? Math.max(0, Math.sin(t * 9 + seed * 2.3)) * U * 1.1 * P * excite : 0;
+    const mini = fanMini(seed % 3 + 1);
+    if (mini) { // tribunes remplies de pandas en peluche (versions réduites des spectateurs du bord de piste)
+      const fh = r * 5.4, fw = fh * mini.width / mini.height;
+      ctx.drawImage(mini, x - fw / 2, y - fh - jump, fw, fh);
+      if (pfHash(seed + Math.floor(t * 6)) > .985) { // flash d'appareil photo
+        ctx.fillStyle = 'rgba(255,255,255,.95)';
+        ctx.beginPath(); ctx.arc(x, y - fh * .7 - jump, r * 1.1, 0, Math.PI * 2); ctx.fill();
+      }
+      return;
+    }
     ctx.fillStyle = FAN_COLORS[seed % FAN_COLORS.length];
     ctx.beginPath(); ctx.ellipse(x, y - r * 1.5 - jump, r * 1.15, r * 1.55, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = SKIN[seed % SKIN.length];
@@ -7450,6 +7510,20 @@ const SkiScene = (() => {
     const ha = st.archH, beam = 8.5, depth = .14, xw = EDGE - 2, pw = 4.5;
     const lp = P3(sf, -xw, 0);
     if (!lp) return;
+    const arch = decor('arche');
+    if (arch) { // arche gonflable en rendu 3D ; le texte reste écrit au code pour suivre la langue
+      const tl = P3(sf, -(EDGE + 1), ha), br = P3(sf, EDGE + 1, 0);
+      if (!tl || !br) return;
+      const aw = br[0] - tl[0], ah = br[1] - tl[1];
+      ctx.drawImage(arch, tl[0], tl[1], aw, ah);
+      ctx.font = `italic 900 ${Math.round(ah * .092)}px Montserrat, system-ui, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(110,0,14,.55)';
+      ctx.fillText(trText('PANDAFIT · ARRIVÉE'), tl[0] + aw / 2 + ah * .004, tl[1] + ah * .103);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(trText('PANDAFIT · ARRIVÉE'), tl[0] + aw / 2, tl[1] + ah * .097);
+      return;
+    }
     const red = (x1, x2) => {
       const a = P3(sf, x1, 0), b = P3(sf, x2, 0);
       if (!a || !b) return '#c8102e';
@@ -7483,6 +7557,23 @@ const SkiScene = (() => {
     const { ctx, U } = st;
     const sB = .3, HW = 19, TH = 3, HH = st.archH, DP = .07;
     if (!P3(sB, 0, 0)) return;
+    // portillon en bois en rendu 3D (toit enneigé, panneau rouge) : le texte et les feux restent dessinés au code
+    const gate = decor('depart'), ga = gate && P3(sB, -31.5, 76), gb = gate && P3(sB, 31.5, 0);
+    if (ga && gb) {
+      const gw = gb[0] - ga[0], gh = gb[1] - ga[1];
+      ctx.drawImage(gate, ga[0], ga[1], gw, gh);
+      const sx = ga[0] + gw * .161, sw = gw * .68, sy = ga[1] + gh * .199, sh = gh * .089;
+      ctx.fillStyle = '#fff'; ctx.font = `italic 900 ${Math.round(sh * .72)}px Montserrat, system-ui, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('START', sx + sw / 2, sy + sh * .54);
+      const on = st.goT != null; // feux : rouges pendant le décompte, verts au GO
+      [-1, 1].forEach(sd => {
+        const x = sx + sw / 2 + sd * sw * .38, y = sy + sh * .5, rr = sh * .2;
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x, y, rr * 1.3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = on ? '#3dff7a' : (Math.sin(t * 6) > 0 ? '#ff3b3b' : '#7a1010');
+        ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.fill();
+      });
+    } else {
     // deux piliers en bois, avec leur épaisseur
     [-1, 1].forEach(sd => {
       const xi = sd * HW, xo = sd * (HW + TH);
@@ -7519,6 +7610,7 @@ const SkiScene = (() => {
         ctx.fillStyle = on ? '#3dff7a' : (Math.sin(t * 6) > 0 ? '#ff3b3b' : '#7a1010');
         ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.fill();
       });
+    }
     }
     // portillon de départ : la barre se lève le long du pilier au GO (elle ne croise jamais le panda)
     const k = st.goT == null ? 0 : Math.min(1, (t - st.goT) / .45);
@@ -7849,6 +7941,20 @@ const SkiScene = (() => {
   const ART = {};
   if (SKI_FPV) ['patte', 'patte-levee', 'spatules'].forEach(n => { ART[n] = new Image(); ART[n].src = `img/ski/${n}.webp`; });
   const artReady = () => ['patte', 'patte-levee', 'spatules'].every(n => ART[n] && ART[n].complete && ART[n].naturalWidth > 0);
+  /* Décor en rendu 3D (même style que les pattes) : panorama, sapins, portes, arche. Chaque image est facultative :
+     tant qu'elle n'est pas chargée, ou si elle manque, le dessin au code reste en place. */
+  const DECOR = {};
+  if (SKI_FPV) ['panorama', 'sapin-1', 'sapin-2', 'porte-rouge', 'porte-bleue', 'porte-grise', 'arche', 'depart', 'fan-1', 'fan-2', 'fan-3', 'chalet-1', 'chalet-2'].forEach(n => { DECOR[n] = new Image(); DECOR[n].src = `img/ski/${n}.webp`; });
+  const decor = n => { const im = DECOR[n]; return im && im.complete && im.naturalWidth > 0 ? im : null; };
+  /** Le panorama des montagnes, posé sur l'horizon ; une brume claire le fond dans la neige de la piste */
+  function paintPanorama(c, w, h, im) {
+    const k = Math.max(w / im.naturalWidth, h / im.naturalHeight);
+    const iw = im.naturalWidth * k, ih = im.naturalHeight * k;
+    c.drawImage(im, (w - iw) / 2, h - ih, iw, ih);
+    const haze = c.createLinearGradient(0, h * .86, 0, h);
+    haze.addColorStop(0, 'rgba(207,223,241,0)'); haze.addColorStop(1, 'rgba(207,223,241,1)');
+    c.fillStyle = haze; c.fillRect(0, h * .86, w, h * .14);
+  }
   function paintRiderArt(t) {
     const { ctx, W, H, U } = st;
     const cx = W / 2;
@@ -8004,6 +8110,10 @@ const SkiScene = (() => {
     ctx.save();
     // le skieur se penche vers l'intérieur du virage : l'image penche à peine, autour du centre de l'horizon
     ctx.translate(W / 2, hz); ctx.rotate(st.roll); ctx.scale(1.05, 1.05); ctx.translate(-W / 2, -hz);
+    if (!st.skyArt && W / hz < 2.4) { // le panorama en rendu 3D remplace le ciel dessiné dès qu'il est chargé
+      const pano = decor('panorama');
+      if (pano) { st.sky = layerCanvas(W, hz, (c, w, h) => paintPanorama(c, w, h, pano)); st.skyArt = true; }
+    }
     ctx.drawImage(st.sky, 0, 0);
     paintGroundFpv();
     paintFinishFloor();
@@ -8017,8 +8127,16 @@ const SkiScene = (() => {
       const n = Math.round(sk / .7);
       if (sk > snap.distance - STAND_FROM - .7) continue;
       items.push([sk, () => {
+        // deuxième rang, plus loin de la piste : la forêt prend de l'épaisseur
+        drawTree(sk + .15, EDGE + 50 + pfHash(n + 5) * 62, .95 + pfHash(n + 6) * .7, n + 2);
+        drawTree(sk + .45, -(EDGE + 50 + pfHash(n + 7) * 62), .95 + pfHash(n + 8) * .7, n + 3);
         drawTree(sk, EDGE + 10 + pfHash(n + 1) * 34, .8 + pfHash(n + 2) * .6, n);
         drawTree(sk + .3, -(EDGE + 10 + pfHash(n + 3) * 34), .8 + pfHash(n + 4) * .6, n + 1);
+        if (sk > 2.5 && pfHash(n + 11) < .42) { // des pandas spectateurs par petits groupes, derrière les filets
+          const sd = pfHash(n + 12) < .5 ? -1 : 1, x0 = EDGE + 5 + pfHash(n + 13) * 5, kind = ((n % 3) + 3) % 3 + 1;
+          if (pfHash(n + 14) < .5) drawFan(sk + .52, sd * (x0 + 8), kind % 3 + 1, t, n + .5);
+          drawFan(sk + .5, sd * x0, kind, t, n);
+        }
       }]);
     }
     const excite = over ? 1 : pfClamp((st.s - (snap.distance - 10)) / 10, 0, 1);
@@ -8027,6 +8145,7 @@ const SkiScene = (() => {
       if (s2 < ns) continue;
       [-1, 1].forEach(side => items.push([s1 + .3, () => drawSideStand(side, s1, s2, t, excite)]));
     }
+    [[8.6, 1], [18.9, -1], [28.4, 1]].forEach(([sc, sd]) => { if (sc >= ns && sc < snap.distance - STAND_FROM - 2) items.push([sc, () => drawChalet(sc, sd * (EDGE + 40), sd > 0 ? 1 : 2)]); }); // trois chalets le long du parcours
     snap.gatesView.forEach(g => { if (g.world < snap.distance - .3) items.push([g.world, () => drawGate(g, t)]); }); // jamais de piquet dans l'aire d'arrivée
     [1, 2].forEach(k => { const sb = snap.distance * k / 3; if (sb >= ns) items.push([sb, () => drawSplitBanner(sb, `INTER ${k}`)]); });
     if (finishS >= ns) items.push([finishS, () => drawFinish(finishS)]);
