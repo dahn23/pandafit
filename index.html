@@ -3300,6 +3300,9 @@ const UI_DICT_ROWS = [
   ["PREMIER TEMPS DU JOUR !", "ERSTE ZEIT DES TAGES!", "FIRST TIME OF THE DAY!", "PRIMO TEMPO DEL GIORNO!"],
   ["COLLÈGUE", "KOLLEGE", "COLLEAGUE", "COLLEGA"],
   ["ARRIVÉE", "ZIEL", "FINISH", "ARRIVO"],
+  ["INTER", "ZWISCHENZEIT", "SPLIT", "INTERMEDIO"],
+  ["INTER 1", "ZWISCHENZEIT 1", "SPLIT 1", "INTERMEDIO 1"],
+  ["INTER 2", "ZWISCHENZEIT 2", "SPLIT 2", "INTERMEDIO 2"],
   ["RESTE DANS LE CERCLE", "BLEIB IM KREIS", "STAY IN THE CIRCLE", "RESTA NEL CERCHIO"],
   ["Stable et détendu !", "Stabil und locker!", "Steady and relaxed!", "Stabile e rilassato!"],
   ["SUIS LE FIL", "FOLGE DEM DRAHT", "FOLLOW THE WIRE", "SEGUI IL FILO"],
@@ -6832,18 +6835,29 @@ function runSkiGame() {
     }
   );
 }
-/** Slalom : descente vue de derrière. Chaque balancement du plateau = un virage du panda et une porte. */
+/** Slalom : chaque balancement du plateau = un virage et une porte.
+    SKI_FPV = true : vue par les yeux du skieur. false : ancienne vue, caméra derrière le panda.
+    Pour comparer sans toucher au code : ajouter ?skiview=classic à l'adresse. */
+const SKI_FPV = !/[?&]skiview=classic\b/.test(location.search);
 const SkiScene = (() => {
   const HORIZON = 0.3, PANDA_Y = 0.66, D0 = 1.7;   // ligne d'horizon, position du panda, recul de la caméra
+  // Vue subjective : la caméra est dans le casque. Pour le confort (pas de mal de mer) : l'horizon et les montagnes
+  // ne bougent pas, l'image penche très peu (roll), rien ne tremble, et les skis / les poings restent fixes à l'écran.
+  const FPV = {
+    horizon: .4, F: 1.1, eye: 23, near: .1,        // ligne d'horizon, focale, hauteur des yeux (U), distance minimale d'affichage
+    back: .1, backStart: .95,                       // recul de la caméra : en course / pendant le décompte (on voit le portique)
+    turn: 16, pole: 5.5, flag: 5,                   // ampleur du virage, écart du piquet, largeur du fanion
+    roll: .024, arch: 62,                           // inclinaison de l'image (rad, environ 1,4°), hauteur des portiques (U)
+  };
   const TURN = 30;                                 // ampleur du virage à l'écran (en % de la largeur) pour un balancement normal
   const EDGE = 50;
   const BODY_UNITS = 340;                          // hauteur du dessin du panda (casque et bras levés compris)
   const FINISH_DEPTH = 6;                          // profondeur de l'aire d'arrivée, fermée par la grande tribune
-  const POLE = 13;                                 // écart du piquet : toujours à l'intérieur du virage du panda
   let st = null, snap = null, lastSeq = 0;
 
   const mix = (a, b, t) => a + (b - a) * t;
-  const depthScale = d => D0 / d;
+  /** Position sur la piste en deçà de laquelle on ne dessine plus rien (trop près ou derrière la caméra) */
+  const nearS = () => st.fpv ? st.camS + st.near + .001 : st.s - 1.1;
 
   /** Crête de montagne : quelques grands points, puis découpe naturelle */
   function ridgeLine(points, rough, seed) {
@@ -7109,11 +7123,12 @@ const SkiScene = (() => {
     c.beginPath(); c.ellipse(-22, hy - 24, 18, 8, -.5, 0, Math.PI * 2); c.fill();
   }
 
+  /** Point au sol (piste s, écart x) → écran. La caméra est en st.camS, décalée de st.camX, à la hauteur st.eye. */
   function project(s, xU) {
-    const d = s - st.s + D0;
-    if (d < .55) return null;
-    const P = depthScale(d);
-    return { x: st.W / 2 + xU * st.U * P, y: st.hz + (st.py - st.hz) * P, P };
+    const d = s - st.camS;
+    if (d < st.near) return null;
+    const P = st.F / d;
+    return { x: st.vx + (xU - st.camX) * st.U * P, y: st.hz + st.eye * P, P };
   }
 
   function paintSnowLayer(c, w, h) {
@@ -7154,12 +7169,16 @@ const SkiScene = (() => {
       const a = project(sb, 0), b = project(sb + .22, 0);
       if (a && b) ctx.fillRect(0, b.y, W, a.y - b.y);
     }
-    // filets de sécurité au bord de la piste
+    paintNets();
+  }
+  /** Filets de sécurité au bord de la piste */
+  function paintNets() {
+    const { ctx, U } = st;
     [-1, 1].forEach(side => {
       const pts = [];
       // tout le long jusqu'aux tribunes, qui prennent le relais avec leurs panneaux
       const stop = snap ? snap.distance - STAND_FROM + .1 : st.s + 30;
-      for (let sn = st.s - 1.1; ; sn += .32 + Math.max(0, sn - st.s) * .04) {
+      for (let sn = nearS(); ; sn += .32 + Math.max(0, sn - st.s) * .04) {
         const p = project(Math.min(sn, stop), side * EDGE);
         if (p) pts.push(p);
         if (sn >= stop) break;
@@ -7209,9 +7228,14 @@ const SkiScene = (() => {
   /** Un piquet de slalom : le panda le contourne par l'extérieur à chaque balancement */
   function drawGate(g, t) {
     const { ctx, U } = st;
-    if (g.world < st.s - .3) return; // une fois dépassé, le piquet disparaît (il ne traverse pas le panda)
+    if (g.world < (st.fpv ? nearS() : st.s - .3)) return; // une fois dépassé, le piquet disparaît (il ne traverse pas le panda)
+    const POLE = st.fpv ? FPV.pole : 13;             // écart du piquet : toujours à l'intérieur du virage
     const base = project(g.world, g.side * POLE);
     if (!base) return;
+    // en vue subjective, la porte s'efface juste avant qu'on la dépasse : rien ne passe en grand devant les yeux
+    const fade = st.fpv ? pfClamp(2.3 - base.P * .33, 0, 1) : 1;
+    if (!fade) return;
+    ctx.globalAlpha = fade;
     const tip = project(g.world - .2, g.side * POLE - 10), mid = project(g.world - .13, g.side * POLE - 6.5);
     if (tip && mid) {
       ctx.fillStyle = 'rgba(60,90,135,.17)';
@@ -7236,8 +7260,9 @@ const SkiScene = (() => {
     ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(base.x, base.y - h); ctx.stroke();
     ctx.lineCap = 'butt';
-    const fw = U * 12 * base.P, fh = h * .34, top = base.y - h * .98;
+    const fw = U * (st.fpv ? FPV.flag : 12) * base.P, fh = h * (st.fpv ? .25 : .34), top = base.y - h * .98;
     const wave = Math.sin(t * 7 + g.i) * U * .9 * base.P;
+    if (st.fpv) ctx.globalAlpha = fade * pfClamp(1.9 - base.P * .45, .3, 1); // le fanion s'efface encore plus tôt : il ne bouche pas la vue
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(base.x, top);
@@ -7248,6 +7273,7 @@ const SkiScene = (() => {
     ctx.fillStyle = 'rgba(255,255,255,.3)';
     ctx.fillRect(Math.min(base.x, base.x + g.side * fw), top + fh * .42 + wave * .3, fw, fh * .14);
     ctx.restore();
+    ctx.globalAlpha = 1;
   }
 
   /** Le sol de l'aire d'arrivée : neige marquée de bandes rouges */
@@ -7255,7 +7281,7 @@ const SkiScene = (() => {
     if (!snap) return;
     const { ctx, U } = st;
     const end = snap.distance + FINISH_DEPTH;
-    const start = Math.max(snap.distance, st.s - 1.1);
+    const start = Math.max(snap.distance, nearS());
     const band = (a, b, color) => {
       const la = project(a, -EDGE), ra = project(a, EDGE), lb = project(b, -EDGE), rb = project(b, EDGE);
       if (!la || !lb) return;
@@ -7266,9 +7292,9 @@ const SkiScene = (() => {
     for (let k = 0; k * .9 < FINISH_DEPTH; k++) {
       const a = snap.distance + .35 + k * .9;
       if (a + .3 < start) continue;
-      band(Math.max(a, start), a + .3, 'rgba(213,43,30,.5)');
+      band(Math.max(a, start), a + .3, st.fpv ? 'rgba(213,43,30,.26)' : 'rgba(213,43,30,.5)');
     }
-    if (snap.distance > st.s - 1.1) {
+    if (snap.distance > nearS()) {
       const l = project(snap.distance, -EDGE), r = project(snap.distance, EDGE);
       if (l && r) {
         for (let n = 0; n < 14; n++) {
@@ -7293,7 +7319,8 @@ const SkiScene = (() => {
   const TIERS = 6, TIER_DX = 4.2, TIER_DH = 3.4, STAND_X0 = EDGE + 4, STAND_FROM = 7, BACK_AT = 4.2;
   /** Point du monde (piste s, écart x, hauteur h en U) → écran */
   function P3(s, x, h) {
-    const p = project(s, x);
+    // en vue subjective, un volume qui dépasse derrière la caméra est coupé net au ras de l'objectif
+    const p = project(st.fpv ? Math.max(s, st.camS + st.near + .001) : s, x);
     return p ? [p.x, p.y - h * st.U * p.P, p.P] : null;
   }
   function poly(pts, fill) {
@@ -7341,6 +7368,7 @@ const SkiScene = (() => {
       poly([P3(s1, xa, h1), P3(s2, xa, h1), P3(s2, xb, h1), P3(s1, xb, h1)], k % 2 ? '#4a5570' : '#56627f');
       for (let i = 0; i < 4; i++) {
         const sf = s1 + (i + .5) / 4 * (s2 - s1);
+        if (st.fpv && sf < nearS()) continue;
         const q = P3(sf, (xa + xb) / 2, h1);
         if (q) fan(q[0], q[1], q[2], Math.abs(Math.round(sf * 9 + k * 31 + side * 7)), excite, t);
       }
@@ -7419,7 +7447,7 @@ const SkiScene = (() => {
   /** Arche d'arrivée gonflable, en volume */
   function drawFinish(sf) {
     const { ctx, U } = st;
-    const ha = 1.12 * (st.py - st.hz) / U, beam = 8.5, depth = .14, xw = EDGE - 2, pw = 4.5;
+    const ha = st.archH, beam = 8.5, depth = .14, xw = EDGE - 2, pw = 4.5;
     const lp = P3(sf, -xw, 0);
     if (!lp) return;
     const red = (x1, x2) => {
@@ -7442,7 +7470,7 @@ const SkiScene = (() => {
       ctx.fillStyle = '#fff';
       ctx.font = `italic 900 ${Math.round(h * .62)}px Montserrat, system-ui, sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('PANDAFIT · ARRIVÉE', (tl[0] + tr[0]) / 2, tl[1] + h * .56);
+      ctx.fillText(trText('PANDAFIT · ARRIVÉE'), (tl[0] + tr[0]) / 2, tl[1] + h * .56);
     }
     // cellules de chronométrage sur les montants
     [-1, 1].forEach(sd => {
@@ -7453,7 +7481,7 @@ const SkiScene = (() => {
   /** Cabane de départ : murs en bois, toit enneigé, bandeau START et portillon qui s'ouvre au GO */
   function drawStartHouse(t) {
     const { ctx, U } = st;
-    const sB = .3, HW = 19, TH = 3, HH = 1.12 * (st.py - st.hz) / U, DP = .07;
+    const sB = .3, HW = 19, TH = 3, HH = st.archH, DP = .07;
     if (!P3(sB, 0, 0)) return;
     // deux piliers en bois, avec leur épaisseur
     [-1, 1].forEach(sd => {
@@ -7607,7 +7635,7 @@ const SkiScene = (() => {
   /** Flocons qui filent vers la caméra (plus vite avec la vitesse) et quelques flocons qui tombent */
   function paintSpeedSnow(t) {
     const { ctx, W, H, U, hz } = st;
-    const cx = W / 2, cy = hz + (st.py - hz) * .15, max = Math.hypot(W, H) * .75;
+    const cx = W / 2, cy = hz + (st.fpv ? H * .04 : (st.py - hz) * .15), max = Math.hypot(W, H) * .75;
     const n = Math.round(12 + 46 * st.speedN);
     ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineCap = 'round';
     for (let i = 0; i < n; i++) {
@@ -7632,6 +7660,7 @@ const SkiScene = (() => {
     const sx = W * .76, sy = hz * .24, cx = W / 2, cy = H / 2;
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     [[.35, .07, '255,236,180'], [.62, .04, '180,220,255'], [.85, .1, '255,210,150'], [1.25, .05, '200,230,255']].forEach(([k, r, col]) => {
+      if (st.fpv && k > .7) return; // en vue subjective, pas de reflet posé sur la piste, là où on regarde
       const x = mix(sx, cx, k), y = mix(sy, cy, k), rr = W * r;
       const g = ctx.createRadialGradient(x, y, 0, x, y, rr);
       g.addColorStop(0, `rgba(${col},.16)`); g.addColorStop(1, `rgba(${col},0)`);
@@ -7665,10 +7694,364 @@ const SkiScene = (() => {
     ctx.globalAlpha = 1;
   }
 
+  /* ---------- Vue subjective : par les yeux du skieur ---------- */
+  /** Polygone posé sur la neige, coupé proprement au ras de la caméra. pts = [[s, x], ...] */
+  function groundPoly(pts, fill) {
+    const { ctx } = st, sn = nearS(), out = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      const ia = a[0] >= sn, ib = b[0] >= sn;
+      if (ia) out.push(a);
+      if (ia !== ib) { const k = (sn - a[0]) / (b[0] - a[0]); out.push([sn, a[1] + (b[1] - a[1]) * k]); }
+    }
+    if (out.length < 3) return;
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    out.forEach(([s, x], i) => { const p = project(s, x); if (p) ctx[i ? 'lineTo' : 'moveTo'](p.x, p.y); });
+    ctx.closePath(); ctx.fill();
+  }
+  /** La neige qui défile sous les skis : tout est fixé au terrain, c'est ce qui donne la vitesse */
+  function paintGroundFpv() {
+    const { ctx, W, H, hz, U } = st;
+    const x0 = -W * .2, ww = W * 1.4, bottom = H * 1.15, ns = nearS();
+    ctx.fillStyle = st.snowGrad; ctx.fillRect(x0, hz, ww, bottom - hz);
+    // damage : fines bandes en travers de la pente
+    ctx.fillStyle = 'rgba(110,145,190,.055)';
+    for (let k = 0; k < 30; k++) {
+      const sb = Math.floor(st.camS * 2) / 2 + k * .5;
+      const a = project(Math.max(sb, ns), 0), b = project(sb + .22, 0);
+      if (a && b) ctx.fillRect(x0, b.y, ww, a.y - b.y);
+    }
+    // traces de dameuse dans le sens de la pente
+    const Pb = (bottom - hz) / st.eye, Pf = st.F / 7, yf = hz + st.eye * Pf;
+    ctx.strokeStyle = 'rgba(120,150,190,.1)'; ctx.lineWidth = Math.max(1, U * .12);
+    ctx.beginPath();
+    for (let i = -40; i <= 40; i++) {
+      const dx = (i * 3 - st.camX) * U;
+      ctx.moveTo(st.vx + dx * Pf, yf); ctx.lineTo(st.vx + dx * Pb, bottom);
+    }
+    ctx.stroke();
+    // reliefs : creux bleutés et bosses claires
+    for (let k = 0; k < 24; k++) {
+      const c = Math.floor(st.camS / .6) + k;
+      for (let j = 0; j < 2; j++) {
+        const n = c * 2 + j;
+        const p = project(c * .6 + pfHash(n + .9) * .6, (pfHash(n + .7) - .5) * 190);
+        if (!p || p.P > 4) continue;
+        const rw = U * (12 + pfHash(n + 1.3) * 16) * p.P, rh = Math.max(1, st.eye * p.P * p.P * .16 / st.F);
+        ctx.drawImage(j ? st.blobLight : st.blobDark, p.x - rw, p.y - rh, rw * 2, rh * 2);
+      }
+    }
+    // ombres des sapins couchées en travers de la piste (soleil à droite)
+    for (let k = -1; k < 34; k++) {
+      const sk = Math.floor(st.s / .7) * .7 + k * .7, n = Math.round(sk / .7);
+      if (snap && sk > snap.distance - STAND_FROM - .7) break;
+      const xr = EDGE + 10 + pfHash(n + 1) * 34, len = 42 + pfHash(n + 2) * 30;
+      groundPoly([[sk - .04, xr], [sk + .16, xr], [sk - .2, xr - len]], 'rgba(74,108,160,.13)'); // en pointe, comme le sapin
+    }
+    // grains de neige
+    for (let pass = 0; pass < 2; pass++) {
+      ctx.fillStyle = pass ? 'rgba(120,155,200,.3)' : 'rgba(255,255,255,.9)';
+      for (let k = 0; k < 26; k++) {
+        const c = Math.floor(st.camS / .22) + k;
+        for (let j = pass; j < 5; j += 2) {
+          const n = c * 5 + j;
+          const p = project(c * .22 + pfHash(n + .17) * .22, (pfHash(n + .31) - .5) * 150);
+          if (!p || p.y > H * 1.1) continue;
+          const z = U * (.22 + pfHash(n + .5) * .4) * p.P;
+          ctx.fillRect(p.x, p.y, z * 2.2, Math.max(1, z * .55));
+        }
+      }
+    }
+    // filets de sécurité : le bandeau orange file droit, les piquets sont plantés dans la neige
+    const stop = snap ? snap.distance - STAND_FROM + .1 : st.s + 30;
+    [-1, 1].forEach(side => {
+      const a = project(ns, side * EDGE), b = project(Math.min(stop, st.camS + 45), side * EDGE);
+      if (!a || !b || stop <= ns) return;
+      ctx.fillStyle = 'rgba(232,96,40,.78)';
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y - U * 7 * a.P); ctx.lineTo(b.x, b.y - U * 7 * b.P);
+      ctx.lineTo(b.x, b.y - U * 2 * b.P); ctx.lineTo(a.x, a.y - U * 2 * a.P);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = Math.max(1, U * .15);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y - U * 7 * a.P); ctx.lineTo(b.x, b.y - U * 7 * b.P); ctx.stroke();
+      ctx.strokeStyle = '#5d6a7c';
+      for (let k = 0; k < 26; k++) {
+        const sp = (Math.floor(st.camS / .5) + k) * .5;
+        if (sp > stop) break;
+        const p = project(sp, side * EDGE);
+        if (!p) continue;
+        ctx.lineWidth = Math.max(1, U * .45 * p.P);
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - U * 8 * p.P); ctx.stroke();
+      }
+    });
+  }
+  /** La trace des coureurs précédents, qui serpente d'une porte à l'autre */
+  function paintRuts() {
+    const { ctx } = st;
+    const gates = [...snap.gatesView].sort((a, b) => a.world - b.world);
+    if (!gates.length) return;
+    const pts = [];
+    if (gates[0].world > .5) pts.push([.3, 0]);
+    gates.forEach(g => pts.push([g.world, g.side * FPV.turn]));
+    if (snap.distance - gates[gates.length - 1].world < 1.6) pts.push([snap.distance + .3, 0]);
+    const line = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      for (let q = 0; q < 8; q++) {
+        const u = q / 8;
+        line.push([mix(pts[i][0], pts[i + 1][0], u), mix(pts[i][1], pts[i + 1][1], (1 - Math.cos(Math.PI * u)) / 2)]);
+      }
+    }
+    line.push(pts[pts.length - 1]);
+    const ns = nearS(), vis = line.filter(q => q[0] >= ns);
+    if (vis.length < 2) return;
+    ctx.fillStyle = 'rgba(84,120,170,.3)';
+    [-2.2, 2.2].forEach(off => {
+      ctx.beginPath();
+      vis.forEach(([s, x], i) => { const p = project(s, x + off - .65); ctx[i ? 'lineTo' : 'moveTo'](p.x, p.y); });
+      for (let i = vis.length - 1; i >= 0; i--) { const p = project(vis[i][0], vis[i][1] + off + .65); ctx.lineTo(p.x, p.y); }
+      ctx.closePath(); ctx.fill();
+    });
+  }
+  /** Banderole de temps intermédiaire tendue au-dessus de la piste : on passe dessous */
+  function drawSplitBanner(sf, label) {
+    const { ctx, U } = st;
+    const h0 = 42, h1 = 52, xw = EDGE - 1;
+    [-1, 1].forEach(sd => {
+      const a = P3(sf, sd * xw, 0), b = P3(sf, sd * xw, h1 + 2);
+      ctx.strokeStyle = '#39445c'; ctx.lineWidth = Math.max(1.5, U * 1.2 * a[2]);
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    });
+    const bl = P3(sf, -xw, h0), br = P3(sf, xw, h0), tr = P3(sf, xw, h1), tl = P3(sf, -xw, h1);
+    poly([bl, br, tr, tl], '#0a3d91');
+    const h = bl[1] - tl[1], w = br[0] - bl[0];
+    ctx.fillStyle = '#ffcf1a'; ctx.fillRect(bl[0], bl[1] - h * .13, w, h * .13);
+    if (h < 7) return;
+    ctx.fillStyle = '#fff'; ctx.font = `italic 900 ${Math.round(h * .58)}px Montserrat, system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(trText(label), (bl[0] + br[0]) / 2, tl[1] + h * .46);
+  }
+  /** Gerbe de neige soulevée par les carres, vers l'extérieur du virage */
+  function spawnSprayFpv(side, strong) {
+    const { U, W, H } = st;
+    const n = strong ? 26 : 2;
+    for (let i = 0; i < n; i++) {
+      st.spray.push({
+        x: W / 2 + side * U * (9 + Math.random() * 12), y: H - U * (1 + Math.random() * 7),
+        vx: side * U * (18 + Math.random() * 62), vy: -U * (28 + Math.random() * 70),
+        r: U * (.5 + Math.random() * 1.3), age: 0, life: .35 + Math.random() * .4,
+      });
+    }
+  }
+  /* Le skieur en rendu 3D, dans le style de la mascotte : pattes nues en peluche noire, dragonne rouge au poignet,
+     skis rouges à croix suisse. Images faites sur OpenArt (fond vert retiré), dans img/ski/. Une seule patte (la gauche)
+     par pose : la droite est son miroir. Tant qu'une image manque, on garde le dessin au code. */
+  const ART = {};
+  if (SKI_FPV) ['patte', 'patte-levee', 'spatules'].forEach(n => { ART[n] = new Image(); ART[n].src = `img/ski/${n}.webp`; });
+  const artReady = () => ['patte', 'patte-levee', 'spatules'].every(n => ART[n] && ART[n].complete && ART[n].naturalWidth > 0);
+  function paintRiderArt(t) {
+    const { ctx, W, H, U } = st;
+    const cx = W / 2;
+    // spatules : elles sortent du bas de l'image et suivent le cap
+    ctx.fillStyle = 'rgba(50,80,125,.2)';
+    ctx.beginPath(); ctx.ellipse(cx - U * 2, H, U * 22, U * 6.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.save();
+    ctx.translate(cx - st.lat * U * 1.4, H + U * 6);
+    ctx.rotate(st.head * .12);
+    ctx.drawImage(ART.spatules, -U * 29, -U * 41, U * 58, U * 58);
+    ctx.restore();
+    const up = st.raise * st.raise * (3 - 2 * st.raise);                 // 0 = en course, 1 = bras levés
+    const bounce = up * Math.abs(Math.sin(t * 7)) * U * 2.2;
+    [-1, 1].forEach(sd => {
+      const hit = sd === st.punchSide ? Math.sin((1 - st.punch) * Math.PI) : 0;
+      if (up < .98) { // en course : le bras entre par le coin de l'écran ; à chaque porte, la patte part vers le piquet
+        ctx.save();
+        ctx.translate(sd < 0 ? -U * 3 : W + U * 3, H + U * 9 + up * U * 62 - hit * U * 4 + Math.sin(t * 2.3 + sd) * U * .35);
+        ctx.scale(-sd, 1);
+        ctx.rotate(hit * .16);
+        ctx.drawImage(ART.patte, 0, -U * 46, U * 46, U * 46);
+        ctx.restore();
+      }
+      if (up > .02) { // à l'arrivée : les deux bras levés en V, bâtons vers le ciel
+        ctx.save();
+        ctx.translate(cx + sd * U * 20, H - U * 46 + (1 - up) * U * 105 - bounce); // le bas du bras est caché par la bande noire
+        ctx.scale(-sd, 1);
+        ctx.rotate(-.22);
+        ctx.drawImage(ART['patte-levee'], -U * 51, -U * 52, U * 100, U * 100);
+        ctx.restore();
+      }
+    });
+  }
+  /** Ce que le skieur voit de lui-même : spatules, manches, poings gantés avec leur protège-main.
+      Ce repère reste fixe à l'écran, c'est lui qui évite le mal de mer. */
+  function paintRider(step, t, over) {
+    const { ctx, W, H, U } = st;
+    const cx = W / 2;
+    st.raise += ((over ? 1 : 0) - st.raise) * (1 - Math.exp(-step * 4));
+    st.punch = Math.max(0, st.punch - step * 4.5);
+    const heading = pfClamp((st.lat - st.prevLat) / Math.max(step, .016) * .1, -1, 1); // cap : vers où pointent les skis
+    st.head += (heading - st.head) * (1 - Math.exp(-step * 8));
+    if (artReady()) { paintRiderArt(t); return; } // images en rendu 3D ; sinon, dessin au code ci-dessous
+
+    // spatules
+    ctx.save();
+    ctx.translate(cx - st.lat * U * 1.4, H + U * 3);
+    ctx.rotate(st.head * .14);
+    ctx.fillStyle = 'rgba(50,80,125,.2)';
+    ctx.beginPath(); ctx.ellipse(-U * 2, -U * 3, U * 21, U * 6.5, 0, 0, Math.PI * 2); ctx.fill();
+    [-1, 1].forEach(sd => {
+      const bx = sd * U * 13, tx = sd * U * 7.4, ty = -U * 26, bw = U * 5.2, tw = U * 2.9, by = U * 2;
+      const shape = () => {
+        ctx.beginPath();
+        ctx.moveTo(bx - bw, by); ctx.lineTo(tx - tw, ty + U * 4.2);
+        ctx.quadraticCurveTo(tx - tw, ty, tx, ty - U * .2); ctx.quadraticCurveTo(tx + tw, ty, tx + tw, ty + U * 4.2);
+        ctx.lineTo(bx + bw, by); ctx.closePath();
+      };
+      const g = ctx.createLinearGradient(tx - tw, 0, bx + sd * bw, 0);
+      g.addColorStop(0, '#9c172a'); g.addColorStop(.5, '#f2405a'); g.addColorStop(1, '#a01a2d');
+      ctx.fillStyle = g; shape(); ctx.fill();
+      ctx.save(); shape(); ctx.clip();
+      // décor du ski : bande noire, filet blanc, spatule relevée qui prend la lumière
+      const at = k => [mix(tx, bx, k), mix(ty, by, k), mix(tw, bw, k)];
+      const band = (k1, k2, col) => {
+        const [x1, y1, w1] = at(k1), [x2, y2, w2] = at(k2);
+        ctx.fillStyle = col;
+        ctx.beginPath(); ctx.moveTo(x1 - w1, y1); ctx.lineTo(x1 + w1, y1); ctx.lineTo(x2 + w2, y2); ctx.lineTo(x2 - w2, y2); ctx.closePath(); ctx.fill();
+      };
+      band(.3, .37, '#16181d'); band(.37, .395, '#ffffff');
+      const tipGlow = ctx.createLinearGradient(0, ty, 0, ty + U * 6);
+      tipGlow.addColorStop(0, 'rgba(255,255,255,.75)'); tipGlow.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = tipGlow; ctx.fillRect(tx - tw, ty - U, tw * 2, U * 7);
+      ctx.strokeStyle = 'rgba(255,255,255,.92)'; ctx.lineWidth = U * .9; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(...at(.46)); ctx.lineTo(...at(1.05)); ctx.stroke();
+      ctx.lineCap = 'butt';
+      ctx.restore();
+      ctx.strokeStyle = '#5a0b17'; ctx.lineWidth = U * .35; shape(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(232,238,246,.9)'; ctx.lineWidth = U * .32; // carre intérieure qui brille
+      ctx.beginPath(); ctx.moveTo(bx - sd * bw, by); ctx.lineTo(tx - sd * tw, ty + U * 4.2); ctx.stroke();
+    });
+    ctx.restore();
+
+    // bras et bâtons : position de course, coup de poing dans le piquet à chaque porte, poings levés à l'arrivée
+    const bounce = st.raise * Math.abs(Math.sin(t * 7)) * U * 2.2;
+    [-1, 1].forEach(sd => {
+      const hit = sd === st.punchSide ? Math.sin((1 - st.punch) * Math.PI) : 0;
+      const hx = cx + sd * U * mix(31 - 10 * hit, 37, st.raise) + st.lat * U * 1.2;
+      const hy = H - U * mix(20 + 11 * hit, 80, st.raise) - bounce + Math.sin(t * 2.3 + sd) * U * .35;
+      const ex = cx + sd * U * mix(54, 27, st.raise), ey = H + U * 10; // à l'arrivée, les bras s'ouvrent en V
+      const far = 1 - .3 * st.raise;                                    // le poing levé est plus loin des yeux : plus petit
+      // bâton : pointe vers la neige en course, vers le ciel à l'arrivée
+      const ang = Math.PI / 2 + sd * mix(.24, -(Math.PI - .31), st.raise), len = U * mix(34, 52, st.raise);
+      const dx = Math.cos(ang), dy = Math.sin(ang);
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#aeb7c4'; ctx.lineWidth = U * 1.05;
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx + dx * len, hy + dy * len); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = U * .32;
+      ctx.beginPath(); ctx.moveTo(hx - U * .22, hy); ctx.lineTo(hx + dx * len - U * .22, hy + dy * len); ctx.stroke();
+      if (st.raise > .5) { // rondelle du bâton, visible quand il est brandi
+        ctx.strokeStyle = '#20232a'; ctx.lineWidth = U * .7;
+        ctx.beginPath(); ctx.ellipse(hx + dx * len * .9, hy + dy * len * .9, U * 2.6, U * .9, 0, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.lineCap = 'butt';
+      // avant-bras : manche rouge de la combinaison, plus large au coude qu'au poignet
+      const al = Math.hypot(hx - ex, hy - ey), ux = (hx - ex) / al, uy = (hy - ey) / al, nx = -uy, ny = ux;
+      const wx = hx - ux * U * 5.5, wy = hy - uy * U * 5.5; // poignet
+      const arm = ctx.createLinearGradient(wx - nx * U * 6, wy - ny * U * 6, wx + nx * U * 6, wy + ny * U * 6);
+      arm.addColorStop(0, '#7c0d1a'); arm.addColorStop(.35, '#e62a3c'); arm.addColorStop(.6, '#f04355'); arm.addColorStop(1, '#8e0f1d');
+      ctx.fillStyle = arm;
+      ctx.beginPath();
+      ctx.moveTo(ex - nx * U * 8.5, ey - ny * U * 8.5); ctx.lineTo(wx - nx * U * 5 * far, wy - ny * U * 5 * far);
+      ctx.lineTo(wx + nx * U * 5 * far, wy + ny * U * 5 * far); ctx.lineTo(ex + nx * U * 8.5, ey + ny * U * 8.5);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.88)'; ctx.lineWidth = U * 1; // liseré blanc, comme sur la combinaison
+      ctx.beginPath(); ctx.moveTo(ex + sd * nx * U * 5.4, ey + sd * ny * U * 5.4); ctx.lineTo(wx + sd * nx * U * 3.1 * far, wy + sd * ny * U * 3.1 * far); ctx.stroke();
+      // gant noir (la patte du panda), vu de dos, serré sur la poignée ; devant, le protège-main de slalom
+      ctx.save();
+      ctx.translate(hx, hy); ctx.rotate(Math.atan2(uy, ux) + Math.PI / 2); ctx.scale(far, far);
+      ctx.fillStyle = '#2b2e36'; roundedRect(ctx, -U * 5.2, U * 3.2, U * 10.4, U * 3.6, U * 1.2); ctx.fill(); // manchette
+      ctx.fillStyle = '#17191e';
+      ctx.beginPath(); ctx.ellipse(-sd * U * 5, -U * .6, U * 2, U * 3.4, sd * .35, 0, Math.PI * 2); ctx.fill(); // pouce
+      const gl = ctx.createLinearGradient(-U * 5, 0, U * 5, 0);
+      gl.addColorStop(0, '#0e0f13'); gl.addColorStop(.4, '#33363f'); gl.addColorStop(1, '#101115');
+      ctx.fillStyle = gl; roundedRect(ctx, -U * 5, -U * 5.2, U * 10, U * 9.4, U * 3.2); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = U * .4;
+      for (let f = -1; f <= 1; f++) { ctx.beginPath(); ctx.moveTo(f * U * 2.4, -U * 4.6); ctx.lineTo(f * U * 2.5, U * .6); ctx.stroke(); }
+      ctx.fillStyle = '#23262d'; roundedRect(ctx, -U * 1.4, -U * 10.4, U * 2.8, U * 5, U * 1); ctx.fill(); // haut de la poignée
+      ctx.fillStyle = 'rgba(10,15,30,.3)'; roundedRect(ctx, -U * 6.4, -U * 7.4, U * 12.8, U * 5.6, U * 2); ctx.fill();
+      ctx.fillStyle = '#f5f7fa'; roundedRect(ctx, -U * 6.4, -U * 8, U * 12.8, U * 5.6, U * 2); ctx.fill();
+      ctx.fillStyle = '#d52b1e'; ctx.fillRect(-U * 6.4, -U * 5.9, U * 12.8, U * 1.5);
+      ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fillRect(-U * 5, -U * 7.5, U * 10, U * .6);
+      ctx.restore();
+    });
+  }
+  function paintFpv(step, t) {
+    const { ctx, W, H, hz } = st;
+    // après la ligne, on s'arrête assez tôt pour garder l'écran géant et la tribune du fond bien en vue
+    st.s += (Math.min(snap.world, snap.distance + 1.9) - st.s) * (1 - Math.exp(-step * 11));
+    if (st.goT == null && snap.elapsedMs > 0) st.goT = t; // le portillon s'ouvre au GO
+    const over = st.s > snap.distance;
+    st.prevLat = st.lat;
+    st.lat += ((over ? 0 : snap.lateral) - st.lat) * (1 - Math.exp(-step * (over ? 2.5 : 10)));
+    st.back += ((st.goT == null ? FPV.backStart : FPV.back) - st.back) * (1 - Math.exp(-step * 3)); // au GO, la caméra s'élance
+    st.camS = st.s - st.back;
+    st.camX = st.lat * FPV.turn;
+    st.roll += ((over ? 0 : st.lat * FPV.roll) - st.roll) * (1 - Math.exp(-step * 6));
+    if (snap.peakSeq !== lastSeq) { lastSeq = snap.peakSeq; spawnSprayFpv(snap.lastSide, true); st.punch = 1; st.punchSide = -snap.lastSide; }
+    else if (!snap.idle && !over && st.goT != null && Math.random() < .3) spawnSprayFpv(st.lat >= 0 ? 1 : -1, false);
+    st.speedN += (pfClamp((snap.speedKmh - 25) / 45, 0, 1) - st.speedN) * (1 - Math.exp(-step * 3));
+
+    ctx.fillStyle = st.bgGrad; ctx.fillRect(0, 0, W, H);
+    ctx.save();
+    // le skieur se penche vers l'intérieur du virage : l'image penche à peine, autour du centre de l'horizon
+    ctx.translate(W / 2, hz); ctx.rotate(st.roll); ctx.scale(1.05, 1.05); ctx.translate(-W / 2, -hz);
+    ctx.drawImage(st.sky, 0, 0);
+    paintGroundFpv();
+    paintFinishFloor();
+    paintRuts();
+
+    // du plus loin au plus près : sapins, tribunes, portes, portiques
+    const finishS = snap.distance, ns = nearS();
+    const items = [];
+    for (let k = -1; k < 66; k++) {
+      const sk = Math.floor(st.s / .7) * .7 + k * .7;
+      const n = Math.round(sk / .7);
+      if (sk > snap.distance - STAND_FROM - .7) continue;
+      items.push([sk, () => {
+        drawTree(sk, EDGE + 10 + pfHash(n + 1) * 34, .8 + pfHash(n + 2) * .6, n);
+        drawTree(sk + .3, -(EDGE + 10 + pfHash(n + 3) * 34), .8 + pfHash(n + 4) * .6, n + 1);
+      }]);
+    }
+    const excite = over ? 1 : pfClamp((st.s - (snap.distance - 10)) / 10, 0, 1);
+    for (let k = 0; k * .6 < STAND_FROM + BACK_AT - .1; k++) {
+      const s1 = snap.distance - STAND_FROM + k * .6, s2 = s1 + .6;
+      if (s2 < ns) continue;
+      [-1, 1].forEach(side => items.push([s1 + .3, () => drawSideStand(side, s1, s2, t, excite)]));
+    }
+    snap.gatesView.forEach(g => items.push([g.world, () => drawGate(g, t)]));
+    [1, 2].forEach(k => { const sb = snap.distance * k / 3; if (sb >= ns) items.push([sb, () => drawSplitBanner(sb, `INTER ${k}`)]); });
+    if (finishS >= ns) items.push([finishS, () => drawFinish(finishS)]);
+    items.push([snap.distance + FINISH_DEPTH + 2, () => drawBackStand(t, excite)]);
+    if (.3 >= ns) items.push([.3, () => drawStartHouse(t)]);
+    items.sort((a, b) => b[0] - a[0]).forEach(([, draw]) => draw());
+
+    paintSpeedSnow(t);
+    ctx.restore();
+    paintRider(step, t, over);
+    paintSpray(step);
+    if (over) paintFireworks(step, t); else paintSpeedEdges(t);
+    paintFlare();
+    paintVignette(ctx, W, H, '8,18,40', .26);
+    if (snap.penaltyNow) paintVignette(ctx, W, H, '225,20,45', .62);
+    else if (snap.warned) paintVignette(ctx, W, H, '255,170,0', .3 + Math.sin(t * 12) * .1);
+    if (over) paintFinishCinema(step);
+  }
+
   function paint(step, t) {
+    if (st.fpv) { if (snap) paintFpv(step, t); return; }
     if (!snap) { st.ctx.drawImage(st.sky, 0, 0); paintGround(t); paintPanda(st.W / 2, t); return; }
     const { ctx, W, U } = st;
     st.s += (snap.world - st.s) * (1 - Math.exp(-step * 11));
+    st.camS = st.s - D0;
     if (st.goT == null && snap.elapsedMs > 0) st.goT = t; // le portillon s'ouvre au GO
     st.prevLat = st.lat;
     st.lat += ((st.s > snap.distance ? 0 : snap.lateral) - st.lat) * (1 - Math.exp(-step * 15));
@@ -7736,17 +8119,34 @@ const SkiScene = (() => {
     const stage = document.getElementById('skiStage');
     if (!canvas || !stage) return;
     const g = sizeGameCanvas(canvas, stage);
-    const hz = Math.round(g.H * HORIZON);
+    const fpv = SKI_FPV;
+    if (fpv) g.U = Math.min(g.W, g.H * .68) / 100; // l'unité suit le petit côté : même cadrage debout ou couché
+    const hz = Math.round(g.H * (fpv ? FPV.horizon : HORIZON)), py = g.H * PANDA_Y;
     snap = null; lastSeq = 0;
     st = {
-      ...g, hz, py: g.H * PANDA_Y, s: 0, lat: 0, prevLat: 0, trail: [], spray: [], speedN: 0, fw: [], fwTimer: 0, goT: null, finT: 0,
+      ...g, hz, py, s: 0, lat: 0, prevLat: 0, trail: [], spray: [], speedN: 0, fw: [], fwTimer: 0, goT: null, finT: 0,
+      // caméra : derrière le panda (ancienne vue) ou dans le casque (vue subjective)
+      fpv, vx: g.W / 2, camX: 0, F: fpv ? FPV.F : D0, eye: fpv ? FPV.eye * g.U : py - hz, near: fpv ? FPV.near : .55,
+      back: fpv ? FPV.backStart : D0, camS: -(fpv ? FPV.backStart : D0), archH: fpv ? FPV.arch : 1.12 * (py - hz) / g.U,
+      roll: 0, head: 0, raise: 0, punch: 0, punchSide: 0,
       sky: layerCanvas(g.W, hz, paintBackdrop),
       trees: [5, 13, 27].map(v => layerCanvas(200, 300, paintTreeVariant(v))),
       crowd: layerCanvas(460, 260, paintCrowd),
       body: layerCanvas(340, 340, (c, w, h) => paintBody(c, w, h, false)),
       cheer: layerCanvas(340, 340, (c, w, h) => paintBody(c, w, h, true)),
     };
-    st.snowLayer = layerCanvas(g.W, g.H, paintSnowLayer);
+    if (fpv) {
+      const blob = rgb => layerCanvas(64, 64, c => {
+        const gr = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+        gr.addColorStop(0, `rgba(${rgb})`); gr.addColorStop(1, `rgba(${rgb.replace(/[\d.]+$/, '0')})`);
+        c.fillStyle = gr; c.fillRect(0, 0, 64, 64);
+      });
+      st.blobDark = blob('104,140,190,.15'); st.blobLight = blob('255,255,255,.55');
+      st.snowGrad = g.ctx.createLinearGradient(0, hz, 0, g.H);
+      [[0, '#cfdff1'], [.3, '#eef5fb'], [1, '#e2ecf6']].forEach(([k, col]) => st.snowGrad.addColorStop(k, col));
+      st.bgGrad = g.ctx.createLinearGradient(0, 0, 0, g.H);
+      [[0, '#2a6fc4'], [FPV.horizon, '#dbeefa'], [1, '#e2ecf6']].forEach(([k, col]) => st.bgGrad.addColorStop(k, col));
+    } else st.snowLayer = layerCanvas(g.W, g.H, paintSnowLayer);
     runGameCanvas(canvas, paint);
   }
   return { start, update(s) { snap = s; } };
