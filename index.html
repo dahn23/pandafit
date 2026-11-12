@@ -7874,10 +7874,10 @@ const SkiScene = (() => {
       }
       if (up > .02) { // à l'arrivée : les deux bras levés en V, bâtons vers le ciel
         ctx.save();
-        ctx.translate(cx + sd * U * 20, H - U * 46 + (1 - up) * U * 105 - bounce); // le bas du bras est caché par la bande noire
+        ctx.translate(cx + sd * U * 23, H - U * 40 + (1 - up) * U * 105 - bounce); // le bas du bras est caché par la bande noire
         ctx.scale(-sd, 1);
-        ctx.rotate(-.22);
-        ctx.drawImage(ART['patte-levee'], -U * 51, -U * 52, U * 100, U * 100);
+        ctx.rotate(.2);
+        ctx.drawImage(ART['patte-levee'], -U * 41, -U * 38, U * 80, U * 80);
         ctx.restore();
       }
     });
@@ -8027,7 +8027,7 @@ const SkiScene = (() => {
       if (s2 < ns) continue;
       [-1, 1].forEach(side => items.push([s1 + .3, () => drawSideStand(side, s1, s2, t, excite)]));
     }
-    snap.gatesView.forEach(g => items.push([g.world, () => drawGate(g, t)]));
+    snap.gatesView.forEach(g => { if (g.world < snap.distance - .3) items.push([g.world, () => drawGate(g, t)]); }); // jamais de piquet dans l'aire d'arrivée
     [1, 2].forEach(k => { const sb = snap.distance * k / 3; if (sb >= ns) items.push([sb, () => drawSplitBanner(sb, `INTER ${k}`)]); });
     if (finishS >= ns) items.push([finishS, () => drawFinish(finishS)]);
     items.push([snap.distance + FINISH_DEPTH + 2, () => drawBackStand(t, excite)]);
