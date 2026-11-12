@@ -74,6 +74,12 @@ Ni saisie avant l'Index, ni code / QR à la fin, y compris Mois et Campagne. Int
 ### Mode séance (séance en cours dans le projet)
 - Au parc, en attente et en séance : plus de menus (`isKiosk()`). Séance : accueil selon le poste (Index, jeux libres, station Triathlon). **Écran en accès libre** (`freePlayScreen()`) = libre-service OU poste « Jeux libres » en séance (`postejeuxSeance()`) : même accueil que le libre-service, avec encadrés / vignettes / menu / défis / annonces / pubs / satisfaction du projet. Jamais au poste Index ni aux stations. Console : tous les onglets pour tous les formats ; options d'écran en haut de l'onglet Jeux ; PIN dans l'onglet Projet. Coach : roue discrète en bas à droite → Réglages (PIN redemandé à chaque retour).
 
+### Slalom en vue subjective (12.11.2026)
+- Le Slalom se joue **par les yeux du skieur** (`SkiScene` dans `index.html`, constante `SKI_FPV`). Commande et règles inchangées (`SlalomGame` non touché). L'ancienne vue de derrière reste là : ajouter `?skiview=classic` à l'adresse.
+- **Pas de mal de mer** (demande de Dan) : horizon et montagnes fixes, inclinaison ~1,4°, aucun tremblement, skis et pattes fixes à l'écran, portes qui s'effacent juste avant d'être dépassées. Réglages dans l'objet `FPV` (`turn` = ampleur du virage, `roll` = inclinaison) : à ajuster si Dan trouve ça inconfortable sur le vrai plateau.
+- **Images en rendu 3D** (style de la mascotte) dans `img/ski/` : `patte.webp` (patte gauche qui tient le bâton, pouce côté intérieur, dragonne rouge), `patte-levee.webp` (bras levé à l'arrivée), `spatules.webp`. Seule la patte gauche existe, la droite est son miroir (`paintRiderArt`). Si une image manque, repli sur le dessin au code (`paintRider`).
+- Images faites sur **OpenArt** (compte de Dan, personnage « Panda »), fond vert retiré avec ffmpeg : méthode dans la note de mémoire `panda-mascotte-openart`. Mascotte = peluche noire, **pattes nues** (ni gants ni manches).
+
 ### PWA
 - App installable en plein écran. Manifest **externe** `manifest.webmanifest` (⚠️ un manifest data-URI ne permet PAS l'install WebAPK Android). `sw.js` en **network-first** (jamais de code périmé). Icônes 192 + 512.
 
