@@ -100,6 +100,17 @@ Ni saisie avant l'Index, ni code / QR à la fin, y compris Mois et Campagne. Int
 - **Stand** (`MART` / `mart(nom)`, calques repeints par `buildLayers()` dès qu'une image arrive) : `paysage` (flouté exprès pour laisser lire les ingrédients), `plancher`, `etal` (posé sur les 3 hauteurs de `SHELVES`), `auvent`, `panier` (calque du fond = panier entier, calque de devant = tout ce qui est sous le bord avant, pour que les ingrédients tombent dedans), `patte` (gauche, miroir pour la droite).
 - Restent au code : niveau à bulle, cagettes en bois, rayons de soleil, carte de la liste. Banc d'essai : `?shot=market&live=1`.
 
+### The Zone / Electro : fonds en rendu 3D (13.11.2026)
+- Images facultatives dans `img/fonds/` (`FOND` / `fond(nom)` / `artBackdrop()`), repli sur le dessin au code : `orbite` (The Zone), `circuit` (Electro), `reseau`.
+- The Zone : `ZoneScene.buildOrbit()` fait tourner très lentement la planète (rotation limitée au disque) et dériver un calque de nuages. Demande de Dan : animation **légère** seulement.
+
+### MindFit : thème « réunion du comité » (13.11.2026)
+- Idée : on se fatigue en montant l'escalier, puis on réfléchit au calme en salle de réunion (public entreprise). **Aucune marque dans le décor.**
+- `MindScene.paintMeeting()` : images facultatives dans `img/mind/` (`escalier`, `salle`, panda en costume `costume-1/2/4` qui monte les marches), repli sur l'ancien affichage.
+- Questions (`TempoGame.generateQuestion()`), 3 sortes tirées sans répétition : `calc` (additions / soustractions), `count` (« Combien ? » d'objets), `chart` (barre la plus haute / la plus basse). **Décisions de Dan** : consigne de 2 mots maximum (ne pas pénaliser ceux qui lisent mal la langue), rien qui fasse attendre (pas de mémoire), rien qui stigmatise. Sens de la flèche et mémoire ont été refusés.
+- Mascotte : les 5 vidéos `MINDFUL_*_VIDEO_B64` (accueil, effort, content, raté, fin) montrent le panda en costume. 360×360, 24 i/s, sans son, 5 s en boucle. Fabrication : OpenArt, « Frame to video », modèle Kling 4.0 Flash (250 crédits le clip de 5 s) à partir du portrait en costume ; demander que le panda **revienne à sa pose de départ** (boucle sans saut) et préciser **pattes noires** ; conversion ffmpeg (`scale=360:360,fps=24`, `-crf 27`, `-an`).
+- Vignette du jeu : `img/vignettes/mindfit.jpg` (1488×496). L'adresse affichée par l'app est dans Supabase, `games.image_url` (id `tempo`).
+
 ### PWA
 - App installable en plein écran. Manifest **externe** `manifest.webmanifest` (⚠️ un manifest data-URI ne permet PAS l'install WebAPK Android). `sw.js` en **network-first** (jamais de code périmé). Icônes 192 + 512.
 
