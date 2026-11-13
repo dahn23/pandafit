@@ -630,7 +630,11 @@
   .lake-stage { position: relative; width: 100%; height: 70vh; border-radius: 22px; overflow: hidden; background: #0f1440; }
   .lake-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   .lake-timer { position: absolute; top: 14px; right: 14px; font-size: 26px; color: #fff; background: rgba(10,14,50,.32); padding: 4px 16px; border-radius: 999px; }
-  .lake-label { position: absolute; top: 72px; left: calc(min(46vw, 230px) + 12px); right: 14px; text-align: center; font-size: 44px; font-weight: 800; line-height: 1.12; color: #fff; text-shadow: 0 2px 16px rgba(10,14,50,.55); }
+  .lake-label { position: absolute; top: 72px; left: calc(min(46vw, 230px) + 12px); right: 14px; text-align: center; font-size: 44px; font-weight: 800; line-height: 1.12; color: #fff; text-shadow: 0 2px 16px rgba(10,14,50,.55); transition: color .35s ease; }
+  /* hors de la zone : le texte se teinte de corail et un rappel discret apparaît dessous, là où le joueur regarde */
+  .lake-label.off { color: #ffd6cb; }
+  .lake-label::after { content: attr(data-hint); display: block; margin: 10px auto 0; width: fit-content; padding: 5px 16px; border-radius: 999px; font-size: 21px; font-weight: 700; line-height: 1.2; color: #fff; background: rgba(255,112,98,.82); text-shadow: none; opacity: 0; transform: translateY(-4px); transition: opacity .3s ease, transform .3s ease; }
+  .lake-label.off::after { opacity: 1; transform: none; }
   .lake-panda { position: absolute; left: 50%; bottom: 2.5%; width: 25%; max-width: 230px; transform: translateX(-50%); transform-origin: 50% 100%; }
   /* Electro : consigne en haut, à droite de l'encadré du panda (sinon elle cache la fin du parcours) */
   #zoneCanvas { background: #14101f; border-radius: 20px; }
@@ -3438,6 +3442,7 @@ const UI_DICT_ROWS = [
   ["Installe-toi, trouve ton équilibre...", "Mach es dir bequem, finde dein Gleichgewicht...", "Get settled, find your balance...", "Mettiti comodo, trova il tuo equilibrio..."],
   ["Inspire...", "Einatmen...", "Breathe in...", "Inspira..."],
   ["Retiens...", "Halten...", "Hold...", "Trattieni..."],
+  ["Reviens dans le cercle", "Zurück in den Kreis", "Back into the circle", "Torna nel cerchio"],
   ["Expire...", "Ausatmen...", "Breathe out...", "Espira..."],
   ["du temps en équilibre", "der Zeit im Gleichgewicht", "of the time in balance", "del tempo in equilibrio"],
   ["Prends un instant de plus si tu en as besoin, ou repars l'esprit un peu plus léger.", "Nimm dir noch einen Moment, wenn du ihn brauchst, oder geh mit etwas leichterem Kopf weiter.", "Take a moment longer if you need it, or head off with a lighter mind.", "Prenditi ancora un istante se ne hai bisogno, o riparti con la mente più leggera."],
@@ -10795,7 +10800,10 @@ const LakeScene = (() => {
     const inside = (snap.xCm * snap.xCm + snap.yCm * snap.yCm) <= snap.radiusCm * snap.radiusCm;
     ctx.beginPath();
     ctx.ellipse(cx, cy, snap.radiusCm * ppc, snap.radiusCm * ppc * RING_FLAT, 0, 0, Math.PI * 2);
-    ctx.lineWidth = Math.max(2, W * .004);
+    if (!inside) { // hors de la zone : l'anneau s'entoure d'un halo corail, visible même du coin de l'œil
+      ctx.lineWidth = Math.max(8, W * .016); ctx.strokeStyle = 'rgba(255,128,112,.28)'; ctx.stroke();
+    }
+    ctx.lineWidth = Math.max(2, W * (inside ? .004 : .0055));
     ctx.strokeStyle = inside ? 'rgba(255,255,255,.55)' : 'rgba(255,107,122,.95)';
     ctx.stroke();
     paintLily(cx + clamp(x, -4, 4) * ppc, cy - clamp(y, -4, 4) * ppc * RING_FLAT, W * .034, !inside);
@@ -10910,6 +10918,10 @@ const LakeScene = (() => {
     paintMotes(t, st.level);
     paintPlayer(snapNow, st.x, st.y);
     paintDeck(st.level);
+    // hors de la zone : une lueur corail monte doucement sur les bords de l'image (on la perçoit même en lisant le texte du haut)
+    const out = snapNow && !snapNow.settling && (snapNow.xCm * snapNow.xCm + snapNow.yCm * snapNow.yCm) > snapNow.radiusCm * snapNow.radiusCm;
+    st.off = (st.off || 0) + ((out ? 1 : 0) - (st.off || 0)) * (1 - Math.exp(-step * (out ? 6 : 2.5)));
+    if (st.off > .01) paintVignette(st.ctx, st.W, st.H, '255,128,112', st.off * (.42 + .08 * Math.sin(t * 3.2)));
     const breathe = 1 + .04 * st.level;
     [st.panda, st.pandaArt].forEach(el => { // le panda dessiné et le panda en rendu 3D (un seul des deux est visible)
       if (!el) return;
@@ -10969,6 +10981,10 @@ function renderRelaxPlaying(snap) {
   const inside = (snap.xCm * snap.xCm + snap.yCm * snap.yCm) <= (snap.radiusCm * snap.radiusCm);
   if (!inside) relaxFailUntil = performance.now() + 3000;
   const showFail = !inside || performance.now() < relaxFailUntil;
+  if (labelEl) { // rappel sous la consigne tant qu'on est hors du cercle (pas pendant l'installation)
+    if (!labelEl.dataset.hint) labelEl.dataset.hint = trText('Reviens dans le cercle');
+    labelEl.classList.toggle('off', !inside && !snap.settling);
+  }
   document.getElementById('relaxPandaHappy')?.classList.toggle('active', !showFail);
   document.getElementById('relaxPandaFail')?.classList.toggle('active', showFail);
 }
