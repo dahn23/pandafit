@@ -6135,18 +6135,28 @@ const MarketScene = (() => {
   const FLOOR = .665, RING_Y = .9, RING_FLAT = .4;
   const SIZE = 12;                     // taille d'un ingrédient, en % de la largeur
   const mix = (a, b, t) => a + (b - a) * t;
-  let st = null, snap = null, sprites = null;
+  let st = null, snap = null, sprites = null, spritesArt = null;
 
   function radial(c, x, y, r0, r1, stops, cx, cy) {
     const g = c.createRadialGradient(x, y, r0, cx == null ? x : cx, cy == null ? y : cy, r1);
     stops.forEach(([o, col]) => g.addColorStop(o, col));
     return g;
   }
+  /* Ingrédients en rendu 3D (faits sur OpenArt comme les images du Slalom) : une seule image, img/marche/ingredients.webp,
+     7 cases par rangée, dans l'ordre des dessins de SHOP_DRAW. Facultative : tant qu'elle n'est pas chargée, ou si elle
+     manque, on garde les ingrédients dessinés au code. Sert aussi aux vignettes de la liste de courses (iconURL). */
+  const ATLAS = new Image(); ATLAS.src = 'img/marche/ingredients.webp';
+  const ATLAS_COLS = 7;
   function makeSprites() {
-    if (sprites) return sprites;
-    sprites = {};
-    Object.keys(SHOP_DRAW).forEach(name => {
-      const color = layerCanvas(S, S, c => { try { SHOP_DRAW[name](c); } catch (e) { /* un dessin raté ne bloque pas le jeu */ } });
+    const art = ATLAS.complete && ATLAS.naturalWidth > 0;
+    if (sprites && spritesArt === art) return sprites;
+    const cell = art ? ATLAS.naturalWidth / ATLAS_COLS : 0;
+    sprites = {}; spritesArt = art;
+    Object.keys(SHOP_DRAW).forEach((name, i) => {
+      const color = layerCanvas(S, S, c => {
+        if (art) c.drawImage(ATLAS, (i % ATLAS_COLS) * cell, Math.floor(i / ATLAS_COLS) * cell, cell, cell, 0, 0, S, S);
+        else { try { SHOP_DRAW[name](c); } catch (e) { /* un dessin raté ne bloque pas le jeu */ } }
+      });
       const gray = layerCanvas(S, S, c => { c.filter = 'grayscale(1) brightness(.75)'; c.drawImage(color, 0, 0); });
       sprites[name] = { color, gray };
     });
