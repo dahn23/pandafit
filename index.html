@@ -1823,7 +1823,7 @@ const ZoneGame = (() => {
    juste un % de temps passé en équilibre, dans un esprit détente plutôt que performance.
    ===================================================================================== */
 /* =====================================================================================
-   JEU : TEMPO — alterne effort physique (7 passages de barre, axe Y) et calcul mental
+   JEU : TEMPO — alterne effort physique (7 passages de barre, axe Y) et questions de réflexion
    (7 calculs, un par un, à répondre seulement en zone calme). Chrono général 60s.
    Score = bonnes réponses - mauvaises réponses (comme Marché Express).
    ===================================================================================== */
@@ -3178,7 +3178,7 @@ const UI_DICT_ROWS = [
   ["Suis le fil sans le lâcher", "Folge dem Draht, ohne loszulassen", "Follow the wire without letting go", "Segui il filo senza lasciarlo"],
   ["Reste dans la zone, ne perds pas de vies", "Bleib in der Zone, verliere keine Leben", "Stay in the zone, don't lose lives", "Resta nella zona, non perdere vite"],
   ["Respiration guidée pour se détendre", "Geführte Atmung zur Entspannung", "Guided breathing to relax", "Respirazione guidata per rilassarsi"],
-  ["Effort physique et calcul mental, en alternance", "Körperliche Anstrengung und Kopfrechnen im Wechsel", "Physical effort and mental arithmetic, alternating", "Sforzo fisico e calcolo mentale, alternati"],
+  ["Effort physique et réflexion, en alternance", "Körperliche Anstrengung und Denkaufgaben im Wechsel", "Physical effort and thinking, alternating", "Sforzo fisico e riflessione, alternati"],
   // Accueil / connexion
   ["Connecte ton capteur PandaFit", "Verbinde deinen PandaFit-Sensor", "Connect your PandaFit sensor", "Collega il tuo sensore PandaFit"],
   ["Allume le capteur et rapproche-le de la tablette, puis touche le bouton ci-dessous.", "Schalte den Sensor ein, halte ihn nah ans Tablet und tippe dann auf die Schaltfläche unten.", "Switch on the sensor, bring it close to the tablet, then tap the button below.", "Accendi il sensore, avvicinalo al tablet e tocca il pulsante qui sotto."],
@@ -4968,7 +4968,7 @@ const GAMES = [
   { id: 'cross', icon: 'wind', name: 'Zen', desc: 'Respiration guidée pour se détendre', playable: true },
   { id: 'market', icon: 'shopping-cart', name: 'Marché Express', desc: 'Trouve les ingrédients de la liste en gardant ton équilibre', playable: true },
   { id: 'skiprev', icon: 'mountain-snow', name: 'Slalom', desc: 'Échauffement au ski : balance-toi régulièrement', playable: true },
-  { id: 'tempo', icon: 'brain', name: 'MindFit', desc: 'Effort physique et calcul mental, en alternance', playable: true },
+  { id: 'tempo', icon: 'brain', name: 'MindFit', desc: 'Effort physique et réflexion, en alternance', playable: true },
 ];
 function screenGames() {
   const visibleGames = clientConfig
@@ -11236,7 +11236,7 @@ function wireRelaxResult() {
   document.getElementById('btnRelaxBack')?.addEventListener('click', () => navigate('home'));
 }
 
-/* ---------- Jeu : Tempo (effort physique + calcul mental) ---------- */
+/* ---------- Jeu : Tempo (effort physique + réflexion) ---------- */
 function screenTempoSetup() {
   return `
     <button class="btn-ghost back-top" id="btnTempoBackTop">← Retour</button>
