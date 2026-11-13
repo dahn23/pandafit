@@ -6452,7 +6452,65 @@ const MarketScene = (() => {
     }
   }
 
+  /* Décor du stand en rendu 3D (img/marche, fait sur OpenArt) : paysage, plancher, étal, auvent, panier, patte.
+     Chaque image est facultative : absente ou pas encore chargée, l'ancien dessin reste en place. */
+  const MART = {};
+  ['paysage', 'plancher', 'etal', 'auvent', 'panier', 'patte'].forEach(n => { MART[n] = new Image(); MART[n].src = `img/marche/${n}.webp`; });
+  const mart = n => { const im = MART[n]; return im && im.complete && im.naturalWidth > 0 ? im : null; };
+  const martCount = () => Object.keys(MART).filter(n => mart(n)).length;
+  /** Remplit un rectangle avec une image, sans la déformer (calée en bas, rognée sur les côtés) */
+  function coverRect(c, im, x, y, w, h) {
+    const k = Math.max(w / im.naturalWidth, h / im.naturalHeight), iw = im.naturalWidth * k, ih = im.naturalHeight * k;
+    c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
+    c.drawImage(im, x + (w - iw) / 2, y + h - ih, iw, ih);
+    c.restore();
+  }
+  /** (Re)peint les calques fixes : décor, auvent, panier. Rappelé quand une image du stand finit de charger. */
+  function buildLayers() {
+    makeSprites();
+    st.artN = martCount() + (spritesArt ? 10 : 0);
+    st.bg = layerCanvas(st.W, st.H, (c, w, h) => {
+      paintBackdrop(c, w, h);
+      const land = mart('paysage');
+      if (land) { // paysage légèrement flouté et voilé : il reste derrière, les ingrédients se lisent d'abord
+        c.filter = 'blur(' + Math.max(2, Math.round(w * .0035)) + 'px)';
+        coverRect(c, land, 0, 0, w, h * FLOOR);
+        c.filter = 'none';
+        c.fillStyle = 'rgba(255,250,235,.2)'; c.fillRect(0, 0, w, h * FLOOR);
+      }
+      paintShop(c, w, h);
+      const floor = mart('plancher');
+      if (floor) { coverRect(c, floor, 0, h * FLOOR, w, h * (1 - FLOOR)); c.fillStyle = 'rgba(255,214,150,.3)'; c.fillRect(0, h * FLOOR, w, h * .005); }
+      const shelf = mart('etal'); // la planche fait à peu près la moitié basse de l'image, la salade le haut
+      if (shelf) SHELVES.forEach(sy => { const th = h * .03, sh = th * 1.15 / .49; c.drawImage(shelf, 0, h * sy + th * 1.12 - sh, w, sh); });
+      paintCrate(c, -w * .06, h * .74, w * .3, ['apple', 'pear', 'apple', 'orange', 'apple']);
+      paintCrate(c, w * .76, h * .74, w * .3, ['carrot', 'leek', 'potato', 'onion', 'celery']);
+    });
+    const aw = mart('auvent');
+    st.awning = layerCanvas(st.W, st.H, aw ? (c, w) => c.drawImage(aw, 0, 0, w, w * aw.naturalHeight / aw.naturalWidth) : paintAwning);
+    const bk = mart('panier');
+    if (bk) {
+      // L'ouverture ovale de l'image est calée sur celle du panier dessiné, un peu plus haut : le bord avant cache ainsi le bas
+      // des ingrédients. Calque du fond = panier entier ; calque de devant = tout ce qui est sous le bord avant.
+      const iw = 567, ih = iw * bk.naturalHeight / bk.naturalWidth, off = 67, cy = 45 + off, LH = 450;
+      const draw = c => c.drawImage(bk, 300 - iw / 2, cy - ih * .229, iw, ih);
+      st.basketBack = layerCanvas(BASKET_W, LH, draw);
+      st.basketFront = layerCanvas(BASKET_W, LH, c => {
+        c.beginPath(); c.moveTo(0, cy); c.lineTo(300 - 241, cy); c.ellipse(300, cy, 241, 63, 0, Math.PI, 0, true);
+        c.lineTo(BASKET_W, cy); c.lineTo(BASKET_W, LH); c.lineTo(0, LH); c.closePath(); c.clip();
+        draw(c);
+      });
+      st.bkOff = off; st.bkH = LH;
+    } else {
+      st.basketBack = layerCanvas(BASKET_W, BASKET_H, paintBasketBack);
+      st.basketFront = layerCanvas(BASKET_W, BASKET_H, paintBasketFront);
+      st.bkOff = 0; st.bkH = BASKET_H;
+    }
+  }
+
   function paint(step, t) {
+    makeSprites(); // prend les ingrédients en rendu 3D dès que leur image est chargée
+    if (st.artN !== martCount() + (spritesArt ? 10 : 0)) buildLayers();
     const { ctx, W, H, U, bg, awning } = st;
     ctx.save();
     if (st.shake > 0) { st.shake -= step; ctx.translate((Math.random() - .5) * U * 1.6, (Math.random() - .5) * U * 1.6); }
@@ -6495,7 +6553,7 @@ const MarketScene = (() => {
     const cx = W / 2 + nx * U * 3, top = H * .79 - ny * U * 1.5;
     ctx.save();
     ctx.translate(cx, H * 1.08); ctx.rotate(nx * .1 + wobble); ctx.translate(-cx, -H * 1.08);
-    ctx.drawImage(st.basketBack, cx - bw / 2, top, bw, bh);
+    ctx.drawImage(st.basketBack, cx - bw / 2, top - st.bkOff * bw / BASKET_W, bw, bw * st.bkH / BASKET_W);
     const found = snap ? snap.found : [];
     if (found.length < st.foundAt.length) st.foundAt = [];
     while (st.foundAt.length < found.length) st.foundAt.push(t);
@@ -6506,7 +6564,7 @@ const MarketScene = (() => {
       const squash = k < 1 ? 1 + Math.max(0, Math.sin(k * Math.PI * 3)) * .08 : 1;
       ctx.drawImage(sprites[ing].color, cx + fx - s * squash / 2, top + bh * .2 - s * .62 - lift - drop + s * (1 - 1 / squash), s * squash, s / squash);
     });
-    ctx.drawImage(st.basketFront, cx - bw / 2, top, bw, bh);
+    ctx.drawImage(st.basketFront, cx - bw / 2, top - st.bkOff * bw / BASKET_W, bw, bw * st.bkH / BASKET_W);
     // niveau à bulle rond fixé sur le panier : le cercle = la zone, la bulle = ton équilibre
     const lx = cx, ly = top + bh * .58, lr = U * 7.5;
     ctx.fillStyle = '#5b6573'; ctx.beginPath(); ctx.arc(lx, ly, lr + U * 1.1, 0, Math.PI * 2); ctx.fill();
@@ -6525,6 +6583,14 @@ const MarketScene = (() => {
     // les avant-bras et les gants qui tiennent les bords du panier
     [-1, 1].forEach(s => {
       const gx = cx + s * bw * .47, gy = top + bh * .2;
+      const paw = mart('patte');
+      if (paw) { // patte en peluche en rendu 3D posée sur le bord du panier : la gauche, et son miroir pour la droite
+        const pw = U * 40, ph = pw * paw.naturalHeight / paw.naturalWidth;
+        ctx.save(); ctx.translate(gx, gy + U * 2.5); ctx.scale(-s, 1);
+        ctx.drawImage(paw, -pw * .71, -ph * .3, pw, ph);
+        ctx.restore();
+        return;
+      }
       const ex = cx + s * bw * .64, ey = H + U * 8;
       const qx = cx + s * bw * .6, qy = gy + bh * .55;
       const fur = (x, y, r, n, seed) => { // bord poilu autour d'une forme ronde
@@ -6614,15 +6680,7 @@ const MarketScene = (() => {
     makeSprites();
     const g = sizeGameCanvas(canvas, stage);
     st = { ...g, x: 0, y: 0, shake: 0, flash: 0, parts: [], flying: [], pops: [], foundAt: [] };
-    st.bg = layerCanvas(g.W, g.H, (c, w, h) => {
-      paintBackdrop(c, w, h);
-      paintShop(c, w, h);
-      paintCrate(c, -w * .06, h * .74, w * .3, ['apple', 'pear', 'apple', 'orange', 'apple']);
-      paintCrate(c, w * .76, h * .74, w * .3, ['carrot', 'leek', 'potato', 'onion', 'celery']);
-    });
-    st.awning = layerCanvas(g.W, g.H, paintAwning);
-    st.basketBack = layerCanvas(BASKET_W, BASKET_H, paintBasketBack);
-    st.basketFront = layerCanvas(BASKET_W, BASKET_H, paintBasketFront);
+    buildLayers();
     runGameCanvas(canvas, paint);
     canvas.addEventListener('pointerdown', (e) => {
       if (!snap || !st) return;
