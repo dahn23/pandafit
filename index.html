@@ -664,6 +664,45 @@
     opacity: 0; transition: opacity 0.6s ease;
   }
   .ads-banner > img.active { opacity: 1; }
+  /* Étiquettes des jeux (catégorie + durée) */
+  .game-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+  .game-tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: rgba(10,12,34,.74); color: #fff; font-size: 12px; font-weight: 800; line-height: 1.5; white-space: nowrap; }
+  .game-tag i { display: block; width: 9px; height: 9px; border-radius: 50%; }
+  /* Écran d'appel : boucle plein écran quand la tablette est libre. Il s'arrête au-dessus de la bannière du bas
+     (sondage ou annonces) : la hauteur disponible varie, donc tout se tasse dans la colonne (l'image du jeu rétrécit). */
+  .appel { position: fixed; left: 0; right: 0; top: 0; bottom: 0; z-index: 39; display: none; flex-direction: column; align-items: center; gap: 12px; padding: 20px 5% 16px; box-sizing: border-box; overflow: hidden; color: #fff; background: radial-gradient(120% 70% at 50% 0%, #33208f, #1b1150 55%, #0c0926); }
+  .appel.show { display: flex; animation: appelIn .45s ease-out; }
+  @keyframes appelIn { from { opacity: 0; } to { opacity: 1; } }
+  .appel-top { flex: none; text-align: center; }
+  .appel-kicker { font-size: clamp(13px, 2.2vw, 17px); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #6fe39a; }
+  .appel-title { margin-top: 6px; font-size: clamp(28px, 6.2vw, 50px); font-weight: 900; font-style: italic; line-height: 1.06; }
+  .appel-title em { color: #ffd166; font-style: italic; white-space: nowrap; }
+  .appel-stage { flex: 1 1 0; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; gap: 4.5%; }
+  .appel-shot { position: relative; flex: none; height: 100%; max-height: 640px; aspect-ratio: 540 / 794; max-width: 56%; border-radius: 22px; background: #0c0926 center / cover no-repeat; box-shadow: 0 18px 44px rgba(0,0,0,.55), 0 0 0 4px rgba(255,255,255,.16); }
+  .appel-shot.in, .appel-side.in { animation: appelSlide .5s cubic-bezier(.2,.9,.3,1); }
+  @keyframes appelSlide { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+  .appel-clip { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 22px; opacity: 0; transition: opacity .35s; }
+  .appel-panda { position: absolute; right: -18px; bottom: -14px; width: 34%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; background: #fdfaf3; border: 4px solid #6fe39a; box-shadow: 0 8px 20px rgba(0,0,0,.45); }
+  .appel-side { flex: 1 1 0; min-width: 0; max-width: 340px; }
+  .appel-game { font-size: clamp(24px, 4.8vw, 40px); font-weight: 900; line-height: 1.1; }
+  .appel-side .game-tag { font-size: 14px; padding: 4px 12px; background: rgba(255,255,255,.14); }
+  .appel-desc { margin-top: 12px; font-size: clamp(15px, 2.7vw, 20px); font-weight: 600; line-height: 1.3; color: #d9d2ff; }
+  .appel-fact { flex: none; width: 100%; max-width: 680px; box-sizing: border-box; display: flex; align-items: center; gap: 16px; padding: 12px 18px; border-radius: 18px; background: rgba(255,255,255,.09); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
+  .appel-fact.in { animation: appelSlide .5s cubic-bezier(.2,.9,.3,1); }
+  .appel-fact-k { font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #6fe39a; }
+  .appel-fact b { flex: none; min-width: 2.6em; text-align: center; font-size: clamp(28px, 5.6vw, 44px); font-weight: 900; font-style: italic; line-height: 1; color: #ffd166; white-space: nowrap; }
+  .appel-fact span { display: block; margin-top: 2px; font-size: clamp(14px, 2.4vw, 17px); font-weight: 700; line-height: 1.25; }
+  .appel-fact small { display: block; margin-top: 3px; font-size: 11px; color: #b9b0e6; }
+  .appel-defi { flex: none; width: 100%; max-width: 640px; box-sizing: border-box; padding: 10px 16px; border-radius: 16px; background: rgba(255,209,102,.13); box-shadow: inset 0 0 0 2px rgba(255,209,102,.5); text-align: center; }
+  .appel-defi-k { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #ffd166; }
+  .appel-defi-k svg { width: 16px; height: 16px; }
+  .appel-defi-t { font-size: clamp(17px, 3vw, 22px); font-weight: 900; }
+  .appel-defi .hc-standings { justify-content: center; }
+  .appel-cta { flex: none; padding: 13px 28px; border-radius: 999px; background: linear-gradient(100deg, #00e0a0, #2a7fd6); color: #06170f; font-size: clamp(17px, 3.3vw, 25px); font-weight: 900; text-align: center; animation: appelPulse 1.7s ease-in-out infinite; }
+  @keyframes appelPulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0,224,160,.5); } 50% { transform: scale(1.04); box-shadow: 0 0 0 14px rgba(0,224,160,0); } }
+  .appel-welcome { margin: auto 0; width: 100%; text-align: center; animation: sportIn .3s cubic-bezier(.2,.9,.3,1); }
+  .appel-welcome .ski-warn-box { border-left-color: #1fb56f; }
+  .appel-welcome .ski-warn-s { color: #8df0b8; }
   .satisfaction-block {
     position: absolute; inset: 0; background: var(--panel); display: flex; flex-direction: column;
     align-items: center; justify-content: center; padding: 10px 16px; gap: 10px;
@@ -954,6 +993,7 @@
 
   <div class="ads-label" id="adsLabel" style="display:none;" data-i18n="ads_label">Annonces</div>
   <div class="ads-banner" id="adsBanner" style="display:none;"></div>
+  <div class="appel" id="appel"></div>
 
   <div class="arcade-modal-overlay" id="arcadeModalOverlay" style="display:none;">
     <div class="arcade-modal">
@@ -3823,6 +3863,14 @@ const UI_DICT_ROWS = [
   ["Balance-toi d'avant en arrière pour monter les marches.", "Schwing vor und zurück, um die Treppe hochzusteigen.", "Sway back and forth to climb the stairs.", "Oscilla avanti e indietro per salire le scale."],
   ["Question", "Frage", "Question", "Domanda"],
   ["Calcule", "Rechne", "Calculate", "Calcola"],
+  ["Libre-service · sans inscription", "Selbstbedienung · ohne Anmeldung", "Self-service · no sign-up", "Self-service · senza iscrizione"],
+  ["1 minute pour travailler ton équilibre", "1 Minute für dein Gleichgewicht", "1 minute to work on your balance", "1 minuto per allenare il tuo equilibrio"],
+  ["et déstresser", "und zum Abschalten", "and de-stress", "e scaricare lo stress"],
+  ["Monte sur le plateau ou touche l'écran", "Steig aufs Board oder tippe auf den Bildschirm", "Step on the board or touch the screen", "Sali sulla pedana o tocca lo schermo"],
+  ["Bienvenue !", "Willkommen!", "Welcome!", "Ciao!"],
+  ["Choisis ton jeu", "Wähle dein Spiel", "Choose your game", "Scegli il tuo gioco"],
+  ["Défi en cours", "Laufende Challenge", "Challenge in progress", "Sfida in corso"],
+  ["Le savais-tu ?", "Wusstest du?", "Did you know?", "Lo sapevi?"],
   ["Bouge, puis remplis la grille : garde la tête froide", "Beweg dich, dann fülle das Gitter: Bleib cool", "Move, then fill the grid: keep a cool head", "Muoviti, poi riempi la griglia: mantieni la calma"],
   ["Balance-toi 7 fois pour débloquer le clavier (un tour d'avant en arrière, le tour suivant de gauche à droite), puis reviens bien au calme : tu as 10 secondes pour remplir la grille, et impossible de taper en bougeant ! Ensuite le clavier se verrouille et tu repars pour 7 mouvements. La grille reste visible : prépare ton coup pendant que tu bouges. Un chiffre en rouge est déjà présent sur sa ligne, sa colonne ou son carré.", "Schwing 7-mal, um die Tastatur freizuschalten (eine Runde vor und zurück, die nächste von links nach rechts), dann komm ganz zur Ruhe: Du hast 10 Sekunden, um das Gitter zu füllen, und in Bewegung kannst du nicht tippen! Danach wird die Tastatur gesperrt und du machst wieder 7 Bewegungen. Das Gitter bleibt sichtbar: Plane deinen Zug, während du dich bewegst. Eine rote Zahl steht schon in ihrer Zeile, ihrer Spalte oder ihrem Block.", "Swing 7 times to unlock the keypad (one round back and forth, the next round left and right), then come to a complete rest: you have 10 seconds to fill the grid, and you cannot type while moving! Then the keypad locks and you go again for 7 moves. The grid stays visible: plan your move while you swing. A red number is already in its row, column or box.", "Oscilla 7 volte per sbloccare la tastiera (un giro avanti e indietro, il giro dopo da sinistra a destra), poi torna ben fermo: hai 10 secondi per riempire la griglia, ed è impossibile digitare mentre ti muovi! Poi la tastiera si blocca e riparti per 7 movimenti. La griglia resta visibile: prepara la tua mossa mentre ti muovi. Un numero in rosso è già presente nella sua riga, colonna o riquadro."],
   ["Balance-toi de gauche à droite.", "Schwing von links nach rechts.", "Swing left and right.", "Oscilla da sinistra a destra."],
@@ -4563,6 +4611,127 @@ function wireSatisfactionBanner() {
   });
 }
 
+/* ---------- Étiquettes des jeux : catégorie + durée, sur les vignettes et dans l'écran d'appel ---------- */
+const GAME_TIME = { distance: '30 s', base: '30 s', thezone: '1 min', cross: '1 min 30', market: '30 s', skiprev: '1 min', tempo: '1 min', sudoku: '2 min' };
+function gameTagsHTML(gameId) {
+  const info = GAME_INFO[gameId], cat = info ? GAME_CATEGORIES[info.cat] : null;
+  if (!cat && !GAME_TIME[gameId]) return '';
+  return `<div class="game-tags">${cat ? `<span class="game-tag"><i style="background:${cat.color};"></i>${trText(cat.label)}</span>` : ''}${GAME_TIME[gameId] ? `<span class="game-tag">${GAME_TIME[gameId]}</span>` : ''}</div>`;
+}
+
+/* ---------- Écran d'appel (demande de Dan, 13.11.2026) ----------
+   Quand la tablette en accès libre n'a plus été touchée depuis APPEL_IDLE_MS, une boucle plein écran donne envie de
+   s'arrêter : la promesse (« 1 minute… et déstresser », libre-service, sans inscription), une image de chaque jeu activé
+   avec son panda, un fait chiffré ET SOURCÉ (BENEFIT_FACTS, jamais de chiffre inventé) et le défi en cours s'il y en a un.
+   L'écran s'arrête AU-DESSUS de la bannière du bas (indice de satisfaction ou annonces), qui reste toujours visible.
+   Il disparaît au premier toucher ; si quelqu'un monte sur le plateau, il dit « Bienvenue ! Choisis ton jeu ». */
+const APPEL_IDLE_MS = 30000, APPEL_SLIDE_MS = 6500, APPEL_STEP_CM = .8;
+const APPEL_PANDA = {
+  skiprev: () => SKI_WELCOME_VIDEO_B64, distance: () => FOOTBALL_WELCOME_VIDEO_B64, cross: () => ZEN_WELCOME_VIDEO_B64,
+  market: () => MARKET_WELCOME_VIDEO_B64, thezone: () => ZONE_WELCOME_VIDEO_B64, base: () => ELECTRO_WELCOME_VIDEO_B64,
+  tempo: () => MINDFUL_WELCOME_VIDEO_B64, sudoku: () => SUDOKU_WELCOME_VIDEO_B64,
+};
+let appelLastActivity = Date.now(), appelShown = false, appelSlideTimer = null, appelSlide = 0, appelFact = 0;
+let appelBase = null, appelSteps = 0;
+
+function appelAllowed() {
+  return currentRoute === 'home' && !activeGameModule && freePlayScreen() && PandaFitSensor.isConnected();
+}
+function appelGames() {
+  if (clientConfig?.lockGames) return [];
+  const ids = clientConfig ? clientConfig.enabledGameIds : GAMES.map(g => g.id);
+  return ids.map(id => GAMES.find(g => g.id === id)).filter(g => g && g.playable && APPEL_PANDA[g.id]);
+}
+/** Laisse toujours la bannière du bas (sondage ou annonces) et le menu visibles : l'écran d'appel s'arrête au-dessus */
+function appelPlace() {
+  const el = document.getElementById('appel');
+  if (!el) return;
+  const label = document.getElementById('adsLabel'), banner = document.getElementById('adsBanner'), nav = document.querySelector('.bottomnav');
+  let top = window.innerHeight;
+  [label, banner, nav].forEach(e => { if (e && getComputedStyle(e).display !== 'none') { const r = e.getBoundingClientRect(); if (r.height > 0) top = Math.min(top, r.top); } });
+  el.style.bottom = Math.max(0, window.innerHeight - top) + 'px';
+}
+function appelRenderSlide() {
+  const games = appelGames(), g = games.length ? games[appelSlide % games.length] : null;
+  const shot = document.getElementById('appelShot'), side = document.getElementById('appelSide'), panda = document.getElementById('appelPanda');
+  if (!side) return;
+  const f = BENEFIT_FACTS[appelFact % BENEFIT_FACTS.length];
+  const source = (f.ref.match(/^(.*?\(\d{4}\))/) || [])[1] || '';
+  if (shot) {
+    shot.style.display = g ? '' : 'none';
+    if (g) {
+      shot.classList.remove('in'); void shot.offsetWidth; shot.classList.add('in');
+      shot.style.backgroundImage = `url('img/appel/${g.id}.webp')`;
+      // petite vidéo du jeu en train d'être joué, par-dessus l'image (qui reste visible tant que la vidéo charge, ou si elle manque)
+      const clip = document.getElementById('appelClip');
+      if (clip) { clip.style.opacity = 0; clip.src = `img/appel/${g.id}.mp4`; clip.play().catch(() => {}); }
+      if (panda) { panda.src = APPEL_PANDA[g.id](); panda.play().catch(() => {}); }
+    }
+  }
+  side.innerHTML = `
+    ${g ? `<div class="appel-game">${pickLang(gamesCatalog[g.id], 'name') || g.name}</div>${gameTagsHTML(g.id)}<div class="appel-desc">${pickLang(gamesCatalog[g.id], 'description') || trText(g.desc)}</div>` : ''}`;
+  const fact = document.getElementById('appelFact');
+  if (fact) { fact.innerHTML = `<b>${f.big}</b><div><div class="appel-fact-k">${trText('Le savais-tu ?')}</div><span>${trText(f.text)}</span><small>${source}</small></div>`; fact.classList.remove('in'); void fact.offsetWidth; fact.classList.add('in'); }
+  side.classList.remove('in'); void side.offsetWidth; side.classList.add('in');
+  appelPlace();
+}
+function appelShow() {
+  const el = document.getElementById('appel');
+  if (!el || appelShown) return;
+  const item = (carousels?.main?.items || []).find(i => i.type === 'challenge' || i.type === 'defi'); // défi affiché seulement s'il y en a un en cours
+  el.innerHTML = `
+    <div class="appel-top">
+      <div class="appel-kicker">${trText('Libre-service · sans inscription')}</div>
+      <div class="appel-title">${trText('1 minute pour travailler ton équilibre')} <em>${trText('et déstresser')}</em></div>
+    </div>
+    <div class="appel-stage">
+      <div class="appel-shot" id="appelShot"><video class="appel-clip" id="appelClip" muted playsinline loop preload="auto" onplaying="this.style.opacity=1" onerror="this.style.opacity=0"></video><video class="appel-panda" id="appelPanda" muted playsinline loop></video></div>
+      <div class="appel-side" id="appelSide"></div>
+    </div>
+    <div class="appel-fact" id="appelFact"></div>
+    ${item ? `<div class="appel-defi"><div class="appel-defi-k"><i data-lucide="trophy"></i> ${trText('Défi en cours')}</div><div class="appel-defi-t">${item.data.title || ''}</div>${standingsLineHTML(item.standings)}</div>` : ''}
+    <div class="appel-cta">${trText("Monte sur le plateau ou touche l'écran")}</div>`;
+  appelShown = true; appelSteps = 0; appelBase = null;
+  appelSlide = Math.floor(Math.random() * 8);
+  appelRenderSlide();
+  el.classList.add('show');
+  if (window.lucide) lucide.createIcons();
+  clearInterval(appelSlideTimer);
+  appelSlideTimer = setInterval(() => { appelSlide++; appelFact++; appelRenderSlide(); }, APPEL_SLIDE_MS);
+}
+function appelHide(steppedOn) {
+  const el = document.getElementById('appel');
+  clearInterval(appelSlideTimer); appelSlideTimer = null;
+  appelLastActivity = Date.now();
+  if (!el || !appelShown) return;
+  appelShown = false;
+  if (!steppedOn) { el.classList.remove('show'); el.innerHTML = ''; return; }
+  // quelqu'un vient de monter sur le plateau : on l'accueille, puis on lui montre les jeux
+  el.innerHTML = `<div class="appel-welcome"><div class="ski-warn-box"><div class="ski-warn-t">${trText('Bienvenue !')}</div><div class="ski-warn-s">${trText('Choisis ton jeu')}</div></div></div>`;
+  SoundFx.ready();
+  setTimeout(() => {
+    el.classList.remove('show'); el.innerHTML = '';
+    if (currentRoute === 'home' && !activeGameModule && !clientConfig?.lockGames && appelGames().length) navigate('games');
+  }, 1700);
+}
+/** Le capteur : un mouvement net du plateau = quelqu'un est monté. Compte aussi comme activité (pas d'écran d'appel sous ses pieds). */
+function appelOnSensor(d) {
+  const x = d.x / 200, y = d.y / 200;
+  if (!appelBase) { appelBase = { x, y }; return; }
+  const moved = Math.hypot(x - appelBase.x, y - appelBase.y) > APPEL_STEP_CM;
+  appelBase.x += (x - appelBase.x) * .03; appelBase.y += (y - appelBase.y) * .03; // la position de repos se recale doucement
+  appelSteps = moved ? appelSteps + 1 : 0;
+  if (appelSteps < 3) return;
+  appelSteps = 0;
+  if (appelShown) appelHide(true); else appelLastActivity = Date.now();
+}
+PandaFitSensor.on('data', appelOnSensor);
+['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { if (appelShown) appelHide(false); else appelLastActivity = Date.now(); }, true));
+setInterval(() => {
+  if (appelShown) { if (!appelAllowed()) appelHide(false); else appelPlace(); }
+  else if (appelAllowed() && Date.now() - appelLastActivity > APPEL_IDLE_MS) appelShow();
+}, 2000);
+
 /* ---------- Écran : connexion ---------- */
 function screenConnect() {
   return `
@@ -4859,7 +5028,7 @@ function highlightCardHTML(item) {
     return `
       <div class="highlight-card" style="${highlightBgStyle(item)}">
         <div class="hc-badge"><i data-lucide="${g?.icon || 'gamepad-2'}"></i> ${t('badge_game')}</div>
-        <div class="hc-content"><div class="hc-title">${name}</div></div>
+        <div class="hc-content"><div class="hc-title">${name}</div>${gameTagsHTML(item.data.id)}</div>
       </div>
     `;
   }
@@ -5366,6 +5535,7 @@ function screenGames() {
         ${g.playable ? '' : `<div class="gtc-soon">${t('soon')}</div>`}
         <div class="gtc-content">
           <div class="gtc-title">${pickLang(gamesCatalog[g.id], 'name') || g.name}</div>
+          ${gameTagsHTML(g.id)}
         </div>
       </div>
     `;
