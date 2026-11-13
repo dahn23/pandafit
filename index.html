@@ -7496,7 +7496,7 @@ const SkiScene = (() => {
     }
     for (let i = -5; i <= 5; i++) {
       if (!i) continue;
-      const q = P3(back, i * (X / 5.5), roofH + 3);
+      const q = st.fpv ? P3(s0 - .35, i * (X / 5.5), roofH) : P3(back, i * (X / 5.5), roofH + 3); // vue subjective : drapeaux plantés sur le bord avant du toit, sinon vus d'en bas ils flottent devant l'écran géant
       if (!q) continue;
       const size = U * 7 * q[2];
       ctx.strokeStyle = '#dfe3e8'; ctx.lineWidth = Math.max(1, U * .3 * q[2]);
@@ -7956,6 +7956,10 @@ const SkiScene = (() => {
         }
       }
     }
+  }
+  /** Les filets de sécurité. Dessinés après les sapins, chalets et spectateurs, qui sont plantés derrière eux : rien ne passe devant la toile */
+  function paintFences() {
+    const { ctx, U } = st, ns = nearS();
     // filets de sécurité : le bandeau orange file droit, les piquets sont plantés dans la neige
     const stop = snap ? snap.distance - STAND_FROM + .1 : st.s + 30;
     [-1, 1].forEach(side => {
@@ -8226,12 +8230,12 @@ const SkiScene = (() => {
 
     // du plus loin au plus près : sapins, tribunes, portes, portiques
     const finishS = snap.distance, ns = nearS();
-    const items = [];
+    const items = [], outer = []; // outer = sapins, spectateurs et chalets : ils sont derrière les filets
     for (let k = -1; k < 66; k++) {
       const sk = Math.floor(st.s / .7) * .7 + k * .7;
       const n = Math.round(sk / .7);
       if (sk > snap.distance - STAND_FROM - .7) continue;
-      items.push([sk, () => {
+      outer.push([sk, () => {
         // deuxième rang, plus loin de la piste : la forêt prend de l'épaisseur
         if (!st.lite) drawTree(sk + .15, EDGE + 50 + pfHash(n + 5) * 62, .95 + pfHash(n + 6) * .7, n + 2);
         if (!st.lite) drawTree(sk + .45, -(EDGE + 50 + pfHash(n + 7) * 62), .95 + pfHash(n + 8) * .7, n + 3);
@@ -8250,12 +8254,14 @@ const SkiScene = (() => {
       if (s2 < ns) continue;
       [-1, 1].forEach(side => items.push([s1 + .3, () => drawSideStand(side, s1, s2, t, excite)]));
     }
-    [[8.6, 1], [18.9, -1], [28.4, 1]].forEach(([sc, sd]) => { if (sc >= ns && sc < snap.distance - STAND_FROM - 2) items.push([sc, () => drawChalet(sc, sd * (EDGE + 40), sd > 0 ? 1 : 2)]); }); // trois chalets le long du parcours
+    [[8.6, 1], [18.9, -1], [28.4, 1]].forEach(([sc, sd]) => { if (sc >= ns && sc < snap.distance - STAND_FROM - 2) outer.push([sc, () => drawChalet(sc, sd * (EDGE + 40), sd > 0 ? 1 : 2)]); }); // trois chalets le long du parcours
     snap.gatesView.forEach(g => { if (g.world < snap.distance - .3) items.push([g.world, () => drawGate(g, t)]); }); // jamais de piquet dans l'aire d'arrivée
     [1, 2].forEach(k => { const sb = snap.distance * k / 3; if (sb >= ns) items.push([sb, () => drawSplitBanner(sb, `INTER ${k}`)]); });
     if (finishS >= ns) items.push([finishS, () => drawFinish(finishS)]);
     items.push([snap.distance + FINISH_DEPTH + 2, () => drawBackStand(t, excite)]);
     if (.3 >= ns) items.push([.3, () => drawStartHouse(t)]);
+    outer.sort((a, b) => b[0] - a[0]).forEach(([, draw]) => draw());
+    paintFences(); // les filets passent devant tout ce qui est planté derrière eux
     items.sort((a, b) => b[0] - a[0]).forEach(([, draw]) => draw());
 
     paintSpeedSnow(t);
