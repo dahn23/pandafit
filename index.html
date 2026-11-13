@@ -7802,14 +7802,60 @@ const SkiScene = (() => {
     out.forEach(([s, x], i) => { const p = project(s, x); if (p) ctx[i ? 'lineTo' : 'moveTo'](p.x, p.y); });
     ctx.closePath(); ctx.fill();
   }
+  /** Carreau de neige (taches douces + cristaux), fabriqué une fois au lancement et raccordé sur ses quatre bords */
+  function paintSnowTile(c, w, h) {
+    c.fillStyle = '#e9f1f9'; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 240; i++) {
+      const x = pfHash(i + .11) * w, y = pfHash(i + .37) * h, r = w * (.025 + pfHash(i + .53) * .07), light = i % 2;
+      for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
+        const cx = x + ox * w, cy = y + oy * h;
+        if (cx + r < 0 || cx - r > w || cy + r < 0 || cy - r > h) continue;
+        const g = c.createRadialGradient(cx, cy, 0, cx, cy, r);
+        g.addColorStop(0, light ? 'rgba(255,255,255,.55)' : 'rgba(140,172,215,.24)');
+        g.addColorStop(1, light ? 'rgba(255,255,255,0)' : 'rgba(140,172,215,0)');
+        c.fillStyle = g; c.fillRect(cx - r, cy - r, r * 2, r * 2);
+      }
+    }
+    for (let i = 0; i < 900; i++) {
+      const z = 1 + pfHash(i + 7.3) * 1.2;
+      c.fillStyle = i % 3 ? 'rgba(255,255,255,.95)' : 'rgba(120,158,208,.5)';
+      c.fillRect(pfHash(i + 3.1) * (w - 3), pfHash(i + 5.7) * (h - 3), z, z);
+    }
+  }
+  /** Sol texturé : la neige défile sous les skis, dessinée en bandes de plus en plus hautes vers le bas de l'écran.
+      Loin, la texture s'efface dans le dégradé (pas de scintillement). Renvoie false si le navigateur ne sait pas faire. */
+  function paintSnowTex() {
+    const { ctx, W, H, hz, U } = st;
+    if (!st.snowPat) { st.snowPat = ctx.createPattern(st.snowTile, 'repeat'); st.snowM = new DOMMatrix(); }
+    if (!st.snowPat || !st.snowPat.setTransform) return false;
+    const tw = st.snowTile.width, x0 = -W * .2, ww = W * 1.4, bottom = H * 1.15, eye = st.eye, m = st.snowM;
+    const UREP = 40, VREP = .32; // un carreau = 40 unités de large et 0,32 de piste
+    ctx.fillStyle = st.snowPat;
+    let y = hz + Math.round(eye * .3);
+    while (y < bottom) {
+      const yb = Math.min(bottom, y + Math.max(2, Math.round((y - hz) * .05)));
+      const P = ((y + yb) / 2 - hz) / eye;
+      const d1 = st.F * eye / (y - hz), d2 = st.F * eye / (yb - hz);
+      const sx = UREP * U * P / tw, sy = (yb - y) / ((d1 - d2) / VREP * tw);
+      const v1 = (((-(st.camS + d1) / VREP) % 1) + 1) % 1 * tw; // rangée de texture en haut de la bande
+      m.a = sx; m.b = 0; m.c = 0; m.d = sy; m.e = (st.vx - st.camX * U * P) % (tw * sx); m.f = y - sy * v1;
+      st.snowPat.setTransform(m);
+      ctx.globalAlpha = pfClamp((P - .3) / .9, 0, 1) * .85;
+      ctx.fillRect(x0, y, ww, yb - y);
+      y = yb;
+    }
+    ctx.globalAlpha = 1;
+    return true;
+  }
   /** La neige qui défile sous les skis : tout est fixé au terrain, c'est ce qui donne la vitesse */
   function paintGroundFpv() {
     const { ctx, W, H, hz, U } = st;
     const x0 = -W * .2, ww = W * 1.4, bottom = H * 1.15, ns = nearS();
     ctx.fillStyle = st.snowGrad; ctx.fillRect(x0, hz, ww, bottom - hz);
+    const tex = !st.lite && paintSnowTex(); // neige texturée ; sinon (vieux navigateur, tablette qui peine) bandes et grains dessinés
     // damage : fines bandes en travers de la pente
     ctx.fillStyle = 'rgba(110,145,190,.055)';
-    for (let k = 0; k < 30; k++) {
+    for (let k = 0; k < (tex ? 0 : 30); k++) {
       const sb = Math.floor(st.camS * 2) / 2 + k * .5;
       const a = project(Math.max(sb, ns), 0), b = project(sb + .22, 0);
       if (a && b) ctx.fillRect(x0, b.y, ww, a.y - b.y);
@@ -7842,7 +7888,7 @@ const SkiScene = (() => {
       groundPoly([[sk - .04, xr], [sk + .16, xr], [sk - .2, xr - len]], 'rgba(74,108,160,.13)'); // en pointe, comme le sapin
     }
     // grains de neige
-    for (let pass = 0; pass < 2; pass++) {
+    for (let pass = 0; pass < (tex ? 0 : 2); pass++) {
       ctx.fillStyle = pass ? 'rgba(120,155,200,.3)' : 'rgba(255,255,255,.9)';
       for (let k = 0; k < 26; k++) {
         const c = Math.floor(st.camS / .22) + k;
@@ -8092,6 +8138,7 @@ const SkiScene = (() => {
   }
   function paintFpv(step, t) {
     const { ctx, W, H, hz } = st;
+    const t0 = performance.now();
     // après la ligne, on s'arrête assez tôt pour garder l'écran géant et la tribune du fond bien en vue
     st.s += (Math.min(snap.world, snap.distance + 1.9) - st.s) * (1 - Math.exp(-step * 11));
     if (st.goT == null && snap.elapsedMs > 0) st.goT = t; // le portillon s'ouvre au GO
@@ -8128,11 +8175,11 @@ const SkiScene = (() => {
       if (sk > snap.distance - STAND_FROM - .7) continue;
       items.push([sk, () => {
         // deuxième rang, plus loin de la piste : la forêt prend de l'épaisseur
-        drawTree(sk + .15, EDGE + 50 + pfHash(n + 5) * 62, .95 + pfHash(n + 6) * .7, n + 2);
-        drawTree(sk + .45, -(EDGE + 50 + pfHash(n + 7) * 62), .95 + pfHash(n + 8) * .7, n + 3);
+        if (!st.lite) drawTree(sk + .15, EDGE + 50 + pfHash(n + 5) * 62, .95 + pfHash(n + 6) * .7, n + 2);
+        if (!st.lite) drawTree(sk + .45, -(EDGE + 50 + pfHash(n + 7) * 62), .95 + pfHash(n + 8) * .7, n + 3);
         drawTree(sk, EDGE + 10 + pfHash(n + 1) * 34, .8 + pfHash(n + 2) * .6, n);
         drawTree(sk + .3, -(EDGE + 10 + pfHash(n + 3) * 34), .8 + pfHash(n + 4) * .6, n + 1);
-        if (sk > 2.5 && pfHash(n + 11) < .42) { // des pandas spectateurs par petits groupes, derrière les filets
+        if (!st.lite && sk > 2.5 && pfHash(n + 11) < .42) { // des pandas spectateurs par petits groupes, derrière les filets
           const sd = pfHash(n + 12) < .5 ? -1 : 1, x0 = EDGE + 5 + pfHash(n + 13) * 5, kind = ((n % 3) + 3) % 3 + 1;
           if (pfHash(n + 14) < .5) drawFan(sk + .52, sd * (x0 + 8), kind % 3 + 1, t, n + .5);
           drawFan(sk + .5, sd * x0, kind, t, n);
@@ -8163,6 +8210,10 @@ const SkiScene = (() => {
     if (snap.penaltyNow) paintVignette(ctx, W, H, '225,20,45', .62);
     else if (snap.warned) paintVignette(ctx, W, H, '255,170,0', .3 + Math.sin(t * 12) * .1);
     if (over) paintFinishCinema(step);
+    // garde-fou : si dessiner une image devient trop long sur la tablette, le décor s'allège tout seul (neige unie, un seul rang de sapins, pas de spectateurs au bord)
+    const cost = performance.now() - t0;
+    st.cost = st.cost == null ? cost : st.cost * .97 + cost * .03;
+    if (!st.lite && (st.frames = (st.frames || 0) + 1) > 120 && st.cost > 22) st.lite = true;
   }
 
   function paint(step, t) {
@@ -8261,6 +8312,7 @@ const SkiScene = (() => {
         c.fillStyle = gr; c.fillRect(0, 0, 64, 64);
       });
       st.blobDark = blob('104,140,190,.15'); st.blobLight = blob('255,255,255,.55');
+      st.snowTile = layerCanvas(512, 512, paintSnowTile);
       st.snowGrad = g.ctx.createLinearGradient(0, hz, 0, g.H);
       [[0, '#cfdff1'], [.3, '#eef5fb'], [1, '#e2ecf6']].forEach(([k, col]) => st.snowGrad.addColorStop(k, col));
       st.bgGrad = g.ctx.createLinearGradient(0, 0, 0, g.H);
