@@ -9741,6 +9741,22 @@ function paintVignette(ctx, W, H, rgb, alpha) {
 }
 
 /** The Zone : instrument de précision en orbite, sobre. Le cercle vert = la zone ; le point lumineux = ton pied. */
+/* Fonds en rendu 3D de The Zone, Electro et MindFit (img/fonds, faits sur OpenArt) : la Terre vue de l'orbite, un circuit
+   imprimé, un réseau violet. Facultatifs : tant qu'une image manque, le fond dessiné au code reste. */
+const FOND = {};
+['orbite', 'circuit', 'reseau'].forEach(n => { FOND[n] = new Image(); FOND[n].src = `img/fonds/${n}.webp`; });
+const fond = n => { const im = FOND[n]; return im && im.complete && im.naturalWidth > 0 ? im : null; };
+/** Nouveau calque de fond : l'image couvre tout (calée en bas), puis les détails lumineux de l'ancien fond dessiné
+    (pistes du circuit, nœuds du réseau) sont ajoutés par-dessus avec l'intensité `add` (0 = image seule). */
+function artBackdrop(im, coded, add) {
+  const w = coded.width, h = coded.height;
+  return layerCanvas(w, h, c => {
+    const k = Math.max(w / im.naturalWidth, h / im.naturalHeight), iw = im.naturalWidth * k, ih = im.naturalHeight * k;
+    c.drawImage(im, (w - iw) / 2, h - ih, iw, ih);
+    if (add) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = add; c.drawImage(coded, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
+  });
+}
+
 const ZoneScene = (() => {
   const GREEN = '72,214,170', RED = '232,62,84';
   let st = null, snap = null;
@@ -9911,8 +9927,38 @@ const ZoneScene = (() => {
     ctx.stroke();
   }
 
+  /** Fond en image : calque plus large que l'écran (pour pouvoir faire tourner la planète), repères du disque de la Terre
+      mesurés sur l'image (centre très en dessous de l'écran), et une couche de nuages clairs fabriquée au code. */
+  function buildOrbit(im, t) {
+    const { W, H } = st;
+    const w = Math.round(W * 1.3), h = Math.round(H * 1.1);
+    const k = Math.max(w / im.naturalWidth, h / im.naturalHeight), iw = im.naturalWidth * k, ih = im.naturalHeight * k;
+    const dx = (w - iw) / 2, dy = h - ih;
+    st.bg = layerCanvas(w, h, c => c.drawImage(im, dx, dy, iw, ih));
+    const p = { x: dx + iw * .544, y: dy + ih * 2.2925, r: iw * 2.24, t0: t };
+    const cw = Math.round(W * 2.4), ch = Math.round(H * .4);
+    p.cx = p.x - cw / 2; p.cy = p.y - p.r - H * .02;
+    st.clouds = layerCanvas(cw, ch, c => {
+      for (let i = 0; i < 46; i++) {
+        const a = (pfHash(i + .3) - .5) * .8, depth = iw * (.03 + pfHash(i + .7) * .3), r = p.r - depth;
+        const X = cw / 2 + Math.sin(a) * r, Y = p.y - Math.cos(a) * r - p.cy;
+        const bw = iw * (.05 + pfHash(i + 1.1) * .1), bh = bw * (.16 + pfHash(i + 1.5) * .14) * (.45 + depth / (iw * .33));
+        c.save(); c.translate(X, Y); c.rotate(a + (pfHash(i + 1.9) - .5) * .5); c.scale(1, bh / bw);
+        const g = c.createRadialGradient(0, 0, 0, 0, 0, bw);
+        g.addColorStop(0, `rgba(255,255,255,${(.1 + pfHash(i + 2.3) * .14).toFixed(3)})`); g.addColorStop(1, 'rgba(255,255,255,0)');
+        c.fillStyle = g; c.fillRect(-bw, -bw, bw * 2, bw * 2);
+        c.restore();
+      }
+    });
+    st.planet = p; st.bgArt = true;
+  }
+
   function paint(step, t) {
-    const { ctx, W, H, U, cx, cy, ppc, bg } = st;
+    if (!st.bgArt) {
+      const im = fond('orbite');
+      if (im) buildOrbit(im, t); // la Terre vue de l'orbite
+    }
+    const { ctx, W, H, U, cx, cy, ppc } = st;
     const wanted = (snap ? snap.radiusCm : 2) * ppc;
     st.r += (wanted - st.r) * (1 - Math.exp(-step * 6));
     const follow = 1 - Math.exp(-step * 18);
@@ -9921,7 +9967,21 @@ const ZoneScene = (() => {
     const out = !!(snap && snap.outside);
     st.alarm += ((out ? 1 : 0) - st.alarm) * (1 - Math.exp(-step * 9));
 
-    ctx.drawImage(bg, -W * .05 - st.x * U * .3, -H * .05 + st.y * U * .3);
+    const ox = (st.planet ? -W * .15 : -W * .05) - st.x * U * .3, oy = -H * .05 + st.y * U * .3;
+    ctx.drawImage(st.bg, ox, oy);
+    if (st.planet) {
+      // La planète tourne très lentement sur elle-même : on redessine l'image, tournée autour du centre de la Terre, à l'intérieur
+      // du disque de la planète seulement (l'horizon et les étoiles ne bougent pas). Les nuages dérivent un peu plus vite.
+      const p = st.planet, px0 = ox + p.x, py0 = oy + p.y;
+      const rot = pfClamp(-.045 + (t - p.t0) * .0014, -.045, .05);
+      ctx.save();
+      ctx.beginPath(); ctx.arc(px0, py0, p.r - U * .35, 0, Math.PI * 2); ctx.clip();
+      ctx.translate(px0, py0); ctx.rotate(rot); ctx.translate(-px0, -py0);
+      ctx.drawImage(st.bg, ox, oy);
+      ctx.translate(px0, py0); ctx.rotate(rot * 1.6 + .02); ctx.translate(-px0, -py0);
+      ctx.drawImage(st.clouds, ox + p.cx, oy + p.cy);
+      ctx.restore();
+    }
     // étoiles qui scintillent et, de temps en temps, une étoile filante
     for (let i = 0; i < 14; i++) {
       const a = .5 + .5 * Math.sin(t * (1.3 + pfHash(i + 900) * 2) + i * 2.1);
@@ -10133,6 +10193,7 @@ const ElectroScene = (() => {
 
     ctx.save();
     if (sinceShock < 500) ctx.translate((Math.random() - .5) * U * 2, (Math.random() - .5) * U * 2);
+    if (!st.bgArt) { const im = fond('circuit'); if (im) { st.bg = artBackdrop(im, st.bg, .4); st.bgArt = true; } } // circuit imprimé en rendu 3D + pistes dessinées
     ctx.drawImage(st.bg, 0, 0);
     // petites LED de la carte qui clignotent
     for (let i = 0; i < 6; i++) {
@@ -10503,6 +10564,7 @@ const MindScene = (() => {
 
   function paint(step, t, now) {
     const { ctx, W, H, U } = st;
+    if (!st.bgArt) { const im = fond('reseau'); if (im) { st.bg = artBackdrop(im, st.bg, .7); st.bgArt = true; } } // réseau violet en rendu 3D + nœuds dessinés
     ctx.drawImage(st.bg, 0, 0);
     paintNetwork(t, step);
     if (!snap || snap.phase === 'effort') paintTower(t, now);
