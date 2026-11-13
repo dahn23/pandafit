@@ -464,12 +464,12 @@
     position: relative; z-index: 1; color: #fff; font-size: 11.5px; font-weight: 700;
     padding: 6px 8px; line-height: 1.2;
   }
-  .info-card .sparkle, .game-thumb-card .sparkle {
+  .info-card .sparkle {
     position: absolute; top: -30%; left: -60%; width: 40%; height: 160%;
     background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 60%, transparent 100%);
     transform: rotate(12deg); opacity: 0; pointer-events: none;
   }
-  .info-card.sparkle-active .sparkle, .game-thumb-card.sparkle-active .sparkle { animation: sparkleSweep 1.1s ease-in-out; }
+  .info-card.sparkle-active .sparkle { animation: sparkleSweep 1.1s ease-in-out; }
   @keyframes sparkleSweep {
     0% { left: -60%; opacity: 0; }
     15% { opacity: 1; }
@@ -912,23 +912,6 @@
   .hc-score-box .divider { width: 65%; height: 1px; background: rgba(255,255,255,0.35); margin: 8px 0; }
   .hc-score-box .tablet-name { font-size: 10px; opacity: 0.9; line-height: 1.2; }
   .hc-score-box .tablet-score { font-size: 14px; font-weight: 700; margin-top: 1px; }
-  .games-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
-  .game-thumb-card {
-    position: relative; border-radius: 20px; overflow: hidden; height: 190px;
-    display: flex; align-items: center; justify-content: center; text-align: center;
-    background-size: cover; background-position: center; cursor: pointer;
-  }
-  .game-thumb-card::before {
-    content: ''; position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 100%);
-  }
-  .game-thumb-card .gtc-content { position: relative; z-index: 1; color: #fff; padding: 14px; }
-  .game-thumb-card .gtc-title { font-size: 15.5px; font-weight: 800; line-height: 1.25; }
-  .game-thumb-card .gtc-soon {
-    position: absolute; top: 12px; right: 12px; z-index: 1; font-size: 10px; font-weight: 800;
-    text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 9px; border-radius: 100px;
-    background: rgba(255,255,255,0.22); backdrop-filter: blur(4px); color: #fff;
-  }
   .highlight-card {
     position: relative; border-radius: 20px; overflow: hidden; height: 190px;
     display: flex; align-items: flex-end; padding: 16px 18px; cursor: grab;
@@ -1013,7 +996,6 @@
 
   <div class="bottomnav">
     <button class="navbtn" data-nav="home"><span class="ic"><i data-lucide="home"></i></span><span data-i18n="nav_home">Accueil</span></button>
-    <button class="navbtn" data-nav="games"><span class="ic"><i data-lucide="gamepad-2"></i><i data-lucide="lock" class="lock-badge"></i></span><span data-i18n="nav_games">Jeux</span></button>
     <button class="navbtn" data-nav="indextest"><span class="ic"><i data-lucide="activity"></i></span><span data-i18n="nav_index">Index</span></button>
     <button class="navbtn locked" data-nav="calibrate"><span class="ic"><i data-lucide="target"></i><i data-lucide="lock" class="lock-badge"></i></span><span data-i18n="nav_calibrate">Calibrer</span></button>
     <button class="navbtn locked" data-nav="settings"><span class="ic"><i data-lucide="settings"></i><i data-lucide="lock" class="lock-badge"></i></span><span data-i18n="nav_settings">Réglages</span></button>
@@ -4314,6 +4296,7 @@ function isRouteLocked(route) {
 }
 
 function navigate(route) {
+  if (route === 'games') route = 'home'; // la page « Jeux » n'existe plus (décision de Dan, 13.11.2026) : les jeux se lancent depuis l'accueil
   if (activeGameModule) {
     activeGameModule.abort();
     activeGameModule = null;
@@ -4324,7 +4307,7 @@ function navigate(route) {
     if (tabletMode() === 'seance' && devicePoste !== 'jeux') allowed.push('indextest');
     // Poste « Jeux libres » : même écran qu'en libre-service (encadrés et vignettes selon la console)
     if (postejeuxSeance()) {
-      allowed.push('games', 'benefits');
+      allowed.push('benefits');
       if (clientConfig?.showIndexBanner) allowed.push('indextest');
     }
     if (!allowed.includes(route)) route = 'home';
@@ -4405,7 +4388,7 @@ function render() {
   }
   switch (currentRoute) {
     case 'home': content.innerHTML = screenHome(); wireHomeScreen(); break;
-    case 'games': content.innerHTML = screenGames(); wireGamesScreen(); break;
+    case 'games': currentRoute = 'home'; content.innerHTML = screenHome(); wireHomeScreen(); break; // « games » ne sert plus qu'à dire « une partie est en cours »
     case 'indextest': launchIndexWithQuestionnaire(); break;
     case 'calibrate': content.innerHTML = screenCalibrateIntro(); wireCalibrateIntro(); break;
     case 'settings': content.innerHTML = screenSettings(); wireSettingsScreen(); break;
@@ -4612,11 +4595,19 @@ function wireSatisfactionBanner() {
 }
 
 /* ---------- Étiquettes des jeux : catégorie + durée, sur les vignettes et dans l'écran d'appel ---------- */
-const GAME_TIME = { distance: '30 s', base: '30 s', thezone: '1 min', cross: '1 min 30', market: '30 s', skiprev: '1 min', tempo: '1 min', sudoku: '2 min' };
+const GAME_TIME = { distance: 30, base: 30, thezone: 60, cross: 90, market: 30, skiprev: 60, tempo: 60, sudoku: 120 }; // durée d'une partie, en secondes (arrondie)
+/** « Durée : 1 minute », « Durée : 30 secondes »… dans la langue de la tablette */
+function gameDurationLabel(gameId) {
+  const s = GAME_TIME[gameId];
+  if (!s) return '';
+  const L = { fr: ['Durée :', 'secondes', 'minute', 'minutes', ' '], de: ['Dauer:', 'Sekunden', 'Minute', 'Minuten', ' '], en: ['Duration:', 'seconds', 'minute', 'minutes', ' '], it: ['Durata:', 'secondi', 'minuto', 'minuti', ' e '] };
+  const w = L[currentLang] || L.fr, m = Math.floor(s / 60), r = s % 60;
+  return `${w[0]} ${m ? `${m} ${m > 1 ? w[3] : w[2]}${r ? w[4] + r : ''}` : `${s} ${w[1]}`}`;
+}
 function gameTagsHTML(gameId) {
   const info = GAME_INFO[gameId], cat = info ? GAME_CATEGORIES[info.cat] : null;
   if (!cat && !GAME_TIME[gameId]) return '';
-  return `<div class="game-tags">${cat ? `<span class="game-tag"><i style="background:${cat.color};"></i>${trText(cat.label)}</span>` : ''}${GAME_TIME[gameId] ? `<span class="game-tag">${GAME_TIME[gameId]}</span>` : ''}</div>`;
+  return `<div class="game-tags">${cat ? `<span class="game-tag"><i style="background:${cat.color};"></i>${trText(cat.label)}</span>` : ''}${GAME_TIME[gameId] ? `<span class="game-tag">${gameDurationLabel(gameId)}</span>` : ''}</div>`;
 }
 
 /* ---------- Écran d'appel (demande de Dan, 13.11.2026) ----------
@@ -4706,12 +4697,11 @@ function appelHide(steppedOn) {
   if (!el || !appelShown) return;
   appelShown = false;
   if (!steppedOn) { el.classList.remove('show'); el.innerHTML = ''; return; }
-  // quelqu'un vient de monter sur le plateau : on l'accueille, puis on lui montre les jeux
+  // quelqu'un vient de monter sur le plateau : on l'accueille, puis il retrouve l'accueil et ses jeux
   el.innerHTML = `<div class="appel-welcome"><div class="ski-warn-box"><div class="ski-warn-t">${trText('Bienvenue !')}</div><div class="ski-warn-s">${trText('Choisis ton jeu')}</div></div></div>`;
   SoundFx.ready();
   setTimeout(() => {
     el.classList.remove('show'); el.innerHTML = '';
-    if (currentRoute === 'home' && !activeGameModule && !clientConfig?.lockGames && appelGames().length) navigate('games');
   }, 1700);
 }
 /** Le capteur : un mouvement net du plateau = quelqu'un est monté. Compte aussi comme activité (pas d'écran d'appel sous ses pieds). */
@@ -4785,18 +4775,6 @@ function wireEventHome() {
 function langFlagsHTML() {
   return [['fr', '🇫🇷'], ['de', '🇩🇪'], ['en', '🇬🇧'], ['it', '🇮🇹']]
     .map(([l, f]) => `<button class="lang-flag-btn ${currentLang === l ? 'active' : ''}" data-lang="${l}">${f}</button>`).join('');
-}
-// Poste « jeux libres » pendant une séance : l'accueil est directement la grille des jeux du projet
-function screenEventGames() {
-  return `
-    <div class="event-home" style="min-height:0;max-width:none;"><div class="eh-top" style="margin-bottom:10px;"><div class="eh-brand">PandaFit</div><div class="eh-flags">${langFlagsHTML()}</div></div></div>
-    <p class="tri-kicker">Séance PandaFit · ${escT(activeEvent.client)}</p>
-    ${screenGames().replace(/<p class="page-sub">[\s\S]*?<\/p>/, '<p class="page-sub">Choisis un jeu et entraîne ton équilibre.</p>')}`;
-}
-function wireEventGames() {
-  content.style.paddingTop = '';
-  document.querySelectorAll('.eh-flags .lang-flag-btn').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
-  wireGamesScreen();
 }
 // Tablette au parc PandaFit : on entre le code du projet, c'est tout
 function screenParcHome(errorMsg) {
@@ -4936,13 +4914,6 @@ function screenHome() {
       </div>
     ` : ''}
     ${campaignSelfService() ? campaignBannerHTML() : ''}
-    ${clientConfig?.showReadyToPlay !== false && !clientConfig?.lockGames ? `
-      <div class="hero-play">
-        <h3>${t('ready_title')}</h3>
-        <p>${t('ready_sub')}</p>
-        <button id="btnGoGames">${t('ready_btn')}</button>
-      </div>
-    ` : ''}
 
     <div id="highlightsWrap"></div>
   `;
@@ -4969,7 +4940,6 @@ function wireHomeScreen() {
   const tri = triathlonStation();
   if (tri) { eventPlayCtx = null; return wireTriathlon(tri); }
   if (activeEvent && !postejeuxSeance()) return wireEventHome();
-  document.getElementById('btnGoGames')?.addEventListener('click', () => navigate('games'));
   document.getElementById('btnEventIndex')?.addEventListener('click', () => navigate('indextest'));
   document.getElementById('btnCampaignDefi')?.addEventListener('click', () => launchGame(activeCampaign.defi.game_id));
   document.getElementById('btnGoBenefits')?.addEventListener('click', () => navigate('benefits'));
@@ -5221,7 +5191,7 @@ function launchIndexWithQuestionnaire() {
   if (campaignSelfService()) {
     content.innerHTML = screenCampaignNoIndex();
     if (window.lucide) lucide.createIcons();
-    document.getElementById('btnNoIndexGames')?.addEventListener('click', () => navigate('games'));
+    document.getElementById('btnNoIndexGames')?.addEventListener('click', () => navigate('home'));
     return;
   }
   showQuestionnaireThenLaunch(clientConfig?.indexQuestionnaireId, () => {
@@ -5519,55 +5489,6 @@ const GAMES = [
   { id: 'tempo', icon: 'brain', name: 'MindFit', desc: 'Effort physique et réflexion, en alternance', playable: true },
   { id: 'sudoku', icon: 'grid-3x3', name: 'MindFit Sudoku', desc: 'Bouge, puis remplis la grille : garde la tête froide', playable: true },
 ];
-function screenGames() {
-  const visibleGames = clientConfig
-    ? clientConfig.enabledGameIds.map(id => GAMES.find(g => g.id === id)).filter(Boolean)
-    : GAMES;
-  return `
-    ${postejeuxSeance() && currentRoute === 'games' ? `<button class="btn-ghost" id="btnGamesBackHome" style="margin-bottom:14px;">← ${t('back_home')}</button>` : ''}
-    <h1 class="page-title">${t('games_title')}</h1>
-    <p class="page-sub">${clientConfig ? `${t('games_sub_client')} ${clientConfig.clientName}.` : t('games_sub_generic')}</p>
-    ${visibleGames.length ? `<div class="games-grid">${visibleGames.map(g => {
-      const img = clientConfig?.gameImages?.[g.id] || gamesCatalog[g.id]?.image_url;
-      return `
-      <div class="game-thumb-card" data-game="${g.id}" style="${img ? `background-image:url('${img}');` : `background:${GAME_THEME_TABLET[g.id] || GAME_THEME_TABLET.thezone};`}">
-        <span class="sparkle"></span>
-        ${g.playable ? '' : `<div class="gtc-soon">${t('soon')}</div>`}
-        <div class="gtc-content">
-          <div class="gtc-title">${pickLang(gamesCatalog[g.id], 'name') || g.name}</div>
-          ${gameTagsHTML(g.id)}
-        </div>
-      </div>
-    `;
-    }).join('')}</div>` : `<p class="page-sub">${t('games_none')}</p>`}
-  `;
-}
-function wireGamesScreen() {
-  document.getElementById('btnGamesBackHome')?.addEventListener('click', () => navigate('home'));
-  document.querySelectorAll('.game-thumb-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const gameId = card.dataset.game;
-      if (GAME_LAUNCHERS[gameId]) launchGameWithQuestionnaire(gameId);
-      else alert('Ce jeu sera construit lors d\'une prochaine étape.');
-    });
-  });
-  wireGamesThumbsSparkle();
-}
-let gamesSparkleTimer = null;
-function wireGamesThumbsSparkle() {
-  if (gamesSparkleTimer) clearInterval(gamesSparkleTimer);
-  const trigger = () => {
-    const cards = Array.from(document.querySelectorAll('.game-thumb-card'));
-    if (!cards.length) return;
-    cards.forEach(c => c.classList.remove('sparkle-active'));
-    const card = cards[Math.floor(Math.random() * cards.length)];
-    void card.offsetWidth; // relance l'animation CSS
-    card.classList.add('sparkle-active');
-  };
-  trigger();
-  gamesSparkleTimer = setInterval(trigger, 4000);
-}
-
 /* ---------- Jeu : The Zone ---------- */
 let zoneSetupCfg = { difficulty: 'medium', duration: 60, lives: 3, zoneMode: 'fixed' };
 

@@ -1894,7 +1894,6 @@ function addGamesScreenCard() {
     <div class="card">
       <h3>Écran des jeux en accès libre</h3>
       <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 12px;">${isLibreProject(p) ? 'Ce que voit le public quand le panda est en libre-service, et pendant une séance sur les tablettes au poste <b>Jeux libres</b>.' : 'S\'applique seulement aux tablettes au poste <b>Jeux libres</b> pendant une séance (pas au poste Index ni aux stations du Triathlon).'} Les pubs, la satisfaction, les défis et les annonces suivent la même règle (onglets plus loin).</p>
-      ${cb('cfgReadyToPlay', p.show_ready_to_play, 'Afficher l\'encadré "Prêt à jouer ?"', 10)}
       ${cb('cfgIndexBanner', p.show_index_banner, 'Afficher l\'encadré "PandaFit Index"', 10)}
       ${cb('cfgBenefitsPage', p.show_benefits_page, 'Afficher la vignette "Les bienfaits du PandaFit"', 10)}
       ${cb('cfgInitiationPage', p.show_initiation_page, 'Afficher la vignette "Initiation au PandaFit"', 10)}
@@ -1904,7 +1903,7 @@ function addGamesScreenCard() {
   document.getElementById('btnSaveScreenSettings').addEventListener('click', async () => {
     const v = id => document.getElementById(id).checked;
     const { error } = await sb.from('projects').update({
-      show_ready_to_play: v('cfgReadyToPlay'), show_index_banner: v('cfgIndexBanner'),
+      show_index_banner: v('cfgIndexBanner'), // « Prêt à jouer ? » retiré : la page « Jeux » de la tablette n'existe plus (décision de Dan, 13.11.2026)
       show_benefits_page: v('cfgBenefitsPage'), show_initiation_page: v('cfgInitiationPage'), show_challenges: v('cfgChallenges'), // verrou des jeux retiré (décision Dan 06.11.2026 : tout se règle avec Menu tablette)
     }).eq('id', selectedProjectId);
     if (error) { alert('Erreur : ' + error.message); return; }
@@ -2046,7 +2045,7 @@ async function renderTabletMenuTab() {
 
   function render() {
     el.innerHTML = `
-      <p class="section-sub">Tout ce qui est actif dans ce projet s'affiche ici automatiquement (y compris les annonces, mélangés au reste). Glisse une vignette pour changer son ordre. L'œil masque/réaffiche uniquement sur l'écran d'accueil — pour un jeu, ça ne l'enlève pas de l'onglet "Jeux" (ça se gère dans l'onglet Jeux). Change sa photo avec l'icône image.</p>
+      <p class="section-sub">Tout ce qui est actif dans ce projet s'affiche ici automatiquement (y compris les annonces, mélangés au reste). Glisse une vignette pour changer son ordre. L'œil masque/réaffiche la vignette sur l'écran d'accueil. <b>Attention :</b> la tablette n'a plus de page « Jeux », donc un jeu masqué ici n'est plus accessible aux joueurs. Change sa photo avec l'icône image.</p>
       <div class="menu-section-title">Contenu principal (empilé)</div>
       <div class="menu-stack" id="mainStack">
         ${stack.length ? stack.map(thumbCardHTML).join('') : '<p class="empty">Rien pour l\'instant.</p>'}
