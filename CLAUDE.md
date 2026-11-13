@@ -83,6 +83,12 @@ Ni saisie avant l'Index, ni code / QR à la fin, y compris Mois et Campagne. Int
 - **Filets de sécurité en toile** (`paintFenceTile` + `paintFenceArt`) : bandeau fabriqué au code (plis, ourlets, « PANDAFIT »), dessiné par tranches verticales en perspective ; le sens du motif est inversé d'un côté à l'autre pour que le texte reste lisible. Avec `st.lite`, retour au bandeau orange uni. Les filets (`paintFences`) sont dessinés **après** les sapins, chalets et spectateurs (liste `outer`) et avant les portes : sinon le décor planté derrière passe par-dessus la toile.
 - Images faites sur **OpenArt** (compte de Dan, personnage « Panda »), fond vert retiré avec ffmpeg : méthode dans la note de mémoire `panda-mascotte-openart`. Mascotte = peluche noire, **pattes nues** (ni gants ni manches).
 
+### Tir au but en rendu 3D (13.11.2026)
+- Même traitement que le Slalom, dans `StadiumScene` : images facultatives dans `img/foot/` chargées par `FART` / `fart(nom)` ; si une image manque, l'ancien dessin reste. Règles et commande inchangées.
+- `stade` (tribune de nuit pleine de pandas, **animée** par tranches verticales : deux vagues qui se croisent + sautillements selon `st.ex` ; elle s'assombrit quand la vue zoome sur le but, sinon le ballon noir et blanc se perd devant les pandas), `course-1..4` (panda qui court, vu de dos, maillot blanc numéro 10 ; images du `<img>` avec repli sur les anciens PNG via `onerror`), `ballon`, `but` (but + filet ; image sur fond noir transformée en transparence par la luminosité avec ffmpeg ; au but, le filet se gonfle : zone ronde redessinée en plus grand).
+- **Gazon texturé** au code (`paintGrassTile` + `paintGrassTex`, même principe que la neige du Slalom), **panneaux LED** gardés au code pour que le texte défile (modules, reflet, trame, lueur sur le gazon).
+- Banc d'essai : `?shot=distance&live=1&axis=y` (le faux capteur balance d'avant en arrière).
+
 ### PWA
 - App installable en plein écran. Manifest **externe** `manifest.webmanifest` (⚠️ un manifest data-URI ne permet PAS l'install WebAPK Android). `sw.js` en **network-first** (jamais de code périmé). Icônes 192 + 512.
 
