@@ -7847,6 +7847,61 @@ const SkiScene = (() => {
     ctx.globalAlpha = 1;
     return true;
   }
+  /** Bandeau du filet de sécurité (2 unités de piste de long) : toile orange à mailles, plis, ourlets, « PANDAFIT » imprimé */
+  function paintFenceTile(c, w, h) {
+    const base = c.createLinearGradient(0, 0, 0, h);
+    base.addColorStop(0, '#ff7d36'); base.addColorStop(.55, '#f06224'); base.addColorStop(1, '#d24a14');
+    c.fillStyle = base; c.fillRect(0, 0, w, h);
+    const N = 96, cw = w / N; // plis de la toile : une ombre et un reflet par pli, en nombre entier pour le raccord
+    for (let i = 0; i < N; i++) {
+      const x = i * cw + pfHash(i + .2) * cw * .4, fw = cw * (.45 + pfHash(i + .4) * .4);
+      [['110,28,0', .1 + pfHash(i + .6) * .14, 0], ['255,200,150', .1 + pfHash(i + .8) * .12, fw * .9]].forEach(([rgb, al, dx]) => {
+        const g = c.createLinearGradient(x + dx, 0, x + dx + fw, 0);
+        g.addColorStop(0, `rgba(${rgb},0)`); g.addColorStop(.5, `rgba(${rgb},${al})`); g.addColorStop(1, `rgba(${rgb},0)`);
+        c.fillStyle = g; c.fillRect(x + dx, 0, fw, h);
+      });
+    }
+    c.strokeStyle = 'rgba(130,36,0,.3)'; c.lineWidth = 1; // mailles en croisillons
+    c.beginPath();
+    for (let x = -h; x < w + h; x += 8) { c.moveTo(x, 0); c.lineTo(x + h, h); c.moveTo(x + h, 0); c.lineTo(x, h); }
+    c.stroke();
+    c.fillStyle = '#fff3e4'; c.fillRect(0, 0, w, h * .075);          // ourlet blanc du haut
+    c.fillStyle = 'rgba(105,28,0,.5)'; c.fillRect(0, h * .075, w, h * .03);
+    c.fillStyle = '#b53d0d'; c.fillRect(0, h * .91, w, h * .09);       // ourlet du bas
+    c.fillStyle = 'rgba(255,255,255,.93)'; c.font = `italic 900 ${Math.round(h * .5)}px Montserrat, system-ui, sans-serif`;
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    [.25, .75].forEach(k => { c.save(); c.translate(w * k, h * .53); c.scale(3.2, 1); c.fillText('PANDAFIT', 0, 0); c.restore(); }); // étiré : vu en enfilade, le texte se lit quand même
+  }
+  /** Le filet le long de la piste, en perspective : la toile est dessinée par tranches verticales, du fond vers le skieur.
+      Le texte se lit dans le bon sens des deux côtés. Renvoie false si le navigateur ne sait pas faire (on garde le bandeau uni). */
+  function paintFenceArt(side, ns, stop) {
+    const { ctx, W, U, hz } = st, tile = st.fenceTile;
+    if (!tile) return false;
+    if (!st.fencePat) { st.fencePat = ctx.createPattern(tile, 'repeat'); st.fenceM = new DOMMatrix(); }
+    const pat = st.fencePat, m = st.fenceM;
+    if (!pat || !pat.setTransform) return false;
+    const tw = tile.width, th = tile.height, TOP = 8, BOT = .6, SREP = 2;
+    const X = side * EDGE - st.camX, kTop = st.eye - TOP * U, kBot = st.eye - BOT * U, dir = -side;
+    const Pn = st.F / (ns - st.camS);
+    let P = Math.max(st.F / (Math.min(stop, st.camS + 45) - st.camS), .05);
+    ctx.fillStyle = pat; ctx.globalAlpha = .95;
+    while (P < Pn) {
+      const P2 = Math.min(Pn, P * 1.07);
+      const xa = st.vx + X * U * P, xb = st.vx + X * U * P2;
+      if (Math.min(xa, xb) > W * 1.25 || Math.max(xa, xb) < -W * .25) break; // la suite est hors de l'écran
+      const u1 = dir * (st.camS + st.F / P) / SREP * tw, u2 = dir * (st.camS + st.F / P2) / SREP * tw;
+      const a = (xb - xa) / (u2 - u1), b = kTop / (X * U) * a, um = ((u1 % tw) + tw) % tw;
+      m.a = a; m.b = b; m.c = 0; m.d = (TOP - BOT) * U * P2 / th; m.e = xa - a * um; m.f = hz + kTop * P - b * um;
+      pat.setTransform(m);
+      const xo = xb + Math.sign(xb - xa) * .6; // léger recouvrement : pas de fente entre deux tranches
+      ctx.beginPath();
+      ctx.moveTo(xa, hz + kTop * P); ctx.lineTo(xo, hz + kTop * P2); ctx.lineTo(xo, hz + kBot * P2); ctx.lineTo(xa, hz + kBot * P);
+      ctx.closePath(); ctx.fill();
+      P = P2;
+    }
+    ctx.globalAlpha = 1;
+    return true;
+  }
   /** La neige qui défile sous les skis : tout est fixé au terrain, c'est ce qui donne la vitesse */
   function paintGroundFpv() {
     const { ctx, W, H, hz, U } = st;
@@ -7906,6 +7961,8 @@ const SkiScene = (() => {
     [-1, 1].forEach(side => {
       const a = project(ns, side * EDGE), b = project(Math.min(stop, st.camS + 45), side * EDGE);
       if (!a || !b || stop <= ns) return;
+      const art = !st.lite && paintFenceArt(side, ns, stop); // filet en toile avec ses plis ; sinon bandeau orange uni
+      if (!art) {
       ctx.fillStyle = 'rgba(232,96,40,.78)';
       ctx.beginPath();
       ctx.moveTo(a.x, a.y - U * 7 * a.P); ctx.lineTo(b.x, b.y - U * 7 * b.P);
@@ -7913,6 +7970,7 @@ const SkiScene = (() => {
       ctx.closePath(); ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = Math.max(1, U * .15);
       ctx.beginPath(); ctx.moveTo(a.x, a.y - U * 7 * a.P); ctx.lineTo(b.x, b.y - U * 7 * b.P); ctx.stroke();
+      }
       ctx.strokeStyle = '#5d6a7c';
       for (let k = 0; k < 26; k++) {
         const sp = (Math.floor(st.camS / .5) + k) * .5;
@@ -8313,6 +8371,7 @@ const SkiScene = (() => {
       });
       st.blobDark = blob('104,140,190,.15'); st.blobLight = blob('255,255,255,.55');
       st.snowTile = layerCanvas(512, 512, paintSnowTile);
+      st.fenceTile = layerCanvas(4096, 128, paintFenceTile);
       st.snowGrad = g.ctx.createLinearGradient(0, hz, 0, g.H);
       [[0, '#cfdff1'], [.3, '#eef5fb'], [1, '#e2ecf6']].forEach(([k, col]) => st.snowGrad.addColorStop(k, col));
       st.bgGrad = g.ctx.createLinearGradient(0, 0, 0, g.H);
