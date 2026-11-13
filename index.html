@@ -687,18 +687,20 @@
   .appel-game { font-size: clamp(24px, 4.8vw, 40px); font-weight: 900; line-height: 1.1; }
   .appel-side .game-tag { font-size: 14px; padding: 4px 12px; background: rgba(255,255,255,.14); }
   .appel-desc { margin-top: 12px; font-size: clamp(15px, 2.7vw, 20px); font-weight: 600; line-height: 1.3; color: #d9d2ff; }
-  .appel-fact { flex: none; width: 100%; max-width: 680px; box-sizing: border-box; display: flex; align-items: center; gap: 16px; padding: 12px 18px; border-radius: 18px; background: rgba(255,255,255,.09); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
-  .appel-fact.in { animation: appelSlide .5s cubic-bezier(.2,.9,.3,1); }
-  .appel-fact-k { font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #6fe39a; }
-  .appel-fact b { flex: none; min-width: 2.6em; text-align: center; font-size: clamp(28px, 5.6vw, 44px); font-weight: 900; font-style: italic; line-height: 1; color: #ffd166; white-space: nowrap; }
-  .appel-fact span { display: block; margin-top: 2px; font-size: clamp(14px, 2.4vw, 17px); font-weight: 700; line-height: 1.25; }
-  .appel-fact small { display: block; margin-top: 3px; font-size: 11px; color: #b9b0e6; }
+  .appel-fact { flex: none; width: 100%; max-width: 700px; box-sizing: border-box; display: flex; align-items: center; gap: 18px; padding: 16px 22px; border-radius: 22px; color: #2a1600; background: linear-gradient(110deg, #ffe08a, #ffc04d 55%, #ff9f2e); box-shadow: 0 12px 34px rgba(255,170,40,.35), inset 0 1px 0 rgba(255,255,255,.6); }
+  .appel-fact.in { animation: appelFactIn .6s cubic-bezier(.2,1.25,.4,1); }
+  @keyframes appelFactIn { from { opacity: 0; transform: translateY(16px) scale(.94); } to { opacity: 1; transform: none; } }
+  .appel-fact-k { display: flex; align-items: center; gap: 6px; font-size: clamp(13px, 2.2vw, 16px); font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: #6b2c00; }
+  .appel-fact-k svg { width: 20px; height: 20px; }
+  .appel-fact b { flex: none; min-width: 2.4em; text-align: center; font-size: clamp(40px, 8vw, 64px); font-weight: 900; font-style: italic; line-height: 1; color: #3a1a7a; white-space: nowrap; }
+  .appel-fact span { display: block; margin-top: 4px; font-size: clamp(17px, 3vw, 23px); font-weight: 800; line-height: 1.22; color: #2a1600; }
+  .appel-fact small { display: block; margin-top: 5px; font-size: 11.5px; font-weight: 600; color: rgba(42,22,0,.62); }
   .appel-defi { flex: none; width: 100%; max-width: 640px; box-sizing: border-box; padding: 10px 16px; border-radius: 16px; background: rgba(255,209,102,.13); box-shadow: inset 0 0 0 2px rgba(255,209,102,.5); text-align: center; }
   .appel-defi-k { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #ffd166; }
   .appel-defi-k svg { width: 16px; height: 16px; }
   .appel-defi-t { font-size: clamp(17px, 3vw, 22px); font-weight: 900; }
   .appel-defi .hc-standings { justify-content: center; }
-  .appel-cta { flex: none; padding: 13px 28px; border-radius: 999px; background: linear-gradient(100deg, #00e0a0, #2a7fd6); color: #06170f; font-size: clamp(17px, 3.3vw, 25px); font-weight: 900; text-align: center; animation: appelPulse 1.7s ease-in-out infinite; }
+  .appel-cta { margin-top: 18px; padding: 14px 18px; border-radius: 20px; background: linear-gradient(100deg, #00e0a0, #2a7fd6); color: #06170f; font-size: clamp(16px, 2.9vw, 22px); font-weight: 900; line-height: 1.2; text-align: center; animation: appelPulse 1.7s ease-in-out infinite; }
   @keyframes appelPulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0,224,160,.5); } 50% { transform: scale(1.04); box-shadow: 0 0 0 14px rgba(0,224,160,0); } }
   .appel-welcome { margin: auto 0; width: 100%; text-align: center; animation: sportIn .3s cubic-bezier(.2,.9,.3,1); }
   .appel-welcome .ski-warn-box { border-left-color: #1fb56f; }
@@ -4646,7 +4648,8 @@ function appelRenderSlide() {
   const games = appelGames(), g = games.length ? games[appelSlide % games.length] : null;
   const shot = document.getElementById('appelShot'), side = document.getElementById('appelSide'), panda = document.getElementById('appelPanda');
   if (!side) return;
-  const f = BENEFIT_FACTS[appelFact % BENEFIT_FACTS.length];
+  const facts = BENEFIT_FACTS.filter(x => /[0-9]/.test(x.big)); // seulement les faits avec un vrai chiffre (pas le « + »)
+  const f = facts[appelFact % facts.length];
   const source = (f.ref.match(/^(.*?\(\d{4}\))/) || [])[1] || '';
   if (shot) {
     shot.style.display = g ? '' : 'none';
@@ -4660,9 +4663,10 @@ function appelRenderSlide() {
     }
   }
   side.innerHTML = `
-    ${g ? `<div class="appel-game">${pickLang(gamesCatalog[g.id], 'name') || g.name}</div>${gameTagsHTML(g.id)}<div class="appel-desc">${pickLang(gamesCatalog[g.id], 'description') || trText(g.desc)}</div>` : ''}`;
+    ${g ? `<div class="appel-game">${pickLang(gamesCatalog[g.id], 'name') || g.name}</div>${gameTagsHTML(g.id)}<div class="appel-desc">${pickLang(gamesCatalog[g.id], 'description') || trText(g.desc)}</div>` : ''}
+    <div class="appel-cta">${trText("Monte sur le plateau ou touche l'écran")}</div>`;
   const fact = document.getElementById('appelFact');
-  if (fact) { fact.innerHTML = `<b>${f.big}</b><div><div class="appel-fact-k">${trText('Le savais-tu ?')}</div><span>${trText(f.text)}</span><small>${source}</small></div>`; fact.classList.remove('in'); void fact.offsetWidth; fact.classList.add('in'); }
+  if (fact && fact.dataset.n !== String(appelFact)) { fact.dataset.n = appelFact; fact.innerHTML = `<b>${f.big}</b><div><div class="appel-fact-k"><i data-lucide="lightbulb"></i> ${trText('Le savais-tu ?')}</div><span>${trText(f.text)}</span><small>${source}</small></div>`; fact.classList.remove('in'); void fact.offsetWidth; fact.classList.add('in'); if (window.lucide) lucide.createIcons(); }
   side.classList.remove('in'); void side.offsetWidth; side.classList.add('in');
   appelPlace();
 }
@@ -4681,14 +4685,14 @@ function appelShow() {
     </div>
     <div class="appel-fact" id="appelFact"></div>
     ${item ? `<div class="appel-defi"><div class="appel-defi-k"><i data-lucide="trophy"></i> ${trText('Défi en cours')}</div><div class="appel-defi-t">${item.data.title || ''}</div>${standingsLineHTML(item.standings)}</div>` : ''}
-    <div class="appel-cta">${trText("Monte sur le plateau ou touche l'écran")}</div>`;
+    `;
   appelShown = true; appelSteps = 0; appelBase = null;
   appelSlide = Math.floor(Math.random() * 8);
   appelRenderSlide();
   el.classList.add('show');
   if (window.lucide) lucide.createIcons();
   clearInterval(appelSlideTimer);
-  appelSlideTimer = setInterval(() => { appelSlide++; appelFact++; appelRenderSlide(); }, APPEL_SLIDE_MS);
+  appelSlideTimer = setInterval(() => { appelSlide++; if (appelSlide % 2 === 0) appelFact++; appelRenderSlide(); }, APPEL_SLIDE_MS);
 }
 function appelHide(steppedOn) {
   const el = document.getElementById('appel');
