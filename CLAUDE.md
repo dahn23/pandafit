@@ -89,6 +89,11 @@ Ni saisie avant l'Index, ni code / QR à la fin, y compris Mois et Campagne. Int
 - **Gazon texturé** au code (`paintGrassTile` + `paintGrassTex`, même principe que la neige du Slalom), **panneaux LED** gardés au code pour que le texte défile (modules, reflet, trame, lueur sur le gazon).
 - Banc d'essai : `?shot=distance&live=1&axis=y` (le faux capteur balance d'avant en arrière).
 
+### Zen en rendu 3D (13.11.2026)
+- Dans `LakeScene`, images facultatives dans `img/zen/` chargées par `ZART` / `zart(nom)` : `montagnes` (ciel transparent, remplace les calques `mountDawn` / `mountDay` ; la version aube est la même image assombrie par `dawnTint`, donc le reflet dans le lac et le fondu aube → jour marchent tout seuls ; portrait seulement), `ponton` (on n'en voit que le bout), `panda` (`<img id="lakePandaArt">` à côté de l'ancien SVG `#lakePanda`, qui se cache quand l'image est chargée), `nenuphar` / `nenuphar-rouge` (hors zone).
+- Restent au code : ciel, soleil, nuages, oiseaux, eau, brume, lucioles, anneau de la zone. Banc d'essai : `?shot=cross&live=1&amp=40&per=700`.
+- Piège OpenArt : la zone de saisie garde l'ancien texte même quand elle paraît vide → toujours tout sélectionner avant de taper, et relire le texte avant de générer.
+
 ### PWA
 - App installable en plein écran. Manifest **externe** `manifest.webmanifest` (⚠️ un manifest data-URI ne permet PAS l'install WebAPK Android). `sw.js` en **network-first** (jamais de code périmé). Icônes 192 + 512.
 
