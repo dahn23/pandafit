@@ -343,7 +343,29 @@
   .sdk-lock-t { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 800; color: #cfe9d8; }
   .sdk-lock-t svg { width: 22px; height: 22px; }
   .sdk-lock-n { font-size: clamp(46px, 9vw, 70px); font-weight: 900; font-style: italic; line-height: 1.05; color: #6fe39a; }
-  .sdk-lock-s { font-size: 19px; font-weight: 700; }
+  .sdk-lock-s { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 700; }
+  .sdk-axis-ic { flex: none; width: 30px; height: 30px; color: #ffd166; transform: rotate(90deg); }
+  /* tour « gauche / droite » : la jauge se couche et le texte passe dessous */
+  .sudoku-stage.axis-x .sdk-axis-ic { transform: none; }
+  .sudoku-stage.axis-x .sdk-lock { flex-direction: column; gap: 8px; }
+  .sudoku-stage.axis-x .sdk-gauge { width: 74%; height: 40px; }
+  .sudoku-stage.axis-x .sdk-gauge-line { left: 67%; right: auto; top: -7px; bottom: -7px; width: 5px; height: auto; }
+  .sudoku-stage.axis-x .sdk-lock-txt { display: grid; grid-template-columns: auto auto; column-gap: 16px; align-items: center; justify-content: center; }
+  .sudoku-stage.axis-x .sdk-lock-n { grid-column: 1; grid-row: 1 / span 2; font-size: clamp(40px, 8vw, 58px); }
+  .sudoku-stage.axis-x .sdk-lock-t { grid-column: 2; grid-row: 1; }
+  .sudoku-stage.axis-x .sdk-lock-s { grid-column: 2; grid-row: 2; }
+  /* clavier débloqué mais joueur encore instable : bloqué tant qu'il n'est pas revenu au calme (comme MindFit) */
+  .sdk-calm { position: absolute; inset: -6px; display: none; align-items: center; justify-content: center; gap: 20px; border-radius: 22px; background: rgba(66,10,24,.88); color: #fff; box-shadow: inset 0 0 0 3px rgba(255,120,140,.85); }
+  .sudoku-stage.solve.unstable .sdk-calm { display: flex; }
+  .sudoku-stage.solve.unstable .sdk-keys { opacity: .22; filter: grayscale(1); pointer-events: none; }
+  .sdk-radar { position: relative; flex: none; width: 112px; height: 112px; border-radius: 50%; background: rgba(255,255,255,.1); box-shadow: inset 0 0 0 2px rgba(255,255,255,.3); }
+  .sdk-radar-zone { position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px; box-sizing: border-box; border-radius: 50%; border: 3px solid #6fe39a; }
+  .sdk-radar-dot { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: #ff8fa0; box-shadow: 0 0 12px rgba(255,120,140,.9); }
+  .sdk-calm-txt { text-align: left; max-width: 320px; }
+  .sdk-calm-t { font-size: clamp(24px, 4.6vw, 34px); font-weight: 900; font-style: italic; line-height: 1.1; color: #ffb3bf; white-space: nowrap; }
+  .sdk-calm-s { font-size: 19px; font-weight: 700; margin-top: 4px; }
+  .sudoku-stage.unstable .sdk-hint { background: rgba(110,16,34,.88); }
+  .sudoku-stage.unstable .sdk-board { box-shadow: 0 0 0 5px rgba(230,55,78,.85), 0 14px 34px rgba(0,0,0,.45); }
   .football-runner { position: absolute; left: 50%; bottom: 7%; width: 300px; height: 300px; margin-left: -150px; transition: transform .08s linear; }
   .football-runner::before { content: ''; position: absolute; left: 30%; right: 30%; bottom: 1%; height: 8%; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,18,10,.5), rgba(0,18,10,0)); }
   .football-runner img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; }
@@ -2128,6 +2150,8 @@ const TempoGame = (() => {
 const SudokuGame = (() => {
   const CROSSINGS_NEEDED = 7;
   const CROSS_THRESHOLD_CM = 1.2;
+  const CALM_RADIUS_CM = 1.875;   // même zone de calme que MindFit : il faut être stable pour taper
+  const CALM_LOCK_MS = 1000;      // et le rester 1 s après chaque sortie de la zone
   const SOLVE_SECONDS = 10;
   const EMPTY_CELLS = 12;
   const MAX_SECONDS = 180;
@@ -2172,11 +2196,16 @@ const SudokuGame = (() => {
   function fresh() {
     return {
       ...makeGrid(), running: false, started: false, done: false,
-      phase: 'effort', crossings: 0, wasAbove: false, crossFlashUntil: 0, solveLeft: 0, elapsed: 0,
+      phase: 'effort', axis: 'y', crossings: 0, wasAbove: false, crossFlashUntil: 0, solveLeft: 0, elapsed: 0, lockedUntil: 0,
       selected: -1, mistakes: 0, rounds: 0, xCm: 0, yCm: 0, lastTickAt: performance.now(),
     };
   }
   const conflictAt = i => s.cells[i] !== 0 && PEERS[i].some(p => s.cells[p] === s.cells[i]);
+  /** Le mouvement du tour : une fois d'avant en arrière (y), une fois de gauche à droite (x), en alternance */
+  const effortValue = () => s.axis === 'y' ? latest.y : latest.x;
+  const isCalm = () => (s.xCm * s.xCm + s.yCm * s.yCm) <= CALM_RADIUS_CM * CALM_RADIUS_CM;
+  /** Peut-on taper ? Seulement immobile au centre, et depuis au moins 1 s (comme MindFit) */
+  const canType = () => s.phase === 'solve' && isCalm() && performance.now() >= s.lockedUntil;
 
   /** La grille montrée pendant le 3-2-1 : la partie démarrera avec la même */
   function preview() { s = fresh(); return snapshot(); }
@@ -2200,7 +2229,7 @@ const SudokuGame = (() => {
     s.elapsed += dt;
     if (s.elapsed >= MAX_SECONDS) { finish('time'); return; }
     if (s.phase === 'effort') {
-      const isAbove = latest.y > CROSS_THRESHOLD_CM;
+      const isAbove = effortValue() > CROSS_THRESHOLD_CM;
       if (isAbove && !s.wasAbove) {
         s.crossings++;
         s.wasAbove = true;
@@ -2214,7 +2243,8 @@ const SudokuGame = (() => {
       }
     } else {
       s.solveLeft -= dt;
-      if (s.solveLeft <= 0) { s.phase = 'effort'; s.crossings = 0; s.wasAbove = latest.y > CROSS_THRESHOLD_CM; }
+      if (!isCalm()) s.lockedUntil = now + CALM_LOCK_MS; // on bouge : clavier bloqué, le temps continue de filer
+      if (s.solveLeft <= 0) { s.phase = 'effort'; s.crossings = 0; s.axis = s.axis === 'y' ? 'x' : 'y'; s.wasAbove = effortValue() > CROSS_THRESHOLD_CM; }
     }
     onTickCb && onTickCb(snapshot());
   }
@@ -2227,7 +2257,7 @@ const SudokuGame = (() => {
   }
   /** Poser un chiffre dans la case choisie (clavier débloqué seulement). Retaper le même chiffre vide la case. */
   function digit(d) {
-    if (!s || !s.running || s.phase !== 'solve' || s.selected < 0 || s.given[s.selected]) return null;
+    if (!s || !s.running || !canType() || s.selected < 0 || s.given[s.selected]) return null;
     const i = s.selected;
     s.cells[i] = s.cells[i] === d ? 0 : d;
     const bad = conflictAt(i);
@@ -2240,7 +2270,7 @@ const SudokuGame = (() => {
   }
   /** Tout vider : enlève tous les chiffres posés par le joueur (clavier débloqué seulement) */
   function clearAll() {
-    if (!s || !s.running || s.phase !== 'solve') return false;
+    if (!s || !s.running || !canType()) return false;
     s.cells = s.cells.map((v, i) => s.given[i] ? v : 0);
     onTickCb && onTickCb(snapshot());
     return true;
@@ -2263,7 +2293,7 @@ const SudokuGame = (() => {
   function snapshot() {
     return {
       phase: s.phase, crossings: s.crossings, crossingsNeeded: CROSSINGS_NEEDED, crossFlashUntil: s.crossFlashUntil,
-      thresholdCm: CROSS_THRESHOLD_CM, xCm: s.xCm, yCm: s.yCm,
+      thresholdCm: CROSS_THRESHOLD_CM, xCm: s.xCm, yCm: s.yCm, axis: s.axis, calm: canType(), calmRadiusCm: CALM_RADIUS_CM,
       solveLeft: Math.max(0, s.solveLeft), solveSeconds: SOLVE_SECONDS, elapsed: s.elapsed, maxSeconds: MAX_SECONDS,
       cells: s.cells.slice(), given: s.given, selected: s.selected,
       conflicts: s.cells.map((v, i) => conflictAt(i)), // y compris le chiffre donné qui fait doublon : on voit pourquoi c'est rouge
@@ -3794,7 +3824,12 @@ const UI_DICT_ROWS = [
   ["Question", "Frage", "Question", "Domanda"],
   ["Calcule", "Rechne", "Calculate", "Calcola"],
   ["Bouge, puis remplis la grille : garde la tête froide", "Beweg dich, dann fülle das Gitter: Bleib cool", "Move, then fill the grid: keep a cool head", "Muoviti, poi riempi la griglia: mantieni la calma"],
-  ["Balance-toi 7 fois d'avant en arrière pour débloquer le clavier, puis tu as 10 secondes pour remplir la grille. Ensuite le clavier se verrouille et tu repars pour 7 mouvements. La grille reste visible : prépare ton coup pendant que tu bouges ! Un chiffre en rouge est déjà présent sur sa ligne, sa colonne ou son carré.", "Schwing 7-mal vor und zurück, um die Tastatur freizuschalten, dann hast du 10 Sekunden, um das Gitter zu füllen. Danach wird die Tastatur gesperrt und du machst wieder 7 Bewegungen. Das Gitter bleibt sichtbar: Plane deinen Zug, während du dich bewegst! Eine rote Zahl steht schon in ihrer Zeile, ihrer Spalte oder ihrem Block.", "Swing back and forth 7 times to unlock the keypad, then you have 10 seconds to fill the grid. Then the keypad locks and you go again for 7 moves. The grid stays visible: plan your move while you swing! A red number is already in its row, column or box.", "Oscilla 7 volte avanti e indietro per sbloccare la tastiera, poi hai 10 secondi per riempire la griglia. Poi la tastiera si blocca e riparti per 7 movimenti. La griglia resta visibile: prepara la tua mossa mentre ti muovi! Un numero in rosso è già presente nella sua riga, colonna o riquadro."],
+  ["Balance-toi 7 fois pour débloquer le clavier (un tour d'avant en arrière, le tour suivant de gauche à droite), puis reviens bien au calme : tu as 10 secondes pour remplir la grille, et impossible de taper en bougeant ! Ensuite le clavier se verrouille et tu repars pour 7 mouvements. La grille reste visible : prépare ton coup pendant que tu bouges. Un chiffre en rouge est déjà présent sur sa ligne, sa colonne ou son carré.", "Schwing 7-mal, um die Tastatur freizuschalten (eine Runde vor und zurück, die nächste von links nach rechts), dann komm ganz zur Ruhe: Du hast 10 Sekunden, um das Gitter zu füllen, und in Bewegung kannst du nicht tippen! Danach wird die Tastatur gesperrt und du machst wieder 7 Bewegungen. Das Gitter bleibt sichtbar: Plane deinen Zug, während du dich bewegst. Eine rote Zahl steht schon in ihrer Zeile, ihrer Spalte oder ihrem Block.", "Swing 7 times to unlock the keypad (one round back and forth, the next round left and right), then come to a complete rest: you have 10 seconds to fill the grid, and you cannot type while moving! Then the keypad locks and you go again for 7 moves. The grid stays visible: plan your move while you swing. A red number is already in its row, column or box.", "Oscilla 7 volte per sbloccare la tastiera (un giro avanti e indietro, il giro dopo da sinistra a destra), poi torna ben fermo: hai 10 secondi per riempire la griglia, ed è impossibile digitare mentre ti muovi! Poi la tastiera si blocca e riparti per 7 movimenti. La griglia resta visibile: prepara la tua mossa mentre ti muovi. Un numero in rosso è già presente nella sua riga, colonna o riquadro."],
+  ["Balance-toi de gauche à droite.", "Schwing von links nach rechts.", "Swing left and right.", "Oscilla da sinistra a destra."],
+  ["Avant / arrière", "Vor / zurück", "Back / forth", "Avanti / indietro"],
+  ["Gauche / droite", "Links / rechts", "Left / right", "Sinistra / destra"],
+  ["Reste immobile !", "Bleib ruhig stehen!", "Stay still!", "Resta immobile!"],
+  ["Le clavier se débloque dès que tu es stable.", "Die Tastatur wird frei, sobald du stabil bist.", "The keypad unlocks as soon as you are steady.", "La tastiera si sblocca appena sei stabile."],
   ["BOUGE, PUIS RÉFLÉCHIS", "BEWEGEN, DANN DENKEN", "MOVE, THEN THINK", "MUOVITI, POI PENSA"],
   ["Complète la grille le plus vite possible !", "Fülle das Gitter so schnell wie möglich!", "Complete the grid as fast as you can!", "Completa la griglia il più in fretta possibile!"],
   ["Tout vider", "Alles löschen", "Clear all", "Svuota tutto"],
@@ -11856,7 +11891,7 @@ function screenSudokuSetup() {
     <div class="centered-page game-setup">
     <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="grid-3x3"></i> MindFit Sudoku</h1>
     ${gameVideoBigHTML(SUDOKU_WELCOME_VIDEO_B64)}
-    <p class="page-sub">Balance-toi 7 fois d'avant en arrière pour débloquer le clavier, puis tu as 10 secondes pour remplir la grille. Ensuite le clavier se verrouille et tu repars pour 7 mouvements. La grille reste visible : prépare ton coup pendant que tu bouges ! Un chiffre en rouge est déjà présent sur sa ligne, sa colonne ou son carré.</p>
+    <p class="page-sub">Balance-toi 7 fois pour débloquer le clavier (un tour d'avant en arrière, le tour suivant de gauche à droite), puis reviens bien au calme : tu as 10 secondes pour remplir la grille, et impossible de taper en bougeant ! Ensuite le clavier se verrouille et tu repars pour 7 mouvements. La grille reste visible : prépare ton coup pendant que tu bouges. Un chiffre en rouge est déjà présent sur sa ligne, sa colonne ou son carré.</p>
     <button class="btn-primary" id="btnSudokuStart" style="width:100%;">${t('game_start_btn')}</button>
     <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
     ${gameInfoHTML('sudoku')}
@@ -11935,7 +11970,14 @@ function screenSudokuPlaying() {
             <div class="sdk-lock-txt">
               <div class="sdk-lock-t"><i data-lucide="lock"></i> <span>Clavier verrouillé</span></div>
               <div class="sdk-lock-n"><span id="sudokuCount">0</span>/7</div>
-              <div class="sdk-lock-s">Balance-toi d'avant en arrière.</div>
+              <div class="sdk-lock-s"><svg class="sdk-axis-ic" viewBox="0 0 40 40"><path d="M5 20H35M12 13l-7 7 7 7M28 13l7 7-7 7" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="sudokuAxisText">Balance-toi d'avant en arrière.</span></div>
+            </div>
+          </div>
+          <div class="sdk-calm" id="sudokuCalm">
+            <div class="sdk-radar"><div class="sdk-radar-zone"></div><div class="sdk-radar-dot" id="sudokuRadarDot"></div></div>
+            <div class="sdk-calm-txt">
+              <div class="sdk-calm-t">Reste immobile !</div>
+              <div class="sdk-calm-s">Le clavier se débloque dès que tu es stable.</div>
             </div>
           </div>
         </div>
@@ -11964,12 +12006,16 @@ function renderSudokuPlaying(snap) {
   const stage = document.getElementById('sudokuStage');
   if (!stage) return;
   const solve = snap.phase === 'solve';
+  const unstable = solve && !snap.calm, sideways = snap.axis === 'x';
   stage.classList.toggle('solve', solve);
+  stage.classList.toggle('unstable', unstable);   // il bouge encore : clavier bloqué, radar du calme affiché
+  stage.classList.toggle('axis-x', sideways);     // ce tour-ci, le mouvement est de gauche à droite
   const timerEl = document.getElementById('sudokuTimer');
   if (timerEl) timerEl.textContent = `${Math.floor(snap.elapsed / 60)}:${String(Math.floor(snap.elapsed % 60)).padStart(2, '0')}`;
   // consigne du haut : les 7 mouvements, puis la barre des 10 secondes
   const hint = document.getElementById('sudokuHint');
-  const hintText = solve ? `${trText('À toi !')} ${Math.ceil(snap.solveLeft)} s` : `${trText('Bouge pour débloquer')} ${snap.crossings}/${snap.crossingsNeeded}`;
+  const hintText = solve ? `${trText(unstable ? 'Reste immobile !' : 'À toi !')} ${Math.ceil(snap.solveLeft)} s`
+    : `${trText(sideways ? 'Gauche / droite' : 'Avant / arrière')} ${snap.crossings}/${snap.crossingsNeeded}`;
   if (hint && hint.textContent !== hintText) hint.textContent = hintText;
   document.querySelectorAll('#sudokuSteps i').forEach((el, i) => el.classList.toggle('on', i < snap.crossings));
   const bar = document.getElementById('sudokuTimeBar');
@@ -11977,9 +12023,21 @@ function renderSudokuPlaying(snap) {
   // jauge du mouvement : le point suit le plateau, la ligne = la barre à passer
   const dot = document.getElementById('sudokuDot');
   if (dot) {
-    const pos = Math.max(0, Math.min(1, .5 + snap.yCm / 7)); // ±3,5 cm sur toute la hauteur
-    dot.style.bottom = `${(pos * 100).toFixed(1)}%`;
-    dot.classList.toggle('over', snap.yCm > snap.thresholdCm);
+    const val = sideways ? snap.xCm : snap.yCm;
+    const pos = `${(Math.max(0, Math.min(1, .5 + val / 7)) * 100).toFixed(1)}%`; // ±3,5 cm sur toute la jauge
+    dot.style.bottom = sideways ? '50%' : pos;   // jauge debout pour avant / arrière
+    dot.style.left = sideways ? pos : '50%';     // jauge couchée pour gauche / droite
+    dot.classList.toggle('over', val > snap.thresholdCm);
+  }
+  const axisText = document.getElementById('sudokuAxisText');
+  const axisWanted = trText(sideways ? 'Balance-toi de gauche à droite.' : "Balance-toi d'avant en arrière.");
+  if (axisText && axisText.textContent !== axisWanted) axisText.textContent = axisWanted;
+  // radar du calme (comme MindFit) : le point doit revenir dans le cercle pour débloquer le clavier
+  const radarDot = document.getElementById('sudokuRadarDot');
+  if (radarDot) {
+    const k = 30 / snap.calmRadiusCm, lim = 46; // le cercle de calme fait 30 px de rayon
+    const rx = Math.max(-lim, Math.min(lim, snap.xCm * k)), ry = Math.max(-lim, Math.min(lim, snap.yCm * k));
+    radarDot.style.transform = `translate(${rx.toFixed(1)}px, ${(-ry).toFixed(1)}px)`;
   }
   const count = document.getElementById('sudokuCount');
   if (count && count.textContent !== String(snap.crossings)) count.textContent = snap.crossings;
