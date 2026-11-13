@@ -7345,7 +7345,7 @@ const SkiScene = (() => {
       }
     }
     const c = project(Math.max(snap.distance + 2.8, start + .2), 0);
-    if (c) {
+    if (c && !st.fpv) { // en vue subjective, plus de « PANDAFIT » écrit dans la neige (demande de Dan)
       ctx.fillStyle = 'rgba(213,43,30,.75)';
       ctx.font = `800 ${Math.round(U * 9 * c.P)}px Montserrat, system-ui, sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
