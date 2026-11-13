@@ -1315,7 +1315,8 @@ async function renderStatsTab() {
           <div class="stat-box"><div class="n" style="color:#e0a83e;">${satCounts.yellow}</div><div class="l">🟡 ${Math.round(satCounts.yellow / satTotal * 100)}%</div></div>
           <div class="stat-box"><div class="n" style="color:#43cea2;">${satCounts.green}</div><div class="l">🟢 ${Math.round(satCounts.green / satTotal * 100)}%</div></div>
         </div>
-        <p style="font-size:12.5px;color:var(--text-dim);margin-top:12px;margin-bottom:0;">${satTotal} réponse${satTotal > 1 ? 's' : ''} au total sur la période filtrée</p>
+        <p style="font-size:12.5px;color:var(--text-dim);margin-top:12px;margin-bottom:0;">${satTotal} réponse${satTotal > 1 ? 's' : ''} au total sur la période filtrée · <b style="color:var(--text);">Indice ${satIdxLabel(satCounts)}</b> (part de vert moins part de rouge, de −100 à +100)</p>
+        ${satWeeksHTML(satisfactionResponses)}
       `}
     </div>
 
@@ -1910,6 +1911,30 @@ function addGamesScreenCard() {
     await loadProjectDetail();
     const b = document.getElementById('btnSaveScreenSettings'); if (b) { b.textContent = 'Enregistré ✓'; setTimeout(() => { b.textContent = "Enregistrer l'écran"; }, 1500); }
   });
+}
+
+/* ---------------- Indice de satisfaction : un chiffre et son évolution par semaine ---------------- */
+function satIdxLabel(c) {
+  const total = (c.red || 0) + (c.yellow || 0) + (c.green || 0);
+  if (!total) return '–';
+  const v = Math.round(100 * ((c.green || 0) - (c.red || 0)) / total);
+  return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
+}
+function satWeeksHTML(rows) {
+  const monday = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x.getTime(); };
+  const byWeek = {};
+  rows.forEach(r => { const k = monday(r.created_at); (byWeek[k] = byWeek[k] || { red: 0, yellow: 0, green: 0 })[r.rating]++; });
+  const keys = Object.keys(byWeek).map(Number).sort((a, b) => a - b).slice(-12);
+  if (keys.length < 2) return '';
+  return `<div style="display:flex;gap:6px;align-items:flex-end;margin-top:14px;">${keys.map(k => {
+    const c = byWeek[k], t = c.red + c.yellow + c.green, p = n => 100 * n / t;
+    return `<div style="flex:1;min-width:0;text-align:center;" title="${t} réponse${t > 1 ? 's' : ''}">
+      <div style="font-size:12px;font-weight:800;height:16px;">${satIdxLabel(c)}</div>
+      <div style="height:90px;border-radius:6px;overflow:hidden;display:flex;flex-direction:column;">
+        <div style="height:${p(c.red)}%;background:#e6374e;"></div><div style="height:${p(c.yellow)}%;background:#e0a83e;"></div><div style="height:${p(c.green)}%;background:#43cea2;"></div></div>
+      <div style="font-size:10.5px;color:var(--text-dim);margin-top:3px;">${new Date(k).toLocaleDateString('fr-CH', { day: '2-digit', month: '2-digit' })}</div></div>`;
+  }).join('')}</div>
+  <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Une colonne par semaine (lundi), avec l'indice au-dessus.</p>`;
 }
 
 /* ---------------- Menu tablette (vignettes + glisser-déposer) ---------------- */

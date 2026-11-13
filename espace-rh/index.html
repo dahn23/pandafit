@@ -195,8 +195,31 @@ function satHTML(sat) {
   if (!sat || sat.total < 5) return `<p class="empty">${sat?.total || 0} réponse(s) : les résultats s'affichent à partir de 5 réponses, pour rester anonymes.</p>`;
   const p = n => Math.round(100 * n / sat.total);
   const line = (emoji, label, n, color) => `<div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;font-size:14px;"><span>${emoji} ${label}</span><b>${p(n)} %</b></div><div class="bar"><span style="width:${p(n)}%;background:${color};"></span></div></div>`;
-  return `<div class="big">${sat.total} réponses</div>
+  return `<div class="big">${satIndexLabel(sat)}</div>
+    <div class="sub" style="margin:0 0 6px;">Indice de satisfaction, de −100 (tout rouge) à +100 (tout vert) · ${sat.total} réponses</div>
     ${line('😀', 'Bien', sat.green, '#2fbf71')}${line('😐', 'Moyen', sat.yellow, '#f2b43a')}${line('😕', 'Pas bien', sat.red, '#e0564a')}`;
+}
+/** L'indice en un chiffre : part de vert moins part de rouge */
+const satIndex = s => Math.round(100 * (s.green - s.red) / s.total);
+const satIndexLabel = s => { const v = satIndex(s); return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v); };
+/** Évolution : une colonne par semaine (parts de vert, jaune, rouge) et l'indice au-dessus. Rien sous 5 réponses, pour rester anonyme. */
+function satTrendHTML(weeks) {
+  if (!weeks || !weeks.some(w => w.total >= 5)) return '<p class="empty">Pas encore assez de réponses pour montrer une évolution (il en faut au moins 5 dans une semaine).</p>';
+  const dayLabel = ago => { const d = new Date(Date.now() - 7 * 864e5 * (ago + 1) + 864e5); return ago === 0 ? 'en cours' : d.toLocaleDateString('fr-CH', { day: '2-digit', month: '2-digit' }); };
+  const col = w => {
+    if (w.total < 5) return `<div style="flex:1;min-width:0;text-align:center;"><div style="height:18px;"></div>
+      <div style="height:120px;border-radius:8px;background:rgba(127,127,127,.14);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--dim);">trop peu</div>
+      <div style="font-size:11px;color:var(--dim);margin-top:4px;white-space:nowrap;">${dayLabel(w.ago)}</div></div>`;
+    const p = n => 100 * n / w.total;
+    return `<div style="flex:1;min-width:0;text-align:center;"><div style="height:18px;font-size:13px;font-weight:800;">${satIndexLabel(w)}</div>
+      <div style="height:120px;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;" title="${w.total} réponses">
+        <div style="height:${p(w.red)}%;background:#e0564a;"></div><div style="height:${p(w.yellow)}%;background:#f2b43a;"></div><div style="height:${p(w.green)}%;background:#2fbf71;"></div></div>
+      <div style="font-size:11px;color:var(--dim);margin-top:4px;white-space:nowrap;">${dayLabel(w.ago)}</div></div>`;
+  };
+  const shown = weeks.filter(w => w.total >= 5), first = shown[0], last = shown[shown.length - 1];
+  const delta = shown.length > 1 ? satIndex(last) - satIndex(first) : 0;
+  const trend = shown.length < 2 ? '' : `<p class="sub" style="margin:10px 0 0;">${delta > 3 ? '↗ En hausse' : delta < -3 ? '↘ En baisse' : '→ Stable'} : l'indice passe de ${satIndexLabel(first)} à ${satIndexLabel(last)} sur la période.</p>`;
+  return `<div style="display:flex;gap:8px;align-items:flex-end;">${weeks.map(col).join('')}</div>${trend}`;
 }
 
 /* ---------------- Inscriptions ---------------- */
@@ -313,6 +336,13 @@ async function viewScreen(view, f) {
     return;
   }
   const [{ data: sat }, { data: ads }] = await Promise.all([sb.rpc('rh_satisfaction', { p_days: satDays }), sb.rpc('rh_ads')]);
+  // Évolution : la base donne le cumul des N derniers jours ; la différence entre deux cumuls donne chaque semaine
+  const cumuls = (await Promise.all([1, 2, 3, 4, 5, 6, 7, 8].map(k => sb.rpc('rh_satisfaction', { p_days: 7 * k })))).map(r => r.data || { total: 0, green: 0, yellow: 0, red: 0 });
+  const weeks = cumuls.map((cu, i) => {
+    const prev = i ? cumuls[i - 1] : { total: 0, green: 0, yellow: 0, red: 0 };
+    const d = key => Math.max(0, (cu[key] || 0) - (prev[key] || 0));
+    return { ago: i, total: d('total'), green: d('green'), yellow: d('yellow'), red: d('red') };
+  }).reverse(); // de la plus ancienne à la semaine en cours
   const modes = ['auto', ...(c.satisfaction_enabled ? ['satisfaction'] : []), ...(c.ads_enabled ? ['ads'] : []), 'none'];
   const cur = c.home_display_mode || 'auto';
   view.innerHTML = f + `
@@ -325,11 +355,10 @@ async function viewScreen(view, f) {
     </div>
     <div class="grid2">
       <div class="card">
-        <h2>Question du sondage</h2>
+        <h2>Indice de satisfaction</h2>
         ${c.satisfaction_enabled ? `
-          <input id="question" value="${esc(c.satisfaction_question || '')}" placeholder="Quel est votre niveau de satisfaction aujourd'hui ?">
-          <button class="btn btn-primary" id="btnSaveQuestion">Enregistrer la question</button>
-          <p class="sub" style="margin:10px 0 0;">Les collaborateurs répondent d'un geste (rouge, jaune, vert).</p>
+          <p style="font-size:17px;font-weight:700;margin:0 0 10px;">« ${esc(c.satisfaction_question || "Quel est ton niveau de satisfaction aujourd'hui ?")} »</p>
+          <p class="sub" style="margin:0;">Les collaborateurs répondent d'un geste (rouge, jaune, vert), comme sur les bornes d'aéroport. La question reste la même pour que les résultats se comparent d'une semaine à l'autre.</p>
         ` : '<div class="warn" style="margin:0;">Le sondage n\'est pas activé pour votre entreprise. Demandez-le à votre conseiller PandaFit.</div>'}
       </div>
       <div class="card">
@@ -339,6 +368,10 @@ async function viewScreen(view, f) {
         </div>
         ${satHTML(sat)}
       </div>
+    </div>
+    <div class="card">
+      <h2>Évolution sur 8 semaines</h2>
+      ${satTrendHTML(weeks)}
     </div>
     <div class="card">
       <h2>Annonces</h2>
@@ -362,11 +395,6 @@ async function viewScreen(view, f) {
     if (error) return alert('Erreur : ' + error.message);
     await loadAll(); flash = 'Affichage modifié.'; render();
   }));
-  document.getElementById('btnSaveQuestion')?.addEventListener('click', async () => {
-    const { error } = await sb.rpc('rh_set_home', { p_mode: cur, p_question: document.getElementById('question').value });
-    if (error) return alert('Erreur : ' + error.message);
-    await loadAll(); flash = 'Question enregistrée : elle apparaît sur la tablette dans environ 20 secondes.'; render();
-  });
   document.getElementById('satDays').addEventListener('change', ev => { satDays = Number(ev.target.value); render(); });
   view.querySelectorAll('[data-ad-toggle]').forEach(b => b.addEventListener('click', async () => {
     await sb.rpc('rh_update_ad', { p_id: b.dataset.adToggle, p_active: b.dataset.active !== 'true', p_delete: false }); render();

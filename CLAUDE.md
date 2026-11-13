@@ -125,6 +125,14 @@ Ni saisie avant l'Index, ni code / QR à la fin, y compris Mois et Campagne. Int
 - **Nom et habillage (décisions de Dan)** : « MindFit Sudoku » (ni « II » ni « Extrême »). Décor = **forêt de bambous, sans aucun signe de pays** : le panda est chinois, le sudoku est associé au Japon, on ne mélange pas (pas de kimono, de portique, de caractères, de mot « dojo »). Panda sans costume ; 5 vidéos `SUDOKU_*_VIDEO_B64` (accueil, effort, réflexion, erreur, victoire).
 - Où un jeu doit être déclaré : `GAMES`, `GAME_LAUNCHERS`, `GAME_INFO`, `GAME_THEME_TABLET` et le dictionnaire dans `index.html` ; `GAME_THEME_ADMIN` / `GAME_ICON_ADMIN` dans `pandafit-admin.html` ; `GAME_NAMES` dans `coach/`, `projection.html`, `rapport.html` ; une ligne dans la table `games` (nom, descriptions 4 langues, vignette `img/vignettes/sudoku.jpg`). Le jeu n'apparaît sur une tablette que s'il est activé dans le projet (console, ou table `project_games`). Il n'est PAS dans `DEFAULT_PROJECT_GAMES` (comme Marché Express).
 
+### Indice de satisfaction (décisions de Dan, 13.11.2026)
+- Principe : **comme une borne d'aéroport**, le plus simple possible. Une question, trois pandas (rouge, jaune, vert), un merci de 2,5 s puis la question revient (Dan garde 2,5 s : pas de délai anti-rafale).
+- **Le RH ne modifie pas la question** : le champ a été retiré de l'espace RH, qui l'affiche en lecture seule. Elle se règle seulement dans la console (par projet). Une question fixe garde les résultats comparables.
+- Le RH ne crée ni questionnaire ni séance : les deux se créent dans la console (PandaFit). Lui : affichage de l'accueil, annonces, inscriptions, résultats, rapports.
+- Tutoiement partout, y compris la question et le merci par défaut (4 langues).
+- Bouton rouge : panda **déçu**, plus en colère (les gens hésitent à se dire fâchés). Les 3 boutons sont des images en base64 dans `index.html` (`SATISFACTION_*_B64`, 320 × 320, fond transparent) ; pour en refaire un, donner l'ancien bouton en image de référence.
+- Résultats : un **indice** = part de vert − part de rouge (de −100 à +100), et une colonne par semaine. Espace RH : `satHTML` + `satTrendHTML` (8 semaines, obtenues par différence des cumuls de `rh_satisfaction(p_days)` ; rien sous 5 réponses, pour l'anonymat). Console : `satIdxLabel` + `satWeeksHTML` à partir des lignes brutes.
+
 ### PWA
 - App installable en plein écran. Manifest **externe** `manifest.webmanifest` (⚠️ un manifest data-URI ne permet PAS l'install WebAPK Android). `sw.js` en **network-first** (jamais de code périmé). Icônes 192 + 512.
 
