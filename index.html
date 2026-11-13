@@ -281,9 +281,10 @@
   .stadium-count { font-size: 76px; font-weight: 800; line-height: 1.15; margin-top: 6px; }
   .football-goalzone { position: absolute; }
   .football-target { position: absolute; width: 15%; aspect-ratio: 1; transform: translate(-50%, -50%); transition: left .1s linear, top .1s linear; cursor: pointer; }
-  .football-target svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 10px 10px rgba(0,0,0,.55)); animation: fbBallPop .22s ease-out; transform: rotate(var(--spin, 0deg)); transition: transform .12s linear; }
-  .football-target.hit svg { animation: fbBallIn .6s ease-out forwards; }
-  .football-target.miss svg { animation: fbBallOut .6s ease-in forwards; }
+  .football-target svg, .football-target img { width: 100%; height: 100%; display: block; filter: drop-shadow(0 10px 10px rgba(0,0,0,.55)); animation: fbBallPop .22s ease-out; transform: rotate(var(--spin, 0deg)); transition: transform .12s linear; }
+  .football-target img { filter: drop-shadow(0 0 9px rgba(255,255,255,.75)) drop-shadow(0 10px 10px rgba(0,0,0,.6)); } /* halo clair : le ballon se détache de la foule */
+  .football-target.hit svg, .football-target.hit img { animation: fbBallIn .6s ease-out forwards; }
+  .football-target.miss svg, .football-target.miss img { animation: fbBallOut .6s ease-in forwards; }
   @keyframes fbBallPop { from { transform: scale(.2); } to { transform: scale(1); } }
   @keyframes fbBallIn { to { transform: scale(.4) rotate(540deg); } }
   @keyframes fbBallOut { to { transform: translate(calc(var(--dx, 1) * 260%), -210%) scale(.55) rotate(620deg); opacity: 0; } }
@@ -8791,6 +8792,12 @@ const StadiumScene = (() => {
   const mix = (a, b, t) => a + (b - a) * t;
   const hash = n => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
 
+  /* Images en rendu 3D du Tir au but (img/foot), faites sur OpenArt comme celles du Slalom : tribune de pandas, panda qui court
+     (4 poses), ballon. Toutes facultatives : tant qu'une image manque, l'ancien dessin reste en place. Chargées d'avance ici. */
+  const FART = {};
+  ['stade', 'course-1', 'course-2', 'course-3', 'course-4', 'ballon', 'but'].forEach(n => { FART[n] = new Image(); FART[n].src = `img/foot/${n}.webp`; });
+  const fart = n => { const im = FART[n]; return im && im.complete && im.naturalWidth > 0 ? im : null; };
+
   function layer(w, h, paint) {
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
@@ -8915,6 +8922,16 @@ const StadiumScene = (() => {
   const xAt = (xM, d) => st.W / 2 + xM * M * (CAM / (CAM - d)) * st.U * st.z;
 
   function paintBackground(t) {
+    if (!st.standsArt) { // la tribune en rendu 3D remplace la tribune dessinée dès que l'image est chargée
+      const im = fart('stade');
+      if (im) {
+        st.stands = layer(st.W, st.SH, (c, w, h) => {
+          const k = Math.max(w / im.naturalWidth, h / im.naturalHeight);
+          c.drawImage(im, (w - im.naturalWidth * k) / 2, h - im.naturalHeight * k, im.naturalWidth * k, im.naturalHeight * k);
+        });
+        st.standsArt = true;
+      }
+    }
     const { ctx, W, H, U, SH, stands } = st;
     const near = Math.min(st.z, NEAR_CAP);
     const grassTop = st.foot - 3 * U * near;
@@ -8925,7 +8942,19 @@ const StadiumScene = (() => {
     const dw = W * st.s, dh = SH * st.s;
     const standsTop = base - dh + Math.sin(t * 9) * U * .22 * st.ex;
     ctx.drawImage(stands, (W - dw) / 2, standsTop, dw, dh);
-    ctx.fillStyle = 'rgba(4,8,24,.4)'; // match de nuit : la foule dans la pénombre
+    if (st.standsArt) {
+      // la foule en image s'anime : deux vagues se croisent le long de la tribune (une « ola » douce), et les pandas sautillent
+      // plus fort quand le joueur s'emballe. Le toit et les projecteurs (le haut de l'image) ne bougent pas.
+      const N = 72, sw = stands.width / N, top = .19, amp = U * st.s * (.22 + .85 * st.ex);
+      for (let i = 0; i < N; i++) {
+        const hop = Math.sin(t * 5.2 - i * .25) * .6 + Math.sin(t * 7.7 + i * .415) * .4;
+        ctx.drawImage(stands, i * sw, stands.height * top, sw, stands.height * (1 - top),
+          (W - dw) / 2 + i * dw / N - .5, standsTop + dh * top + hop * amp, dw / N + 1, dh * (1 - top));
+      }
+    }
+    // match de nuit : la foule dans la pénombre. Avec la tribune en image, elle s'assombrit quand on zoome sur le but,
+    // sinon le ballon noir et blanc se perd devant les pandas noirs et blancs
+    ctx.fillStyle = st.standsArt ? `rgba(4,8,24,${clamp(.14 + (st.s - 1) * .46, .14, .6).toFixed(3)})` : 'rgba(4,8,24,.4)';
     ctx.fillRect(0, Math.max(0, standsTop), W, base - Math.max(0, standsTop));
 
     // la foule s'anime : flashs d'appareils photo et drapeaux
@@ -8938,7 +8967,7 @@ const StadiumScene = (() => {
       if (y > base) continue;
       ctx.beginPath(); ctx.arc(x, y, U * (.18 + hash(i + 3) * .22), 0, Math.PI * 2); ctx.fill();
     }
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < (st.standsArt ? 0 : 9); i++) { // pas de fanions dessinés sur la tribune en image : elle a déjà ses drapeaux
       const x = (W - dw) / 2 + ((i + .5) / 9 + (hash(i + 9) - .5) * .07) * dw;
       const y = standsTop + (.45 + hash(i + 11) * .42) * dh;
       if (y > base) continue;
@@ -9009,14 +9038,72 @@ const StadiumScene = (() => {
     ctx.fillRect(0, base, W, Math.max(1, U * .12));
     ctx.fillStyle = 'rgba(255,255,255,.35)';
     ctx.fillRect(0, base + boardH - Math.max(1, U * .1), W, Math.max(1, U * .1));
+    // panneaux en volume : trame horizontale des LED, modules séparés par un montant, reflet sur le haut de la dalle
+    ctx.fillStyle = 'rgba(0,0,0,.2)';
+    for (let y = base; y < base + boardH; y += 3) ctx.fillRect(0, y, W, 1);
+    const mod = boardH * 3.2;
+    for (let x = W / 2 - mod * Math.ceil(W / 2 / mod); x <= W; x += mod) {
+      ctx.fillStyle = '#02040a'; ctx.fillRect(x - boardH * .03, base, boardH * .06, boardH);
+      ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.fillRect(x + boardH * .03, base, Math.max(1, boardH * .012), boardH);
+    }
+    const gloss = ctx.createLinearGradient(0, base, 0, base + boardH);
+    gloss.addColorStop(0, 'rgba(255,255,255,.17)'); gloss.addColorStop(.35, 'rgba(255,255,255,.03)'); gloss.addColorStop(1, 'rgba(0,0,0,.3)');
+    ctx.fillStyle = gloss; ctx.fillRect(0, base, W, boardH);
     return grassTop;
+  }
+
+  /** Carreau de gazon (brins d'herbe clairs et sombres), fabriqué une fois et raccordé sur ses quatre bords */
+  function paintGrassTile(c, w, h) {
+    c.fillStyle = '#257a43'; c.fillRect(0, 0, w, h);
+    const cols = ['#1c6436', '#2f9152', '#3aa560', '#226e3d', '#44b56c', '#19592f'];
+    c.lineCap = 'round';
+    for (let i = 0; i < 5200; i++) {
+      const x = hash(i + .13) * w, y = hash(i + .57) * h, len = 5 + hash(i + .91) * 9, a = (hash(i + 1.7) - .5) * 1.1;
+      c.strokeStyle = cols[i % cols.length]; c.globalAlpha = .35 + hash(i + 2.3) * .4; c.lineWidth = 1 + hash(i + 3.1) * 1.4;
+      for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
+        const px = x + ox * w, py = y + oy * h;
+        if (px < -14 || px > w + 14 || py < -14 || py > h + 14) continue;
+        c.beginPath(); c.moveTo(px, py); c.lineTo(px + Math.sin(a) * len, py - Math.cos(a) * len); c.stroke();
+      }
+    }
+    c.globalAlpha = 1;
+  }
+  /** Gazon texturé : le carreau est posé sur le terrain en perspective, bande par bande (même projection que les lignes).
+      De loin, on prend une version réduite du carreau pour éviter le fourmillement. Renvoie false si le navigateur ne sait pas faire. */
+  function paintGrassTex(grassTop) {
+    const { ctx, W, H, U } = st;
+    if (!st.grassTile) {
+      st.grassTile = layer(512, 512, paintGrassTile);
+      st.grassSmall = layer(128, 128, (c, w, h) => c.drawImage(st.grassTile, 0, 0, w, h));
+      st.grassPat = ctx.createPattern(st.grassTile, 'repeat'); st.grassPatS = ctx.createPattern(st.grassSmall, 'repeat');
+      st.grassM = new DOMMatrix();
+    }
+    if (!st.grassPat || !st.grassPat.setTransform) return false;
+    const m = st.grassM, unit = st.flat * U * st.z, yv = st.foot - unit; // yv : ligne de fuite du terrain
+    const REP = 5; // un carreau = 5 m de côté
+    let y = Math.floor(grassTop);
+    while (y < H) {
+      const yb = Math.min(H, y + Math.max(2, Math.round((y - yv) * .05)));
+      const k1 = (y - yv) / unit, k2 = (yb - yv) / unit;
+      const d1 = CAM * (1 - 1 / k1), d2 = CAM * (1 - 1 / k2);
+      const pxPerM = M * (k1 + k2) / 2 * U * st.z; // largeur d'un mètre à cette hauteur d'écran
+      const small = pxPerM * REP < 200, tw = small ? 128 : 512, pat = small ? st.grassPatS : st.grassPat;
+      const sx = pxPerM * REP / tw, sy = (yb - y) / ((d2 - d1) / REP * tw);
+      const v1 = (((d1 / REP) % 1) + 1) % 1 * tw;
+      m.a = sx; m.b = 0; m.c = 0; m.d = sy; m.e = (W / 2) % (tw * sx); m.f = y - sy * v1;
+      pat.setTransform(m);
+      ctx.fillStyle = pat; ctx.fillRect(0, y, W, yb - y);
+      y = yb;
+    }
+    return true;
   }
 
   function paintGrass(grassTop) {
     const { ctx, W, H } = st;
     ctx.fillStyle = '#257a43';
     ctx.fillRect(0, grassTop, W, H - grassTop);
-    ctx.fillStyle = '#2f9152';
+    const tex = paintGrassTex(grassTop); // gazon texturé ; les bandes de tonte passent alors par-dessus en transparence
+    ctx.fillStyle = tex ? 'rgba(125,228,145,.17)' : '#2f9152';
     for (let i = 0; i * BAND < 38; i += 2) {
       const y1 = yAt(i * BAND), y2 = yAt(Math.min(38.5, (i + 1) * BAND));
       if (y1 > H) break;
@@ -9049,6 +9136,10 @@ const StadiumScene = (() => {
     light.addColorStop(1, 'rgba(2,12,24,.42)');
     ctx.fillStyle = light;
     ctx.fillRect(0, grassTop, W, H - grassTop);
+    // la lueur des panneaux LED se reflète sur le gazon, juste à leur pied
+    const gl = st.U * 5 * Math.min(st.z, NEAR_CAP), glow = ctx.createLinearGradient(0, grassTop, 0, grassTop + gl);
+    glow.addColorStop(0, 'rgba(150,255,215,.2)'); glow.addColorStop(1, 'rgba(150,255,215,0)');
+    ctx.fillStyle = glow; ctx.fillRect(0, grassTop, W, gl);
   }
 
   function paintLines() {
@@ -9092,6 +9183,19 @@ const StadiumScene = (() => {
       const age = (now - st.net.at) / 1000;
       if (age > 1.4) st.net = null;
       else net = { x: cx + st.net.fx * w * .8, y: foot - h * .5 + st.net.fy * h * .7, amp: Math.exp(-age * 2.6) * (.62 + .38 * Math.cos(age * 16)) };
+    }
+    const goalArt = fart('but');
+    if (goalArt) { // but en rendu 3D (poteaux ronds, filet à mailles) ; au but, le filet se gonfle autour du point d'impact
+      const gx = cx - w * .515, gy = foot - h - w * .015, gw = w * 1.03, gh = h + w * .02;
+      if (net && net.amp > .02) {
+        const R = w * .17, k = 1 + net.amp * .2;
+        ctx.save(); ctx.beginPath(); ctx.rect(gx, gy, gw, gh); ctx.arc(net.x, net.y, R, 0, Math.PI * 2); ctx.clip('evenodd');
+        ctx.drawImage(goalArt, gx, gy, gw, gh); ctx.restore();
+        ctx.save(); ctx.beginPath(); ctx.arc(net.x, net.y, R, 0, Math.PI * 2); ctx.clip();
+        ctx.translate(net.x, net.y); ctx.scale(k, k); ctx.translate(-net.x, -net.y);
+        ctx.drawImage(goalArt, gx, gy, gw, gh); ctx.restore();
+      } else ctx.drawImage(goalArt, gx, gy, gw, gh);
+      return;
     }
     const bend = (x, y) => {
       if (!net) return [x, y];
@@ -9310,10 +9414,10 @@ function footballRunHTML() {
     </div>
     <div class="game-hint">Cours ! Balance-toi d'avant en arrière, régulièrement.</div>
     <div class="football-runner" id="fbRunner">
-      <img src="${PANDA_RUN_1_B64}" class="active" alt="">
-      <img src="${PANDA_RUN_2_B64}" alt="">
-      <img src="${PANDA_RUN_3_B64}" alt="">
-      <img src="${PANDA_RUN_4_B64}" alt="">
+      <img src="img/foot/course-1.webp" onerror="this.onerror=null;this.src=PANDA_RUN_1_B64" class="active" alt="">
+      <img src="img/foot/course-2.webp" onerror="this.onerror=null;this.src=PANDA_RUN_2_B64" alt="">
+      <img src="img/foot/course-3.webp" onerror="this.onerror=null;this.src=PANDA_RUN_3_B64" alt="">
+      <img src="img/foot/course-4.webp" onerror="this.onerror=null;this.src=PANDA_RUN_4_B64" alt="">
     </div>
     <div class="stadium-speed">
       <i data-lucide="gauge"></i>
@@ -9338,10 +9442,10 @@ function footballShootHTML() {
     </div>
     <div class="game-hint" id="fbShootHint">Touche le ballon pour marquer — reste stable, il bouge avec toi !</div>
     <div class="football-goalzone" id="fbGoalZone">
-      <div class="football-target" id="fbTarget">${footballBallSVG()}</div>
+      <div class="football-target" id="fbTarget"><img src="img/foot/ballon.webp" onerror="this.outerHTML=footballBallSVG()" alt=""></div>
     </div>
     <div class="stadium-flash" id="fbShotFlash"></div>
-    <img class="football-shooter" id="fbShooter" src="${PANDA_RUN_1_B64}" alt="">
+    <img class="football-shooter" id="fbShooter" src="img/foot/course-1.webp" onerror="this.onerror=null;this.src=PANDA_RUN_1_B64" alt="">
   `;
 }
 
