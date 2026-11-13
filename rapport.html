@@ -183,7 +183,7 @@ const RT = {
     unavailable: "Questo rapporto non è disponibile per questo account (non ancora pubblicato, o sessione di un'altra azienda).", title: 'Rapporto della sessione' },
 };
 const R = () => RT[lang] || RT.fr;
-const GAME_NAMES = { base: 'Electro', skiprev: 'Slalom', tempo: 'MindFit', thezone: 'The Zone', distance: 'Tir au but', market: 'Marché Express', cross: 'Zen' };
+const GAME_NAMES = { base: 'Electro', skiprev: 'Slalom', tempo: 'MindFit', sudoku: 'MindFit Sudoku', thezone: 'The Zone', distance: 'Tir au but', market: 'Marché Express', cross: 'Zen' };
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function day(iso) { const s = new Date(iso).toLocaleDateString(R().locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); return s.charAt(0).toUpperCase() + s.slice(1); }
