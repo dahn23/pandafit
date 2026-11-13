@@ -94,6 +94,12 @@ Ni saisie avant l'Index, ni code / QR à la fin, y compris Mois et Campagne. Int
 - Restent au code : ciel, soleil, nuages, oiseaux, eau, brume, lucioles, anneau de la zone. Banc d'essai : `?shot=cross&live=1&amp=40&per=700`.
 - Piège OpenArt : la zone de saisie garde l'ancien texte même quand elle paraît vide → toujours tout sélectionner avant de taper, et relire le texte avant de générer.
 
+### Marché Express en rendu 3D (13.11.2026)
+- Dans `MarketScene`, images facultatives dans `img/marche/` ; si une image manque, l'ancien dessin reste.
+- **Ingrédients** : `ingredients.webp` = une seule image de 7 cases par rangée, **dans l'ordre des clés de `SHOP_DRAW`** (46 ingrédients). `makeSprites()` y découpe les sprites (étals, cagettes, vignettes de la liste via `iconURL`). Ajouter un ingrédient = ajouter son dessin dans `SHOP_DRAW` ET sa case à la suite dans l'image. Fabrication : planches de 9 sur OpenArt (fond bleu pour ce qui a du vert, fond vert sinon), découpe et assemblage par le script `atlas.sh` du scratchpad (ffmpeg `tile=7x7`).
+- **Stand** (`MART` / `mart(nom)`, calques repeints par `buildLayers()` dès qu'une image arrive) : `paysage` (flouté exprès pour laisser lire les ingrédients), `plancher`, `etal` (posé sur les 3 hauteurs de `SHELVES`), `auvent`, `panier` (calque du fond = panier entier, calque de devant = tout ce qui est sous le bord avant, pour que les ingrédients tombent dedans), `patte` (gauche, miroir pour la droite).
+- Restent au code : niveau à bulle, cagettes en bois, rayons de soleil, carte de la liste. Banc d'essai : `?shot=market&live=1`.
+
 ### PWA
 - App installable en plein écran. Manifest **externe** `manifest.webmanifest` (⚠️ un manifest data-URI ne permet PAS l'install WebAPK Android). `sw.js` en **network-first** (jamais de code périmé). Icônes 192 + 512.
 
