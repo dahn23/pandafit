@@ -6327,7 +6327,7 @@ const MarketScene = (() => {
       c.strokeStyle = 'rgba(70,38,12,.25)'; c.lineWidth = 1;
       for (let i = 1; i < 3; i++) { c.beginPath(); c.moveTo(0, y - depth * i / 3); c.lineTo(w, y - depth * i / 3); c.stroke(); }
       // lit de feuilles vertes au fond du plateau
-      for (let i = 0; i < 70; i++) {
+      for (let i = 0; i < (mart('etal') ? 0 : 70); i++) { // pas de feuilles dessinées sous l'étal en image : elles dépasseraient en vert vif
         const lx = pfHash(i + k * 97) * w, ly = y - depth * (.55 + pfHash(i + k * 97 + .5) * .4), lr = w * (.012 + pfHash(i + k * 97 + .7) * .012);
         c.fillStyle = ['#2f7d3a', '#3d9a46', '#59b552', '#276a31'][i % 4];
         c.beginPath(); c.ellipse(lx, ly, lr * 1.6, lr * .7, (pfHash(i + k * 97 + .9) - .5) * 1.2, 0, Math.PI * 2); c.fill();
@@ -6482,9 +6482,22 @@ const MarketScene = (() => {
       const floor = mart('plancher');
       if (floor) { coverRect(c, floor, 0, h * FLOOR, w, h * (1 - FLOOR)); c.fillStyle = 'rgba(255,214,150,.3)'; c.fillRect(0, h * FLOOR, w, h * .005); }
       const shelf = mart('etal'); // la planche fait à peu près la moitié basse de l'image, la salade le haut
-      if (shelf) SHELVES.forEach(sy => { const th = h * .03, sh = th * 1.15 / .49; c.drawImage(shelf, 0, h * sy + th * 1.12 - sh, w, sh); });
+      if (shelf) SHELVES.forEach(sy => {
+        // la salade (moitié haute de l'image) est assombrie et ternie : elle recule, pour ne pas faire ton sur ton avec
+        // les ingrédients verts ; la planche (moitié basse) garde ses couleurs
+        const th = h * .03, sh = th * 1.15 / .49, y0 = h * sy + th * 1.12 - sh, iw = shelf.naturalWidth, ih = shelf.naturalHeight, cut = .53;
+        c.filter = 'saturate(.45) brightness(.62)';
+        c.drawImage(shelf, 0, 0, iw, ih * cut, 0, y0, w, sh * cut);
+        c.filter = 'none';
+        c.drawImage(shelf, 0, ih * cut, iw, ih * (1 - cut), 0, y0 + sh * cut, w, sh * (1 - cut));
+      });
       paintCrate(c, -w * .06, h * .74, w * .3, ['apple', 'pear', 'apple', 'orange', 'apple']);
       paintCrate(c, w * .76, h * .74, w * .3, ['carrot', 'leek', 'potato', 'onion', 'celery']);
+    });
+    st.halo = layerCanvas(128, 128, c => {
+      const g = c.createRadialGradient(64, 64, 0, 64, 64, 64);
+      g.addColorStop(0, 'rgba(255,252,240,.62)'); g.addColorStop(.55, 'rgba(255,252,240,.3)'); g.addColorStop(1, 'rgba(255,252,240,0)');
+      c.fillStyle = g; c.fillRect(0, 0, 128, 128);
     });
     const aw = mart('auvent');
     st.awning = layerCanvas(st.W, st.H, aw ? (c, w) => c.drawImage(aw, 0, 0, w, w * aw.naturalHeight / aw.naturalWidth) : paintAwning);
@@ -6537,6 +6550,7 @@ const MarketScene = (() => {
       const bob = Math.sin(t * 3 + it.x * 20) * U * .25;
       ctx.fillStyle = 'rgba(40,20,6,.32)';
       ctx.beginPath(); ctx.ellipse(p.x, H * SHELVES[it.row] - U * .9, size * .36, U * 1.1, 0, 0, Math.PI * 2); ctx.fill();
+      if (spritesArt && st.halo) ctx.drawImage(st.halo, p.x - size * .66, p.y - size * .66 + bob, size * 1.32, size * 1.32); // halo clair : l'ingrédient se détache du fond, quelle que soit sa couleur
       ctx.drawImage(locked ? sp.gray : sp.color, p.x - size / 2, p.y - size / 2 + bob, size, size);
     });
 
