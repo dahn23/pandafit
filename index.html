@@ -10511,6 +10511,13 @@ const LakeScene = (() => {
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const mix = (a, b, t) => a + (b - a) * t;
   const mixColor = (a, b, t) => `rgb(${a.map((v, i) => Math.round(mix(v, b[i], t))).join(',')})`;
+  /* Images en rendu 3D de Zen (img/zen), faites sur OpenArt comme celles du Slalom : montagnes (ciel transparent), ponton,
+     panda assis de dos, nénuphar (rose, et rougi quand on sort de la zone). Toutes facultatives : sans elles, l'ancien dessin reste. */
+  const ZART = {};
+  ['montagnes', 'ponton', 'panda', 'nenuphar', 'nenuphar-rouge'].forEach(n => { ZART[n] = new Image(); ZART[n].src = `img/zen/${n}.webp`; });
+  const zart = n => { const im = ZART[n]; return im && im.complete && im.naturalWidth > 0 ? im : null; };
+  /** Assombrit et bleuit une image déjà dessinée (version « aube » des montagnes et du ponton), sans toucher au transparent */
+  const dawnTint = (c, w, h, a) => { c.globalCompositeOperation = 'source-atop'; c.fillStyle = `rgba(36,28,92,${a})`; c.fillRect(0, 0, w, h); c.globalCompositeOperation = 'source-over'; };
 
   function layer(w, h, paint) {
     const c = document.createElement('canvas');
@@ -10616,7 +10623,7 @@ const LakeScene = (() => {
     st = {
       canvas, stage, W, H, h0, cssW: stage.clientWidth,
       ctx: canvas.getContext('2d'),
-      panda: document.getElementById('lakePanda'),
+      panda: document.getElementById('lakePanda'), pandaArt: document.getElementById('lakePandaArt'),
       skyDawn: layer(W, h0, (c, w, h) => paintSky(c, w, h, SKY_DAWN, true)),
       skyDay: layer(W, h0, (c, w, h) => paintSky(c, w, h, SKY_DAY, false)),
       mountDawn: layer(W, h0, (c, w, h) => paintMountains(c, w, h, MOUNT_DAWN)),
@@ -10642,6 +10649,17 @@ const LakeScene = (() => {
   }
 
   function paintTop(level, t) {
+    if (!st.mountArt && st.W / st.h0 < 1.6) { // montagnes en rendu 3D (écran debout) : posées sur la rive, version aube + version jour
+      const im = zart('montagnes');
+      if (im) {
+        const paintM = dawn => (c, w, h) => {
+          const mh = w * im.naturalHeight / im.naturalWidth;
+          c.drawImage(im, 0, h - mh, w, mh);
+          if (dawn) dawnTint(c, w, h, .66);
+        };
+        st.mountDawn = layer(st.W, st.h0, paintM(true)); st.mountDay = layer(st.W, st.h0, paintM(false)); st.mountArt = true;
+      }
+    }
     const { top, W, H, h0, skyDawn, skyDay, mountDawn, mountDay } = st;
     const c = top.getContext('2d');
     c.globalAlpha = 1; c.drawImage(skyDawn, 0, 0);
@@ -10741,6 +10759,14 @@ const LakeScene = (() => {
 
   function paintLily(cx, cy, r, bad) {
     const { ctx } = st;
+    const lily = zart(bad ? 'nenuphar-rouge' : 'nenuphar');
+    if (lily) { // nénuphar en rendu 3D, avec une ombre douce sur l'eau
+      const lw = r * 3.5, lh = lw * lily.naturalHeight / lily.naturalWidth;
+      ctx.fillStyle = 'rgba(10,16,40,.22)';
+      ctx.beginPath(); ctx.ellipse(cx, cy + lh * .3, lw * .46, lh * .2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.drawImage(lily, cx - lw / 2, cy - lh * .6, lw, lh);
+      return;
+    }
     ctx.save();
     ctx.translate(cx, cy);
     ctx.scale(1, .62);
@@ -10777,6 +10803,19 @@ const LakeScene = (() => {
 
   function paintDeck(level) {
     const { ctx, W, H } = st;
+    const deck = zart('ponton');
+    if (deck) { // ponton en rendu 3D : on n'en voit que le bout (le reste sort par le bas de l'écran) ; fondu aube → jour
+      const dw = Math.round(W * .9), dh = Math.round(dw * deck.naturalHeight / deck.naturalWidth), y = Math.round(H * .85 - dh * .06);
+      if (!st.deckDay) {
+        const vh = Math.min(dh, H - y + 2);
+        st.deckDay = layer(dw, vh, c => c.drawImage(deck, 0, 0, dw, dh));
+        st.deckDawn = layer(dw, vh, (c, w, h) => { c.drawImage(deck, 0, 0, dw, dh); dawnTint(c, w, h, .68); });
+      }
+      const x = Math.round((W - dw) / 2);
+      ctx.drawImage(st.deckDawn, x, y);
+      ctx.globalAlpha = level; ctx.drawImage(st.deckDay, x, y); ctx.globalAlpha = 1;
+      return;
+    }
     const yTop = H * .85;
     const left = y => mix(W * .36, W * .2, (y - yTop) / (H - yTop));
     const woodA = mixColor([62, 52, 86], [162, 114, 72], level), woodB = mixColor([54, 46, 78], [146, 100, 62], level);
@@ -10871,11 +10910,12 @@ const LakeScene = (() => {
     paintMotes(t, st.level);
     paintPlayer(snapNow, st.x, st.y);
     paintDeck(st.level);
-    if (st.panda) {
-      const breathe = 1 + .04 * st.level;
-      st.panda.style.transform = `translateX(-50%) rotate(${clamp(st.x * 3, -9, 9).toFixed(2)}deg) scale(${breathe.toFixed(3)})`;
-      st.panda.style.filter = `brightness(${(.72 + .28 * st.level).toFixed(3)})`;
-    }
+    const breathe = 1 + .04 * st.level;
+    [st.panda, st.pandaArt].forEach(el => { // le panda dessiné et le panda en rendu 3D (un seul des deux est visible)
+      if (!el) return;
+      el.style.transform = `translateX(-50%) rotate(${clamp(st.x * 3, -9, 9).toFixed(2)}deg) scale(${breathe.toFixed(3)})`;
+      el.style.filter = `brightness(${(.72 + .28 * st.level).toFixed(3)})`;
+    });
   }
 
   return { start, update(snap) { snapNow = snap; } };
@@ -10897,6 +10937,7 @@ function screenRelaxPlaying() {
       <div class="timer lake-timer" id="relaxTimer">--</div>
       <div class="lake-label" id="relaxPhaseLabel">Installe-toi...</div>
       ${sportIntroHTML('RESPIRE AVEC LE SOLEIL', 'Reste stable : le lac reste lisse.')}
+      <img class="lake-panda" id="lakePandaArt" src="img/zen/panda.webp" alt="" style="display:none;width:21%" onload="this.style.display='';var s=document.getElementById('lakePanda');if(s)s.style.display='none'">
       <svg class="lake-panda" id="lakePanda" viewBox="0 0 200 190" aria-hidden="true">
         <ellipse cx="42" cy="170" rx="34" ry="17" fill="#1c1c22"/>
         <ellipse cx="158" cy="170" rx="34" ry="17" fill="#1c1c22"/>
