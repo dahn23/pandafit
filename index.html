@@ -262,6 +262,18 @@
   .mind-card { position: absolute; left: 5%; right: 5%; top: 47%; padding: 22px 20px 26px; background: rgba(16,10,60,.74); border-color: rgba(201,162,255,.45); border-radius: 26px; }
   .mind-card .tempo-question-text { font-size: 88px; line-height: 1.1; margin: 0 0 24px; color: #fff; text-shadow: 0 0 26px rgba(150,120,255,.75); }
   .mind-card .tempo-choices { gap: 16px; }
+  /* MindFit : les cinq types de questions (calcul, flèches, compter, graphique, mémoire éclair) */
+  .mind-card .mq-prompt { text-align: center; font-size: 23px; font-weight: 700; color: #e6dcff; margin: 0 0 10px; min-height: 28px; }
+  .mind-card .tempo-question-text.mq-arrows, .mind-card .tempo-question-text.mq-count, .mind-card .tempo-question-text.mq-chart, .mind-card .tempo-question-text.mq-memory { font-size: 62px; text-shadow: none; }
+  .mq-arrows { display: flex; justify-content: center; gap: 14px; color: #b9a8ee; }
+  .mq-arrows .mq-mid { color: #fff; text-shadow: 0 0 22px rgba(255,255,255,.55); }
+  .mq-count { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 16px; max-width: 420px; margin: 0 auto; min-height: 150px; }
+  .mq-count span { display: inline-block; background: rgba(255,255,255,.93); border-radius: 18px; padding: 2px 10px; box-shadow: 0 3px 10px rgba(0,0,0,.25); } /* pastille claire : l'objet reste lisible sur le fond sombre */
+  .mq-count.mq-wait { color: #b9a8ee; font-weight: 900; }
+  .mq-chart { display: flex; justify-content: center; align-items: flex-end; gap: 34px; height: 170px; }
+  .mq-bar { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; width: 84px; height: 100%; }
+  .mq-bar i { display: block; width: 100%; border-radius: 10px 10px 0 0; background: linear-gradient(180deg, #ffd166, #f4a23a); box-shadow: inset 0 2px 0 rgba(255,255,255,.4); }
+  .mq-bar b { font-size: 28px; font-weight: 800; color: #fff; line-height: 1.5; }
   .mind-card .tempo-choice-btn { max-width: none; padding: 40px 8px; font-size: 44px; border-radius: 22px; background: linear-gradient(160deg, #5a3fd0, #33208f); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.28); }
   .mind-card .tempo-choice-btn.correct { background: #43cea2; color: #06170f; }
   .mind-card .tempo-choice-btn.wrong { background: #e6374e; color: #fff; }
@@ -1830,24 +1842,42 @@ const TempoGame = (() => {
   let onTickCb = null, onFinishCb = null;
 
   function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-  function generateQuestion() {
-    const ops = ['+', '-', '×', '÷'];
-    const op = ops[randInt(0, 3)];
-    let a, b, answer;
-    if (op === '+') { a = randInt(1, 9); b = randInt(1, 9); answer = a + b; }
-    else if (op === '-') { a = randInt(1, 9); b = randInt(1, 9); if (b > a) { const t = a; a = b; b = t; } answer = a - b; }
-    else if (op === '×') { a = randInt(1, 9); b = randInt(1, 9); answer = a * b; }
-    else { b = randInt(1, 9); answer = randInt(1, 9); a = b * answer; }
-    const choicesSet = new Set([answer]);
+  /* Trois types de questions, tirés au hasard (jamais deux fois de suite le même) : calcul, compter, lire un graphique.
+     Toutes se résolvent en regardant : aucune connaissance, une consigne de deux ou trois mots au plus (pour ne pas
+     pénaliser ceux qui lisent mal la langue), rien qui repose sur les couleurs, pas de temps d'attente imposé.
+     Décisions de Dan le 13.11.2026 : pas de « sens de la flèche » (consigne trop longue), pas de « mémoire » (2 s perdues).
+     Une question = { kind, prompt (français, traduit à l'affichage), html (le corps), choices: [{ v, html }], answer }. */
+  const MQ_ICONS = ['☕', '📱', '🔑', '📎', '💡', '👓', '✏️', '📁'];
+  const shuffle = arr => arr.map(v => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+  /** Trois nombres : la bonne réponse et deux voisins plausibles */
+  function numberChoices(answer, spread, min) {
+    const set = new Set([answer]);
     let guard = 0;
-    while (choicesSet.size < 3 && guard < 30) {
-      guard++;
-      const delta = randInt(-10, 10);
-      const c = answer + delta;
-      if (c >= 0 && c !== answer) choicesSet.add(c);
+    while (set.size < 3 && guard++ < 40) { const c = answer + randInt(-spread, spread); if (c >= min && c !== answer) set.add(c); }
+    return shuffle([...set]).map(v => ({ v, html: String(v) }));
+  }
+  let lastKind = null;
+  function generateQuestion() {
+    const kinds = ['calc', 'count', 'chart'].filter(k => k !== lastKind);
+    const kind = lastKind = kinds[randInt(0, kinds.length - 1)];
+    if (kind === 'count') { // compter d'un coup d'œil
+      const n = randInt(4, 9), icon = MQ_ICONS[randInt(0, MQ_ICONS.length - 1)];
+      const items = Array.from({ length: n }, () => `<span style="transform:rotate(${randInt(-18, 18)}deg) translateY(${randInt(-6, 6)}px)">${icon}</span>`).join('');
+      return { kind, prompt: 'Combien ?', html: `<div class="mq-count">${items}</div>`, answer: n, choices: numberChoices(n, 2, 1) };
     }
-    const choices = [...choicesSet].sort(() => Math.random() - 0.5);
-    return { text: `${a} ${op} ${b}`, answer, choices };
+    if (kind === 'chart') { // lire un graphique : la barre la plus haute ou la plus basse
+      const hs = shuffle([randInt(22, 38), randInt(48, 64), randInt(76, 96)]), high = randInt(0, 1) === 1;
+      const target = hs.indexOf(high ? Math.max(...hs) : Math.min(...hs)) + 1;
+      const bars = hs.map((h, i) => `<div class="mq-bar"><i style="height:${h}%"></i><b>${i + 1}</b></div>`).join('');
+      return { kind, prompt: high ? 'La plus haute ?' : 'La plus basse ?', html: `<div class="mq-chart">${bars}</div>`,
+        answer: target, choices: [1, 2, 3].map(v => ({ v, html: String(v) })) };
+    }
+    // calcul : additions et soustractions seulement
+    let a = randInt(1, 9), b = randInt(1, 9);
+    const plus = randInt(0, 1) === 1;
+    if (!plus && b > a) { const t = a; a = b; b = t; }
+    const answer = plus ? a + b : a - b;
+    return { kind: 'calc', prompt: 'Calcule', html: `${a} ${plus ? '+' : '−'} ${b}`, answer, choices: numberChoices(answer, 4, 0) };
   }
 
   function isCalm() {
@@ -3450,6 +3480,16 @@ const UI_DICT_ROWS = [
   // MindFit
   ["Passe la barre 7 fois en te balançant d'avant en arrière, puis reviens bien au calme pour répondre à 7 calculs — impossible de répondre en bougeant ! Enchaîne les manches pendant 1 minute.", "Überquere die Linie 7-mal, indem du vor und zurück schwingst, und komm dann zur Ruhe, um 7 Rechnungen zu lösen — in Bewegung kannst du nicht antworten! Spiel 1 Minute lang Runde um Runde.", "Cross the bar 7 times by swaying back and forth, then calm down to answer 7 sums — you can't answer while moving! Play round after round for 1 minute.", "Supera la barra 7 volte oscillando avanti e indietro, poi torna calmo per rispondere a 7 calcoli — impossibile rispondere muovendoti! Concatena i turni per 1 minuto."],
   ["Passe la barre", "Überquere die Linie", "Cross the bar", "Supera la barra"],
+  ["COURS, PUIS RÉFLÉCHIS", "LAUF, DANN DENK NACH", "RUN, THEN THINK", "CORRI, POI RIFLETTI"],
+  ["Monte à la réunion, puis réponds au calme !", "Lauf zur Sitzung hoch, dann antworte in Ruhe!", "Run up to the meeting, then answer calmly!", "Sali alla riunione, poi rispondi con calma!"],
+  ["Tu es attendu à la réunion du comité : monte l'escalier en te balançant d'avant en arrière (7 volées de marches), puis reviens bien au calme pour répondre à 7 questions — impossible de répondre en bougeant ! Enchaîne les manches pendant 1 minute.", "Du wirst in der Sitzung der Geschäftsleitung erwartet: Steig die Treppe hoch, indem du vor und zurück schwingst (7 Treppenläufe), und komm dann ganz zur Ruhe, um 7 Fragen zu beantworten – in Bewegung kannst du nicht antworten! Mach 1 Minute lang Runde um Runde.", "You are expected at the board meeting: climb the stairs by swaying back and forth (7 flights), then come back to complete stillness to answer 7 questions — you can't answer while moving! Keep the rounds going for 1 minute.", "Sei atteso alla riunione del comitato: sali le scale oscillando avanti e indietro (7 rampe), poi torna ben calmo per rispondere a 7 domande: impossibile rispondere muovendosi! Continua con le manche per 1 minuto."],
+  ["Monte les marches", "Steig die Treppe hoch", "Climb the stairs", "Sali le scale"],
+  ["Balance-toi d'avant en arrière pour monter les marches.", "Schwing vor und zurück, um die Treppe hochzusteigen.", "Sway back and forth to climb the stairs.", "Oscilla avanti e indietro per salire le scale."],
+  ["Question", "Frage", "Question", "Domanda"],
+  ["Calcule", "Rechne", "Calculate", "Calcola"],
+  ["Combien ?", "Wie viele?", "How many?", "Quanti?"],
+  ["La plus haute ?", "Die höchste?", "The tallest?", "La più alta?"],
+  ["La plus basse ?", "Die niedrigste?", "The shortest?", "La più bassa?"],
   ["Balance-toi d'avant en arrière pour passer au-dessus de la ligne.", "Schwing vor und zurück, um über die Linie zu kommen.", "Sway back and forth to get over the line.", "Oscilla avanti e indietro per superare la linea."],
   ["Calcul", "Rechnung", "Sum", "Calcolo"],
   ["Reste immobile pour pouvoir répondre.", "Bleib ruhig, um antworten zu können.", "Stay still to be able to answer.", "Resta immobile per poter rispondere."],
@@ -10562,13 +10602,57 @@ const MindScene = (() => {
     ctx.strokeStyle = '#fff'; ctx.lineWidth = U * .4; ctx.stroke();
   }
 
+  /* Thème « réunion du comité » en rendu 3D (img/mind, fait sur OpenArt comme les images du Slalom) : pendant l'effort, le
+     panda en costume monte l'escalier de la tour de bureaux, une volée par balancement réussi ; il répond ensuite dans la
+     salle du conseil. Facultatif : tant qu'une image manque, l'ancien affichage (jauge sur fond violet) reste. */
+  const MIND = {};
+  ['escalier', 'salle', 'costume-1', 'costume-2', 'costume-4'].forEach(n => { MIND[n] = new Image(); MIND[n].src = `img/mind/${n}.webp`; });
+  const mind = n => { const im = MIND[n]; return im && im.complete && im.naturalWidth > 0 ? im : null; };
+  const mindReady = () => Object.keys(MIND).every(n => mind(n));
+  const CLIMB = ['costume-1', 'costume-2', 'costume-4', 'costume-2']; // foulée : appui, envol, envol, envol
+  function coverImg(ctx, im, W, H) {
+    const k = Math.max(W / im.naturalWidth, H / im.naturalHeight), iw = im.naturalWidth * k, ih = im.naturalHeight * k;
+    ctx.drawImage(im, (W - iw) / 2, (H - ih) / 2, iw, ih);
+  }
+  function paintMeeting(step, t, now, effort) {
+    const { ctx, W, H, U } = st;
+    st.room += ((effort ? 0 : 1) - st.room) * (1 - Math.exp(-step * 7)); // fondu de l'escalier vers la salle
+    if (st.room < .99) {
+      coverImg(ctx, mind('escalier'), W, H);
+      // le panda grimpe : il avance d'une volée à chaque barre passée et rapetisse en approchant de la porte
+      const target = effort && snap ? Math.min(1, snap.crossings / snap.crossingsNeeded) : (effort ? 0 : 1);
+      if (target < st.climb - .5) st.climb = target; // nouveau tour : il repart du bas de l'escalier
+      st.climb += (target - st.climb) * (1 - Math.exp(-step * 5));
+      const yv = snap ? snap.yCm : 0;
+      st.stride += Math.min(.5, Math.abs(yv - st.lastY) * .9); st.lastY = yv;
+      const s = 1 / (1 + st.climb * 1.78), feet = H * (-.053 + 1.023 * s);
+      const im = mind(CLIMB[Math.floor(st.stride) % 4]), h = H * .34 * s, w = h * im.naturalWidth / im.naturalHeight;
+      const hop = Math.abs(Math.sin(st.stride * Math.PI)) * h * .06;
+      ctx.fillStyle = 'rgba(30,30,40,.3)';
+      ctx.beginPath(); ctx.ellipse(W / 2, feet - h * .02, w * .34, h * .035, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.drawImage(im, W / 2 - w / 2, feet - h * .97 - hop, w, h);
+      // la jauge d'avant, en petit sur la droite : elle montre toujours jusqu'où se pencher pour passer la barre
+      ctx.save(); ctx.translate(W * .86, H * .6); ctx.scale(.44, .44); ctx.translate(-W / 2, -H * .58);
+      paintTower(t, now);
+      ctx.restore();
+    }
+    if (st.room > .01) {
+      ctx.globalAlpha = st.room; coverImg(ctx, mind('salle'), W, H); ctx.globalAlpha = 1;
+      if (!effort) paintRadar(t); // le radar du calme s'affiche sur le grand écran de la salle
+    }
+  }
+
   function paint(step, t, now) {
     const { ctx, W, H, U } = st;
-    if (!st.bgArt) { const im = fond('reseau'); if (im) { st.bg = artBackdrop(im, st.bg, .7); st.bgArt = true; } } // réseau violet en rendu 3D + nœuds dessinés
-    ctx.drawImage(st.bg, 0, 0);
-    paintNetwork(t, step);
-    if (!snap || snap.phase === 'effort') paintTower(t, now);
-    else paintRadar(t);
+    const effort = !snap || snap.phase === 'effort';
+    if (mindReady()) paintMeeting(step, t, now, effort); // thème « réunion du comité »
+    else {
+      if (!st.bgArt) { const im = fond('reseau'); if (im) { st.bg = artBackdrop(im, st.bg, .7); st.bgArt = true; } } // réseau violet en rendu 3D + nœuds dessinés
+      ctx.drawImage(st.bg, 0, 0);
+      paintNetwork(t, step);
+      if (effort) paintTower(t, now);
+      else paintRadar(t);
+    }
     st.parts = st.parts.filter(p => p.age < p.life);
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     st.parts.forEach(p => {
@@ -10587,7 +10671,7 @@ const MindScene = (() => {
     if (!canvas || !stage) return;
     const g = sizeGameCanvas(canvas, stage);
     snap = null; lastCorrect = 0; lastWrong = 0;
-    st = { ...g, nodes: [], y: 0, rx: 0, ry: 0, trail: [], flash: 0, glow: 0, bad: 0, parts: [], wasFlash: false, arrowDir: -1 };
+    st = { ...g, nodes: [], y: 0, rx: 0, ry: 0, trail: [], flash: 0, glow: 0, bad: 0, parts: [], wasFlash: false, arrowDir: -1, room: 0, climb: 0, stride: 0, lastY: 0 };
     st.bg = layerCanvas(g.W, g.H, (c, w, h) => paintBrain(c, w, h, st.nodes));
     runGameCanvas(canvas, paint);
   }
@@ -11159,7 +11243,7 @@ function screenTempoSetup() {
     <div class="centered-page game-setup">
     <h1 class="page-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="brain"></i> MindFit</h1>
     ${gameVideoBigHTML(MINDFUL_WELCOME_VIDEO_B64)}
-    <p class="page-sub">Passe la barre 7 fois en te balançant d'avant en arrière, puis reviens bien au calme pour répondre à 7 calculs — impossible de répondre en bougeant ! Enchaîne les manches pendant 1 minute.</p>
+    <p class="page-sub">Tu es attendu à la réunion du comité : monte l'escalier en te balançant d'avant en arrière (7 volées de marches), puis reviens bien au calme pour répondre à 7 questions — impossible de répondre en bougeant ! Enchaîne les manches pendant 1 minute.</p>
     <button class="btn-primary" id="btnTempoStart" style="width:100%;">${t('game_start_btn')}</button>
     <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
     ${gameInfoHTML('tempo')}
@@ -11217,37 +11301,46 @@ function screenTempoPlaying() {
       <canvas id="tempoCanvas"></canvas>
       <div class="game-hud"><div class="timer" id="tempoTimer">1:00</div></div>
       <div id="tempoPhaseArea"></div>
-      ${sportIntroHTML('BOUGE, PUIS CALCULE', 'Passe la barre, puis réponds au calme !')}
+      ${sportIntroHTML('COURS, PUIS RÉFLÉCHIS', 'Monte à la réunion, puis réponds au calme !')}
     </div>
   `;
 }
 function tempoEffortHTML() {
   return `
-    <div class="game-hint mind-count">Passe la barre <span id="tempoCrossCount">0</span>/7</div>
-    <div class="mind-foot">Balance-toi d'avant en arrière pour passer au-dessus de la ligne.</div>
+    <div class="game-hint mind-count">Monte les marches <span id="tempoCrossCount">0</span>/7</div>
+    <div class="mind-foot">Balance-toi d'avant en arrière pour monter les marches.</div>
   `;
 }
 function tempoQuestionHTML() {
   return `
     <div class="game-hint">
-      <div class="mind-count">Calcul <span id="tempoQIndex">1</span>/7</div>
+      <div class="mind-count">Question <span id="tempoQIndex">1</span>/7</div>
       <div id="tempoCalmHint">Reste immobile pour pouvoir répondre.</div>
     </div>
     <div class="tempo-question-frame mind-card" id="tempoQuestionFrame">
+      <div class="mq-prompt" id="tempoQuestionPrompt"></div>
       <div class="tempo-question-text" id="tempoQuestionText">--</div>
       <div class="tempo-choices" id="tempoChoices"></div>
     </div>
   `;
 }
+let tempoMemoTimer = null;
 function renderTempoQuestionUI(snap) {
   const qEl = document.getElementById('tempoQuestionText');
+  const pEl = document.getElementById('tempoQuestionPrompt');
   const qIndexEl = document.getElementById('tempoQIndex');
   const choicesEl = document.getElementById('tempoChoices');
   if (qIndexEl) qIndexEl.textContent = Math.min(snap.questionsPerRound, snap.questionIndex + 1);
-  if (qEl && snap.question) qEl.textContent = snap.question.text;
+  clearTimeout(tempoMemoTimer);
+  const q = snap.question;
+  if (qEl && q) {
+    qEl.className = 'tempo-question-text mq-' + q.kind;
+    if (pEl) pEl.textContent = trText(q.prompt);
+    qEl.innerHTML = q.html;
+  }
   if (choicesEl && snap.question) {
     const correctAnswer = snap.question.answer;
-    choicesEl.innerHTML = snap.question.choices.map(c => `<button class="tempo-choice-btn" data-value="${c}">${c}</button>`).join('');
+    choicesEl.innerHTML = snap.question.choices.map(c => `<button class="tempo-choice-btn" data-value="${c.v}">${c.html}</button>`).join('');
     choicesEl.dataset.locked = '';
     choicesEl.querySelectorAll('button').forEach(btn => {
       btn.addEventListener('click', () => {
