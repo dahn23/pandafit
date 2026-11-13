@@ -10606,29 +10606,83 @@ const MindScene = (() => {
      panda en costume monte l'escalier de la tour de bureaux, une volée par balancement réussi ; il répond ensuite dans la
      salle du conseil. Facultatif : tant qu'une image manque, l'ancien affichage (jauge sur fond violet) reste. */
   const MIND = {};
-  ['escalier', 'salle', 'costume-1', 'costume-2', 'costume-4'].forEach(n => { MIND[n] = new Image(); MIND[n].src = `img/mind/${n}.webp`; });
+  /* 4 lieux (escalier + salle), tirés au hasard à chaque partie : on change de lieu à chaque tour, pour que les joueurs
+     qui se suivent ne voient pas tous la même chose. Un lieu dont une image manque est simplement sauté. */
+  const LIEUX = [['escalier', 'salle'], ['escalier-2', 'salle-2'], ['escalier-3', 'salle-3'], ['escalier-4', 'salle-4']];
+  [...LIEUX.flat(), 'costume-1', 'costume-2', 'costume-4'].forEach(n => { MIND[n] = new Image(); MIND[n].src = `img/mind/${n}.webp`; });
   const mind = n => { const im = MIND[n]; return im && im.complete && im.naturalWidth > 0 ? im : null; };
-  const mindReady = () => Object.keys(MIND).every(n => mind(n));
   const CLIMB = ['costume-1', 'costume-2', 'costume-4', 'costume-2']; // foulée : appui, envol, envol, envol
+  const lieuOk = i => !!(mind(LIEUX[i][0]) && mind(LIEUX[i][1]));
+  const mindReady = () => CLIMB.every(n => mind(n)) && LIEUX.some((l, i) => lieuOk(i));
+  /* Les 4 escaliers ont la même géométrie (faits à partir de la même image) : 22 marches, dont 7 éclairées, une par
+     balancement. En fraction de la hauteur de l'image : STOPS = où le panda pose les pieds (le premier = départ),
+     LEDS = nez des 7 marches éclairées. La largeur de l'escalier à une hauteur donnée vient de `stairHalf`. */
+  const STOPS = [.967, .707, .572, .479, .415, .366, .331, .305];
+  const LEDS = [.7141, .5756, .4807, .417, .3681, .3326, .3044];
+  const stairHalf = fy => Math.min(.5, .182 + .915 * (fy - .3044)); // demi-largeur, en fraction de la largeur de l'image
+  function coverBox(im, W, H) {
+    const k = Math.max(W / im.naturalWidth, H / im.naturalHeight), w = im.naturalWidth * k, h = im.naturalHeight * k;
+    return { x: (W - w) / 2, y: (H - h) / 2, w, h };
+  }
   function coverImg(ctx, im, W, H) {
-    const k = Math.max(W / im.naturalWidth, H / im.naturalHeight), iw = im.naturalWidth * k, ih = im.naturalHeight * k;
-    ctx.drawImage(im, (W - iw) / 2, (H - ih) / 2, iw, ih);
+    const b = coverBox(im, W, H);
+    ctx.drawImage(im, b.x, b.y, b.w, b.h);
+    return b;
+  }
+  // lieu du tour : le suivant de la liste mélangée dont les deux images sont arrivées
+  function chooseLieu(advance) {
+    for (let k = advance ? 1 : 0; k < 4 + (advance ? 1 : 0); k++) {
+      const j = (st.li + k) % 4;
+      if (lieuOk(st.lieux[j])) { st.li = j; return st.lieux[j]; }
+    }
+    return st.lieu;
+  }
+  // les 7 marches éclairées : vertes une fois montées, la prochaine clignote doucement, les autres en blanc discret
+  function paintLeds(b, now) {
+    const { ctx } = st;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    LEDS.forEach((fy, i) => {
+      const done = i < st.stop, next = i === st.stop;
+      const col = done ? '67,206,162' : next ? '255,214,120' : '255,255,255';
+      const a = done ? .85 : next ? .6 + .35 * Math.sin(now * .008) : .3;
+      const y = b.y + fy * b.h, half = stairHalf(fy) * b.w * .985, cx = b.x + b.w / 2;
+      const th = Math.max(1.5, b.h * .0052 * (fy + .053) / 1.023), g = th * (done || next ? 5 : 3);
+      const halo = ctx.createLinearGradient(0, y - g, 0, y + g);
+      halo.addColorStop(0, `rgba(${col},0)`); halo.addColorStop(.5, `rgba(${col},${(a * .5).toFixed(3)})`); halo.addColorStop(1, `rgba(${col},0)`);
+      ctx.fillStyle = halo; ctx.fillRect(cx - half, y - g, half * 2, g * 2);
+      ctx.fillStyle = `rgba(${col},${a.toFixed(3)})`; ctx.fillRect(cx - half, y - th / 2, half * 2, th);
+    });
+    ctx.restore();
   }
   function paintMeeting(step, t, now, effort) {
     const { ctx, W, H, U } = st;
     st.room += ((effort ? 0 : 1) - st.room) * (1 - Math.exp(-step * 7)); // fondu de l'escalier vers la salle
+    if (st.lieu == null || !lieuOk(st.lieu)) st.lieu = st.lieuRoom = chooseLieu(false);
+    if (effort !== st.wasEffort) {
+      if (effort) st.lieu = chooseLieu(true); // nouveau tour : autre escalier (la salle d'avant s'efface par-dessus)
+      else st.lieuRoom = st.lieu;
+      st.wasEffort = effort;
+    }
     if (st.room < .99) {
-      coverImg(ctx, mind('escalier'), W, H);
-      // le panda grimpe : il avance d'une volée à chaque barre passée et rapetisse en approchant de la porte
-      const target = effort && snap ? Math.min(1, snap.crossings / snap.crossingsNeeded) : (effort ? 0 : 1);
-      if (target < st.climb - .5) st.climb = target; // nouveau tour : il repart du bas de l'escalier
-      st.climb += (target - st.climb) * (1 - Math.exp(-step * 5));
+      const b = coverImg(ctx, mind(LIEUX[st.lieu][0]), W, H);
+      // le panda grimpe : un balancement réussi = un saut jusqu'à la marche éclairée suivante (7 marches, puis la porte)
+      const last = STOPS.length - 1;
+      const target = effort && snap ? Math.min(last, Math.round(snap.crossings / snap.crossingsNeeded * last)) : (effort ? 0 : last);
+      if (target < st.stop) { st.stop = target; st.fy = STOPS[target]; st.hopT = 1; } // nouveau tour : il repart d'en bas
+      else if (target > st.stop) { st.stop = target; st.hopFrom = st.fy; st.hopTo = STOPS[target]; st.hopT = 0; }
+      paintLeds(b, now);
+      if (st.hopT < 1) {
+        st.hopT = Math.min(1, st.hopT + step / .36);
+        const e = st.hopT * st.hopT * (3 - 2 * st.hopT);
+        st.fy = st.hopFrom + (st.hopTo - st.hopFrom) * e;
+      }
       const yv = snap ? snap.yCm : 0;
       st.stride += Math.min(.5, Math.abs(yv - st.lastY) * .9); st.lastY = yv;
-      const s = 1 / (1 + st.climb * 1.78), feet = H * (-.053 + 1.023 * s);
-      const im = mind(CLIMB[Math.floor(st.stride) % 4]), h = H * .34 * s, w = h * im.naturalWidth / im.naturalHeight;
-      const hop = Math.abs(Math.sin(st.stride * Math.PI)) * h * .06;
-      ctx.fillStyle = 'rgba(30,30,40,.3)';
+      const s = (st.fy + .053) / 1.023, feet = b.y + st.fy * b.h; // il rapetisse en approchant de la porte
+      const jumping = st.hopT < 1;
+      const im = mind(jumping ? CLIMB[st.hopT < .5 ? 1 : 2] : CLIMB[Math.floor(st.stride) % 4]), h = b.h * .34 * s, w = h * im.naturalWidth / im.naturalHeight;
+      const hop = jumping ? Math.sin(st.hopT * Math.PI) * h * .2 : Math.abs(Math.sin(st.stride * Math.PI)) * h * .05;
+      ctx.fillStyle = `rgba(30,30,40,${jumping ? .18 : .3})`;
       ctx.beginPath(); ctx.ellipse(W / 2, feet - h * .02, w * .34, h * .035, 0, 0, Math.PI * 2); ctx.fill();
       ctx.drawImage(im, W / 2 - w / 2, feet - h * .97 - hop, w, h);
       // la jauge d'avant, en petit sur la droite : elle montre toujours jusqu'où se pencher pour passer la barre
@@ -10637,7 +10691,7 @@ const MindScene = (() => {
       ctx.restore();
     }
     if (st.room > .01) {
-      ctx.globalAlpha = st.room; coverImg(ctx, mind('salle'), W, H); ctx.globalAlpha = 1;
+      ctx.globalAlpha = st.room; coverImg(ctx, mind(LIEUX[st.lieuRoom][1]), W, H); ctx.globalAlpha = 1;
       if (!effort) paintRadar(t); // le radar du calme s'affiche sur le grand écran de la salle
     }
   }
@@ -10671,7 +10725,9 @@ const MindScene = (() => {
     if (!canvas || !stage) return;
     const g = sizeGameCanvas(canvas, stage);
     snap = null; lastCorrect = 0; lastWrong = 0;
-    st = { ...g, nodes: [], y: 0, rx: 0, ry: 0, trail: [], flash: 0, glow: 0, bad: 0, parts: [], wasFlash: false, arrowDir: -1, room: 0, climb: 0, stride: 0, lastY: 0 };
+    st = { ...g, nodes: [], y: 0, rx: 0, ry: 0, trail: [], flash: 0, glow: 0, bad: 0, parts: [], wasFlash: false, arrowDir: -1, room: 0, stride: 0, lastY: 0,
+      lieux: [0, 1, 2, 3].map(i => [Math.random(), i]).sort((a, b) => a[0] - b[0]).map(p => p[1]), li: 0, lieu: null, lieuRoom: 0, wasEffort: true,
+      stop: 0, fy: STOPS[0], hopT: 1, hopFrom: STOPS[0], hopTo: STOPS[0] };
     st.bg = layerCanvas(g.W, g.H, (c, w, h) => paintBrain(c, w, h, st.nodes));
     runGameCanvas(canvas, paint);
   }
