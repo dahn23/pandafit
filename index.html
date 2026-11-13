@@ -7281,10 +7281,10 @@ const SkiScene = (() => {
     ctx.save();
     if (tilt) { ctx.translate(base.x, base.y); ctx.rotate(tilt); ctx.translate(-base.x, -base.y); }
     const h = U * 27 * base.P;
-    const color = g.warm ? '#8092aa' : (g.i % 2 ? '#1565c0' : '#d7263d');
+    const color = g.warm && !st.fpv ? '#8092aa' : (g.i % 2 ? '#1565c0' : '#d7263d');
     ctx.fillStyle = 'rgba(70,100,140,.3)';
     ctx.beginPath(); ctx.ellipse(base.x, base.y, U * 1.6 * base.P, U * .5 * base.P, 0, 0, Math.PI * 2); ctx.fill();
-    const gateArt = decor(g.warm ? 'porte-grise' : (g.i % 2 ? 'porte-bleue' : 'porte-rouge'));
+    const gateArt = decor(g.i % 2 ? 'porte-bleue' : 'porte-rouge'); // portes d'échauffement comprises : plus de fanions gris (demande de Dan)
     if (gateArt) { // porte en rendu 3D : le piquet est à 6 % du bord gauche de l'image, le fanion part vers l'extérieur du virage
       const gh = h * 1.06, gw = gh * gateArt.naturalWidth / gateArt.naturalHeight;
       if (st.fpv) ctx.globalAlpha = fade * pfClamp(1.8 - base.P * .45, .3, 1);
@@ -8052,7 +8052,7 @@ const SkiScene = (() => {
   /* Décor en rendu 3D (même style que les pattes) : panorama, sapins, portes, arche. Chaque image est facultative :
      tant qu'elle n'est pas chargée, ou si elle manque, le dessin au code reste en place. */
   const DECOR = {};
-  if (SKI_FPV) ['panorama', 'sapin-1', 'sapin-2', 'porte-rouge', 'porte-bleue', 'porte-grise', 'arche', 'depart', 'fan-1', 'fan-2', 'fan-3', 'chalet-1', 'chalet-2'].forEach(n => { DECOR[n] = new Image(); DECOR[n].src = `img/ski/${n}.webp`; });
+  if (SKI_FPV) ['panorama', 'sapin-1', 'sapin-2', 'porte-rouge', 'porte-bleue', 'arche', 'depart', 'fan-1', 'fan-2', 'fan-3', 'chalet-1', 'chalet-2'].forEach(n => { DECOR[n] = new Image(); DECOR[n].src = `img/ski/${n}.webp`; });
   const decor = n => { const im = DECOR[n]; return im && im.complete && im.naturalWidth > 0 ? im : null; };
   /** Le panorama des montagnes, posé sur l'horizon ; une brume claire le fond dans la neige de la piste */
   function paintPanorama(c, w, h, im) {
