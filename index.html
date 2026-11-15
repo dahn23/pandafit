@@ -1123,10 +1123,12 @@ const PandaFitBackend = (() => {
     };
     try {
       const id = await rpc('tablet_record_play', payload);
+      Calib.flush(gameId, id);      // étalonnage de l'Index en arrière-plan (rien n'est montré au joueur)
       if (tri) refreshEventState(); // met à jour le compteur de joueurs par équipe sur la station
       flushPlayQueue();             // le réseau répond : on en profite pour vider la file
       return id;
     } catch (e) {
+      Calib.abort();                // sans réseau : les mesures d'étalonnage de cette partie sont abandonnées
       if (isNetworkError(e)) queuePlay(payload); // sans réseau : gardée sur la tablette, renvoyée au retour du réseau
       return null; // on ne bloque jamais le jeu
     }
@@ -1465,7 +1467,19 @@ const PandaFitBackend = (() => {
     } catch (e) { console.error('submitArcadeScore a échoué:', e); return false; }
   }
 
-  return { getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore, fetchSatisfactionSettings, submitSatisfactionResponse, setHomeDisplayMode, fetchTabletSignals, joinEvent, tabletState, joinProject, projectAction, liveStats, eventRank, skiBoard, setPseudo, fetchCampaign, campaignProgress };
+  /** Étalonnage de l'Index : mesures prises pendant les jeux (voir Calib). Jamais bloquant. */
+  async function calibAdd(sessionId, gameId, segments, version) {
+    try { return await rpc('tablet_calib_add', { p_device_key: getDeviceKey(), p_session_id: sessionId || null, p_game_id: gameId, p_segments: segments, p_app: version }); }
+    catch (e) { console.error('calibAdd a échoué:', e); return 0; }
+  }
+  /** Interrupteurs techniques (app_flags) : lecture libre, écriture par une tablette enregistrée */
+  async function getFlag(key) {
+    try { const res = await fetch(`${REST}/app_flags?key=eq.${encodeURIComponent(key)}&select=on_off,updated_at,updated_by`, { headers: headers(), cache: 'no-store' }); const rows = res.ok ? await res.json() : []; return rows[0] || null; }
+    catch (e) { return null; }
+  }
+  async function setFlag(key, on) { return await rpc('tablet_set_flag', { p_device_key: getDeviceKey(), p_key: key, p_on: !!on }); }
+
+  return { calibAdd, getFlag, setFlag, getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore, fetchSatisfactionSettings, submitSatisfactionResponse, setHomeDisplayMode, fetchTabletSignals, joinEvent, tabletState, joinProject, projectAction, liveStats, eventRank, skiBoard, setPseudo, fetchCampaign, campaignProgress };
 })();
 
 /* =====================================================================================
@@ -3230,8 +3244,99 @@ const IndexTest = (() => {
     return Math.round(0.3 * staticScore + 0.7 * movementScore);
   }
 
-  return { startStaticTest, startMovementTest, computeOverallIndex, STATIC_DURATION_S, MOVE_DURATION_S, STATIC_LIVES, MOVE_LINE_CM };
+  return { startStaticTest, startMovementTest, computeOverallIndex, STATIC_DURATION_S, MOVE_DURATION_S, STATIC_LIVES, MOVE_LINE_CM,
+    metrics: { staticScore: computeStaticScore, movementScore: computeMovementScore } }; // réutilisés par l'étalonnage (Calib)
 })();
+
+/* =====================================================================================
+   ÉTALONNAGE DE L'INDEX EN ARRIÈRE-PLAN (« NRM », demande de Dan, 15.11.2026)
+   Pendant chaque jeu (et pendant l'Index), on note le signal du plateau 10 fois par seconde et on découpe les moments
+   comparables à l'Index : « statique » (rester immobile) et « mouvement » (se balancer sur un axe). Pour chaque moment,
+   on calcule les MÊMES mesures que l'Index (IndexTest.metrics) et on envoie le tout en fin de partie à la table
+   calib_samples, avec le signal brut (pour pouvoir tout recalculer si on change de méthode).
+   Rien n'est montré au joueur, et l'Index officiel n'est pas touché. Le serveur marque chaque envoi « compté » ou non
+   selon l'interrupteur nrm_ingest (table app_flags) : éteint tant que Dan fait des tests.
+   Les jeux disent ce qui se passe avec Calib.mark(jeu, 'static' | 'move-x' | 'move-y' | null).
+   ===================================================================================== */
+const Calib = (() => {
+  const HZ = 10, MAX_S = 240, VERSION = 'nrm-1';
+  let rec = null, latest = { x: 0, y: 0 }, listening = false;
+  const onData = d => { latest = { x: d.x / 200, y: d.y / 200 }; }; // cm, comme les jeux et l'Index
+  const r2 = v => Math.round(v * 100) / 100;
+  const avg = a => a.reduce((s, v) => s + v, 0) / (a.length || 1);
+
+  function sample() {
+    if (!rec) return;
+    const t = (performance.now() - rec.t0) / 1000;
+    if (t <= MAX_S) rec.samples.push({ t, x: latest.x, y: latest.y, k: rec.label });
+  }
+  /** Le jeu indique la phase en cours. Ignoré hors partie (compte à rebours, aperçu), sauf pour l'Index (force). */
+  function mark(gameId, label, force) {
+    try {
+      if (!force && !activeGameModule) label = null;
+      if (!rec || rec.gameId !== gameId) {
+        if (!label) return;
+        abort();
+        rec = { gameId, samples: [], label: null, t0: performance.now(), timer: setInterval(sample, 1000 / HZ) };
+        if (!listening) { PandaFitSensor.on('data', onData); listening = true; }
+      }
+      rec.label = label || null;
+    } catch (e) { /* ne jamais gêner le jeu */ }
+  }
+  function abort() { if (rec) clearInterval(rec.timer); rec = null; }
+
+  /** Découpe en moments de même nature (consécutifs) */
+  function segments(samples) {
+    const out = []; let cur = null;
+    samples.forEach(p => {
+      if (!p.k) { cur = null; return; }
+      if (!cur || cur.k !== p.k) { cur = { k: p.k, pts: [] }; out.push(cur); }
+      cur.pts.push(p);
+    });
+    return out;
+  }
+  function build(seg) {
+    const kind = seg.k === 'static' ? 'static' : 'move', axis = kind === 'move' ? seg.k.slice(5) : null;
+    const dur = seg.pts.length / HZ, suspect = [];
+    // statique : on enlève la première seconde et demie (le temps de se stabiliser après un mouvement)
+    const pts = kind === 'static' && seg.pts.length > 4 * HZ ? seg.pts.slice(Math.round(1.5 * HZ)) : seg.pts;
+    if (dur < (kind === 'static' ? 8 : 6)) suspect.push('court');
+    let same = 0;
+    for (let i = 1; i < pts.length; i++) if (pts[i].x === pts[i - 1].x && pts[i].y === pts[i - 1].y) same++;
+    if (same > .6 * pts.length) suspect.push('fige'); // plus de signal du capteur
+    let metrics;
+    if (kind === 'static') {
+      const mx = avg(pts.map(p => p.x)), my = avg(pts.map(p => p.y));
+      const sd = Math.sqrt(avg(pts.map(p => (p.x - mx) ** 2 + (p.y - my) ** 2)));
+      let path = 0;
+      for (let i = 1; i < pts.length; i++) path += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+      const vel = path / Math.max(.1, pts.length / HZ);
+      const st = IndexTest.metrics.staticScore(pts);
+      metrics = { rms_cm: st.rmsCm, sd_cm: r2(sd), mean_x: r2(mx), mean_y: r2(my), vel_cms: r2(vel), shadow_score: st.score };
+      if (sd < .02 && vel < .05) suspect.push('vide'); // personne sur le plateau
+    } else {
+      const v = pts.map(p => (axis === 'x' ? p.x : p.y)), o = pts.map(p => (axis === 'x' ? p.y : p.x));
+      const mv = IndexTest.metrics.movementScore(pts.map((p, i) => ({ t: p.t * 1000, y: v[i] })));
+      const mo = avg(o);
+      metrics = { amplitude_cm: mv.amplitudeCm, regularity: mv.regularityScore, amplitude_score: mv.amplitudeScore, cycles: mv.cycles,
+        freq_hz: r2(mv.cycles / 2 / Math.max(.1, dur)), off_axis_sd_cm: r2(Math.sqrt(avg(o.map(q => (q - mo) ** 2)))), shadow_score: mv.score };
+      if (mv.cycles < 3) suspect.push('peu_de_cycles');
+    }
+    const trace = { hz: HZ, unit: 'cm/100', x: seg.pts.map(p => Math.round(p.x * 100)), y: seg.pts.map(p => Math.round(p.y * 100)) };
+    return { kind, axis, duration_s: Math.round(dur * 10) / 10, metrics, suspect, trace };
+  }
+  /** Fin de partie : calcule et envoie les moments (sans jamais bloquer ni faire planter le jeu) */
+  function flush(gameId, sessionId) {
+    try {
+      if (!rec || rec.gameId !== gameId) { abort(); return; }
+      const samples = rec.samples; abort();
+      const segs = segments(samples).filter(s => s.pts.length >= 3 * HZ).slice(0, 16).map(build);
+      if (segs.length) PandaFitBackend.calibAdd(sessionId, gameId, segs, VERSION);
+    } catch (e) { console.error('Calib.flush', e); }
+  }
+  return { mark, abort, flush };
+})();
+
 
 /* =====================================================================================
    APPLICATION — routage simple + écrans
@@ -4298,6 +4403,7 @@ function isRouteLocked(route) {
 }
 
 function navigate(route) {
+  Calib.abort();
   if (route === 'games') route = 'home'; // la page « Jeux » n'existe plus (décision de Dan, 13.11.2026) : les jeux se lancent depuis l'accueil
   if (activeGameModule) {
     activeGameModule.abort();
@@ -5656,6 +5762,7 @@ function screenZonePlaying() {
 }
 
 function renderZonePlaying(snap) {
+  Calib.mark('thezone', 'static');
   const heartsEl = document.getElementById('zoneHearts');
   const timerEl = document.getElementById('zoneTimer');
   setHeartsIfChanged(heartsEl, snap.livesRemaining, zoneSetupCfg.lives);
@@ -5815,6 +5922,12 @@ function screenSettings() {
       <div class="setting-row"><span class="lbl">Nom de la tablette</span><span class="val">${clientConfig ? escT(clientConfig.deviceName) : '—'}</span></div>
       <button class="btn-ghost" id="btnReconfigure" style="width:100%;margin-top:10px;">Reconfigurer la tablette</button>
     </div>
+    <div class="card" id="nrmCard">
+      <h2>Diagnostic</h2>
+      <div class="setting-row"><span class="lbl">NRM-ING · flux d'étalonnage L2</span><span class="val" id="nrmState">…</span></div>
+      <button class="btn-ghost" id="btnNrmToggle" style="width:100%;margin-top:10px;" disabled>…</button>
+      <p class="page-sub" style="margin:8px 0 0;font-size:12px;" id="nrmInfo"></p>
+    </div>
     <div class="card">
       <h2>Capteur</h2>
       <div class="setting-row"><span class="lbl">Appareil</span><span class="val">${PandaFitSensor.getDeviceName() || '—'}</span></div>
@@ -5879,6 +5992,28 @@ function liveStatsHTML(st) {
     </div>`;
 }
 function wireSettingsScreen() {
+  // Interrupteur d'étalonnage (NRM-ING) : actif = les mesures prises pendant les jeux comptent pour les normes de l'Index.
+  // Commun à toutes les tablettes, aussi réglable dans la console admin. Éteint tant que les tests ne sont pas « réels ».
+  (async () => {
+    const state = document.getElementById('nrmState'), btn = document.getElementById('btnNrmToggle'), info = document.getElementById('nrmInfo');
+    if (!state || !btn) return;
+    const show = f => {
+      const on = !!f?.on_off;
+      state.textContent = f ? (on ? 'ACTIF' : 'inactif') : 'indisponible';
+      state.style.color = on ? '#6fe39a' : '';
+      btn.textContent = on ? 'Désactiver NRM-ING' : 'Activer NRM-ING';
+      btn.disabled = !f; btn.dataset.on = on ? '1' : '';
+      if (info) info.textContent = f?.updated_at ? `Dernier changement : ${new Date(f.updated_at).toLocaleString('fr-CH')}${f.updated_by ? ' · ' + f.updated_by : ''}` : '';
+    };
+    show(await PandaFitBackend.getFlag('nrm_ingest'));
+    btn.addEventListener('click', async () => {
+      const want = !btn.dataset.on;
+      if (want && !confirm('Activer NRM-ING ? Les parties jouées à partir de maintenant compteront pour l’étalonnage.')) return;
+      btn.disabled = true;
+      try { await PandaFitBackend.setFlag('nrm_ingest', want); } catch (e) { alert('Impossible de changer le réglage : ' + e.message); }
+      show(await PandaFitBackend.getFlag('nrm_ingest'));
+    });
+  })();
   const box = document.getElementById('logBox');
   if (box) box.scrollTop = box.scrollHeight;
   document.querySelectorAll('#homeModeButtons [data-home-mode]').forEach(b => {
@@ -7351,6 +7486,7 @@ function marketOnEvent(ev) {
   }
 }
 function renderMarketPlaying(snap) {
+  Calib.mark('market', 'static');
   const timerEl = document.getElementById('marketTimer');
   if (timerEl) timerEl.textContent = `${Math.max(0, snap.timeLeft)}s`;
   const goodEl = document.getElementById('marketGood');
@@ -9058,6 +9194,7 @@ function setSkiHint(text) {
   if (el && el.dataset.fr !== text) { el.dataset.fr = text; el.textContent = text; }
 }
 function renderSkiPlaying(snap) {
+  Calib.mark('skiprev', snap.finished ? null : 'move-x');
   const timeEl = document.getElementById('skiTime');
   const speedEl = document.getElementById('skiSpeed');
   if (timeEl) {
@@ -9264,6 +9401,7 @@ function wireElectroPlaying() {
 }
 
 function renderElectroPlaying(snap) {
+  Calib.mark('base', 'static');
   const heartsEl = document.getElementById('electroHearts');
   const timerEl = document.getElementById('electroTimer');
   if (electroSetupCfg.lives !== Infinity) setHeartsIfChanged(heartsEl, snap.livesRemaining, electroSetupCfg.lives); // vies illimitées : pas de signe ∞
@@ -10083,6 +10221,7 @@ function wireFootballShoot() {
 }
 
 function renderFootballPlaying(snap) {
+  Calib.mark('distance', snap.phase === 'run' ? 'move-y' : snap.phase === 'shoot' ? 'static' : null);
   const area = document.getElementById('footballPhaseArea');
   if (!area) return;
   if (snap.phase !== footballLastPhase) {
@@ -11742,6 +11881,7 @@ function screenRelaxPlaying() {
   `;
 }
 function renderRelaxPlaying(snap) {
+  Calib.mark('cross', 'static');
   const timerEl = document.getElementById('relaxTimer');
   const labelEl = document.getElementById('relaxPhaseLabel');
   if (timerEl) {
@@ -11916,6 +12056,7 @@ function renderTempoQuestionUI(snap) {
   }
 }
 function renderTempoPlaying(snap) {
+  Calib.mark('tempo', snap.phase === 'effort' ? 'move-y' : 'static');
   const timerEl = document.getElementById('tempoTimer');
   if (timerEl) {
     const m = Math.floor(snap.timeLeft / 60), sec = Math.floor(snap.timeLeft % 60);
@@ -12098,6 +12239,7 @@ function wireSudokuPlaying() {
   });
 }
 function renderSudokuPlaying(snap) {
+  Calib.mark('sudoku', snap.phase === 'solve' ? 'static' : 'move-' + (snap.axis || 'y'));
   const stage = document.getElementById('sudokuStage');
   if (!stage) return;
   const solve = snap.phase === 'solve';
@@ -12474,9 +12616,10 @@ function runStaticTest() {
       if (hearts) setHeartsIfChanged(hearts, Math.max(0, IndexTest.STATIC_LIVES - snap.livesLost), IndexTest.STATIC_LIVES);
       if (timer) timer.textContent = `${Math.max(0, Math.round(IndexTest.STATIC_DURATION_S - snap.elapsed))}s`;
       setIndexProgress(snap.elapsed, IndexTest.STATIC_DURATION_S);
+      Calib.mark('indextest', 'static', true);
       IndexScene.update(snap);
     },
-    (staticResult) => { indexStaticResult = staticResult; indexPrepareMovement(); }
+    (staticResult) => { Calib.mark('indextest', null, true); indexStaticResult = staticResult; indexPrepareMovement(); }
   );
 }
 let indexStaticResult = null;
@@ -12506,6 +12649,7 @@ function runMovementTest() {
       if (pts) pts.textContent = `${snap.points} pts`;
       if (timer) timer.textContent = `${Math.max(0, Math.round(IndexTest.MOVE_DURATION_S - snap.elapsed))}s`;
       setIndexProgress(snap.elapsed, IndexTest.MOVE_DURATION_S);
+      Calib.mark('indextest', 'move-y', true);
       IndexScene.update(snap);
     },
     (movementResult) => {

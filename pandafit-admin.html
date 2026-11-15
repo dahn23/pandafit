@@ -3666,6 +3666,11 @@ async function renderProjectsView() {
         <button class="btn-ghost" id="btnSaveZones">Enregistrer</button>
       </div>
       <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Entre les deux : « à entretenir ». S'applique à tous les rapports, y compris ceux déjà publiés.</p>
+    </div>
+    <div class="card" id="nrmAdminCard">
+      <h3>Diagnostic · NRM-ING (flux d'étalonnage L2)</h3>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><span id="nrmAdminState" style="font-weight:800;">…</span><button class="btn-ghost" id="btnNrmAdmin" disabled>…</button></div>
+      <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;" id="nrmAdminInfo"></p>
     </div>` : ''}
     <div class="card"><h3>En cours</h3>
       ${open.length ? `<table>${head}${open.map(rowHTML).join('')}</table>` : '<p class="empty">Aucun projet en cours.</p>'}</div>
@@ -3673,6 +3678,31 @@ async function renderProjectsView() {
   `;
   document.getElementById('btnNewProject').addEventListener('click', () => { editingProjectId = 'new'; renderProjectsView(); });
   document.getElementById('btnParc')?.addEventListener('click', () => { editingProjectId = 'parc'; renderProjectsView(); });
+  // Interrupteur d'étalonnage de l'Index (aussi dans les Réglages coach de la tablette) + compteur des mesures reçues
+  (async () => {
+    const st = document.getElementById('nrmAdminState'), btn = document.getElementById('btnNrmAdmin'), info = document.getElementById('nrmAdminInfo');
+    if (!st || !btn) return;
+    const load = async () => {
+      const [{ data: f }, { count: nOn }, { count: nOff }] = await Promise.all([
+        sb.from('app_flags').select('on_off,updated_at,updated_by').eq('key', 'nrm_ingest').maybeSingle(),
+        sb.from('calib_samples').select('id', { count: 'exact', head: true }).eq('counted', true),
+        sb.from('calib_samples').select('id', { count: 'exact', head: true }).eq('counted', false)]);
+      const on = !!f?.on_off;
+      st.textContent = on ? 'ACTIF : les parties comptent pour l’étalonnage' : 'Inactif : mode test, rien n’est compté';
+      st.style.color = on ? '#43cea2' : '';
+      btn.textContent = on ? 'Désactiver' : 'Activer'; btn.dataset.on = on ? '1' : ''; btn.disabled = false;
+      info.textContent = `Mesures reçues : ${nOn ?? 0} comptées, ${nOff ?? 0} en mode test.${f?.updated_at ? ' Dernier changement : ' + new Date(f.updated_at).toLocaleString('fr-CH') + (f.updated_by ? ' · ' + f.updated_by : '') : ''}`;
+    };
+    btn.addEventListener('click', async () => {
+      const want = !btn.dataset.on;
+      if (want && !confirm('Activer NRM-ING ? Les parties jouées à partir de maintenant compteront pour l’étalonnage de l’Index.')) return;
+      btn.disabled = true;
+      const { error } = await sb.from('app_flags').update({ on_off: want, updated_at: new Date().toISOString(), updated_by: 'console' + (currentAdmin?.email ? ' · ' + currentAdmin.email : '') }).eq('key', 'nrm_ingest');
+      if (error) alert('Erreur : ' + error.message);
+      load();
+    });
+    load();
+  })();
   document.getElementById('btnSaveZones')?.addEventListener('click', async () => {
     const good = Number(document.getElementById('zoneGood').value), risk = Number(document.getElementById('zoneRisk').value);
     if (!(risk < good)) { alert('Le seuil de la zone à risque doit être plus bas que celui du bon équilibre.'); return; }
