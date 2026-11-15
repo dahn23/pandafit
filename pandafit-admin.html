@@ -11,101 +11,118 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <style>
+  /* Thème clair PandaFit (15.11.2026) : même famille que l'Index et les rapports — papier chaud, encre bleu nuit, vert PandaFit */
   :root {
-    --bg: #1c162e; --panel: #241d38; --panel-hi: #2c2444;
-    --primary: #43cea2; --primary-dark: #185a9d;
-    --accent: #c86dd7; --destructive: #e6374e;
-    --text: #f4f2fa; --text-dim: #9992ad;
-    --border: #35294f;
+    --bg: #f4f5f1; --panel: #ffffff; --panel-hi: #f0f3ee; --field: #ffffff;
+    --primary: #1c9a7c; --primary-dark: #12735c; --primary-soft: #e2f3ee;
+    --accent: #6b55c7; --destructive: #c8364a;
+    --text: #17324d; --text-dim: #5d7085;
+    --border: #e1e6df; --ok: #12805c; --danger-ink: #b3263a;
+    --shadow: 0 1px 2px rgba(23,50,77,.05), 0 2px 10px rgba(23,50,77,.04);
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; -webkit-font-smoothing: antialiased; }
   #app { min-height: 100vh; }
 
   /* Login */
-  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-  .login-card { background: var(--panel); border-radius: 20px; padding: 36px; width: 100%; max-width: 380px; }
-  .login-card h1 { font-size: 22px; margin: 0 0 6px; }
+  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px;
+    background: radial-gradient(1200px 600px at 20% -10%, #e2f3ee 0%, transparent 60%), radial-gradient(900px 500px at 110% 110%, #e6ecf5 0%, transparent 55%), var(--bg); }
+  .login-card { background: var(--panel); border-radius: 22px; padding: 36px; width: 100%; max-width: 400px; border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(23,50,77,.10); }
+  .login-card h1 { font-size: 24px; margin: 0 0 6px; font-weight: 800; }
   .login-card p { color: var(--text-dim); font-size: 13.5px; margin: 0 0 22px; }
-  input {
-    width: 100%; padding: 13px 14px; border-radius: 10px; border: 1px solid var(--border);
-    background: #17132a; color: var(--text); font-size: 14.5px; margin-bottom: 10px; font-family: inherit;
+  input, textarea {
+    width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--field); color: var(--text); font-size: 14.5px; margin-bottom: 10px; font-family: inherit;
+    box-shadow: 0 1px 2px rgba(23,50,77,.04); transition: border-color .12s, box-shadow .12s;
   }
-  input:focus { outline: none; border-color: var(--primary); }
-  input[type="checkbox"] { width: auto; padding: 0; margin: 0; background: none; border: none; accent-color: var(--primary); }
-  button { font-family: inherit; border: none; cursor: pointer; border-radius: 10px; font-weight: 700; font-size: 14px; padding: 12px 18px; }
-  .btn-primary { background: linear-gradient(120deg, var(--primary), var(--primary-dark)); color: #0c2018; width: 100%; }
-  .btn-ghost { background: var(--panel-hi); color: var(--text); }
-  .btn-destructive { background: rgba(230,55,78,0.15); color: #ff8a97; }
+  input::placeholder, textarea::placeholder { color: #93a1ad; }
+  input:hover, textarea:hover { border-color: #c5cdc6; }
+  input:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(28,154,124,.15); }
+  button { font-family: inherit; border: 1px solid transparent; cursor: pointer; border-radius: 10px; font-weight: 700; font-size: 14px; padding: 11px 18px; transition: background .12s, border-color .12s, color .12s, box-shadow .12s, transform .06s; }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  .btn-primary { background: var(--primary); color: #fff; width: 100%; box-shadow: 0 1px 2px rgba(18,115,92,.25); }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+  .btn-ghost { background: var(--panel); color: var(--text); border-color: var(--border); box-shadow: 0 1px 2px rgba(23,50,77,.04); }
+  .btn-ghost:hover:not(:disabled) { border-color: #c5cdc6; background: var(--panel-hi); }
+  .btn-destructive { background: #fbecee; color: var(--danger-ink); border-color: #f4d3d8; }
+  .btn-destructive:hover:not(:disabled) { background: #f8dde1; }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .error-msg { color: #ff8a97; font-size: 13px; margin: -4px 0 12px; }
+  .error-msg { color: var(--danger-ink); font-size: 13px; margin: -4px 0 12px; }
+  a, .linklike { color: var(--primary-dark); cursor: pointer; font-weight: 600; text-decoration: none; }
+  a:hover, .linklike:hover { text-decoration: underline; }
 
   /* Shell */
   .topbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px; padding: 12px 24px; background: var(--panel);
+    border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50;
   }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; }
+  .topbar .brand { margin-right: auto; }
+  .topbar button { padding: 8px 14px; font-size: 13px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 16px; letter-spacing: -.01em; }
   .brand .mark {
-    width: 30px; height: 30px; border-radius: 8px;
-    background: linear-gradient(120deg, var(--primary), var(--primary-dark));
-    display: flex; align-items: center; justify-content: center; font-size: 13px; color: #0c2018;
+    width: 32px; height: 32px; border-radius: 9px; background: var(--primary);
+    display: flex; align-items: center; justify-content: center; font-size: 12.5px; color: #fff; letter-spacing: .02em;
   }
   .top-nav {
-    display: flex; gap: 4px; padding: 0 24px; border-bottom: 1px solid var(--border);
-    background: rgba(0,0,0,0.15); overflow-x: auto;
+    display: flex; gap: 2px; padding: 0 20px; background: var(--panel); border-bottom: 1px solid var(--border);
+    overflow-x: auto; position: sticky; top: 57px; z-index: 49;
   }
   .top-nav-tab {
-    display: flex; align-items: center; gap: 7px; padding: 13px 16px; font-size: 13.5px;
-    font-weight: 600; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent;
-    white-space: nowrap;
+    display: flex; align-items: center; gap: 7px; padding: 13px 14px 11px; font-size: 13.5px;
+    font-weight: 600; color: var(--text-dim); cursor: pointer; border-bottom: 2.5px solid transparent;
+    white-space: nowrap; transition: color .12s, border-color .12s;
   }
-  .top-nav-tab.active { color: var(--text); border-color: var(--primary); }
+  .top-nav-tab svg { width: 16px; height: 16px; }
+  .top-nav-tab.active { color: var(--primary-dark); border-color: var(--primary); font-weight: 700; }
   .top-nav-tab:hover { color: var(--text); }
-  .layout { display: flex; min-height: calc(100vh - 61px - 47px); }
-  .sidebar { width: 280px; border-right: 1px solid var(--border); padding: 18px; flex-shrink: 0; }
-  .sidebar h2 { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin: 4px 0 10px; }
+  .layout { display: flex; min-height: calc(100vh - 106px); }
+  .sidebar { width: 270px; border-right: 1px solid var(--border); padding: 18px 14px; flex-shrink: 0; background: var(--panel); }
+  .sidebar h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 6px 8px 10px; font-weight: 800; }
   .client-item {
-    padding: 12px 14px; border-radius: 10px; cursor: pointer; margin-bottom: 4px;
-    font-size: 14px; display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 12px; border-radius: 10px; cursor: pointer; margin-bottom: 2px;
+    font-size: 14px; display: flex; justify-content: space-between; align-items: center; color: var(--text); transition: background .1s;
   }
-  .client-item:hover { background: var(--panel); }
-  .client-item.active { background: var(--panel-hi); font-weight: 700; }
+  .client-item:hover { background: var(--panel-hi); }
+  .client-item.active { background: var(--primary-soft); color: var(--primary-dark); font-weight: 700; }
   .client-item .count { font-size: 11px; color: var(--text-dim); }
-  .main { flex: 1; padding: 24px 28px; overflow-x: auto; }
-  .section-title { font-size: 20px; font-weight: 800; margin: 0 0 4px; }
-  .section-sub { color: var(--text-dim); font-size: 13.5px; margin: 0 0 20px; }
-  .card { background: var(--panel); border-radius: 16px; padding: 20px; margin-bottom: 18px; }
-  .card h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin: 0 0 14px; }
+  .main { flex: 1; padding: 28px 32px; overflow-x: auto; min-width: 0; }
+  .section-title { font-size: 22px; font-weight: 800; margin: 0 0 4px; letter-spacing: -.01em; }
+  .section-title svg { color: var(--primary); }
+  .section-sub { color: var(--text-dim); font-size: 13.5px; line-height: 1.55; margin: 0 0 22px; max-width: 80ch; }
+  .card { background: var(--panel); border-radius: 16px; padding: 22px; margin-bottom: 18px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+  .card h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 0 0 14px; font-weight: 800; }
   .inline-form { display: flex; gap: 8px; margin-bottom: 4px; }
   .inline-form input { margin-bottom: 0; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  th { text-align: left; color: var(--text-dim); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 10px; border-bottom: 1px solid var(--border); }
-  td { padding: 10px; border-bottom: 1px solid var(--border); }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
+  th { text-align: left; color: var(--text-dim); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 9px 10px; border-bottom: 1px solid var(--border); background: var(--panel-hi); }
+  th:first-child { border-top-left-radius: 8px; } th:last-child { border-top-right-radius: 8px; }
+  td { padding: 11px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
-  .key-chip { font-family: ui-monospace, Menlo, monospace; background: var(--panel-hi); padding: 3px 8px; border-radius: 6px; font-size: 12.5px; }
+  tbody tr:hover td, table tr:hover td { background: #fafbf8; }
+  .key-chip { font-family: ui-monospace, Menlo, monospace; background: var(--panel-hi); padding: 3px 8px; border-radius: 6px; font-size: 12.5px; border: 1px solid var(--border); }
   .toggle { position: relative; width: 42px; height: 24px; display: inline-block; }
   .toggle input { display: none; }
-  .toggle .track { position: absolute; inset: 0; background: var(--border); border-radius: 100px; transition: background 0.15s; cursor: pointer; }
+  .toggle .track { position: absolute; inset: 0; background: #cdd5cf; border-radius: 100px; transition: background 0.15s; cursor: pointer; }
   .toggle input:checked + .track { background: var(--primary); }
-  .toggle .thumb { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.15s; pointer-events: none; }
+  .toggle .thumb { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.15s; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
   .toggle input:checked ~ .thumb { transform: translateX(18px); }
-  .perm-row { display: flex !important; flex-direction: row !important; align-items: center; gap: 8px; margin-bottom: 10px; text-align: left; }
+  .perm-row { display: flex !important; flex-direction: row !important; align-items: center; gap: 10px; margin-bottom: 10px; text-align: left; }
   .perm-row label { font-size: 13.5px; cursor: pointer; text-align: left; margin: 0; }
-  .client-check-row { display: inline-flex !important; align-items: center; gap: 6px; margin: 0 14px 8px 0; font-size: 13.5px; text-align: left; }
-  .empty { color: var(--text-dim); font-size: 13.5px; padding: 20px 0; text-align: center; }
-  .badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: var(--panel-hi); color: var(--text-dim); }
-  .badge-brouillon { background: rgba(24,90,157,0.25); color: #6cb6f5; }
-  .badge-envoyee { background: rgba(224,168,62,0.25); color: #f0c26e; }
-  .badge-payee { background: rgba(67,206,162,0.22); color: #43cea2; }
-  .tabs { display: flex; gap: 4px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
-  .tab { padding: 10px 16px; font-size: 13.5px; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent; }
-  .tab.active { color: var(--text); border-color: var(--primary); font-weight: 700; }
+  .client-check-row { display: inline-flex !important; align-items: center; gap: 8px; margin: 0 16px 10px 0; font-size: 13.5px; text-align: left; }
+  .empty { color: var(--text-dim); font-size: 13.5px; padding: 22px 0; text-align: center; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; background: var(--panel-hi); color: var(--text-dim); border: 1px solid var(--border); }
+  .badge-brouillon { background: #e8f0fa; color: #1d5fa8; border-color: #d3e2f4; }
+  .badge-envoyee { background: #fdf3e1; color: #8a5d00; border-color: #f4e2bd; }
+  .badge-payee { background: var(--primary-soft); color: var(--ok); border-color: #c9e8de; }
+  .tabs { display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .tab { padding: 10px 14px; font-size: 13.5px; color: var(--text-dim); cursor: pointer; border-bottom: 2.5px solid transparent; font-weight: 600; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--primary-dark); border-color: var(--primary); font-weight: 700; }
 
   .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
-  .stat-box { background: var(--panel); border-radius: 16px; padding: 18px; }
-  .stat-box .n { font-size: 28px; font-weight: 800; }
+  .stat-box { background: var(--panel); border-radius: 16px; padding: 18px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+  .stat-box .n { font-size: 28px; font-weight: 800; letter-spacing: -.02em; }
   .stat-box .l { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
   .chart-wrap { position: relative; height: 260px; }
   .event-item { padding: 14px 0; border-bottom: 1px solid var(--border); }
@@ -150,30 +167,23 @@
   .thumb-card.dragging { opacity: 0.4; }
   .menu-section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin: 4px 0 10px; }
 
-  /* --- Contenu en mode clair (moins fatigant) ; la barre du haut, les onglets et la liste des clients restent en mode nuit --- */
-  #topViewContainer {
-    --panel: #ffffff; --panel-hi: #eef1f5; --text: #1d2130; --text-dim: #5f6677; --border: #dfe3ea;
-    background: #f3f5f8; color: var(--text); min-height: calc(100vh - 108px);
+  /* --- Tout en clair (15.11.2026). Les champs écrits en dur avec un fond sombre dans les vues sont ramenés au thème --- */
+  #topViewContainer { background: var(--bg); color: var(--text); min-height: calc(100vh - 106px); }
+  #topViewContainer input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+  #topViewContainer textarea, #topViewContainer select {
+    background: var(--field) !important; color: var(--text) !important; border: 1px solid var(--border) !important;
   }
-  #topViewContainer .sidebar {
-    --panel: #241d38; --panel-hi: #2c2444; --text: #f4f2fa; --text-dim: #9992ad; --border: #35294f;
-    background: var(--bg); color: var(--text); border-right: none;
+  #topViewContainer input:not([type="checkbox"]):not([type="radio"]):focus, #topViewContainer textarea:focus { border-color: var(--primary) !important; box-shadow: 0 0 0 3px rgba(28,154,124,.15); outline: none; }
+  @media (max-width: 760px) {
+    .layout { flex-direction: column; } .sidebar { width: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    .main { padding: 20px 16px; } .stat-grid { grid-template-columns: 1fr 1fr; } .form-grid { grid-template-columns: 1fr !important; }
+    .topbar { padding: 10px 16px; } .top-nav { top: 53px; padding: 0 8px; }
   }
-  #topViewContainer .card, #topViewContainer .stat-box { border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(20,25,40,.05); }
-  #topViewContainer .main input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
-  #topViewContainer .main select, #topViewContainer .main textarea {
-    background: #fff !important; color: var(--text) !important; border: 1px solid #cfd5df !important;
-  }
-  #topViewContainer .main input:focus, #topViewContainer .main select:focus, #topViewContainer .main textarea:focus { border-color: var(--primary) !important; outline: none; }
-  #topViewContainer .btn-destructive { background: rgba(230,55,78,.1); color: #c42a3c; }
-  #topViewContainer .error-msg { color: #c42a3c; }
-  #topViewContainer .badge-brouillon { background: rgba(24,90,157,.12); color: #1d5fa8; }
-  #topViewContainer .badge-envoyee { background: rgba(224,168,62,.18); color: #8a5d00; }
-  #topViewContainer .badge-payee { background: rgba(67,206,162,.16); color: #0f8a63; }
   /* Onglets d'un client : ils passent à la ligne au lieu de déborder */
   .tabs { flex-wrap: wrap; }
   .tab { white-space: nowrap; }
 </style>
+<script src="/console-ui.js"></script>
 </head>
 <body>
 <div id="app"></div>
@@ -198,7 +208,7 @@ function i18nFieldGroup(uid, dbField, label, obj, multiline) {
         const val = code === 'fr' ? (obj?.[dbField] || '') : (obj?.[dbField + '_' + code] || '');
         const id = `i18n_${uid}_${dbField}_${code}`;
         return multiline
-          ? `<textarea id="${id}" placeholder="${langLabel}" rows="2" style="width:100%;margin-bottom:6px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:#17132a;color:var(--text);font-family:inherit;resize:vertical;">${val}</textarea>`
+          ? `<textarea id="${id}" placeholder="${langLabel}" rows="2" style="width:100%;margin-bottom:6px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--field);color:var(--text);font-family:inherit;resize:vertical;">${val}</textarea>`
           : `<input id="${id}" placeholder="${langLabel}" value="${val}" style="margin-bottom:6px;">`;
       }).join('')}
     </div>
@@ -269,10 +279,10 @@ function genDeviceKey() {
 /* Changer son mot de passe : proposé automatiquement à l'arrivée par un lien « mot de passe oublié »
    (événement PASSWORD_RECOVERY), et disponible à tout moment via le bouton « Mot de passe » en haut. */
 async function changePassword() {
-  const p1 = prompt('Nouveau mot de passe (8 caractères minimum) :');
+  const p1 = await uiPrompt('Nouveau mot de passe (8 caractères minimum) :');
   if (p1 === null) return;
   if (p1.length < 8) { alert('8 caractères minimum.'); return changePassword(); }
-  const p2 = prompt('Confirme le nouveau mot de passe :');
+  const p2 = await uiPrompt('Confirme le nouveau mot de passe :');
   if (p2 !== p1) { alert('Les deux saisies ne correspondent pas.'); return changePassword(); }
   const { error } = await sb.auth.updateUser({ password: p1 });
   alert(error ? 'Erreur : ' + error.message : 'Mot de passe enregistré. Tu peux l\'utiliser dès maintenant pour te connecter.');
@@ -317,8 +327,8 @@ function renderLogin(errorMsg) {
   app.innerHTML = `
     <div class="login-wrap">
       <div class="login-card">
-        <h1>PandaFit</h1>
-        <p>Console superadmin — accès réservé.</p>
+        <img src="/logo-pandafit.png" alt="" style="height:54px;display:block;margin-bottom:14px;"><h1>PandaFit</h1>
+        <p>Console PandaFit · accès réservé à l’équipe.</p>
         <input id="loginEmail" type="email" placeholder="Email">
         <input id="loginPassword" type="password" placeholder="Mot de passe">
         ${errorMsg ? `<div class="error-msg">${errorMsg}</div>` : ''}
@@ -454,7 +464,7 @@ async function render() {
 
   app.innerHTML = `
     <div class="topbar">
-      <div class="brand"><div class="mark">PF</div>PandaFit — ${ROLE_LABELS[currentAdmin?.role] || 'Admin'}</div>
+      <div class="brand"><img src="/logo-pandafit.png" alt="" style="height:32px;width:auto;display:block;">PandaFit <span style="font-weight:600;color:var(--text-dim);">· ${ROLE_LABELS[currentAdmin?.role] || 'Admin'}</span></div>
       <button class="btn-ghost" id="btnChangePass" title="Changer mon mot de passe">Mot de passe</button>
       <button class="btn-ghost" id="btnLogout">Se déconnecter</button>
     </div>
@@ -691,7 +701,7 @@ async function renderHrTab() {
     renderHrTab();
   });
   el.querySelectorAll('[data-del-hr]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm("Retirer l'accès à l'espace RH ?")) return;
+    if (!await uiConfirm("Retirer l'accès à l'espace RH ?")) return;
     const { error } = await sb.rpc('staff_remove_hr', { p_admin: b.dataset.delHr });
     if (error) alert('Erreur : ' + error.message);
     renderHrTab();
@@ -715,7 +725,7 @@ async function renderHrTab() {
     window.open(data.signedUrl, '_blank');
   }));
   el.querySelectorAll('[data-del-report]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('Supprimer ce rapport ? Il disparaîtra de l\'espace RH.')) return;
+    if (!await uiConfirm('Supprimer ce rapport ? Il disparaîtra de l\'espace RH.')) return;
     const r = reports.find(x => x.id === b.dataset.delReport);
     if (r.file_path) await sb.storage.from('client-reports').remove([r.file_path]);
     await sb.from('client_reports').delete().eq('id', r.id);
@@ -780,7 +790,7 @@ function renderDevicesTab() {
   `;
   el.querySelectorAll('[data-del]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Supprimer cette tablette ? Elle devra être reconfigurée avec une nouvelle clé.')) return;
+      if (!await uiConfirm('Supprimer cette tablette ? Elle devra être reconfigurée avec une nouvelle clé.')) return;
       await sb.from('devices').delete().eq('id', btn.dataset.del);
       await loadClientDetail(selectedClientId);
       await loadClients();
@@ -814,8 +824,8 @@ function renderDevicesTab() {
           : 'Signal envoyé aux tablettes de ce client ✅ (appliqué en ~20 s).');
   }
   document.getElementById('btnRefreshThisClient')?.addEventListener('click', () => bumpRefresh('client'));
-  document.getElementById('btnRefreshAllClients')?.addEventListener('click', () => {
-    if (confirm('Rafraîchir les tablettes de TOUS les clients ?')) bumpRefresh('all');
+  document.getElementById('btnRefreshAllClients')?.addEventListener('click', async () => {
+    if (await uiConfirm('Rafraîchir les tablettes de TOUS les clients ?')) bumpRefresh('all');
   });
 
   // Rechargement complet : on change reload_token ; les tablettes rechargent la page
@@ -833,11 +843,11 @@ function renderDevicesTab() {
           ? 'Rechargement demandé à toutes les tablettes ✅ (elles rechargent puis se reconnectent, ~30 s).'
           : 'Rechargement demandé aux tablettes de ce client ✅ (elles rechargent puis se reconnectent, ~30 s).');
   }
-  document.getElementById('btnReloadThisClient')?.addEventListener('click', () => {
-    if (confirm('Recharger complètement les tablettes de ce client ? (bref écran de reconnexion capteur)')) bumpReload('client');
+  document.getElementById('btnReloadThisClient')?.addEventListener('click', async () => {
+    if (await uiConfirm('Recharger complètement les tablettes de ce client ? (bref écran de reconnexion capteur)')) bumpReload('client');
   });
-  document.getElementById('btnReloadAllClients')?.addEventListener('click', () => {
-    if (confirm('Recharger complètement les tablettes de TOUS les clients ?')) bumpReload('all');
+  document.getElementById('btnReloadAllClients')?.addEventListener('click', async () => {
+    if (await uiConfirm('Recharger complètement les tablettes de TOUS les clients ?')) bumpReload('all');
   });
 
   // Rechargement nocturne, par client. On change aussi refresh_token pour que les tablettes
@@ -885,7 +895,7 @@ async function renderGamesTab() {
           const enabled = cg ? cg.enabled : false;
           const img = cg?.image_url || g.image_url;
           return `
-            <div class="game-drag-row" data-game="${g.id}" draggable="true" style="display:flex;align-items:center;gap:12px;padding:10px;border-radius:12px;background:var(--panel-hi,#17132a);margin-bottom:8px;cursor:grab;">
+            <div class="game-drag-row" data-game="${g.id}" draggable="true" style="display:flex;align-items:center;gap:12px;padding:10px;border-radius:12px;background:var(--panel-hi,var(--field));margin-bottom:8px;cursor:grab;">
               <i data-lucide="grip-vertical" style="opacity:0.5;flex-shrink:0;"></i>
               ${img ? `<img src="${img}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;">` : `<div style="width:52px;height:52px;border-radius:8px;background:var(--border);flex-shrink:0;"></div>`}
               <div style="flex:1;min-width:0;">
@@ -896,7 +906,7 @@ async function renderGamesTab() {
                 <input type="checkbox" data-game="${g.id}" ${enabled ? 'checked' : ''}>
                 <span class="track"></span><span class="thumb"></span>
               </label>
-              <select data-game-qn="${g.id}" style="padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:#17132a;color:var(--text);flex-shrink:0;max-width:150px;">
+              <select data-game-qn="${g.id}" style="padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--field);color:var(--text);flex-shrink:0;max-width:150px;">
                 ${qnOptions(cg?.questionnaire_id)}
               </select>
             </div>
@@ -911,7 +921,7 @@ async function renderGamesTab() {
           <div style="font-weight:700;">PandaFit Index</div>
           <div style="color:var(--text-dim);font-size:12.5px;">Test d'équilibre — questionnaire avant de jouer</div>
         </div>
-        <select id="indexQnSelect" style="padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+        <select id="indexQnSelect" style="padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--field);color:var(--text);">
           ${qnOptions(client.index_questionnaire_id)}
         </select>
       </div>
@@ -1139,7 +1149,7 @@ async function generateFullReport() {
         display: flex; align-items: center; justify-content: center; font-weight: 800; color: #185a9d; font-size: 16px;
       }
       .report-title-block { padding: 0 30px; }
-      h1 { font-size: 21px; margin: 0 0 2px; color: #17132a; }
+      h1 { font-size: 21px; margin: 0 0 2px; color: var(--field); }
       .meta { color: #777; font-size: 12.5px; margin-bottom: 22px; }
       .report-content { padding: 0 30px; }
       .report-section { padding: 14px 0 20px; border-top: 1px solid #eee; }
@@ -1148,7 +1158,7 @@ async function generateFullReport() {
       h3 { font-size: 13px; margin-top: 18px; color: #444; }
       .report-stats-row { display: flex; gap: 10px; margin: 14px 0; page-break-inside: avoid; }
       .report-stat-box { flex: 1; background: #f4f4f7; border-radius: 10px; padding: 12px; text-align: center; }
-      .report-stat-box .n { font-size: 21px; font-weight: 800; color: #17132a; }
+      .report-stat-box .n { font-size: 21px; font-weight: 800; color: var(--field); }
       .report-stat-box .l { font-size: 10px; color: #777; }
       .report-chart { max-width: 560px; margin: 0 auto 18px; page-break-inside: avoid; }
       .report-footer { text-align: center; font-size: 10.5px; color: #aaa; padding: 20px 30px 0; }
@@ -1179,7 +1189,7 @@ async function generateFullReport() {
         const gameLabels = Object.keys(s.stats.countByGame).map(id => games.find(g => g.id === id)?.name || id);
         new reportWindow.Chart(reportWindow.document.getElementById('chartDay' + s.key), {
           type: 'bar',
-          data: { labels: s.dayList.map(d => d.slice(5)), datasets: [{ data: s.stats.countsByDay, backgroundColor: '#43cea2' }] },
+          data: { labels: s.dayList.map(d => d.slice(5)), datasets: [{ data: s.stats.countsByDay, backgroundColor: '#1c9a7c' }] },
           options: { responsive: false, animation: false, plugins: { legend: { display: false }, title: { display: true, text: 'Parties par jour' } } }
         });
         new reportWindow.Chart(reportWindow.document.getElementById('chartIdx' + s.key), {
@@ -1189,7 +1199,7 @@ async function generateFullReport() {
         });
         new reportWindow.Chart(reportWindow.document.getElementById('chartGame' + s.key), {
           type: 'doughnut',
-          data: { labels: gameLabels, datasets: [{ data: Object.values(s.stats.countByGame), backgroundColor: ['#43cea2', '#185a9d', '#c86dd7', '#e6374e', '#e0a83e', '#3023ae'] }] },
+          data: { labels: gameLabels, datasets: [{ data: Object.values(s.stats.countByGame), backgroundColor: ['#1c9a7c', '#185a9d', '#6b55c7', '#e6374e', '#e0a83e', '#3023ae'] }] },
           options: { responsive: false, plugins: { title: { display: true, text: 'Répartition par jeu' } } }
         });
       });
@@ -1286,7 +1296,7 @@ async function renderStatsTab() {
         </div>
         <div>
           <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Tablette</div>
-          <select id="statsDevice" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+          <select id="statsDevice" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);">
             <option value="">Toutes les tablettes</option>
             ${deviceOptions}
           </select>
@@ -1306,7 +1316,7 @@ async function renderStatsTab() {
       <div class="stat-grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:14px;margin-bottom:0;">
         <div class="stat-box"><div class="n">${earlyAvg ?? '—'}</div><div class="l">Moyenne 15% début</div></div>
         <div class="stat-box"><div class="n">${lateAvg ?? '—'}</div><div class="l">Moyenne 15% fin</div></div>
-        <div class="stat-box"><div class="n" style="color:${delta > 0 ? '#43cea2' : delta < 0 ? '#e6374e' : 'var(--text)'};">${delta != null ? (delta > 0 ? '+' : '') + delta : '—'}</div><div class="l">Évolution</div></div>
+        <div class="stat-box"><div class="n" style="color:${delta > 0 ? 'var(--ok)' : delta < 0 ? '#e6374e' : 'var(--text)'};">${delta != null ? (delta > 0 ? '+' : '') + delta : '—'}</div><div class="l">Évolution</div></div>
       </div>
     </div>
 
@@ -1321,7 +1331,7 @@ async function renderStatsTab() {
         <div class="stat-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:0;">
           <div class="stat-box"><div class="n" style="color:#e6374e;">${satCounts.red}</div><div class="l">🔴 ${Math.round(satCounts.red / satTotal * 100)}%</div></div>
           <div class="stat-box"><div class="n" style="color:#e0a83e;">${satCounts.yellow}</div><div class="l">🟡 ${Math.round(satCounts.yellow / satTotal * 100)}%</div></div>
-          <div class="stat-box"><div class="n" style="color:#43cea2;">${satCounts.green}</div><div class="l">🟢 ${Math.round(satCounts.green / satTotal * 100)}%</div></div>
+          <div class="stat-box"><div class="n" style="color:var(--ok);">${satCounts.green}</div><div class="l">🟢 ${Math.round(satCounts.green / satTotal * 100)}%</div></div>
         </div>
         <p style="font-size:12.5px;color:var(--text-dim);margin-top:12px;margin-bottom:0;">${satTotal} réponse${satTotal > 1 ? 's' : ''} au total sur la période filtrée · <b style="color:var(--text);">Indice ${satIdxLabel(satCounts)}</b> (part de vert moins part de rouge, de −100 à +100)</p>
         ${satWeeksHTML(satisfactionResponses)}
@@ -1405,20 +1415,20 @@ async function renderStatsTab() {
 
   charts.byDay = new Chart(document.getElementById('chartByDay'), {
     type: 'bar',
-    data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: countsByDay, backgroundColor: '#43cea2', borderRadius: 4 }] },
+    data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: countsByDay, backgroundColor: '#1c9a7c', borderRadius: 4 }] },
     options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#5f6677' } }, x: { ticks: { color: '#5f6677', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
   });
 
   charts.indexAvg = new Chart(document.getElementById('chartIndexAvg'), {
     type: 'line',
-    data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: avgIndexByDay, spanGaps: true, borderColor: '#c86dd7', backgroundColor: 'rgba(200,109,215,0.15)', fill: true, tension: 0.3 }] },
+    data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: avgIndexByDay, spanGaps: true, borderColor: '#6b55c7', backgroundColor: 'rgba(107,85,199,0.12)', fill: true, tension: 0.3 }] },
     options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100, ticks: { color: '#5f6677' } }, x: { ticks: { color: '#5f6677', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
   });
 
   const gameLabels = Object.keys(countByGame).map(id => games.find(g => g.id === id)?.name || id);
   charts.byGame = new Chart(document.getElementById('chartByGame'), {
     type: 'doughnut',
-    data: { labels: gameLabels, datasets: [{ data: Object.values(countByGame), backgroundColor: ['#43cea2', '#185a9d', '#c86dd7', '#e6374e', '#e0a83e', '#3023ae'] }] },
+    data: { labels: gameLabels, datasets: [{ data: Object.values(countByGame), backgroundColor: ['#1c9a7c', '#185a9d', '#6b55c7', '#e6374e', '#e0a83e', '#3023ae'] }] },
     options: { plugins: { legend: { position: 'right', labels: { color: '#5f6677' } } } }
   });
 }
@@ -1507,7 +1517,7 @@ function renderEventsTab() {
   });
   el.querySelectorAll('[data-del-event]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Supprimer cet événement ?')) return;
+      if (!await uiConfirm('Supprimer cet événement ?')) return;
       await sb.from('events').delete().eq('id', btn.dataset.delEvent);
       await loadProjectDetail();
       renderEventsTab();
@@ -1524,8 +1534,8 @@ function leaderboardTableHTML(entries, editable) {
     <div style="max-width:440px;margin:0 auto;">
       ${entries.slice(0, 10).map((e, i) => `
         <div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:12px;margin-bottom:7px;
-                    background:${i === 0 ? 'linear-gradient(90deg,rgba(255,215,0,0.16),rgba(255,215,0,0.03))' : i === 1 ? 'linear-gradient(90deg,rgba(192,192,192,0.14),rgba(192,192,192,0.02))' : i === 2 ? 'linear-gradient(90deg,rgba(205,127,50,0.14),rgba(205,127,50,0.02))' : 'var(--panel-hi,#17132a)'};
-                    border:1px solid ${i < 3 ? 'rgba(255,255,255,0.1)' : 'transparent'};">
+                    background:${i === 0 ? 'linear-gradient(90deg,rgba(255,215,0,0.16),rgba(255,215,0,0.03))' : i === 1 ? 'linear-gradient(90deg,rgba(192,192,192,0.14),rgba(192,192,192,0.02))' : i === 2 ? 'linear-gradient(90deg,rgba(205,127,50,0.14),rgba(205,127,50,0.02))' : 'var(--panel-hi,var(--field))'};
+                    border:1px solid ${i < 3 ? 'var(--border)' : 'transparent'};">
           <div style="width:30px;text-align:center;font-size:${i < 3 ? '20px' : '14px'};color:var(--text-dim);">${medals[i] || (i + 1)}</div>
           <div style="flex:1;font-weight:${i < 3 ? 800 : 600};font-size:${i < 3 ? '15.5px' : '14px'};">${e.name}</div>
           <div style="font-family:monospace;font-weight:700;font-size:${i < 3 ? '16px' : '14px'};">${e.score}</div>
@@ -1574,10 +1584,10 @@ function renderDefisTab() {
       </div>
       ${i18nFieldGroup('title', 'title', 'Titre (ex: Défi équilibre de la rentrée)', editing, false)}
       <div class="form-grid">
-        <select id="defiGame" style="padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+        <select id="defiGame" style="padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);">
           ${games.map(g => `<option value="${g.id}" ${editing && editing.game_id === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
         </select>
-        <select id="defiMode" style="padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+        <select id="defiMode" style="padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);">
           <option value="company_total" ${editing && editing.mode === 'company_total' ? 'selected' : ''}>Total cumulé entreprise</option>
           <option value="tablet_vs_tablet" ${editing && editing.mode === 'tablet_vs_tablet' ? 'selected' : ''}>Classement tablette contre tablette</option>
           <option value="arcade" ${editing && editing.mode === 'arcade' ? 'selected' : ''}>Défi interne (highscore façon arcade, avec pseudo)</option>
@@ -1587,7 +1597,7 @@ function renderDefisTab() {
       ${i18nFieldGroup('objective_text', 'objective_text', 'Objectif (optionnel, ex: 5000 points cumulés)', editing, false)}
       <div style="margin-bottom:10px;">
         <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Lot du catalogue de récompenses (optionnel : affiché « À gagner : … avec [partenaire] » sur la tablette, à la place du texte ci-dessous)</div>
-        <select id="defiReward" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+        <select id="defiReward" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);">
           <option value="">— Aucun lot du catalogue —</option>
           ${(rewardCatalog || []).filter(r => (r.is_active && r.reward_partners?.status !== 'inactif') || r.id === editing?.reward_id).map(r => `<option value="${r.id}" ${editing?.reward_id === r.id ? 'selected' : ''}>${escA(r.title)} · ${escA(r.reward_partners?.name || '')}${r.value_chf ? ` (valeur ${r.value_chf} CHF)` : ''}${r.price_chf ? ` · ${r.price_chf} CHF pour la RH` : ' · offert'}</option>`).join('')}
         </select>
@@ -1648,9 +1658,9 @@ function renderDefisTab() {
     btn.addEventListener('click', async () => {
       const row = (arcadeScoresCache[showingScoresDefiId] || []).find(s => s.id === btn.dataset.editScore);
       if (!row) return;
-      const newName = prompt('Pseudo (max 10 caractères)', row.name);
+      const newName = await uiPrompt('Pseudo (max 10 caractères)', row.name);
       if (newName === null) return;
-      const newScoreStr = prompt('Score', row.score);
+      const newScoreStr = await uiPrompt('Score', row.score);
       if (newScoreStr === null) return;
       const { error } = await sb.from('defi_arcade_scores').update({ name: newName.slice(0, 10), score: parseFloat(newScoreStr) || 0 }).eq('id', row.id);
       if (error) { alert('Erreur : ' + error.message); return; }
@@ -1661,7 +1671,7 @@ function renderDefisTab() {
   });
   el.querySelectorAll('[data-del-score]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Supprimer ce score ?')) return;
+      if (!await uiConfirm('Supprimer ce score ?')) return;
       await sb.from('defi_arcade_scores').delete().eq('id', btn.dataset.delScore);
       const { data } = await sb.from('defi_arcade_scores').select('*').eq('defi_id', showingScoresDefiId).order('score', { ascending: false });
       arcadeScoresCache[showingScoresDefiId] = data || [];
@@ -1701,7 +1711,7 @@ function renderDefisTab() {
   });
   el.querySelectorAll('[data-del-defi]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Supprimer ce défi ?')) return;
+      if (!await uiConfirm('Supprimer ce défi ?')) return;
       await sb.from('defis').delete().eq('id', btn.dataset.delDefi);
       await loadProjectDetail();
       renderDefisTab();
@@ -1776,7 +1786,7 @@ async function renderChallengesView() {
       </div>
       <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">3. Jeu et présentation</div>
       ${i18nFieldGroup('title', 'title', 'Titre (ex: Challenge Vaud 2026)', editing, false)}
-      <select id="chGame" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);margin-bottom:10px;">
+      <select id="chGame" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);margin-bottom:10px;">
         ${games.filter(g => g.id !== 'indextest').map(g => `<option value="${g.id}" ${editing && editing.game_id === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
       </select>
       <input id="chImage" type="file" accept="image/*" style="margin-bottom:10px;">
@@ -1890,7 +1900,7 @@ async function renderChallengesView() {
   });
   listEl.querySelectorAll('[data-del-challenge]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Supprimer ce challenge ?')) return;
+      if (!await uiConfirm('Supprimer ce challenge ?')) return;
       await sb.from('challenges').delete().eq('id', btn.dataset.delChallenge);
       renderChallengesView();
     });
@@ -2291,7 +2301,7 @@ function renderAdsTab() {
   });
   el.querySelectorAll('[data-del-ad]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Supprimer cette publicité ?')) return;
+      if (!await uiConfirm('Supprimer cette publicité ?')) return;
       await sb.from('client_ads').delete().eq('id', btn.dataset.delAd);
       await loadProjectDetail();
       renderAdsTab();
@@ -2454,7 +2464,7 @@ async function renderContentView() {
   document.getElementById('btnCancelStep')?.addEventListener('click', () => { editingInitiationStepId = null; renderContentView(); });
   main.querySelectorAll('[data-del-step]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Supprimer cette étape ?')) return;
+      if (!await uiConfirm('Supprimer cette étape ?')) return;
       await sb.from('initiation_steps').delete().eq('id', btn.dataset.delStep);
       editingInitiationStepId = null;
       renderContentView();
@@ -2511,7 +2521,7 @@ function renderDetailsTab() {
     </div>
     <div class="card">
       <h3>Notes libres</h3>
-      <textarea id="dtNotes" rows="6" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);font-size:14px;font-family:inherit;resize:vertical;" placeholder="Notes internes sur ce client...">${client.notes || ''}</textarea>
+      <textarea id="dtNotes" rows="6" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);font-size:14px;font-family:inherit;resize:vertical;" placeholder="Notes internes sur ce client...">${client.notes || ''}</textarea>
     </div>
     <button class="btn-primary" id="btnSaveDetails" style="width:auto;">Enregistrer</button>
   `;
@@ -2592,7 +2602,7 @@ async function renderQuestionnairesTab() {
   });
   el.querySelectorAll('[data-del-qn]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Supprimer ce questionnaire (et ses questions) ?')) return;
+      if (!await uiConfirm('Supprimer ce questionnaire (et ses questions) ?')) return;
       await sb.from('questionnaires').delete().eq('id', btn.dataset.delQn);
       renderQuestionnairesTab();
     });
@@ -2651,7 +2661,7 @@ async function renderQuestionnaireEditor(el) {
   });
   el.querySelectorAll('[data-del-question]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Supprimer cette question et ses réponses ?')) return;
+      if (!await uiConfirm('Supprimer cette question et ses réponses ?')) return;
       await sb.from('questions').delete().eq('id', btn.dataset.delQuestion);
       renderQuestionnaireEditor(el);
     });
@@ -2666,7 +2676,7 @@ async function renderQuestionnaireEditor(el) {
     btn.addEventListener('click', async () => {
       const qId = btn.dataset.addOption;
       const q = questions.find(x => x.id === qId);
-      const option_text = prompt('Texte de la réponse :');
+      const option_text = await uiPrompt('Texte de la réponse :');
       if (!option_text || !option_text.trim()) return;
       await sb.from('question_options').insert({ question_id: qId, option_text: option_text.trim(), sort_order: q.question_options.length });
       renderQuestionnaireEditor(el);
@@ -2736,7 +2746,7 @@ async function renderCRMView() {
           <input id="crmRole" placeholder="Poste">
           <input id="crmEmail" type="email" placeholder="Email">
           <input id="crmPhone" placeholder="Téléphone">
-          <select id="crmStatus" style="padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+          <select id="crmStatus" style="padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);">
             <option value="prospect">Prospect</option>
             <option value="client">Client actuel</option>
             <option value="ancien">Ancien client</option>
@@ -2824,7 +2834,7 @@ async function renderCrmDetail() {
         <input id="crmRole" value="${contact.role || ''}" placeholder="Poste">
         <input id="crmEmail" value="${contact.email || ''}" type="email" placeholder="Email">
         <input id="crmPhone" value="${contact.phone || ''}" placeholder="Téléphone">
-        <select id="crmStatus" style="padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+        <select id="crmStatus" style="padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);">
           <option value="prospect" ${contact.status === 'prospect' ? 'selected' : ''}>Prospect</option>
           <option value="client" ${contact.status === 'client' ? 'selected' : ''}>Client actuel</option>
           <option value="ancien" ${contact.status === 'ancien' ? 'selected' : ''}>Ancien client</option>
@@ -2834,14 +2844,14 @@ async function renderCrmDetail() {
     <div class="card">
       <h3>Client PandaFit lié</h3>
       <p style="font-size:12.5px;color:var(--text-dim);margin-bottom:10px;">Si ce contact correspond à un client réellement actif dans PandaFit, relie-le ici.</p>
-      <select id="crmLinkedClient" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+      <select id="crmLinkedClient" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);">
         <option value="">Aucun</option>
         ${clients.map(c => `<option value="${c.id}" ${contact.linked_client_id === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
       </select>
     </div>
     <div class="card">
       <h3>Notes</h3>
-      <textarea id="crmNotes" rows="5" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);font-family:inherit;resize:vertical;">${contact.notes || ''}</textarea>
+      <textarea id="crmNotes" rows="5" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);font-family:inherit;resize:vertical;">${contact.notes || ''}</textarea>
     </div>
     <button class="btn-primary" id="btnSaveCrm" style="width:auto;">Enregistrer</button>
     <button class="btn-destructive" id="btnDeleteCrm" style="width:auto;">Supprimer ce contact</button>
@@ -2884,7 +2894,7 @@ async function renderCrmDetail() {
     renderCRMView();
   });
   document.getElementById('btnDeleteCrm').addEventListener('click', async () => {
-    if (!confirm('Supprimer ce contact et ses fichiers ?')) return;
+    if (!await uiConfirm('Supprimer ce contact et ses fichiers ?')) return;
     await sb.from('crm_contacts').delete().eq('id', contact.id);
     editingCrmId = null;
     renderCRMView();
@@ -2944,7 +2954,7 @@ async function renderCrmDetail() {
     });
     invoicesListEl.querySelectorAll('[data-del-invoice]').forEach(btn => {
       btn.addEventListener('click', async () => {
-        if (!confirm('Supprimer cette facture ?')) return;
+        if (!await uiConfirm('Supprimer cette facture ?')) return;
         await sb.from('invoices').delete().eq('id', btn.dataset.delInvoice);
         renderCrmDetail();
       });
@@ -2999,7 +3009,7 @@ function renderInvoiceEditor(contact, invoice) {
     <div class="card">
       <h3>Message / référence</h3>
       <input id="invMessage" placeholder="Ex: Facture pour prestations PandaFit" value="${invoice?.message || ''}">
-      <select id="invStatus" style="margin-top:10px;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+      <select id="invStatus" style="margin-top:10px;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);">
         <option value="brouillon" ${invoice?.status === 'brouillon' || !invoice ? 'selected' : ''}>Brouillon</option>
         <option value="envoyee" ${invoice?.status === 'envoyee' ? 'selected' : ''}>Envoyée</option>
         <option value="payee" ${invoice?.status === 'payee' ? 'selected' : ''}>Payée</option>
@@ -3265,7 +3275,7 @@ async function renderGlobalStatsView() {
       <div class="stat-box"><div class="n">${stats.total}</div><div class="l">Parties jouées (tous clients)</div></div>
       <div class="stat-box"><div class="n">${clientRows.length}</div><div class="l">Clients actifs sur la période</div></div>
       <div class="stat-box"><div class="n">${stats.earlyAvg ?? '—'} → ${stats.lateAvg ?? '—'}</div><div class="l">Index moy. début → fin</div></div>
-      <div class="stat-box"><div class="n" style="color:${stats.delta > 0 ? '#43cea2' : stats.delta < 0 ? '#e6374e' : 'var(--text)'};">${stats.delta != null ? (stats.delta > 0 ? '+' : '') + stats.delta : '—'}</div><div class="l">Évolution Index</div></div>
+      <div class="stat-box"><div class="n" style="color:${stats.delta > 0 ? 'var(--ok)' : stats.delta < 0 ? '#e6374e' : 'var(--text)'};">${stats.delta != null ? (stats.delta > 0 ? '+' : '') + stats.delta : '—'}</div><div class="l">Évolution Index</div></div>
     </div>
     <div class="card">
       <h3>Parties par jour</h3>
@@ -3299,17 +3309,17 @@ async function renderGlobalStatsView() {
 
   charts.gsByDay = new Chart(document.getElementById('gsChartByDay'), {
     type: 'bar',
-    data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: stats.countsByDay, backgroundColor: '#43cea2', borderRadius: 4 }] },
+    data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: stats.countsByDay, backgroundColor: '#1c9a7c', borderRadius: 4 }] },
     options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#5f6677' } }, x: { ticks: { color: '#5f6677', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
   });
   charts.gsIndex = new Chart(document.getElementById('gsChartIndex'), {
     type: 'line',
-    data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: stats.avgIndexByDay, spanGaps: true, borderColor: '#c86dd7', backgroundColor: 'rgba(200,109,215,0.15)', fill: true, tension: 0.3 }] },
+    data: { labels: dayList.map(d => d.slice(5)), datasets: [{ data: stats.avgIndexByDay, spanGaps: true, borderColor: '#6b55c7', backgroundColor: 'rgba(107,85,199,0.12)', fill: true, tension: 0.3 }] },
     options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100, ticks: { color: '#5f6677' } }, x: { ticks: { color: '#5f6677', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } } }
   });
   charts.gsByGame = new Chart(document.getElementById('gsChartByGame'), {
     type: 'doughnut',
-    data: { labels: gameLabels, datasets: [{ data: Object.values(stats.countByGame), backgroundColor: ['#43cea2', '#185a9d', '#c86dd7', '#e6374e', '#e0a83e', '#3023ae'] }] },
+    data: { labels: gameLabels, datasets: [{ data: Object.values(stats.countByGame), backgroundColor: ['#1c9a7c', '#185a9d', '#6b55c7', '#e6374e', '#e0a83e', '#3023ae'] }] },
     options: { plugins: { legend: { position: 'right', labels: { color: '#5f6677' } } } }
   });
 }
@@ -3366,7 +3376,7 @@ async function renderAccessView() {
       <div class="form-grid" style="grid-template-columns:1fr 1fr;">
         <input id="newCoachEmail" type="email" placeholder="Email du coach">
         <input id="newCoachName" placeholder="Prénom Nom">
-        <select id="newCoachTerritory" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+        <select id="newCoachTerritory" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);">
           ${territoriesList.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
         </select>
         <input id="newCoachFee" type="number" value="550" placeholder="Honoraires par ½ journée (CHF)">
@@ -3433,7 +3443,7 @@ async function renderAccessView() {
   });
   main.querySelectorAll('[data-del-admin]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm("Supprimer cet accès ? (le compte de connexion lui-même n'est pas supprimé, seul son accès à la console l'est)")) return;
+      if (!await uiConfirm("Supprimer cet accès ? (le compte de connexion lui-même n'est pas supprimé, seul son accès à la console l'est)")) return;
       await sb.from('admin_users').delete().eq('id', btn.dataset.delAdmin);
       renderAccessView();
     });
@@ -3453,7 +3463,7 @@ function renderAdminEditor() {
       <h3>${admin.email}</h3>
       <input id="editAdminName" placeholder="Nom" value="${admin.display_name || ''}" style="margin-bottom:10px;">
       <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Rôle</div>
-      <select id="editAdminRole" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);margin-bottom:10px;">
+      <select id="editAdminRole" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);margin-bottom:10px;">
         <option value="territory_admin" ${admin.role === 'territory_admin' ? 'selected' : ''}>Admin de territoire (équipe commerciale ou franchisé)</option>
         <option value="coach" ${admin.role === 'coach' ? 'selected' : ''}>Coach (espace coach uniquement)</option>
         <option value="superadmin" ${admin.role === 'superadmin' ? 'selected' : ''}>Superadmin (tous les droits)</option>
@@ -3461,7 +3471,7 @@ function renderAdminEditor() {
       ${admin.role === 'coach' ? `
         <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:10px;">
           <div><div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Certification</div>
-            <select id="editCoachCert" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+            <select id="editCoachCert" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);">
               ${[['en_formation', 'En formation'], ['certifie', 'Certifié'], ['suspendu', 'Suspendu']].map(([k, l]) => `<option value="${k}" ${(admin.coach_profiles?.certification || 'en_formation') === k ? 'selected' : ''}>${l}</option>`).join('')}
             </select></div>
           <div><div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Honoraires par défaut (CHF / ½ journée)</div>
@@ -3517,7 +3527,7 @@ function renderAdminEditor() {
     const selectedClientIds = [...main.querySelectorAll('.client-check:checked')].map(cb => cb.value);
     const selectedTerritoryIds = [...main.querySelectorAll('.territory-check:checked')].map(cb => cb.value);
     const role = document.getElementById('editAdminRole').value;
-    if (role === 'superadmin' && !confirm(`Donner TOUS les droits à ${admin.email} (superadmin) ?`)) return;
+    if (role === 'superadmin' && !await uiConfirm(`Donner TOUS les droits à ${admin.email} (superadmin) ?`)) return;
 
     const { error } = await sb.from('admin_users').update({ display_name, permissions, role }).eq('id', admin.id);
     if (error) { alert('Erreur : ' + error.message); return; }
@@ -3729,7 +3739,7 @@ async function renderRewardsView() {
   const ep = P.find(p => p.id === editingPartnerId), er = R.find(r => r.id === editingRewardId);
   const chf = v => v == null || v === '' ? '—' : chfFmt(v);
   const opt = (map, cur) => Object.entries(map).map(([k, l]) => `<option value="${k}" ${cur === k ? 'selected' : ''}>${l}</option>`).join('');
-  const sel = 'padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);';
+  const sel = 'padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);';
   main.innerHTML = `
     <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="gift"></i> Catalogue de récompenses</div>
     <div class="section-sub">Les lots des défis, fournis par des partenaires (massage, physio, sport…). Pour l'instant (phase test) : lots offerts contre visibilité sur la tablette. Un lot se choisit ensuite dans l'onglet Défis d'un projet. Aucune donnée de joueur n'est transmise aux partenaires : le gagnant reçoit le bon et contacte lui-même le partenaire.</div>
@@ -3763,7 +3773,7 @@ async function renderRewardsView() {
       </div>
       <div class="form-grid" style="grid-template-columns:1fr 2fr;">
         <div><div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Logo (affiché sur la tablette)</div><input id="rpLogo" type="file" accept="image/*" style="padding:9px;"></div>
-        <textarea id="rpNotes" rows="2" placeholder="Notes internes (conditions, nombre de lots promis…)" style="padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:#17132a;color:var(--text);font-family:inherit;">${escA(ep?.notes || '')}</textarea>
+        <textarea id="rpNotes" rows="2" placeholder="Notes internes (conditions, nombre de lots promis…)" style="padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--field);color:var(--text);font-family:inherit;">${escA(ep?.notes || '')}</textarea>
       </div>
       <div class="row" style="gap:8px;">
         <button class="btn-primary" id="btnSavePartner" style="width:auto;">${ep ? 'Enregistrer' : 'Ajouter le partenaire'}</button>
@@ -3808,7 +3818,7 @@ async function renderRewardsView() {
     rewardCatalog = null; renderRewardsView();
   }));
   document.getElementById('btnDelPartner')?.addEventListener('click', async () => {
-    if (!confirm(`Supprimer ${ep.name} et tous ses lots ? Les défis qui les utilisent garderont leur texte libre.`)) return;
+    if (!await uiConfirm(`Supprimer ${ep.name} et tous ses lots ? Les défis qui les utilisent garderont leur texte libre.`)) return;
     const { error } = await sb.from('reward_partners').delete().eq('id', ep.id);
     if (error) { alert('Erreur : ' + error.message); return; }
     editingPartnerId = null; rewardCatalog = null; renderRewardsView();
@@ -3850,7 +3860,7 @@ function nrmSpark(tr, axis) {
   if (v.length < 3) return '';
   const step = Math.max(1, Math.floor(v.length / 120)), pts = v.filter((_, i) => i % step === 0);
   const lo = Math.min(...pts), hi = Math.max(...pts), span = Math.max(20, hi - lo);
-  return `<svg width="130" height="30" viewBox="0 0 130 30" style="display:block;"><polyline fill="none" stroke="#43cea2" stroke-width="1.4" points="${pts.map((n, i) => `${(i / (pts.length - 1) * 128 + 1).toFixed(1)},${(28 - (n - lo) / span * 26).toFixed(1)}`).join(' ')}"/></svg>`;
+  return `<svg width="130" height="30" viewBox="0 0 130 30" style="display:block;"><polyline fill="none" stroke="#1c9a7c" stroke-width="1.4" points="${pts.map((n, i) => `${(i / (pts.length - 1) * 128 + 1).toFixed(1)},${(28 - (n - lo) / span * 26).toFixed(1)}`).join(' ')}"/></svg>`;
 }
 async function renderNrmView() {
   const main = document.getElementById('main');
@@ -3904,7 +3914,7 @@ async function renderNrmView() {
     <div class="card">
       <h3>Diagnostic · NRM-ING (flux d'étalonnage L2)</h3>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-        <span style="font-weight:800;${on ? 'color:#43cea2;' : ''}">${on ? 'ACTIF : les parties comptent pour l’étalonnage' : 'Inactif : mode test, rien n’est compté'}</span>
+        <span style="font-weight:800;${on ? 'color:var(--ok);' : ''}">${on ? 'ACTIF : les parties comptent pour l’étalonnage' : 'Inactif : mode test, rien n’est compté'}</span>
         <button class="btn-ghost" id="btnNrmFlag">${on ? 'Désactiver' : 'Activer'}</button>
       </div>
       <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Mesures reçues : <b>${nOn}</b> comptées, <b>${nOff}</b> en mode test.${flag?.updated_at ? ' Dernier changement : ' + new Date(flag.updated_at).toLocaleString('fr-CH') + (flag.updated_by ? ' · ' + escA(flag.updated_by) : '') : ''} Aussi réglable dans les Réglages coach de la tablette.</p>
@@ -3932,7 +3942,7 @@ async function renderNrmView() {
       <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:10px;"><input type="checkbox" id="nrmTests" ${nrmPreviewTests ? 'checked' : ''} style="width:auto;margin:0;"> Inclure aussi les mesures de test (aperçu seulement, jamais figé)</label>
       ${normsErr ? `<p class="empty">Calcul impossible : ${escA(normsErr.message)}</p>` : !N?.overall ? '<p class="empty">Pas encore assez de mesures pour calculer quoi que ce soit.</p>' : `
         <p style="margin:0 0 10px;">Index réels : <b>${N.n_index}</b> · parties de jeux utilisables : <b>${N.n_games}</b> (comptent pour moitié) · poids total : <b>${N.n_eff}</b>
-          → ${N.usable ? '<span style="color:#43cea2;font-weight:800;">suffisant (≥ 30)</span>' : '<span style="font-weight:800;">insuffisant (il faut ≥ 30)</span>'}</p>
+          → ${N.usable ? '<span style="color:var(--ok);font-weight:800;">suffisant (≥ 30)</span>' : '<span style="font-weight:800;">insuffisant (il faut ≥ 30)</span>'}</p>
         <p style="margin:0 0 10px;">Tous : 10 % ont moins de <b>${qAt(N.overall.q, 10)}</b> · 25 % : <b>${qAt(N.overall.q, 25)}</b> · médiane <b>${qAt(N.overall.q, 50)}</b> · 75 % : <b>${qAt(N.overall.q, 75)}</b> · 90 % : <b>${qAt(N.overall.q, 90)}</b> (écart-type robuste ${N.overall.sd})</p>
         <table><tr><th>Médiane (25–75 %)</th>${NRM_SEXES.map(([, l]) => `<th>${l}</th>`).join('')}</tr>
           ${NRM_BANDS.map(([b, l]) => `<tr><td><b>${l}</b></td>${NRM_SEXES.map(([s]) => cell(b, s)).join('')}</tr>`).join('')}
@@ -3961,20 +3971,20 @@ async function renderNrmView() {
           <td>${r.kind === 'static' ? 'calme' : 'balancement ' + (r.axis === 'x' ? 'gauche-droite' : 'avant-arrière')}</td><td>${r.duration_s} s</td>
           <td><b>${r.metrics?.shadow_score ?? '—'}</b></td>
           <td>${nrmSpark(r.trace, r.kind === 'move' ? (r.axis || 'y') : 'y')}</td>
-          <td>${r.counted ? 'compté' : 'test'}${(r.suspect || []).length ? ' · <span style="color:#ff8a97;">' + r.suspect.map(k => SUS_LABEL[k] || k).join(', ') + '</span>' : ''}</td></tr>`).join('')}
+          <td>${r.counted ? 'compté' : 'test'}${(r.suspect || []).length ? ' · <span style="color:var(--danger-ink);">' + r.suspect.map(k => SUS_LABEL[k] || k).join(', ') + '</span>' : ''}</td></tr>`).join('')}
       </table>` : '<p class="empty">Rien pour l’instant.</p>'}
     </div>`;
 
   document.getElementById('nrmTests').addEventListener('change', e => { nrmPreviewTests = e.target.checked; renderNrmView(); });
   document.getElementById('btnNrmFlag').addEventListener('click', async () => {
     const want = !on;
-    if (want && !confirm('Activer NRM-ING ? Les parties jouées à partir de maintenant compteront pour l’étalonnage de l’Index.')) return;
+    if (want && !await uiConfirm('Activer NRM-ING ? Les parties jouées à partir de maintenant compteront pour l’étalonnage de l’Index.')) return;
     const { error } = await sb.from('app_flags').update({ on_off: want, updated_at: new Date().toISOString(), updated_by: 'console' + (currentAdmin?.email ? ' · ' + currentAdmin.email : '') }).eq('key', 'nrm_ingest');
     if (error) alert('Erreur : ' + error.message);
     renderNrmView();
   });
   document.getElementById('btnNrmPublish').addEventListener('click', async () => {
-    const notes = prompt('Figer une version des normes (mesures comptées uniquement). Une note pour s’en souvenir ?', '');
+    const notes = await uiPrompt('Figer une version des normes (mesures comptées uniquement). Une note pour s’en souvenir ?', '');
     if (notes === null) return;
     const { data: id, error } = await sb.rpc('nrm_publish', { p_notes: notes || null });
     alert(error ? 'Erreur : ' + error.message : `Version ${id} figée.`);
@@ -4015,7 +4025,7 @@ async function renderProjectEditor() {
 }
 
 const fieldP = (label, html) => `<div><div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">${label}</div>${html}</div>`;
-const selStyleP = 'width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);';
+const selStyleP = 'width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);';
 const LANG_OPTIONS = [['fr', 'Français'], ['de', 'Deutsch'], ['it', 'Italiano'], ['en', 'English']];
 
 function renderNewProjectForm() {
@@ -4092,7 +4102,7 @@ function renderProjectGeneralTab() {
         ${fieldP('Fin (abonnement / campagne annuelle : retour au parc après cette date)', `<input id="pgEnd" type="date" value="${p.ends_on || ''}">`)}
       </div>
       <div style="font-size:11.5px;color:var(--text-dim);margin:12px 0 4px;">Notes internes</div>
-      <textarea id="pgNotes" rows="3" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);font-family:inherit;">${escA(p.notes || '')}</textarea>
+      <textarea id="pgNotes" rows="3" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);font-family:inherit;">${escA(p.notes || '')}</textarea>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
         <button class="btn-primary" id="btnSaveProject" style="width:auto;">Enregistrer</button>
         ${p.status === 'actif' ? '<button class="btn-ghost" id="btnEndProject">Terminer le projet</button>' : '<button class="btn-ghost" id="btnReopenProject">Rouvrir le projet</button>'}
@@ -4116,7 +4126,7 @@ function renderProjectGeneralTab() {
     renderProjectEditor();
   });
   document.getElementById('btnEndProject')?.addEventListener('click', async () => {
-    if (!confirm('Terminer ce projet ? Ses tablettes retournent au parc PandaFit.')) return;
+    if (!await uiConfirm('Terminer ce projet ? Ses tablettes retournent au parc PandaFit.')) return;
     await sb.from('projects').update({ status: 'termine' }).eq('id', p.id);
     renderProjectEditor();
   });
@@ -4125,7 +4135,7 @@ function renderProjectGeneralTab() {
     renderProjectEditor();
   });
   document.getElementById('btnDeleteProject').addEventListener('click', async () => {
-    if (!confirm('Supprimer définitivement ce projet, ses séances, comptes-rendus, défis et annonces ? (les parties jouées restent dans les statistiques du client)')) return;
+    if (!await uiConfirm('Supprimer définitivement ce projet, ses séances, comptes-rendus, défis et annonces ? (les parties jouées restent dans les statistiques du client)')) return;
     const { error } = await sb.from('projects').delete().eq('id', p.id);
     if (error) { alert('Erreur : ' + error.message); return; }
     editingProjectId = null; selectedProjectId = null; currentProject = null;
@@ -4150,11 +4160,11 @@ function renderProjectEventsTab() {
         </tr>`).join('')}</table>` : '<p class="empty">Aucune séance pour l\'instant.</p>'}
       <button class="btn-primary" id="btnNewEvent" style="width:auto;margin-top:12px;">+ Ajouter une séance</button>
     </div>`;
-  document.getElementById('btnNewEvent').addEventListener('click', () => {
+  document.getElementById('btnNewEvent').addEventListener('click', async () => {
     // Découverte / Team building / Démo VIP = en principe une seule séance : on évite les doublons par erreur
     const open = evs.filter(x => x.status !== 'annulee');
     if (open.length && ['decouverte', 'team_building', 'demo_vip'].includes(p.offer)
-        && !confirm(`Ce projet a déjà ${open.length > 1 ? open.length + ' séances' : 'une séance'}. Pour voir ou modifier la séance existante, clique sur sa ligne.\n\nAjouter quand même une séance supplémentaire ?`)) return;
+        && !await uiConfirm(`Ce projet a déjà ${open.length > 1 ? open.length + ' séances' : 'une séance'}. Pour voir ou modifier la séance existante, clique sur sa ligne.\n\nAjouter quand même une séance supplémentaire ?`)) return;
     editingInterventionId = 'new'; renderProjectEditor();
   });
   el.querySelectorAll('[data-open-event]').forEach(tr => tr.addEventListener('click', () => { editingInterventionId = tr.dataset.openEvent; renderProjectEditor(); }));
@@ -4251,7 +4261,7 @@ async function renderProjectDevicesTab() {
     if (error) alert('Erreur : ' + error.message);
   }));
   el.querySelectorAll('[data-unassign]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('Renvoyer cette tablette au parc PandaFit ?')) return;
+    if (!await uiConfirm('Renvoyer cette tablette au parc PandaFit ?')) return;
     const { error } = await sb.rpc('staff_assign_device', { p_device: b.dataset.unassign, p_project: null });
     if (error) { alert('Erreur : ' + error.message); return; }
     renderProjectEditor();
@@ -4266,7 +4276,7 @@ async function renderProjectDevicesTab() {
     alert(error ? 'Erreur : ' + error.message : 'Demandé : les tablettes du projet se mettent à jour d\'ici ~20 s.');
   });
   document.getElementById('btnHardReload').addEventListener('click', async () => {
-    if (!confirm("Recharger l'app sur toutes les tablettes du projet ? (une partie en cours serait interrompue)")) return;
+    if (!await uiConfirm("Recharger l'app sur toutes les tablettes du projet ? (une partie en cours serait interrompue)")) return;
     const { error } = await sb.from('projects').update({ reload_token: crypto.randomUUID() }).eq('id', p.id);
     alert(error ? 'Erreur : ' + error.message : 'Demandé : les tablettes rechargent d\'ici ~20 s.');
   });
@@ -4311,12 +4321,12 @@ async function renderParcView() {
     setTimeout(() => { if (slot.isConnected) { slot.innerHTML = original; slot.querySelector('[data-show-key]')?.addEventListener('click', () => b.click()); } }, 60000);
   }));
   main.querySelectorAll('[data-unassign]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('Renvoyer cette tablette au parc PandaFit ?')) return;
+    if (!await uiConfirm('Renvoyer cette tablette au parc PandaFit ?')) return;
     const { error } = await sb.rpc('staff_assign_device', { p_device: b.dataset.unassign, p_project: null });
     if (error) alert('Erreur : ' + error.message); else renderParcView();
   }));
   main.querySelectorAll('[data-del-dev]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('Supprimer cette tablette ? Elle devra être reconfigurée avec une nouvelle clé.')) return;
+    if (!await uiConfirm('Supprimer cette tablette ? Elle devra être reconfigurée avec une nouvelle clé.')) return;
     const { error } = await sb.from('devices').delete().eq('id', b.dataset.delDev);
     if (error) alert('Erreur : ' + error.message); else renderParcView();
   }));
@@ -4399,8 +4409,8 @@ function renderInterventionEditor() {
   const dateVal = e ? localDate(e.starts_at) : '';
   const rep = e?.event_reports;
   const field = (label, html) => `<div><div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">${label}</div>${html}</div>`;
-  const selStyle = 'width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);';
-  const taStyle = 'width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);font-family:inherit;';
+  const selStyle = 'width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);';
+  const taStyle = 'width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);font-family:inherit;';
 
   main.innerHTML = `
     <button class="btn-ghost" id="btnBackEvents" style="margin-bottom:14px;">← Retour au projet</button>
@@ -4498,13 +4508,13 @@ function renderInterventionEditor() {
   document.getElementById('btnBackEvents').addEventListener('click', () => { editingInterventionId = null; renderProjectEditor(); });
   // Démarrer / terminer la séance depuis la console (normalement fait par le coach)
   document.getElementById('btnStaffStartEvent')?.addEventListener('click', async () => {
-    if (!confirm('Démarrer cette séance ? Les tablettes du projet passent en mode séance.')) return;
+    if (!await uiConfirm('Démarrer cette séance ? Les tablettes du projet passent en mode séance.')) return;
     const { error } = await sb.rpc('coach_start', { p_event: e.id });
     if (error) { alert('Erreur : ' + error.message); return; }
     renderInterventionsView();
   });
   document.getElementById('btnStaffEndEvent')?.addEventListener('click', async () => {
-    if (!confirm('Terminer cette séance ?')) return;
+    if (!await uiConfirm('Terminer cette séance ?')) return;
     const { error } = await sb.rpc('coach_end', { p_event: e.id });
     if (error) { alert('Erreur : ' + error.message); return; }
     renderInterventionsView();
@@ -4513,7 +4523,7 @@ function renderInterventionEditor() {
   document.getElementById('btnSetupCampaign')?.addEventListener('click', async () => {
     const t1 = document.getElementById('cpT1').value;
     if (!t1) { alert('Choisis la date de clôture.'); return; }
-    if (!confirm(`Créer la clôture du ${new Date(t1 + 'T12:00').toLocaleDateString('fr-CH')} (mêmes horaires, mêmes coachs) et les 4 défis hebdomadaires ?`)) return;
+    if (!await uiConfirm(`Créer la clôture du ${new Date(t1 + 'T12:00').toLocaleDateString('fr-CH')} (mêmes horaires, mêmes coachs) et les 4 défis hebdomadaires ?`)) return;
     const { error } = await sb.rpc('staff_setup_campaign', { p_event: e.id, p_t1_date: t1, p_final_game: document.getElementById('cpFinal').value });
     if (error) { alert('Erreur : ' + error.message); return; }
     renderInterventionsView();
@@ -4541,7 +4551,7 @@ function renderInterventionEditor() {
   });
   document.getElementById('btnPublishReport')?.addEventListener('click', async () => {
     const publish = !e.report_published_at;
-    if (publish && !confirm("Publier le rapport dans l'espace RH du client ? (à faire après le bilan de 30 minutes)")) return;
+    if (publish && !await uiConfirm("Publier le rapport dans l'espace RH du client ? (à faire après le bilan de 30 minutes)")) return;
     const { error } = await sb.from('event_sessions').update({
       report_note: document.getElementById('evReportNote').value.trim() || null,
       report_published_at: publish ? new Date().toISOString() : null,
@@ -4617,12 +4627,12 @@ function renderInterventionEditor() {
     renderInterventionsView();
   });
   document.getElementById('btnCancelEvent')?.addEventListener('click', async () => {
-    if (!confirm('Annuler cette séance ? Elle disparaîtra de l\'espace du coach.')) return;
+    if (!await uiConfirm('Annuler cette séance ? Elle disparaîtra de l\'espace du coach.')) return;
     await sb.from('event_sessions').update({ status: 'annulee' }).eq('id', e.id);
     renderInterventionsView();
   });
   document.getElementById('btnDeleteEvent')?.addEventListener('click', async () => {
-    if (!confirm('Supprimer définitivement cette séance et son compte-rendu ?')) return;
+    if (!await uiConfirm('Supprimer définitivement cette séance et son compte-rendu ?')) return;
     await sb.from('event_sessions').delete().eq('id', e.id);
     editingInterventionId = null;
     renderInterventionsView();
@@ -4702,8 +4712,8 @@ async function renderFeesView() {
     if (error) alert('Erreur : ' + error.message);
     renderFeesView();
   };
-  main.querySelectorAll('[data-pay-coach]').forEach(b => b.addEventListener('click', () => {
-    if (confirm(`Marquer les honoraires de ${byCoach[b.dataset.payCoach].name} pour ${monthLabel} comme payés ?`)) setPaid(b.dataset.payCoach, new Date().toISOString());
+  main.querySelectorAll('[data-pay-coach]').forEach(b => b.addEventListener('click', async () => {
+    if (await uiConfirm(`Marquer les honoraires de ${byCoach[b.dataset.payCoach].name} pour ${monthLabel} comme payés ?`)) setPaid(b.dataset.payCoach, new Date().toISOString());
   }));
   main.querySelectorAll('[data-unpay-coach]').forEach(b => b.addEventListener('click', () => setPaid(b.dataset.unpayCoach, null)));
   document.getElementById('feesExport').addEventListener('click', () => {
@@ -4787,15 +4797,15 @@ async function renderCalendarView() {
           <input id="ceEnd" type="datetime-local" value="${editing ? toLocalInputValue(editing.end_at) : ''}">
         </div>
       </div>
-      <textarea id="ceDesc" placeholder="Description (optionnel)" rows="3" style="width:100%;margin-top:10px;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);font-family:inherit;resize:vertical;">${editing?.description || ''}</textarea>
+      <textarea id="ceDesc" placeholder="Description (optionnel)" rows="3" style="width:100%;margin-top:10px;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);font-family:inherit;resize:vertical;">${editing?.description || ''}</textarea>
       <div style="margin-top:10px;">
         <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Attribué à</div>
-        <select id="ceAssignType" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);margin-bottom:8px;">
+        <select id="ceAssignType" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);margin-bottom:8px;">
           <option value="none" ${!editing?.assigned_admin_id && !editing?.assigned_free_text ? 'selected' : ''}>Personne</option>
           <option value="admin" ${editing?.assigned_admin_id ? 'selected' : ''}>Un admin/superadmin</option>
           <option value="free" ${editing?.assigned_free_text ? 'selected' : ''}>Autre (nom libre)</option>
         </select>
-        <select id="ceAdminSelect" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);display:${editing?.assigned_admin_id ? 'block' : 'none'};margin-bottom:8px;">
+        <select id="ceAdminSelect" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--text);display:${editing?.assigned_admin_id ? 'block' : 'none'};margin-bottom:8px;">
           ${adminsForSelect.map(a => `<option value="${a.id}" ${editing?.assigned_admin_id === a.id ? 'selected' : ''}>${a.display_name || a.email}${a.is_superadmin ? ' (Superadmin)' : ''}</option>`).join('')}
         </select>
         <input id="ceFreeText" placeholder="Nom libre" value="${editing?.assigned_free_text || ''}" style="display:${editing?.assigned_free_text ? 'block' : 'none'};">
@@ -4846,7 +4856,7 @@ async function renderCalendarView() {
   });
   main.querySelectorAll('[data-del-event]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Supprimer cet événement ?')) return;
+      if (!await uiConfirm('Supprimer cet événement ?')) return;
       await sb.from('calendar_events').delete().eq('id', btn.dataset.delEvent);
       renderCalendarView();
     });

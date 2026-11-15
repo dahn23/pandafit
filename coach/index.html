@@ -10,79 +10,84 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
+  /* Thème clair PandaFit (15.11.2026), comme la console et l'Index */
   :root {
-    --bg: #1c162e; --panel: #241d38; --panel-hi: #2c2444;
-    --primary: #43cea2; --primary-dark: #185a9d;
-    --accent: #c86dd7; --destructive: #e6374e; --warn: #f4b740;
-    --text: #f4f2fa; --text-dim: #9992ad;
-    --border: #35294f;
+    --bg: #f4f5f1; --panel: #ffffff; --panel-hi: #f0f3ee; --field: #ffffff;
+    --primary: #1c9a7c; --primary-dark: #12735c; --primary-soft: #e2f3ee;
+    --accent: #6b55c7; --destructive: #c8364a; --warn: #b7791f;
+    --text: #17324d; --text-dim: #5d7085;
+    --border: #e1e6df;
+    --shadow: 0 1px 2px rgba(23,50,77,.05), 0 2px 10px rgba(23,50,77,.04);
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; -webkit-font-smoothing: antialiased; }
   body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
   .wrap { max-width: 640px; margin: 0 auto; padding: 18px 16px; }
-  .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; }
-  .brand img { width: 32px; height: 32px; border-radius: 8px; }
+  .brand img { width: 36px; height: 36px; border-radius: 9px; }
   .brand small { display: block; font-weight: 600; font-size: 11.5px; color: var(--text-dim); }
-  h2 { font-size: 18px; margin: 18px 0 10px; }
+  h2 { font-size: 19px; margin: 20px 0 10px; font-weight: 800; letter-spacing: -.01em; }
   h3 { font-size: 15px; margin: 0 0 8px; }
-  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
-  .mission { cursor: pointer; display: block; width: 100%; text-align: left; color: inherit; }
-  .mission .when { font-size: 12.5px; color: var(--primary); font-weight: 700; text-transform: capitalize; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); }
+  .mission { cursor: pointer; display: block; width: 100%; text-align: left; color: inherit; transition: border-color .12s, box-shadow .12s; }
+  .mission:hover { border-color: #c5cdc6; box-shadow: 0 4px 16px rgba(23,50,77,.08); }
+  .mission .when { font-size: 12.5px; color: var(--primary-dark); font-weight: 700; text-transform: capitalize; }
   .mission .who { font-size: 16px; font-weight: 800; margin: 4px 0 2px; }
   .mission .what { font-size: 13px; color: var(--text-dim); }
-  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 99px; background: var(--panel-hi); color: var(--text-dim); margin-left: 6px; vertical-align: middle; }
-  .badge.live { background: rgba(67,206,162,.18); color: var(--primary); }
-  .badge.done { background: rgba(200,109,215,.16); color: var(--accent); }
-  .row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; background: var(--panel-hi); color: var(--text-dim); margin-left: 6px; vertical-align: middle; border: 1px solid var(--border); }
+  .badge.live { background: var(--primary-soft); color: var(--primary-dark); border-color: #c9e8de; }
+  .badge.done { background: #efebfa; color: var(--accent); border-color: #ddd5f4; }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
   .row:last-child { border-bottom: none; }
   .row .k { color: var(--text-dim); flex: 0 0 38%; }
   .row .v { text-align: right; font-weight: 600; word-break: break-word; }
-  .row .v a { color: var(--primary); text-decoration: none; }
-  .code { font-size: 30px; font-weight: 800; letter-spacing: .08em; text-align: center; padding: 14px; border-radius: 12px; background: #17132a; border: 1px dashed var(--primary); color: var(--primary); }
+  .row .v a { color: var(--primary-dark); text-decoration: none; }
+  .code { font-size: 30px; font-weight: 800; letter-spacing: .08em; text-align: center; padding: 14px; border-radius: 12px; background: var(--primary-soft); border: 1.5px dashed var(--primary); color: var(--primary-dark); }
   .hint { font-size: 12.5px; color: var(--text-dim); margin: 8px 0 0; line-height: 1.45; }
   .pre { white-space: pre-line; font-size: 14px; line-height: 1.5; }
-  input, textarea, select { width: 100%; padding: 13px 14px; border-radius: 10px; border: 1px solid var(--border); background: #17132a; color: var(--text); font-size: 15px; font-family: inherit; margin-bottom: 10px; }
+  input, textarea, select { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--field); color: var(--text); font-size: 15px; font-family: inherit; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(23,50,77,.04); }
+  input:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(28,154,124,.15); }
+  input::placeholder, textarea::placeholder { color: #93a1ad; }
   textarea { resize: vertical; min-height: 70px; }
-  label.lbl { display: block; font-size: 12px; color: var(--text-dim); margin: 4px 0 4px; }
-  button { font-family: inherit; border: none; cursor: pointer; border-radius: 10px; font-weight: 700; font-size: 15px; padding: 13px 18px; }
-  .btn-primary { background: var(--primary); color: #0d2a22; width: 100%; }
-  .btn-ghost { background: var(--panel-hi); color: var(--text); }
+  label.lbl { display: block; font-size: 12px; font-weight: 600; color: var(--text-dim); margin: 4px 0 4px; }
+  button { font-family: inherit; border: 1px solid transparent; cursor: pointer; border-radius: 10px; font-weight: 700; font-size: 15px; padding: 13px 18px; transition: background .12s, border-color .12s, color .12s; }
+  .btn-primary { background: var(--primary); color: #fff; width: 100%; box-shadow: 0 1px 2px rgba(18,115,92,.25); }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-ghost { background: var(--panel); color: var(--text); border-color: var(--border); }
+  .btn-ghost:hover { background: var(--panel-hi); }
   .btn-row { display: flex; gap: 8px; margin-top: 10px; }
   .btn-row > * { flex: 1; }
   .back { background: none; color: var(--text-dim); padding: 6px 0; font-size: 14px; }
   .mood { display: flex; gap: 6px; margin-bottom: 10px; }
-  .mood button { flex: 1; background: var(--panel-hi); color: var(--text); font-size: 18px; padding: 10px 0; }
-  .mood button.on { background: var(--primary); color: #0d2a22; }
+  .mood button { flex: 1; background: var(--panel); border-color: var(--border); color: var(--text); font-size: 18px; padding: 10px 0; }
+  .mood button.on { background: var(--primary-soft); border-color: var(--primary); }
   .toggle { display: flex; align-items: center; gap: 10px; font-size: 14px; margin: 4px 0 10px; }
-  .toggle input { width: 22px; height: 22px; margin: 0; }
   .empty { color: var(--text-dim); font-size: 14px; text-align: center; padding: 18px 0; }
-  .notice { background: rgba(244,183,64,.12); border: 1px solid rgba(244,183,64,.35); color: #ffd98a; border-radius: 12px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 12px; }
-  .ok { background: rgba(67,206,162,.12); border: 1px solid rgba(67,206,162,.35); color: #9ff0d3; border-radius: 12px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 12px; }
+  .notice { background: #fdf3e1; border: 1px solid #f4e2bd; color: #7a5200; border-radius: 12px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 12px; }
+  .ok { background: var(--primary-soft); border: 1px solid #c9e8de; color: var(--primary-dark); border-radius: 12px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 12px; }
   .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .cal-head b { text-transform: capitalize; }
   .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
   .cal .dow { font-size: 11px; color: var(--text-dim); text-align: center; font-weight: 700; }
-  .cal button { padding: 0; aspect-ratio: 1; font-size: 14px; background: var(--panel-hi); color: var(--text); border-radius: 9px; }
-  .cal button.on { background: var(--primary); color: #0d2a22; }
+  .cal button { padding: 0; aspect-ratio: 1; font-size: 14px; background: var(--panel); border-color: var(--border); color: var(--text); border-radius: 9px; }
+  .cal button.on { background: var(--primary); border-color: var(--primary); color: #fff; }
   .cal button.past { opacity: .35; }
   .cal button.mission-day { box-shadow: inset 0 0 0 2px var(--accent); }
   .total { display: flex; justify-content: space-between; font-weight: 800; font-size: 15px; padding-top: 10px; margin-top: 4px; border-top: 2px solid var(--text); }
   .langs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-  .langs label { display: flex; align-items: center; gap: 6px; background: var(--panel-hi); padding: 9px 12px; border-radius: 9px; font-size: 14px; }
-  .langs input { width: 18px; height: 18px; margin: 0; }
-  nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; background: #17132a; border-top: 1px solid var(--border); display: flex; padding-bottom: env(safe-area-inset-bottom); }
+  .langs label { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--border); padding: 9px 12px; border-radius: 10px; font-size: 14px; cursor: pointer; }
+  nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,.97); border-top: 1px solid var(--border); display: flex; padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -4px 20px rgba(23,50,77,.06); z-index: 20; }
   nav.tabs button { flex: 1; background: none; color: var(--text-dim); font-size: 12px; font-weight: 700; padding: 12px 0 14px; border-radius: 0; }
   nav.tabs button .ico { display: block; font-size: 19px; margin-bottom: 2px; }
-  nav.tabs button.on { color: var(--primary); }
+  nav.tabs button.on { color: var(--primary-dark); }
   .login { max-width: 420px; margin: 12vh auto 0; }
   /* Triathlon */
   .phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0 12px; }
-  .phases button { background: var(--panel-hi); color: var(--text-dim); font-size: 12.5px; padding: 11px 4px; line-height: 1.25; }
+  .phases button { background: var(--panel); border-color: var(--border); color: var(--text-dim); font-size: 12.5px; padding: 11px 4px; line-height: 1.25; }
   .phases button b { display: block; font-size: 15px; color: var(--text); }
-  .phases button.on { background: var(--primary); color: #0d2a22; }
-  .phases button.on b { color: #0d2a22; }
+  .phases button.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .phases button.on b { color: #fff; }
   .team-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .team-row .dot { flex: 0 0 14px; height: 14px; border-radius: 50%; }
   .team-row input { margin: 0; padding: 10px 12px; }
@@ -90,8 +95,9 @@
   table.tri th { color: var(--text-dim); font-size: 11px; font-weight: 700; text-align: center; padding: 6px 2px; }
   table.tri td { padding: 8px 2px; border-top: 1px solid var(--border); text-align: center; }
   table.tri td:first-child, table.tri th:first-child { text-align: left; }
-  table.tri td.tot { font-weight: 800; color: var(--primary); font-size: 15px; }
+  table.tri td.tot { font-weight: 800; color: var(--primary-dark); font-size: 15px; }
 </style>
+<script src="/console-ui.js"></script>
 </head>
 <body>
 <div class="wrap" id="app"></div>
@@ -416,7 +422,7 @@ function drawTriathlon() {
     if (p === tri.phase) return;
     if (p !== 'qualif' && !teams.length) { alert("Crée d'abord les équipes."); return; }
     const labels = { qualif: "revenir à l'Index (qualification)", triathlon: 'lancer le Triathlon', finale: 'lancer la finale', podium: 'afficher le podium' };
-    if (!confirm(`Confirmer : ${labels[p]} ? Les tablettes et le grand écran changent dans les 10 secondes.`)) return;
+    if (!await uiConfirm(`Confirmer : ${labels[p]} ? Les tablettes et le grand écran changent dans les 10 secondes.`)) return;
     const fin = document.getElementById('triFinale')?.value || tri.finale_game || null;
     const { data, error } = await sb.rpc('event_set_phase', { p_event: triEventId, p_phase: p, p_finale_game: fin });
     if (error) return alert('Erreur : ' + error.message);
@@ -488,13 +494,13 @@ function drawProject() {
       <br><button class="btn-ghost" data-premove="${d.id}" style="margin-top:4px;padding:4px 10px;font-size:12px;">Retirer</button></span></div>`).join('')
       : '<p class="hint">Aucune tablette pour l\'instant : entre le code du projet sur chaque tablette.</p>'}`;
   box.querySelector('[data-pstart]')?.addEventListener('click', async (ev) => {
-    if (!confirm('Démarrer la séance ? Toutes les tablettes du projet passent en mode séance.')) return;
+    if (!await uiConfirm('Démarrer la séance ? Toutes les tablettes du projet passent en mode séance.')) return;
     const { error } = await sb.rpc('coach_start', { p_event: ev.currentTarget.dataset.pstart });
     if (error) return alert('Erreur : ' + error.message);
     await loadAll(); flash = 'Séance démarrée. Bonne animation !'; render();
   });
   box.querySelector('[data-pend]')?.addEventListener('click', async (ev) => {
-    if (!confirm('Terminer la séance ? Les tablettes quittent le mode séance. (Tu pourras envoyer le compte-rendu ensuite.)')) return;
+    if (!await uiConfirm('Terminer la séance ? Les tablettes quittent le mode séance. (Tu pourras envoyer le compte-rendu ensuite.)')) return;
     const { error } = await sb.rpc('coach_end', { p_event: ev.currentTarget.dataset.pend });
     if (error) return alert('Erreur : ' + error.message);
     await loadAll(); flash = 'Séance terminée. Pense au compte-rendu.'; render();
@@ -504,7 +510,7 @@ function drawProject() {
     if (error) alert('Erreur : ' + error.message);
   }));
   box.querySelectorAll('[data-premove]').forEach(b => b.addEventListener('click', async () => {
-    if (!confirm('Retirer cette tablette du projet ? Elle retourne au parc PandaFit.')) return;
+    if (!await uiConfirm('Retirer cette tablette du projet ? Elle retourne au parc PandaFit.')) return;
     const { error } = await sb.rpc('coach_remove_device', { p_device: b.dataset.premove });
     if (error) return alert('Erreur : ' + error.message);
     loadProject(proj.id);
@@ -544,11 +550,11 @@ function liveProgressHTML(live, stepName) {
         <span class="hint" style="margin:0;">${ago == null ? 'aucun passage encore' : ago < 1 ? "dernier passage à l'instant" : `dernier passage il y a ${ago < 60 ? ago + ' min' : Math.round(ago / 60) + ' h'}`}</span>
       </div>
       <div style="font-size:30px;font-weight:800;margin:6px 0 2px;">${st.index_done}<span style="font-size:15px;font-weight:600;color:var(--text-dim);"> Index passé${st.index_done > 1 ? 's' : ''}${target ? ` / ${target} ${st.registered ? 'inscrits' : 'attendus'}` : ''}</span></div>
-      ${target ? `<div style="height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--primary);"></div></div>` : ''}
+      ${target ? `<div style="height:8px;border-radius:4px;background:var(--panel-hi);overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--primary);"></div></div>` : ''}
       <div class="hint" style="margin:4px 0 0;">${st.plays} partie${st.plays > 1 ? 's' : ''} jouée${st.plays > 1 ? 's' : ''} au total${st.registered && st.expected ? ` · ${st.expected} attendus` : ''}</div>
       ${cur ? `<div style="margin-top:10px;font-size:13px;"><b>Groupe en cours ${fmtTime(cur.starts_at)}</b> · ${cur.registered} inscrit${cur.registered > 1 ? 's' : ''}<br>${names(cur)}</div>` : ''}
       ${nxt ? `<div style="margin-top:8px;font-size:13px;"><b>Prochain groupe ${fmtTime(nxt.starts_at)}</b> · ${nxt.registered} inscrit${nxt.registered > 1 ? 's' : ''}<br>${names(nxt)}</div>` : slots.length ? '<div class="hint" style="margin-top:8px;">Plus de groupe prévu après celui-ci.</div>' : ''}
-      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);font-size:13px;">
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:13px;">
         <b>Étape suivante</b><br>${step}<br><span class="hint">${after}</span>
       </div>
     </div>`;
@@ -587,7 +593,7 @@ function wire() {
     app.querySelectorAll('#rMood button').forEach(x => x.classList.toggle('on', Number(x.dataset.mood) === mood));
   }));
   app.querySelector('[data-close]')?.addEventListener('click', async (e) => {
-    if (!confirm('Clôturer la séance et envoyer le compte-rendu ?')) return;
+    if (!await uiConfirm('Clôturer la séance et envoyer le compte-rendu ?')) return;
     const report = {
       participants: document.getElementById('rParticipants').value,
       mood: mood ? String(mood) : '',

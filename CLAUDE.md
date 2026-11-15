@@ -158,6 +158,10 @@ Ni saisie avant l'Index, ni code / QR à la fin, y compris Mois et Campagne. Int
 - Console : onglet « Récompenses » (droit `manage_content`) ; dans l'onglet Défis d'un projet, liste « Lot du catalogue ». Tablette : « À gagner : [lot] · avec [partenaire] » sur l'écran d'appel, la vignette et le détail du défi (logo dans le détail) ; sinon le texte libre du RH.
 - Pas encore fait : codes de bon pour les gagnants, choix des lots par la RH dans l'espace RH.
 
+### Design des consoles web (15.11.2026)
+- Super admin, coach et espace RH : **thème clair commun** (papier #f4f5f1, encre #17324d, vert #1c9a7c, Montserrat), comme l'Index et les rapports.
+- **Aucun élément standard du navigateur** (demande de Dan) : `/console-ui.js` (inclus dans les 3 consoles) remplace `alert` par des messages maison, fournit `await uiConfirm(texte)` et `await uiPrompt(texte, défaut)` (ne jamais réutiliser `confirm()` / `prompt()`), et redessine listes déroulantes, cases à cocher, boutons radio, choix de fichier et **calendrier / heure** (champs date, datetime-local, time : popover maison, lundi en premier, colonnes heures / minutes par 5 ; le vrai champ reste caché avec sa valeur habituelle). Une liste qui doit rester native : attribut `data-ui-native`.
+
 ### PWA
 - App installable en plein écran. Manifest **externe** `manifest.webmanifest` (⚠️ un manifest data-URI ne permet PAS l'install WebAPK Android). `sw.js` en **network-first** (jamais de code périmé). Icônes 192 + 512.
 
