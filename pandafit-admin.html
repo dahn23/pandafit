@@ -445,6 +445,7 @@ async function render() {
     { key: 'crm', label: 'CRM', icon: 'briefcase', perm: 'menu_crm' },
     { key: 'globalstats', label: 'Statistiques', icon: 'bar-chart-3', perm: 'menu_globalstats' },
     { key: 'access', label: 'Accès', icon: 'shield', superadminOnly: true },
+    { key: 'nrm', label: 'Étalonnage', icon: 'activity', superadminOnly: true },
     { key: 'calendar', label: 'Calendrier', icon: 'calendar-days', perm: 'menu_calendar' },
   ];
   const topTabs = allTopTabs.filter(t => t.always || (t.superadminOnly ? currentAdmin?.is_superadmin : adminCan(t.perm)));
@@ -541,6 +542,9 @@ async function render() {
   } else if (topView === 'access') {
     container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
     await renderAccessView();
+  } else if (topView === 'nrm') {
+    container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
+    await renderNrmView();
   } else if (topView === 'calendar') {
     container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
     await renderCalendarView();
@@ -3666,11 +3670,6 @@ async function renderProjectsView() {
         <button class="btn-ghost" id="btnSaveZones">Enregistrer</button>
       </div>
       <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Entre les deux : « à entretenir ». S'applique à tous les rapports, y compris ceux déjà publiés.</p>
-    </div>
-    <div class="card" id="nrmAdminCard">
-      <h3>Diagnostic · NRM-ING (flux d'étalonnage L2)</h3>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><span id="nrmAdminState" style="font-weight:800;">…</span><button class="btn-ghost" id="btnNrmAdmin" disabled>…</button></div>
-      <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;" id="nrmAdminInfo"></p>
     </div>` : ''}
     <div class="card"><h3>En cours</h3>
       ${open.length ? `<table>${head}${open.map(rowHTML).join('')}</table>` : '<p class="empty">Aucun projet en cours.</p>'}</div>
@@ -3678,31 +3677,6 @@ async function renderProjectsView() {
   `;
   document.getElementById('btnNewProject').addEventListener('click', () => { editingProjectId = 'new'; renderProjectsView(); });
   document.getElementById('btnParc')?.addEventListener('click', () => { editingProjectId = 'parc'; renderProjectsView(); });
-  // Interrupteur d'étalonnage de l'Index (aussi dans les Réglages coach de la tablette) + compteur des mesures reçues
-  (async () => {
-    const st = document.getElementById('nrmAdminState'), btn = document.getElementById('btnNrmAdmin'), info = document.getElementById('nrmAdminInfo');
-    if (!st || !btn) return;
-    const load = async () => {
-      const [{ data: f }, { count: nOn }, { count: nOff }] = await Promise.all([
-        sb.from('app_flags').select('on_off,updated_at,updated_by').eq('key', 'nrm_ingest').maybeSingle(),
-        sb.from('calib_samples').select('id', { count: 'exact', head: true }).eq('counted', true),
-        sb.from('calib_samples').select('id', { count: 'exact', head: true }).eq('counted', false)]);
-      const on = !!f?.on_off;
-      st.textContent = on ? 'ACTIF : les parties comptent pour l’étalonnage' : 'Inactif : mode test, rien n’est compté';
-      st.style.color = on ? '#43cea2' : '';
-      btn.textContent = on ? 'Désactiver' : 'Activer'; btn.dataset.on = on ? '1' : ''; btn.disabled = false;
-      info.textContent = `Mesures reçues : ${nOn ?? 0} comptées, ${nOff ?? 0} en mode test.${f?.updated_at ? ' Dernier changement : ' + new Date(f.updated_at).toLocaleString('fr-CH') + (f.updated_by ? ' · ' + f.updated_by : '') : ''}`;
-    };
-    btn.addEventListener('click', async () => {
-      const want = !btn.dataset.on;
-      if (want && !confirm('Activer NRM-ING ? Les parties jouées à partir de maintenant compteront pour l’étalonnage de l’Index.')) return;
-      btn.disabled = true;
-      const { error } = await sb.from('app_flags').update({ on_off: want, updated_at: new Date().toISOString(), updated_by: 'console' + (currentAdmin?.email ? ' · ' + currentAdmin.email : '') }).eq('key', 'nrm_ingest');
-      if (error) alert('Erreur : ' + error.message);
-      load();
-    });
-    load();
-  })();
   document.getElementById('btnSaveZones')?.addEventListener('click', async () => {
     const good = Number(document.getElementById('zoneGood').value), risk = Number(document.getElementById('zoneRisk').value);
     if (!(risk < good)) { alert('Le seuil de la zone à risque doit être plus bas que celui du bon équilibre.'); return; }
@@ -3713,6 +3687,152 @@ async function renderProjectsView() {
   main.querySelectorAll('[data-open-project]').forEach(tr => tr.addEventListener('click', () => {
     editingProjectId = tr.dataset.openProject; projectTab = 'general'; editingInterventionId = null; renderProjectsView();
   }));
+  if (window.lucide) lucide.createIcons();
+}
+
+/* ---------------- Étalonnage de l'Index (NRM) — superadmin ----------------
+   Tout au même endroit : l'interrupteur NRM-ING (aussi dans les Réglages coach de la tablette), ce que les tablettes envoient
+   (calib_samples), l'âge / sexe déclarés au départ de l'Index, l'aperçu des normes calculées (nrm_compute), les versions figées
+   (nrm_publish → nrm_versions, seules celles-ci servent à la comparaison montrée au joueur) et les dernières mesures avec leur tracé. */
+let nrmPreviewTests = false;
+const NRM_BANDS = [['lt30', '< 30'], ['30-39', '30-39'], ['40-49', '40-49'], ['50-59', '50-59'], ['60p', '60 +'], ['*', 'Tous âges']];
+const NRM_SEXES = [['f', 'Femmes'], ['m', 'Hommes'], ['*', 'Tous']];
+function nrmSpark(tr, axis) {
+  // petit tracé du signal brut (cm/100) : on voit tout de suite une mesure vide, figée ou chaotique
+  const v = (tr?.[axis] || []).filter(n => typeof n === 'number');
+  if (v.length < 3) return '';
+  const step = Math.max(1, Math.floor(v.length / 120)), pts = v.filter((_, i) => i % step === 0);
+  const lo = Math.min(...pts), hi = Math.max(...pts), span = Math.max(20, hi - lo);
+  return `<svg width="130" height="30" viewBox="0 0 130 30" style="display:block;"><polyline fill="none" stroke="#43cea2" stroke-width="1.4" points="${pts.map((n, i) => `${(i / (pts.length - 1) * 128 + 1).toFixed(1)},${(28 - (n - lo) / span * 26).toFixed(1)}`).join(' ')}"/></svg>`;
+}
+async function renderNrmView() {
+  const main = document.getElementById('main');
+  if (!currentAdmin?.is_superadmin) { main.innerHTML = '<div class="card"><p class="empty">Réservé au superadmin.</p></div>'; return; }
+  main.innerHTML = '<div class="card"><p class="empty">Chargement…</p></div>';
+  const gName = id => (games.find(g => g.id === id)?.name) || (id === 'indextest' ? 'PandaFit Index' : id);
+  const [{ data: flag }, { data: samples }, { data: idx }, { data: versions }, { data: latest }, { data: norms, error: normsErr }, gl] = await Promise.all([
+    sb.from('app_flags').select('on_off,updated_at,updated_by').eq('key', 'nrm_ingest').maybeSingle(),
+    sb.from('calib_samples').select('game_id,kind,axis,counted,suspect').order('id', { ascending: false }).limit(20000),
+    sb.from('sessions').select('age:meta->>age_band, sex:meta->>sex').eq('game_id', 'indextest').gte('played_at', '2026-11-15').limit(20000),
+    sb.from('nrm_versions').select('id,created_at,created_by,usable,n_eff,notes').order('id', { ascending: false }).limit(20),
+    sb.from('calib_samples').select('id,created_at,game_id,kind,axis,duration_s,metrics,suspect,counted,trace,devices(name)').order('id', { ascending: false }).limit(25),
+    sb.rpc('nrm_compute', { p_include_tests: nrmPreviewTests }),
+    games.length ? Promise.resolve(null) : sb.from('games').select('*').order('name'),
+  ]);
+  if (gl?.data) games = gl.data;
+  const on = !!flag?.on_off;
+  const S = samples || [];
+  const nOn = S.filter(s => s.counted).length, nOff = S.length - nOn;
+
+  // A. ce que les tablettes envoient, par jeu
+  const byGame = {};
+  S.forEach(s => {
+    const g = byGame[s.game_id] ||= { st: 0, mv: 0, on: 0, off: 0, sus: 0 };
+    s.kind === 'static' ? g.st++ : g.mv++;
+    s.counted ? g.on++ : g.off++;
+    if ((s.suspect || []).length) g.sus++;
+  });
+  const susCount = {};
+  S.forEach(s => (s.suspect || []).forEach(k => { susCount[k] = (susCount[k] || 0) + 1; }));
+  const SUS_LABEL = { court: 'trop court', fige: 'signal figé', vide: 'plateau vide', peu_de_cycles: 'peu de balancements' };
+
+  // B. âge et sexe déclarés au départ de l'Index (depuis le 15.11.2026)
+  const I = idx || [];
+  const cnt = (a, s) => I.filter(r => (a === '*' || r.age === a) && (s === '*' || r.sex === s)).length;
+  const declared = I.filter(r => r.age || r.sex).length;
+
+  // C. normes (aperçu)
+  const N = norms || null;
+  const qAt = (q, p) => q?.[Math.round(p / 5) - 1];
+  const cell = (b, s) => {
+    const g = N?.groups?.[`${s}|${b}`];
+    if (!g) return '<td style="color:var(--text-dim);">—</td>';
+    return `<td><b>${qAt(g.q, 50)}</b> <span style="font-size:11.5px;color:var(--text-dim);">(${qAt(g.q, 25)}–${qAt(g.q, 75)}) · n ${g.n}${g.w < .5 ? ' · <i>a priori</i>' : ''}</span></td>`;
+  };
+
+  main.innerHTML = `
+    <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="activity"></i> Étalonnage de l'Index</div>
+    <div class="section-sub">Pendant chaque jeu et chaque Index, la tablette envoie des mesures comparables à l'Index (moments « calmes » et « balancements »). Elles servent à construire des normes par âge et sexe. L'Index officiel ne change jamais ; le joueur ne voit « Tu fais mieux que X % » qu'à partir d'une version figée et suffisante.</div>
+
+    <div class="card">
+      <h3>Diagnostic · NRM-ING (flux d'étalonnage L2)</h3>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <span style="font-weight:800;${on ? 'color:#43cea2;' : ''}">${on ? 'ACTIF : les parties comptent pour l’étalonnage' : 'Inactif : mode test, rien n’est compté'}</span>
+        <button class="btn-ghost" id="btnNrmFlag">${on ? 'Désactiver' : 'Activer'}</button>
+      </div>
+      <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Mesures reçues : <b>${nOn}</b> comptées, <b>${nOff}</b> en mode test.${flag?.updated_at ? ' Dernier changement : ' + new Date(flag.updated_at).toLocaleString('fr-CH') + (flag.updated_by ? ' · ' + escA(flag.updated_by) : '') : ''} Aussi réglable dans les Réglages coach de la tablette.</p>
+    </div>
+
+    <div class="card">
+      <h3>Ce que les tablettes envoient</h3>
+      ${Object.keys(byGame).length ? `<table><tr><th>Jeu</th><th>Moments calmes</th><th>Balancements</th><th>Comptés</th><th>Test</th><th>Douteux</th></tr>
+        ${Object.entries(byGame).sort((a, b) => (b[1].st + b[1].mv) - (a[1].st + a[1].mv)).map(([id, g]) => `<tr><td><b>${escA(gName(id))}</b></td><td>${g.st}</td><td>${g.mv}</td><td>${g.on}</td><td>${g.off}</td><td>${g.sus}</td></tr>`).join('')}
+      </table>
+      <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;">Douteux (écartés du calcul) : ${Object.entries(susCount).map(([k, n]) => `${SUS_LABEL[k] || k} ${n}`).join(' · ') || 'aucun'}.</p>`
+      : '<p class="empty">Aucune mesure reçue pour l’instant. Elles arrivent à la fin de chaque partie (une fois la nouvelle version de l’app chargée sur la tablette).</p>'}
+    </div>
+
+    <div class="card">
+      <h3>Âge et sexe déclarés au départ de l'Index</h3>
+      <p style="font-size:12px;color:var(--text-dim);margin:0 0 10px;">${I.length} Index passés depuis le 15.11.2026, dont ${declared} avec au moins une réponse (facultatif).</p>
+      <table><tr><th></th>${NRM_SEXES.map(([, l]) => `<th>${l}</th>`).join('')}</tr>
+        ${NRM_BANDS.map(([b, l]) => `<tr><td><b>${l}</b></td>${NRM_SEXES.map(([s]) => `<td>${cnt(b, s)}</td>`).join('')}</tr>`).join('')}
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Normes calculées (aperçu)</h3>
+      <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:10px;"><input type="checkbox" id="nrmTests" ${nrmPreviewTests ? 'checked' : ''} style="width:auto;margin:0;"> Inclure aussi les mesures de test (aperçu seulement, jamais figé)</label>
+      ${normsErr ? `<p class="empty">Calcul impossible : ${escA(normsErr.message)}</p>` : !N?.overall ? '<p class="empty">Pas encore assez de mesures pour calculer quoi que ce soit.</p>' : `
+        <p style="margin:0 0 10px;">Index réels : <b>${N.n_index}</b> · parties de jeux utilisables : <b>${N.n_games}</b> (comptent pour moitié) · poids total : <b>${N.n_eff}</b>
+          → ${N.usable ? '<span style="color:#43cea2;font-weight:800;">suffisant (≥ 30)</span>' : '<span style="font-weight:800;">insuffisant (il faut ≥ 30)</span>'}</p>
+        <p style="margin:0 0 10px;">Tous : 10 % ont moins de <b>${qAt(N.overall.q, 10)}</b> · 25 % : <b>${qAt(N.overall.q, 25)}</b> · médiane <b>${qAt(N.overall.q, 50)}</b> · 75 % : <b>${qAt(N.overall.q, 75)}</b> · 90 % : <b>${qAt(N.overall.q, 90)}</b> (écart-type robuste ${N.overall.sd})</p>
+        <table><tr><th>Médiane (25–75 %)</th>${NRM_SEXES.map(([, l]) => `<th>${l}</th>`).join('')}</tr>
+          ${NRM_BANDS.map(([b, l]) => `<tr><td><b>${l}</b></td>${NRM_SEXES.map(([s]) => cell(b, s)).join('')}</tr>`).join('')}
+        </table>
+        <p style="font-size:12px;color:var(--text-dim);margin:8px 0 0;"><i>a priori</i> = groupe encore peu fourni : sa courbe vient surtout de la courbe générale décalée selon la littérature (${escA(N.params?.prior_sources || '')}). Chaque groupe pèse autant que l'a priori à ${N.params?.k_shrink} Index.</p>
+        ${Object.keys(N.games || {}).length ? `<p style="font-size:12px;color:var(--text-dim);margin:6px 0 0;">Index reconstitué par jeu : ${Object.entries(N.games).map(([id, g]) => `${escA(gName(id))} n ${g.n}, médiane ${g.median}${g.shift ? ` (recalée ${g.shift > 0 ? '+' : ''}${g.shift})` : ''}`).join(' · ')}</p>` : ''}`}
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;">
+        <button class="btn-primary" id="btnNrmPublish" style="width:auto;">Figer une version</button>
+        <span style="font-size:12px;color:var(--text-dim);">Une version figée n'utilise que les mesures comptées. Le joueur voit la comparaison seulement si la dernière version suffisante existe.</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Versions figées</h3>
+      ${(versions || []).length ? `<table><tr><th>#</th><th>Date</th><th>Par</th><th>Poids</th><th>Utilisée</th><th>Note</th></tr>
+        ${versions.map((v, i) => `<tr><td>${v.id}</td><td>${new Date(v.created_at).toLocaleString('fr-CH')}</td><td>${escA(v.created_by || '—')}</td><td>${v.n_eff}</td>
+          <td>${v.usable ? (versions.findIndex(x => x.usable) === i ? '<span class="badge">en service</span>' : 'suffisante') : 'insuffisante'}</td><td>${escA(v.notes || '')}</td></tr>`).join('')}
+      </table>` : '<p class="empty">Aucune version figée : le joueur ne voit aucune comparaison.</p>'}
+    </div>
+
+    <div class="card">
+      <h3>Dernières mesures reçues</h3>
+      ${(latest || []).length ? `<table><tr><th>Quand</th><th>Tablette</th><th>Jeu</th><th>Type</th><th>Durée</th><th>Score « ombre »</th><th>Signal</th><th>État</th></tr>
+        ${latest.map(r => `<tr><td style="white-space:nowrap;">${new Date(r.created_at).toLocaleString('fr-CH', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+          <td>${escA(r.devices?.name || '—')}</td><td>${escA(gName(r.game_id))}</td>
+          <td>${r.kind === 'static' ? 'calme' : 'balancement ' + (r.axis === 'x' ? 'gauche-droite' : 'avant-arrière')}</td><td>${r.duration_s} s</td>
+          <td><b>${r.metrics?.shadow_score ?? '—'}</b></td>
+          <td>${nrmSpark(r.trace, r.kind === 'move' ? (r.axis || 'y') : 'y')}</td>
+          <td>${r.counted ? 'compté' : 'test'}${(r.suspect || []).length ? ' · <span style="color:#ff8a97;">' + r.suspect.map(k => SUS_LABEL[k] || k).join(', ') + '</span>' : ''}</td></tr>`).join('')}
+      </table>` : '<p class="empty">Rien pour l’instant.</p>'}
+    </div>`;
+
+  document.getElementById('nrmTests').addEventListener('change', e => { nrmPreviewTests = e.target.checked; renderNrmView(); });
+  document.getElementById('btnNrmFlag').addEventListener('click', async () => {
+    const want = !on;
+    if (want && !confirm('Activer NRM-ING ? Les parties jouées à partir de maintenant compteront pour l’étalonnage de l’Index.')) return;
+    const { error } = await sb.from('app_flags').update({ on_off: want, updated_at: new Date().toISOString(), updated_by: 'console' + (currentAdmin?.email ? ' · ' + currentAdmin.email : '') }).eq('key', 'nrm_ingest');
+    if (error) alert('Erreur : ' + error.message);
+    renderNrmView();
+  });
+  document.getElementById('btnNrmPublish').addEventListener('click', async () => {
+    const notes = prompt('Figer une version des normes (mesures comptées uniquement). Une note pour s’en souvenir ?', '');
+    if (notes === null) return;
+    const { data: id, error } = await sb.rpc('nrm_publish', { p_notes: notes || null });
+    alert(error ? 'Erreur : ' + error.message : `Version ${id} figée.`);
+    renderNrmView();
+  });
   if (window.lucide) lucide.createIcons();
 }
 

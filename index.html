@@ -839,6 +839,15 @@
   .idx-step-time { flex: none; font-size: 15px; font-weight: 700; color: #1c9a7c; background: #e2f3ee; padding: 3px 11px; border-radius: 999px; }
   .idx-step p { margin: 0; font-size: 19px; line-height: 1.45; color: var(--text-dim); }
   .index-sheet .idx-actions { margin-top: 22px; }
+  .idx-about { background: #fff; border: 1px solid #e3e6df; border-radius: 18px; padding: 20px 22px; margin-bottom: 16px; }
+  .idx-about h2 { margin: 0 0 4px; font-size: 21px; font-weight: 800; }
+  .idx-about > p { margin: 0 0 14px; font-size: 16px; color: var(--text-dim); }
+  .idx-about-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .idx-about-row > b { width: 64px; flex: none; font-size: 16px; color: var(--text-dim); }
+  .idx-chip { border: 2px solid #d6dbd2; background: #fff; color: var(--text); border-radius: 999px; padding: 10px 16px; font-size: 17px; font-weight: 700; cursor: pointer; }
+  .idx-chip.on { border-color: #1c9a7c; background: #e2f3ee; color: #12735c; }
+  .idx-compare { margin: 6px auto 0; text-align: center; font-size: 19px; font-weight: 700; color: #12735c; background: #e2f3ee; border-radius: 14px; padding: 12px 16px; max-width: 560px; }
+  .idx-compare small { display: block; font-size: 14px; font-weight: 600; color: var(--text-dim); margin-top: 2px; }
   .idx-prepare { display: flex; flex-direction: column; text-align: center; }
   .idx-prepare .idx-brand { text-align: left; }
   .idx-prepare-icon { width: 96px; height: 96px; margin: 8vh auto 22px; border-radius: 28px; background: #e2f3ee; color: #1c9a7c; display: flex; align-items: center; justify-content: center; }
@@ -1478,8 +1487,19 @@ const PandaFitBackend = (() => {
     catch (e) { return null; }
   }
   async function setFlag(key, on) { return await rpc('tablet_set_flag', { p_device_key: getDeviceKey(), p_key: key, p_on: !!on }); }
+  /** Dernière version figée des normes de l'Index (seulement si elle est assez fournie). Gardée 1 h en mémoire. */
+  let normsCache = null;
+  async function fetchIndexNorms() {
+    if (normsCache && Date.now() - normsCache.at < 3600e3) return normsCache.v;
+    try {
+      const res = await fetch(`${REST}/nrm_versions?usable=eq.true&include_tests=eq.false&select=id,norms&order=id.desc&limit=1`, { headers: headers(), cache: 'no-store' });
+      const rows = res.ok ? await res.json() : [];
+      normsCache = { at: Date.now(), v: rows[0] || null };
+      return normsCache.v;
+    } catch (e) { return null; }
+  }
 
-  return { calibAdd, getFlag, setFlag, getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore, fetchSatisfactionSettings, submitSatisfactionResponse, setHomeDisplayMode, fetchTabletSignals, joinEvent, tabletState, joinProject, projectAction, liveStats, eventRank, skiBoard, setPseudo, fetchCampaign, campaignProgress };
+  return { calibAdd, getFlag, fetchIndexNorms, setFlag, getDeviceKey, setDeviceKey, clearDeviceKey, fetchClientConfig, recordSession, fetchHighlights, fetchGamesCatalog, findEmployeeByCode, createEmployee, fetchQuestionnaire, recordQuestionResponses, fetchActiveAds, fetchInfoPages, fetchInitiationSteps, fetchActiveArcadeDefi, fetchArcadeScores, submitArcadeScore, fetchSatisfactionSettings, submitSatisfactionResponse, setHomeDisplayMode, fetchTabletSignals, joinEvent, tabletState, joinProject, projectAction, liveStats, eventRank, skiBoard, setPseudo, fetchCampaign, campaignProgress };
 })();
 
 /* =====================================================================================
@@ -3452,6 +3472,8 @@ const TRANSLATIONS = {
     index_step2_title: '2. Équilibre en mouvement', index_step2_desc: 'Fais un mouvement haut/bas régulier en franchissant les deux lignes. La régularité compte plus que la vitesse.',
     index_code_title: 'Tu as déjà un code personnel ?', index_code_sub: "Entre-le pour que ce test s'ajoute à ton historique. Sinon, continue sans — tu pourras toujours en créer un à la fin.",
     index_code_placeholder: 'ex: 7K2Q9M', index_code_validate: 'Valider',
+    idx_about_title: 'Pour te situer (facultatif)', idx_about_sub: 'Ton âge et ton sexe servent seulement à comparer ton score. Rien n’est obligatoire.', idx_age: 'Âge', idx_sex: 'Sexe', idx_sex_f: 'Femme', idx_sex_m: 'Homme', idx_sex_na: 'Je préfère ne pas dire',
+    idx_cmp_better: 'Tu fais mieux que {p} % des {g}.', idx_cmp_est: 'estimation', idx_cmp_all: 'personnes', idx_cmp_f: 'femmes', idx_cmp_m: 'hommes', idx_cmp_ages: 'de {a} ans', idx_cmp_lt30: 'de moins de 30 ans', idx_cmp_60p: 'de 60 ans et plus',
     index_start_btn: "J'ai déjà fait l'initiation au PandaFit, je veux commencer !",
     index_result_title: 'Ton PandaFit Index', index_replay: 'Refaire le test', back_home: "Retour à l'accueil",
     settings_title: 'Réglages', calibrate_title: 'Calibrer',
@@ -3481,6 +3503,8 @@ const TRANSLATIONS = {
     index_step2_title: '2. Balance in motion', index_step2_desc: 'Make a regular up/down movement crossing both lines. Regularity matters more than speed.',
     index_code_title: 'Already have a personal code?', index_code_sub: "Enter it so this test gets added to your history. Otherwise, continue without — you can always create one at the end.",
     index_code_placeholder: 'e.g. 7K2Q9M', index_code_validate: 'Confirm',
+    idx_about_title: 'To see where you stand (optional)', idx_about_sub: 'Your age and sex are only used to compare your score. Nothing is required.', idx_age: 'Age', idx_sex: 'Sex', idx_sex_f: 'Woman', idx_sex_m: 'Man', idx_sex_na: 'Prefer not to say',
+    idx_cmp_better: 'You do better than {p} % of {g}.', idx_cmp_est: 'estimate', idx_cmp_all: 'people', idx_cmp_f: 'women', idx_cmp_m: 'men', idx_cmp_ages: 'aged {a}', idx_cmp_lt30: 'under 30', idx_cmp_60p: 'aged 60 and over',
     index_start_btn: "I've already done the PandaFit walkthrough, let's start!",
     index_result_title: 'Your PandaFit Index', index_replay: 'Retake the test', back_home: 'Back to home',
     settings_title: 'Settings', calibrate_title: 'Calibrate',
@@ -3510,6 +3534,8 @@ const TRANSLATIONS = {
     index_step2_title: '2. Gleichgewicht in Bewegung', index_step2_desc: 'Mach eine regelmässige Auf- und Abbewegung über beide Linien. Regelmässigkeit zählt mehr als Geschwindigkeit.',
     index_code_title: 'Hast du schon einen persönlichen Code?', index_code_sub: 'Gib ihn ein, damit dieser Test zu deinem Verlauf hinzugefügt wird. Andernfalls einfach weiter — du kannst am Ende jederzeit einen erstellen.',
     index_code_placeholder: 'z.B. 7K2Q9M', index_code_validate: 'Bestätigen',
+    idx_about_title: 'Zum Einordnen (freiwillig)', idx_about_sub: 'Alter und Geschlecht dienen nur dazu, deinen Wert zu vergleichen. Nichts ist Pflicht.', idx_age: 'Alter', idx_sex: 'Geschlecht', idx_sex_f: 'Frau', idx_sex_m: 'Mann', idx_sex_na: 'Keine Angabe',
+    idx_cmp_better: 'Du bist besser als {p} % der {g}.', idx_cmp_est: 'Schätzung', idx_cmp_all: 'Personen', idx_cmp_f: 'Frauen', idx_cmp_m: 'Männer', idx_cmp_ages: 'von {a} Jahren', idx_cmp_lt30: 'unter 30 Jahren', idx_cmp_60p: 'ab 60 Jahren',
     index_start_btn: 'Ich habe die PandaFit-Einführung bereits gemacht, ich will starten!',
     index_result_title: 'Dein PandaFit Index', index_replay: 'Test wiederholen', back_home: 'Zurück zum Start',
     settings_title: 'Einstellungen', calibrate_title: 'Kalibrieren',
@@ -3539,6 +3565,8 @@ const TRANSLATIONS = {
     index_step2_title: '2. Equilibrio in movimento', index_step2_desc: 'Fai un movimento regolare su/giù attraversando le due linee. La regolarità conta più della velocità.',
     index_code_title: 'Hai già un codice personale?', index_code_sub: 'Inseriscilo per aggiungere questo test alla tua cronologia. Altrimenti continua senza — potrai sempre crearne uno alla fine.',
     index_code_placeholder: 'es: 7K2Q9M', index_code_validate: 'Conferma',
+    idx_about_title: 'Per confrontarti (facoltativo)', idx_about_sub: 'Età e sesso servono solo a confrontare il tuo punteggio. Niente è obbligatorio.', idx_age: 'Età', idx_sex: 'Sesso', idx_sex_f: 'Donna', idx_sex_m: 'Uomo', idx_sex_na: 'Preferisco non dirlo',
+    idx_cmp_better: 'Fai meglio del {p} % {g}.', idx_cmp_est: 'stima', idx_cmp_all: 'delle persone', idx_cmp_f: 'delle donne', idx_cmp_m: 'degli uomini', idx_cmp_ages: 'di {a} anni', idx_cmp_lt30: 'sotto i 30 anni', idx_cmp_60p: 'dai 60 anni in su',
     index_start_btn: "Ho già fatto l'iniziazione a PandaFit, voglio iniziare!",
     index_result_title: 'Il tuo PandaFit Index', index_replay: 'Rifai il test', back_home: 'Torna alla home',
     settings_title: 'Impostazioni', calibrate_title: 'Calibra',
@@ -12339,6 +12367,58 @@ function screenGenericPrepare(seconds, iconName, text) {
 /* ============================ Test PandaFit Index ============================ */
 let currentEmployee = null; // employé reconnu pour cette session de test (ou null = anonyme)
 
+/* Âge et sexe facultatifs au départ de l'Index (étalonnage NRM) : rangés dans la partie enregistrée (meta.age_band / meta.sex),
+   servent à comparer le score aux normes quand elles existent. Remis à zéro pour chaque nouvelle personne. */
+const INDEX_AGE_BANDS = [['lt30', '< 30'], ['30-39', '30-39'], ['40-49', '40-49'], ['50-59', '50-59'], ['60p', '60 +']];
+let indexAbout = { age_band: null, sex: null };
+function indexAboutHTML() {
+  const chip = (field, val, label) => `<button type="button" class="idx-chip${indexAbout[field] === val ? ' on' : ''}" data-about="${field}" data-val="${val}">${label}</button>`;
+  return `<div class="idx-about" id="idxAbout">
+    <h2>${t('idx_about_title')}</h2>
+    <p>${t('idx_about_sub')}</p>
+    <div class="idx-about-row"><b>${t('idx_age')}</b>${INDEX_AGE_BANDS.map(([v, l]) => chip('age_band', v, l)).join('')}</div>
+    <div class="idx-about-row"><b>${t('idx_sex')}</b>${chip('sex', 'f', t('idx_sex_f'))}${chip('sex', 'm', t('idx_sex_m'))}${chip('sex', 'na', t('idx_sex_na'))}</div>
+  </div>`;
+}
+function wireIndexAbout() {
+  document.querySelectorAll('#idxAbout [data-about]').forEach(b => b.addEventListener('click', () => {
+    const f = b.dataset.about, v = b.dataset.val;
+    indexAbout[f] = indexAbout[f] === v ? null : v; // un 2e appui désélectionne
+    document.querySelectorAll(`#idxAbout [data-about="${f}"]`).forEach(x => x.classList.toggle('on', x.dataset.val === indexAbout[f]));
+  }));
+}
+/** Position du score dans les normes figées : centile interpolé entre les points 5..95. Rien si les normes ne sont pas prêtes. */
+function indexNormsPercentile(score, norms, about) {
+  if (!norms?.groups || !Array.isArray(norms.quantiles)) return null;
+  const sex = about?.sex === 'f' || about?.sex === 'm' ? about.sex : '*';
+  const band = about?.age_band || '*';
+  const key = `${sex}|${band}`;
+  const grp = norms.groups[key] || norms.groups['*|*'];
+  if (!grp?.q?.length) return null;
+  const qs = norms.quantiles, q = grp.q;
+  let p;
+  if (score < q[0]) p = 5 * score / Math.max(1, q[0]);
+  else if (score >= q[q.length - 1]) p = 95;
+  else for (let i = 0; i < q.length - 1; i++) {
+    if (score >= q[i] && score < q[i + 1]) { p = 100 * (qs[i] + (qs[i + 1] - qs[i]) * (score - q[i]) / Math.max(.001, q[i + 1] - q[i])); break; }
+  }
+  if (p == null) return null;
+  return { pct: Math.round(p), sex, band, estimate: key !== '*|*' && (grp.w ?? 0) < .5 };
+}
+function indexCompareText(r) {
+  const who = r.sex === 'f' ? t('idx_cmp_f') : r.sex === 'm' ? t('idx_cmp_m') : t('idx_cmp_all');
+  const age = r.band === '*' ? '' : ' ' + (r.band === 'lt30' ? t('idx_cmp_lt30') : r.band === '60p' ? t('idx_cmp_60p') : t('idx_cmp_ages').replace('{a}', r.band));
+  return t('idx_cmp_better').replace('{p}', r.pct).replace('{g}', who + age);
+}
+/** Affiche la comparaison sous la jauge (seulement si les normes sont prêtes et que la position est flatteuse ou neutre : ≥ 10 %) */
+async function showIndexComparison(overall, about) {
+  const v = await PandaFitBackend.fetchIndexNorms();
+  const r = indexNormsPercentile(overall, v?.norms, about);
+  const el = document.getElementById('idxCompare');
+  if (!el || !r || r.pct < 10) return;
+  el.innerHTML = `${indexCompareText(r)}${r.estimate ? `<small>${t('idx_cmp_est')}</small>` : ''}`; // textes du dictionnaire uniquement
+  el.style.display = 'block';
+}
 function screenIndexIntro() {
   return `
     <button class="btn-ghost back-top" id="btnIndexBackTop">← Retour</button>
@@ -12372,12 +12452,15 @@ function screenIndexIntro() {
       </div>
       <p id="employeeCodeMsg" class="page-sub" style="margin:8px 0 0;"></p>
     </div>` : ''}
+    ${indexAboutHTML()}
     <button class="btn-primary idx-actions" id="btnIndexStart" style="width:100%;">${t('index_start_btn')}</button>
     <button class="btn-ghost" id="btnDoInitiationFirst" style="width:100%;margin-top:8px;">${t('do_initiation_first_btn')}</button>
   </div>
   `;
 }
 function wireIndexIntro() {
+  indexAbout = { age_band: null, sex: null }; // nouvelle personne : rien de présélectionné
+  wireIndexAbout();
   document.getElementById('btnDoInitiationFirst')?.addEventListener('click', () => navigate('initiation'));
   document.getElementById('btnIndexStart')?.addEventListener('click', () => indexPrepareStatic());
   document.getElementById('btnIndexBackTop')?.addEventListener('click', () => navigate('home'));
@@ -12663,14 +12746,17 @@ async function finishIndexTest(overall, staticResult, movementResult) {
     currentEmployee = await PandaFitBackend.createEmployee(clientConfig);
   }
   lastIndexSessionId = null;
+  const about = { ...indexAbout };
   const recorded = PandaFitBackend.recordSession(clientConfig, 'indextest', overall, {
     staticScore: staticResult.score, movementScore: movementResult.score,
     rmsCm: staticResult.rmsCm, amplitudeCm: movementResult.amplitudeCm,
     regularityScore: movementResult.regularityScore, cycles: movementResult.cycles,
+    ...(about.age_band ? { age_band: about.age_band } : {}), ...(about.sex ? { sex: about.sex } : {}),
   }, currentEmployee?.id).then(id => { lastIndexSessionId = id; submitPendingAnswersIfAny(id); return id; });
   content.innerHTML = screenIndexResult(overall, staticResult, movementResult);
   window.scrollTo(0, 0);
   wireIndexResult(recorded);
+  showIndexComparison(overall, about);
   if (activeEvent) {
     // Position dans le groupe, calculée après l'enregistrement (affichée dès 5 participants)
     recorded.then(() => PandaFitBackend.eventRank(overall)).then(r => {
@@ -12720,6 +12806,7 @@ function screenIndexResult(overall, staticResult, movementResult) {
       </svg>
       <div class="idx-gauge-num"><span class="num">${overall}</span><span class="lbl">/ 100</span></div>
     </div>
+    <div class="idx-compare" id="idxCompare" style="display:none;"></div>
     <div class="index-breakdown">
       <div><div class="l">Équilibre statique</div><div class="n">${staticResult.score}</div><div class="m"><i style="width:${staticResult.score}%"></i></div></div>
       <div><div class="l">Mouvement</div><div class="n">${movementResult.score}</div><div class="m"><i style="width:${movementResult.score}%"></i></div></div>
