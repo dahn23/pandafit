@@ -700,6 +700,8 @@
   .appel-defi-k svg { width: 16px; height: 16px; }
   .appel-defi-t { font-size: clamp(17px, 3vw, 22px); font-weight: 900; }
   .appel-defi .hc-standings { justify-content: center; }
+  .appel-defi-win { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; margin-top: 3px; font-size: clamp(14px, 2.4vw, 17px); color: #ffe3a3; }
+  .appel-defi-win svg { width: 16px; height: 16px; color: #ffd166; }
   .appel-cta { margin-top: 18px; padding: 14px 18px; border-radius: 20px; background: linear-gradient(100deg, #00e0a0, #2a7fd6); color: #06170f; font-size: clamp(16px, 2.9vw, 22px); font-weight: 900; line-height: 1.2; text-align: center; animation: appelPulse 1.7s ease-in-out infinite; }
   @keyframes appelPulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0,224,160,.5); } 50% { transform: scale(1.04); box-shadow: 0 0 0 14px rgba(0,224,160,0); } }
   .appel-welcome { margin: auto 0; width: 100%; text-align: center; animation: sportIn .3s cubic-bezier(.2,.9,.3,1); }
@@ -1322,7 +1324,7 @@ const PandaFitBackend = (() => {
     const today = new Date().toISOString().slice(0, 10);
     try {
       const [defisRes, participRes, eventsRes] = await Promise.all([
-        fetch(`${REST}/defis?project_id=eq.${config.projectId}&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*,games(name)`, { headers: headers(), cache: 'no-store' }),
+        fetch(`${REST}/defis?project_id=eq.${config.projectId}&start_date=lte.${today}&end_date=gte.${today}&is_active=eq.true&select=*,games(name),rewards(title,title_en,title_de,title_it,value_chf,reward_partners(name,logo_url))`, { headers: headers(), cache: 'no-store' }),
         fetch(`${REST}/challenge_participants?project_id=eq.${config.projectId}&select=challenge_id`, { headers: headers(), cache: 'no-store' }),
         fetch(`${REST}/events?project_id=eq.${config.projectId}&end_date=gte.${today}&is_active=eq.true&select=*,event_devices(device_id)`, { headers: headers(), cache: 'no-store' }),
       ]);
@@ -3991,6 +3993,9 @@ const UI_DICT_ROWS = [
   ["Bienvenue !", "Willkommen!", "Welcome!", "Ciao!"],
   ["Choisis ton jeu", "Wähle dein Spiel", "Choose your game", "Scegli il tuo gioco"],
   ["Défi en cours", "Laufende Challenge", "Challenge in progress", "Sfida in corso"],
+  ["À gagner", "Zu gewinnen", "To win", "In palio"],
+  ["Récompense", "Belohnung", "Reward", "Premio"],
+  ["avec", "mit", "with", "con"],
   ["Le savais-tu ?", "Wusstest du?", "Did you know?", "Lo sapevi?"],
   ["Bouge, puis remplis la grille : garde la tête froide", "Beweg dich, dann fülle das Gitter: Bleib cool", "Move, then fill the grid: keep a cool head", "Muoviti, poi riempi la griglia: mantieni la calma"],
   ["Balance-toi 7 fois pour débloquer le clavier (un tour d'avant en arrière, le tour suivant de gauche à droite), puis reviens bien au calme : tu as 10 secondes pour remplir la grille, et impossible de taper en bougeant ! Ensuite le clavier se verrouille et tu repars pour 7 mouvements. La grille reste visible : prépare ton coup pendant que tu bouges. Un chiffre en rouge est déjà présent sur sa ligne, sa colonne ou son carré.", "Schwing 7-mal, um die Tastatur freizuschalten (eine Runde vor und zurück, die nächste von links nach rechts), dann komm ganz zur Ruhe: Du hast 10 Sekunden, um das Gitter zu füllen, und in Bewegung kannst du nicht tippen! Danach wird die Tastatur gesperrt und du machst wieder 7 Bewegungen. Das Gitter bleibt sichtbar: Plane deinen Zug, während du dich bewegst. Eine rote Zahl steht schon in ihrer Zeile, ihrer Spalte oder ihrem Block.", "Swing 7 times to unlock the keypad (one round back and forth, the next round left and right), then come to a complete rest: you have 10 seconds to fill the grid, and you cannot type while moving! Then the keypad locks and you go again for 7 moves. The grid stays visible: plan your move while you swing. A red number is already in its row, column or box.", "Oscilla 7 volte per sbloccare la tastiera (un giro avanti e indietro, il giro dopo da sinistra a destra), poi torna ben fermo: hai 10 secondi per riempire la griglia, ed è impossibile digitare mentre ti muovi! Poi la tastiera si blocca e riparti per 7 movimenti. La griglia resta visibile: prepara la tua mossa mentre ti muovi. Un numero in rosso è già presente nella sua riga, colonna o riquadro."],
@@ -4206,6 +4211,17 @@ function pickLang(obj, field) {
   if (!obj) return '';
   if (currentLang === 'fr') return obj[field] || '';
   return obj[field + '_' + currentLang] || obj[field] || '';
+}
+/** Récompense d'un défi : le lot du catalogue des partenaires s'il y en a un (« Massage 30 min · avec Spa X »), sinon le texte libre du RH */
+function defiReward(d) {
+  const r = d?.rewards;
+  if (r && r.title) return { text: pickLang(r, 'title'), partner: r.reward_partners?.name || '', logo: r.reward_partners?.logo_url || '' };
+  const txt = pickLang(d, 'reward_text');
+  return txt ? { text: txt, partner: '', logo: '' } : null;
+}
+function defiRewardLine(d) {
+  const r = defiReward(d);
+  return r ? `${r.text}${r.partner ? ' · ' + trText('avec') + ' ' + r.partner : ''}` : '';
 }
 
 let logLines = [];
@@ -4822,7 +4838,7 @@ function appelShow() {
       <div class="appel-side" id="appelSide"></div>
     </div>
     <div class="appel-fact" id="appelFact"></div>
-    ${item ? `<div class="appel-defi"><div class="appel-defi-k"><i data-lucide="trophy"></i> ${trText('Défi en cours')}</div><div class="appel-defi-t">${item.data.title || ''}</div>${standingsLineHTML(item.standings)}</div>` : ''}
+    ${item ? `<div class="appel-defi"><div class="appel-defi-k"><i data-lucide="trophy"></i> ${trText('Défi en cours')}</div><div class="appel-defi-t">${pickLang(item.data, 'title') || ''}</div>${item.type === 'defi' && defiRewardLine(item.data) ? `<div class="appel-defi-win"><i data-lucide="gift"></i> ${trText('À gagner')} : <b>${defiRewardLine(item.data)}</b></div>` : ''}${standingsLineHTML(item.standings)}</div>` : ''}
     `;
   appelShown = true; appelSteps = 0; appelBase = null;
   appelSlide = Math.floor(Math.random() * 8);
@@ -5160,7 +5176,7 @@ function highlightCardHTML(item) {
   let title = '', sub = '';
   if (item.type === 'defi') {
     title = pickLang(item.data, 'title');
-    const reward = pickLang(item.data, 'reward_text');
+    const reward = defiRewardLine(item.data);
     sub = `${item.data.games?.name || ''} · ${new Date(item.data.start_date).toLocaleDateString('fr-CH')} → ${new Date(item.data.end_date).toLocaleDateString('fr-CH')}${reward ? ' · <i data-lucide="gift"></i> ' + reward : ''}`;
   } else if (item.type === 'challenge') {
     title = pickLang(item.data, 'title');
@@ -5558,7 +5574,8 @@ function screenHighlightDetail(item) {
   if (item.type === 'defi') {
     showPlay = true;
     const objective = pickLang(item.data, 'objective_text');
-    const reward = pickLang(item.data, 'reward_text');
+    const rw = defiReward(item.data);
+    const reward = rw ? `${rw.logo ? `<img src="${rw.logo}" alt="" style="height:34px;max-width:110px;object-fit:contain;vertical-align:middle;margin-right:10px;background:#fff;border-radius:6px;padding:3px;">` : ''}${defiRewardLine(item.data)}` : '';
     body = `
       ${item.standings ? `<div class="result-stat"><span>${item.standings.yoursLabel}</span><span>${item.standings.yours} pts</span></div>` : ''}
       ${item.standings && item.standings.leaderName ? `<div class="result-stat"><span>1er</span><span>${item.standings.leaderName} (${item.standings.leaderPoints} pts)</span></div>` : ''}
@@ -5566,7 +5583,7 @@ function screenHighlightDetail(item) {
       <div class="result-stat"><span>Période</span><span>${new Date(item.data.start_date).toLocaleDateString('fr-CH')} → ${new Date(item.data.end_date).toLocaleDateString('fr-CH')}</span></div>
       <div class="result-stat"><span>Se termine dans</span><span id="detailCountdown">${formatCountdown(item.data.end_date)}</span></div>
       ${objective ? `<div class="detail-row"><div class="lbl"><i data-lucide="target"></i> Objectif</div><div class="val">${objective}</div></div>` : ''}
-      ${reward ? `<div class="detail-row"><div class="lbl"><i data-lucide="gift"></i> Récompense</div><div class="val">${reward}</div></div>` : ''}
+      ${reward ? `<div class="detail-row"><div class="lbl"><i data-lucide="gift"></i> ${trText('À gagner')}</div><div class="val">${reward}</div></div>` : ''}
     `;
     body += leaderboardTableHTML(item.standings?.fullRanking);
   } else if (item.type === 'challenge') {

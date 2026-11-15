@@ -151,6 +151,13 @@ Ni saisie avant l'Index, ni code / QR à la fin, y compris Mois et Campagne. Int
 - **Joueur** : sous la jauge du résultat, « Tu fais mieux que X % de ta catégorie » (catégorie jamais détaillée, demande de Dan ; « des participants » si ni âge ni sexe) seulement si la dernière version figée est utilisable (`fetchIndexNorms`, 1 h en mémoire) et X ≥ 10 ; « estimation » si le groupe pèse < 50 %. Rien ne s'affiche tant qu'aucune version n'est figée.
 - **Console** : onglet superadmin « Étalonnage » = interrupteur, mesures reçues par jeu (comptées / test / douteuses), âge et sexe déclarés, aperçu des normes (option « inclure les tests », jamais figé), bouton « Figer une version », versions, 25 dernières mesures avec leur tracé.
 
+### Catalogue de récompenses (15.11.2026)
+- Idée de Dan : des prestataires (massage, physio, sport, yoga…) fournissent les lots des défis, et à terme **paient PandaFit** pour être au catalogue. Plan validé : **2027 = test gratuit pour eux** (lots offerts contre visibilité), en parallèle la RH peut acheter un lot via nous (marge 20-30 %) ; **place payante (~1'500-3'000/an, exclusivité catégorie × région) seulement quand il y a du volume (2028)**. Pas de revenu dans le business plan avant le test.
+- **Jamais de donnée de joueur transmise au partenaire** : le gagnant reçoit le bon et contacte lui-même le partenaire. Partenaires sérieux santé / bien-être uniquement, choisis par nous.
+- Tables `reward_partners` (catégorie, région, logo, contact interne, accord `offert` / `prix_pandafit` / `payant`, statut `test` / `actif` / `inactif`) et `rewards` (titre 4 langues, valeur, prix RH, coût, comment en profiter) ; `defis.reward_id`. Les tablettes (anon) ne lisent que nom/logo du partenaire et titre/valeur du lot (droits par colonne) ; contacts et coûts réservés au personnel.
+- Console : onglet « Récompenses » (droit `manage_content`) ; dans l'onglet Défis d'un projet, liste « Lot du catalogue ». Tablette : « À gagner : [lot] · avec [partenaire] » sur l'écran d'appel, la vignette et le détail du défi (logo dans le détail) ; sinon le texte libre du RH.
+- Pas encore fait : codes de bon pour les gagnants, choix des lots par la RH dans l'espace RH.
+
 ### PWA
 - App installable en plein écran. Manifest **externe** `manifest.webmanifest` (⚠️ un manifest data-URI ne permet PAS l'install WebAPK Android). `sw.js` en **network-first** (jamais de code périmé). Icônes 192 + 512.
 

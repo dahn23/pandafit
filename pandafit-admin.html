@@ -445,6 +445,7 @@ async function render() {
     { key: 'crm', label: 'CRM', icon: 'briefcase', perm: 'menu_crm' },
     { key: 'globalstats', label: 'Statistiques', icon: 'bar-chart-3', perm: 'menu_globalstats' },
     { key: 'access', label: 'Accès', icon: 'shield', superadminOnly: true },
+    { key: 'rewards', label: 'Récompenses', icon: 'gift', perm: 'manage_content' },
     { key: 'nrm', label: 'Étalonnage', icon: 'activity', superadminOnly: true },
     { key: 'calendar', label: 'Calendrier', icon: 'calendar-days', perm: 'menu_calendar' },
   ];
@@ -542,6 +543,9 @@ async function render() {
   } else if (topView === 'access') {
     container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
     await renderAccessView();
+  } else if (topView === 'rewards') {
+    container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
+    await renderRewardsView();
   } else if (topView === 'nrm') {
     container.innerHTML = `<div class="main" id="main" style="max-width:1100px;margin:0 auto;"></div>`;
     await renderNrmView();
@@ -1558,6 +1562,7 @@ let arcadeScoresCache = {}; // defi_id -> [{id,name,score}]
 let editingArcadeScoreId = null;
 function renderDefisTab() {
   const el = document.getElementById('tabContent');
+  if (rewardCatalog === null) { rewardCatalog = []; loadRewardCatalog().then(() => { if (document.getElementById('defiReward')) renderDefisTab(); }); }
   const today = new Date().toISOString().slice(0, 10);
   const editing = defis.find(d => d.id === editingDefiId);
   el.innerHTML = `
@@ -1580,7 +1585,14 @@ function renderDefisTab() {
         <input id="defiImage" type="file" accept="image/*" style="padding:9px;">
       </div>
       ${i18nFieldGroup('objective_text', 'objective_text', 'Objectif (optionnel, ex: 5000 points cumulés)', editing, false)}
-      ${i18nFieldGroup('reward_text', 'reward_text', 'Récompense (optionnel, communiquée par le RH)', editing, false)}
+      <div style="margin-bottom:10px;">
+        <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Lot du catalogue de récompenses (optionnel : affiché « À gagner : … avec [partenaire] » sur la tablette, à la place du texte ci-dessous)</div>
+        <select id="defiReward" style="width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);">
+          <option value="">— Aucun lot du catalogue —</option>
+          ${(rewardCatalog || []).filter(r => (r.is_active && r.reward_partners?.status !== 'inactif') || r.id === editing?.reward_id).map(r => `<option value="${r.id}" ${editing?.reward_id === r.id ? 'selected' : ''}>${escA(r.title)} · ${escA(r.reward_partners?.name || '')}${r.value_chf ? ` (valeur ${r.value_chf} CHF)` : ''}${r.price_chf ? ` · ${r.price_chf} CHF pour la RH` : ' · offert'}</option>`).join('')}
+        </select>
+      </div>
+      ${i18nFieldGroup('reward_text', 'reward_text', 'Récompense en texte libre (optionnel, communiquée par le RH)', editing, false)}
       <div class="row" style="gap:8px;">
         <button class="btn-primary" id="btnAddDefi" style="width:auto;">${editing ? 'Enregistrer les modifications' : 'Créer le défi'}</button>
         ${editing ? `<button class="btn-ghost" id="btnCancelEditDefi" style="width:auto;">Annuler</button>` : ''}
@@ -1604,7 +1616,7 @@ function renderDefisTab() {
           </div>
           <div class="dates">${games.find(g => g.id === d.game_id)?.name || d.game_id} · ${new Date(d.start_date).toLocaleDateString('fr-CH')} → ${new Date(d.end_date).toLocaleDateString('fr-CH')} · ${modeLabel}</div>
           ${d.objective_text ? `<div class="desc"><i data-lucide="target"></i> ${d.objective_text}</div>` : ''}
-          ${d.reward_text ? `<div class="desc"><i data-lucide="gift"></i> ${d.reward_text}</div>` : ''}
+          ${(() => { const r = (rewardCatalog || []).find(x => x.id === d.reward_id); return r ? `<div class="desc"><i data-lucide="gift"></i> ${escA(r.title)} · avec ${escA(r.reward_partners?.name || '')} <span class="badge">catalogue</span></div>` : d.reward_text ? `<div class="desc"><i data-lucide="gift"></i> ${d.reward_text}</div>` : ''; })()}
           ${d.mode !== 'arcade' ? `<div class="desc" style="margin-top:8px;"><b>Classement actuel :</b> ${standings.map(s => `${s.name} : ${s.total} pts`).join(' — ') || 'aucune donnée pour l\'instant'}</div>` : ''}
           ${showingScoresDefiId === d.id ? `
             <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
@@ -1664,7 +1676,7 @@ function renderDefisTab() {
     const file = document.getElementById('defiImage').files[0];
     const titleFields = readI18nField('title', 'title');
     if (!titleFields.title || !start_date || !end_date) return;
-    const payload = { ...titleFields, ...readI18nField('objective_text', 'objective_text'), ...readI18nField('reward_text', 'reward_text'), start_date, end_date, game_id, mode };
+    const payload = { ...titleFields, ...readI18nField('objective_text', 'objective_text'), ...readI18nField('reward_text', 'reward_text'), start_date, end_date, game_id, mode, reward_id: document.getElementById('defiReward')?.value || null };
     try {
       if (file) payload.image_url = await uploadBanner(file);
     } catch (e) { alert("Erreur d'upload de l'image : " + e.message); return; }
@@ -3687,6 +3699,141 @@ async function renderProjectsView() {
   main.querySelectorAll('[data-open-project]').forEach(tr => tr.addEventListener('click', () => {
     editingProjectId = tr.dataset.openProject; projectTab = 'general'; editingInterventionId = null; renderProjectsView();
   }));
+  if (window.lucide) lucide.createIcons();
+}
+
+/* ---------------- Catalogue de récompenses (partenaires et lots), 15.11.2026 ----------------
+   Des prestataires (massage, physio, sport, yoga…) fournissent des lots pour les défis. Phase test 2027 : lots offerts
+   contre visibilité (logo et nom sur l'écran du défi) ; plus tard, place payante dans le catalogue. La RH peut aussi
+   acheter un lot via PandaFit (prix RH). Aucune donnée de joueur n'est jamais transmise au partenaire.
+   Le lot se choisit dans l'onglet Défis d'un projet ; la tablette affiche « À gagner : … · avec [partenaire] ». */
+const RP_CATEGORIES = { massage: 'Massage', physio: 'Physio', sport: 'Sport', yoga: 'Yoga / pilates', alimentation: 'Alimentation', 'bien-etre': 'Bien-être', autre: 'Autre' };
+const RP_DEALS = { offert: 'Offre les lots (visibilité)', prix_pandafit: 'Prix PandaFit (on revend à la RH)', payant: 'Place payante au catalogue' };
+const RP_STATUS = { test: 'Test', actif: 'Actif', inactif: 'Inactif' };
+let rewardCatalog = null;      // lots actifs, pour le choix dans un défi
+let editingPartnerId = null, editingRewardId = null;
+async function loadRewardCatalog() {
+  const { data } = await sb.from('rewards').select('id,title,value_chf,price_chf,is_active,reward_partners(name,status)').order('sort_order').order('title');
+  rewardCatalog = data || [];
+  return rewardCatalog;
+}
+async function renderRewardsView() {
+  const main = document.getElementById('main');
+  const [{ data: partners }, { data: rewards }, { data: used }] = await Promise.all([
+    sb.from('reward_partners').select('*').order('name'),
+    sb.from('rewards').select('*').order('sort_order').order('title'),
+    sb.from('defis').select('reward_id').not('reward_id', 'is', null),
+  ]);
+  const P = partners || [], R = rewards || [];
+  const usedCount = {}; (used || []).forEach(d => { usedCount[d.reward_id] = (usedCount[d.reward_id] || 0) + 1; });
+  const ep = P.find(p => p.id === editingPartnerId), er = R.find(r => r.id === editingRewardId);
+  const chf = v => v == null || v === '' ? '—' : chfFmt(v);
+  const opt = (map, cur) => Object.entries(map).map(([k, l]) => `<option value="${k}" ${cur === k ? 'selected' : ''}>${l}</option>`).join('');
+  const sel = 'padding:13px 14px;border-radius:10px;border:1px solid var(--border);background:#17132a;color:var(--text);';
+  main.innerHTML = `
+    <div class="section-title" style="display:flex;align-items:center;gap:10px;"><i data-lucide="gift"></i> Catalogue de récompenses</div>
+    <div class="section-sub">Les lots des défis, fournis par des partenaires (massage, physio, sport…). Pour l'instant (phase test) : lots offerts contre visibilité sur la tablette. Un lot se choisit ensuite dans l'onglet Défis d'un projet. Aucune donnée de joueur n'est transmise aux partenaires : le gagnant reçoit le bon et contacte lui-même le partenaire.</div>
+
+    <div class="card">
+      <h3>Partenaires</h3>
+      ${P.length ? `<table><tr><th>Partenaire</th><th>Catégorie</th><th>Région</th><th>Accord</th><th>Statut</th><th>Contact</th><th></th></tr>
+        ${P.map(p => `<tr style="${p.status === 'inactif' ? 'opacity:.5;' : ''}">
+          <td style="display:flex;align-items:center;gap:8px;">${p.logo_url ? `<img src="${escA(p.logo_url)}" alt="" style="height:26px;max-width:70px;object-fit:contain;background:#fff;border-radius:4px;padding:2px;">` : ''}<b>${escA(p.name)}</b></td>
+          <td>${RP_CATEGORIES[p.category] || p.category}</td><td>${escA(p.region || '—')}</td>
+          <td>${RP_DEALS[p.deal] || p.deal}${p.listing_fee_chf ? ` · ${chf(p.listing_fee_chf)}/an` : ''}</td>
+          <td><span class="badge">${RP_STATUS[p.status] || p.status}</span></td>
+          <td style="font-size:12px;">${escA([p.contact_name, p.contact_email, p.contact_phone].filter(Boolean).join(' · ') || '—')}</td>
+          <td><button class="btn-ghost" data-edit-partner="${p.id}">Modifier</button></td></tr>`).join('')}
+      </table>` : '<p class="empty">Aucun partenaire pour l’instant.</p>'}
+      <h3 style="margin-top:16px;">${ep ? 'Modifier ' + escA(ep.name) : 'Nouveau partenaire'}</h3>
+      <div class="form-grid">
+        <input id="rpName" placeholder="Nom (ex : Spa du Lac)" value="${escA(ep?.name || '')}">
+        <select id="rpCat" style="${sel}">${opt(RP_CATEGORIES, ep?.category || 'massage')}</select>
+        <input id="rpRegion" placeholder="Région (ex : Lausanne)" value="${escA(ep?.region || '')}">
+      </div>
+      <div class="form-grid">
+        <input id="rpContact" placeholder="Personne de contact" value="${escA(ep?.contact_name || '')}">
+        <input id="rpEmail" placeholder="E-mail" value="${escA(ep?.contact_email || '')}">
+        <input id="rpPhone" placeholder="Téléphone" value="${escA(ep?.contact_phone || '')}">
+      </div>
+      <div class="form-grid">
+        <select id="rpDeal" style="${sel}">${opt(RP_DEALS, ep?.deal || 'offert')}</select>
+        <input id="rpFee" type="number" min="0" placeholder="Place payante CHF/an (plus tard)" value="${ep?.listing_fee_chf ?? ''}">
+        <select id="rpStatus" style="${sel}">${opt(RP_STATUS, ep?.status || 'test')}</select>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 2fr;">
+        <div><div style="font-size:11.5px;color:var(--text-dim);margin-bottom:4px;">Logo (affiché sur la tablette)</div><input id="rpLogo" type="file" accept="image/*" style="padding:9px;"></div>
+        <textarea id="rpNotes" rows="2" placeholder="Notes internes (conditions, nombre de lots promis…)" style="padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:#17132a;color:var(--text);font-family:inherit;">${escA(ep?.notes || '')}</textarea>
+      </div>
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" id="btnSavePartner" style="width:auto;">${ep ? 'Enregistrer' : 'Ajouter le partenaire'}</button>
+        ${ep ? '<button class="btn-ghost" id="btnCancelPartner" style="width:auto;">Annuler</button><button class="btn-destructive" id="btnDelPartner" style="width:auto;">Supprimer</button>' : ''}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Lots</h3>
+      ${R.length ? `<table><tr><th>Lot</th><th>Partenaire</th><th>Valeur</th><th>Prix RH</th><th>Coût pour nous</th><th>Défis</th><th></th></tr>
+        ${R.map(r => `<tr style="${r.is_active ? '' : 'opacity:.5;'}"><td><b>${escA(r.title)}</b>${r.how_to_redeem ? `<br><span style="font-size:12px;color:var(--text-dim);">${escA(r.how_to_redeem)}</span>` : ''}</td>
+          <td>${escA(P.find(p => p.id === r.partner_id)?.name || '—')}</td><td>${chf(r.value_chf)}</td>
+          <td>${r.price_chf === 0 || r.price_chf === '0' ? 'offert' : chf(r.price_chf)}</td><td>${chf(r.cost_chf)}</td><td>${usedCount[r.id] || 0}</td>
+          <td style="white-space:nowrap;"><button class="btn-ghost" data-edit-reward="${r.id}">Modifier</button> <button class="btn-ghost" data-toggle-reward="${r.id}">${r.is_active ? 'Retirer' : 'Remettre'}</button></td></tr>`).join('')}
+      </table>` : '<p class="empty">Aucun lot pour l’instant.</p>'}
+      <h3 style="margin-top:16px;">${er ? 'Modifier le lot' : 'Nouveau lot'}</h3>
+      ${P.length ? `
+      <div class="form-grid" style="grid-template-columns:2fr 1fr;">
+        <select id="rwPartner" style="${sel}">${P.map(p => `<option value="${p.id}" ${er?.partner_id === p.id ? 'selected' : ''}>${escA(p.name)}</option>`).join('')}</select>
+        <input id="rwValue" type="number" min="0" placeholder="Valeur affichée CHF" value="${er?.value_chf ?? ''}">
+      </div>
+      ${i18nFieldGroup('rw', 'title', 'Nom du lot affiché sur la tablette (ex : Massage de 30 minutes)', er, false)}
+      <div class="form-grid">
+        <input id="rwPrice" type="number" min="0" placeholder="Prix pour la RH CHF (0 = offert)" value="${er?.price_chf ?? ''}">
+        <input id="rwCost" type="number" min="0" placeholder="Ce que le partenaire nous facture CHF" value="${er?.cost_chf ?? ''}">
+        <input id="rwRedeem" placeholder="Comment en profiter (ex : bon à présenter, réservation par tél.)" value="${escA(er?.how_to_redeem || '')}">
+      </div>
+      <div class="row" style="gap:8px;">
+        <button class="btn-primary" id="btnSaveReward" style="width:auto;">${er ? 'Enregistrer' : 'Ajouter le lot'}</button>
+        ${er ? '<button class="btn-ghost" id="btnCancelReward" style="width:auto;">Annuler</button>' : ''}
+      </div>` : '<p class="empty">Ajoute d’abord un partenaire.</p>'}
+    </div>`;
+
+  main.querySelectorAll('[data-edit-partner]').forEach(b => b.addEventListener('click', () => { editingPartnerId = b.dataset.editPartner; renderRewardsView(); }));
+  main.querySelectorAll('[data-edit-reward]').forEach(b => b.addEventListener('click', () => { editingRewardId = b.dataset.editReward; renderRewardsView(); }));
+  document.getElementById('btnCancelPartner')?.addEventListener('click', () => { editingPartnerId = null; renderRewardsView(); });
+  document.getElementById('btnCancelReward')?.addEventListener('click', () => { editingRewardId = null; renderRewardsView(); });
+  main.querySelectorAll('[data-toggle-reward]').forEach(b => b.addEventListener('click', async () => {
+    const r = R.find(x => x.id === b.dataset.toggleReward);
+    const { error } = await sb.from('rewards').update({ is_active: !r.is_active }).eq('id', r.id);
+    if (error) alert('Erreur : ' + error.message);
+    rewardCatalog = null; renderRewardsView();
+  }));
+  document.getElementById('btnDelPartner')?.addEventListener('click', async () => {
+    if (!confirm(`Supprimer ${ep.name} et tous ses lots ? Les défis qui les utilisent garderont leur texte libre.`)) return;
+    const { error } = await sb.from('reward_partners').delete().eq('id', ep.id);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    editingPartnerId = null; rewardCatalog = null; renderRewardsView();
+  });
+  document.getElementById('btnSavePartner').addEventListener('click', async () => {
+    const v = id => document.getElementById(id).value.trim();
+    if (!v('rpName')) { alert('Il manque le nom du partenaire.'); return; }
+    const payload = { name: v('rpName'), category: v('rpCat'), region: v('rpRegion') || null, contact_name: v('rpContact') || null, contact_email: v('rpEmail') || null,
+      contact_phone: v('rpPhone') || null, deal: v('rpDeal'), listing_fee_chf: v('rpFee') === '' ? null : Number(v('rpFee')), status: v('rpStatus'), notes: v('rpNotes') || null };
+    const file = document.getElementById('rpLogo').files[0];
+    try { if (file) payload.logo_url = await uploadBanner(file); } catch (e) { alert("Erreur d'envoi du logo : " + e.message); return; }
+    const { error } = ep ? await sb.from('reward_partners').update(payload).eq('id', ep.id) : await sb.from('reward_partners').insert(payload);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    editingPartnerId = null; rewardCatalog = null; renderRewardsView();
+  });
+  document.getElementById('btnSaveReward')?.addEventListener('click', async () => {
+    const v = id => document.getElementById(id).value.trim();
+    const t = readI18nField('rw', 'title');
+    if (!t.title) { alert('Il manque le nom du lot.'); return; }
+    const num = id => v(id) === '' ? null : Number(v(id));
+    const payload = { ...t, partner_id: v('rwPartner'), value_chf: num('rwValue'), price_chf: num('rwPrice'), cost_chf: num('rwCost'), how_to_redeem: v('rwRedeem') || null };
+    const { error } = er ? await sb.from('rewards').update(payload).eq('id', er.id) : await sb.from('rewards').insert(payload);
+    if (error) { alert('Erreur : ' + error.message); return; }
+    editingRewardId = null; rewardCatalog = null; renderRewardsView();
+  });
   if (window.lucide) lucide.createIcons();
 }
 
