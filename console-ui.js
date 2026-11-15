@@ -305,11 +305,23 @@
     pop.addEventListener('mousedown', e => e.preventDefault());
     pop.addEventListener('click', e => { const d = e.target.closest('.ui-opt'); if (d && !d.classList.contains('dis')) choose(d); });
     pop.addEventListener('mousemove', e => { const d = e.target.closest('.ui-opt'); const i = items.indexOf(d); if (i >= 0 && i !== hl) setHl(i); });
-    openPop = { el: pop, btn, sel, items, get hl() { return hl; }, setHl, choose };
+    openPop = { el: pop, btn, sel, items, get hl() { return hl; }, setHl, choose, follow: follower(pop, btn) };
+    openPop.follow();
   }
   document.addEventListener('mousedown', e => { if (openPop && !openPop.el.contains(e.target) && !openPop.btn.contains(e.target)) closePop(); }, true);
-  window.addEventListener('resize', closePop);
-  document.addEventListener('scroll', e => { if (openPop && !openPop.el.contains(e.target)) closePop(); }, true);
+  // la fenêtre ouverte suit son champ quand on fait défiler la page ; elle ne se ferme qu'en cliquant à côté (ou Échap).
+  // Le 1er appel (juste après l'ouverture) mémorise l'écart entre la fenêtre et son champ.
+  function follower(pop, btn) {
+    let ready = false, t0 = 0, l0 = 0;
+    return () => {
+      const r = btn.getBoundingClientRect();
+      if (!ready) { ready = true; t0 = parseFloat(pop.style.top) - r.top; l0 = parseFloat(pop.style.left) - r.left; return; }
+      pop.style.top = (r.top + t0) + 'px'; pop.style.left = (r.left + l0) + 'px';
+    };
+  }
+  const followPop = e => { if (openPop && (!e || !openPop.el.contains(e.target))) openPop.follow?.(); };
+  window.addEventListener('resize', () => followPop());
+  document.addEventListener('scroll', followPop, true);
   document.addEventListener('keydown', e => {
     if (!openPop) return;
     if (e.key === 'Escape') { e.preventDefault(); const b = openPop.btn; closePop(); b.focus(); }
@@ -456,7 +468,7 @@
     if (type === 'time') {
       pop.style.width = '220px';
       pop.appendChild(timeCols(v, (t, k) => { setDateVal(inp, t); if (k === 'm') { closePop(); btn.focus(); } }));
-      placePop(pop, btn);
+      placePop(pop, btn); openPop.follow = follower(pop, btn); openPop.follow();
       return;
     }
     const min = parseDay(inp.min), max = parseDay(inp.max), today = new Date(); today.setHours(0, 0, 0, 0);
@@ -521,7 +533,7 @@
       if (e.target.closest('[data-clear]')) { setDateVal(inp, ''); closePop(); btn.focus(); }
     });
     draw();
-    placePop(pop, btn);
+    placePop(pop, btn); openPop.follow = follower(pop, btn); openPop.follow();
   }
   function enhanceDate(inp) {
     if (inp._uiDate || inp.hasAttribute('data-ui-native')) return;
@@ -559,7 +571,7 @@
   let queued = false;
   const mo = new MutationObserver(() => {
     if (queued) return; queued = true;
-    requestAnimationFrame(() => { queued = false; scan(document.body); if (openPop && !openPop.btn.isConnected) closePop(); });
+    setTimeout(() => { queued = false; scan(document.body); if (openPop && !openPop.btn.isConnected) closePop(); }, 0);
   });
   const start = () => { scan(document.body); mo.observe(document.body, { childList: true, subtree: true }); };
   if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
